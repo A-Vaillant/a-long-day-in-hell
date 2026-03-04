@@ -4,6 +4,9 @@ tweego/
 # Build output
 dist/
 
+# Generated
+CHANGELOG.md
+
 # macOS
 .DS_Store
 
