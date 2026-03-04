@@ -148,4 +148,137 @@
         PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE, CHARS_PER_PAGE, CHARS_PER_BOOK, CHARSET,
         generateBookPage, bookMeta, findCoherentFragment,
     };
+
+    // ---- LifeStoryCore ----
+
+    const _LS_FIRST_NAMES = [
+        "Alma","Cedric","Dolores","Edmund","Fatima","Gordon","Helena","Ivan",
+        "Judith","Kaspar","Leonora","Marcus","Nadia","Oliver","Priya","Quentin",
+        "Rosa","Sebastian","Thea","Ulrich","Vera","Walter","Xenia","Yusuf","Zara",
+    ];
+    const _LS_LAST_NAMES = [
+        "Ashby","Brant","Crane","Dahl","Ellison","Ferris","Gould","Harlow",
+        "Ingram","Janssen","Keane","Lund","Marsh","Noel","Okafor","Pratt",
+        "Quinn","Rowe","Strand","Thorn","Ueda","Voss","Ward","Xiao","Yuen",
+    ];
+    const _LS_OCCUPATIONS = [
+        "librarian","schoolteacher","electrician","bus driver","accountant",
+        "nurse","carpenter","postal worker","journalist","farmer",
+        "chemist","translator","architect","cook","taxi driver",
+        "dentist","watchmaker","bookbinder","radio operator","cartographer",
+    ];
+    const _LS_HOMETOWNS = [
+        "a small town on the coast","a city you mostly tried to leave",
+        "a suburb that no longer exists","a valley that flooded years later",
+        "a neighborhood that changed while you were away",
+        "a village your parents never stopped talking about",
+        "a town whose name you could never spell correctly",
+        "somewhere flat, with good light in the mornings",
+    ];
+    const _LS_CAUSE_OF_DEATH = [
+        "a stroke, in the night, without warning",
+        "a car accident on a road you'd driven a hundred times",
+        "a long illness you pretended wasn't serious",
+        "a fall — stupid, domestic, final",
+        "a heart that simply stopped, as hearts do",
+        "cancer, which took its time",
+        "pneumonia, in a winter that was otherwise mild",
+        "an accident at work that shouldn't have been possible",
+    ];
+    const _LS_LAST_THINGS = [
+        "You were thinking about what to have for dinner.",
+        "You had meant to call someone back.",
+        "You were in the middle of a sentence.",
+        "You had just put on a pot of coffee.",
+        "You were looking out a window.",
+        "You were tired, but not unusually so.",
+        "You had a book open on the table.",
+        "You were making a list.",
+    ];
+
+    function generateLifeStory(seed) {
+        const rng = window._PRNGCore.seedFromString("life:" + seed);
+        const pick = (arr) => arr[rng.nextInt(arr.length)];
+        const coordRng = window._PRNGCore.seedFromString("coords:" + seed);
+        return {
+            name:         pick(_LS_FIRST_NAMES) + " " + pick(_LS_LAST_NAMES),
+            occupation:   pick(_LS_OCCUPATIONS),
+            hometown:     pick(_LS_HOMETOWNS),
+            causeOfDeath: pick(_LS_CAUSE_OF_DEATH),
+            lastThing:    pick(_LS_LAST_THINGS),
+            bookCoords: {
+                side:      coordRng.nextInt(2),
+                position:  coordRng.nextInt(10000) - 5000,
+                floor:     coordRng.nextInt(100),
+                bookIndex: coordRng.nextInt(SEGMENT_BOOK_COUNT),
+            },
+        };
+    }
+
+    function formatLifeStory(story) {
+        return `Your name was ${story.name}. You were a ${story.occupation}, from ${story.hometown}. ` +
+               `You died of ${story.causeOfDeath}. ${story.lastThing} ` +
+               `Somewhere in this library is a book that contains every detail of your life. Find it. Submit it. Go home.`;
+    }
+
+    window._LifeStoryCore = { generateLifeStory, formatLifeStory };
+
+    // ---- SurvivalCore ----
+
+    const STAT_MAX = 100;
+    const STAT_MIN = 0;
+    function _clamp(v) { return Math.max(STAT_MIN, Math.min(STAT_MAX, v)); }
+
+    function survivalDefaults() {
+        return { hunger: 80, thirst: 80, exhaustion: 90, morale: 100, despairing: false };
+    }
+
+    function survivalApplyMove(stats) {
+        let { hunger, thirst, exhaustion, morale, despairing } = stats;
+        hunger     = _clamp(hunger     - 0.5);
+        thirst     = _clamp(thirst     - 2);
+        exhaustion = _clamp(exhaustion - 1);
+        if (hunger     <= STAT_MIN) morale = _clamp(morale - 2);
+        if (thirst     <= STAT_MIN) morale = _clamp(morale - 4);
+        if (exhaustion <= STAT_MIN) morale = _clamp(morale - 1);
+        if (morale <= STAT_MIN) despairing = true;
+        return { hunger, thirst, exhaustion, morale, despairing };
+    }
+
+    function survivalApplySleep(stats) {
+        let { hunger, thirst, morale, despairing } = stats;
+        hunger = _clamp(hunger - 10);
+        thirst = _clamp(thirst - 8);
+        morale = _clamp(morale + 5);
+        if (morale > STAT_MIN) despairing = false;
+        return { hunger, thirst, exhaustion: STAT_MAX, morale, despairing };
+    }
+
+    function survivalApplyEat(stats)   { return { ...stats, hunger: _clamp(stats.hunger + 40) }; }
+    function survivalApplyDrink(stats) { return { ...stats, thirst: _clamp(stats.thirst + 40) }; }
+
+    function survivalSeverity(v) {
+        if (v <= 10) return "critical";
+        if (v <= 30) return "low";
+        return "ok";
+    }
+
+    function survivalWarnings(stats) {
+        const w = [];
+        const sev = survivalSeverity;
+        if (sev(stats.thirst)     === "critical") w.push("You are desperately thirsty.");
+        else if (sev(stats.thirst) === "low")     w.push("You are thirsty.");
+        if (sev(stats.hunger)     === "critical") w.push("You are desperately hungry.");
+        else if (sev(stats.hunger) === "low")     w.push("You are hungry.");
+        if (sev(stats.exhaustion) === "critical") w.push("You can barely keep your eyes open.");
+        else if (sev(stats.exhaustion) === "low") w.push("You are exhausted.");
+        if (stats.despairing)                     w.push("You have given up hope.");
+        return w;
+    }
+
+    window._SurvivalCore = {
+        STAT_MAX, STAT_MIN,
+        survivalDefaults, survivalApplyMove, survivalApplySleep,
+        survivalApplyEat, survivalApplyDrink, survivalSeverity, survivalWarnings,
+    };
 }());
