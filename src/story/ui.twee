@@ -1,4 +1,14 @@
+::Status Bar
+<div id="status-bar">
+<<if $despairing>><span class="condition-despairing">DESPAIRING</span> <</if>>
+<span class="stat stat-hunger <<print setup.Survival.severity($hunger) === 'critical' ? 'stat-critical' : setup.Survival.severity($hunger) === 'low' ? 'stat-low' : ''>>">Hunger: <<print Math.floor($hunger)>></span>
+<span class="stat stat-thirst <<print setup.Survival.severity($thirst) === 'critical' ? 'stat-critical' : setup.Survival.severity($thirst) === 'low' ? 'stat-low' : ''>>">Thirst: <<print Math.floor($thirst)>></span>
+<span class="stat stat-exhaustion <<print setup.Survival.severity($exhaustion) === 'critical' ? 'stat-critical' : setup.Survival.severity($exhaustion) === 'low' ? 'stat-low' : ''>>">Exhaustion: <<print Math.floor($exhaustion)>></span>
+<span class="stat stat-morale">Morale: <<print Math.floor($morale)>></span>
+</div>
+
 ::Debug Panel
+<<include "Status Bar">>
 <<if $debug>>
 <details id="debug-panel" open>
   <summary>DEBUG</summary>
