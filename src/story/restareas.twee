@@ -9,12 +9,12 @@
 </div>
 
 ::Kiosk Get Drink
-<<script>>setup.Survival.onDrink();<</script>>
+<<script>>setup.Tick.advance(1); setup.Survival.onDrink();<</script>>
 <p>A cup of water drops into the tray. It is flat and slightly warm but it helps.</p>
 [[Continue|Kiosk]]
 
 ::Kiosk Get Food
-<<script>>setup.Survival.onEat();<</script>>
+<<script>>setup.Tick.advance(1); setup.Survival.onEat();<</script>>
 <p>A dense, flavourless bar. You eat it standing up.</p>
 [[Continue|Kiosk]]
 

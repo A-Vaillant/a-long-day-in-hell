@@ -1,43 +1,29 @@
-::StoryCaption
-<<if $hunger !== undefined>>
-<div id="sidebar-stats">
-<<if $despairing>><div class="condition-despairing">DESPAIRING</div><</if>>
-<<set _stats = [
-  { label: "hunger",     val: $hunger,     cls: "hunger"  },
-  { label: "thirst",     val: $thirst,     cls: "thirst"  },
-  { label: "exhaustion", val: $exhaustion, cls: "exhaust" },
-  { label: "morale",     val: $morale,     cls: "morale"  }
-]>>
-<<for _st range _stats>>
-<<set _sev = setup.Survival.severity(_st.val)>>
-<div class="stat-row">
-  <span class="stat-label <<print _sev === 'critical' ? 'stat-critical' : _sev === 'low' ? 'stat-low' : ''>>"><<print _st.label>></span>
-  <div class="meter-track"><div class="meter-fill <<print _st.cls>>" style="width:<<print Math.max(0, Math.min(100, _st.val))>>%"></div></div>
+::Status Bar
+<div id="status-bar">
+<div id="time-display"><<print setup.Tick.getDayDisplay()>> &nbsp; <<print setup.Tick.getTimeString()>><<if !$lightsOn>> &nbsp; <span class="lights-out-indicator">●</span><</if>></div>
+<<if $despairing>><span class="condition-despairing">DESPAIRING</span> <</if>>
+<<if setup.Survival.showMortality()>><span class="condition-mortality stat-critical">MORTALITY: <<print Math.floor($mortality)>></span> <</if>>
+<span class="stat stat-hunger <<print setup.Survival.severity($hunger) === 'critical' ? 'stat-critical' : setup.Survival.severity($hunger) === 'low' ? 'stat-low' : ''>>">Hunger: <<print Math.floor($hunger)>></span>
+<span class="stat stat-thirst <<print setup.Survival.severity($thirst) === 'critical' ? 'stat-critical' : setup.Survival.severity($thirst) === 'low' ? 'stat-low' : ''>>">Thirst: <<print Math.floor($thirst)>></span>
+<span class="stat stat-exhaustion <<print setup.Survival.severity($exhaustion) === 'critical' ? 'stat-critical' : setup.Survival.severity($exhaustion) === 'low' ? 'stat-low' : ''>>">Exhaustion: <<print Math.floor($exhaustion)>></span>
+<span class="stat stat-morale">Morale: <<print Math.floor($morale)>></span>
 </div>
-<</for>>
-<<if $heldBook !== null>>
-<div class="sidebar-held">holding book</div>
-<</if>>
-</div>
-<</if>>
 
 ::Debug Panel
+<<include "Status Bar">>
 <<if $debug>>
 <details id="debug-panel" open>
   <summary>DEBUG</summary>
   <pre>
-Seed:      <<print $seed>>
-Side:      <<print $side === 0 ? "west" : "east">>
-Position:  <<print $position>>
-Floor:     <<print $floor>>
-Mode:      <<print $mode>>
-RestArea:  <<print setup.Library.isRestArea($position)>>
+Seed:     <<print $seed>>
+Side:     <<print $side === 0 ? "west" : "east">>
+Position: <<print $position>>
+Floor:    <<print $floor>>
+Mode:     <<print $mode>>
+Tick:     <<print $tick>> / 240  (<<print setup.Tick.getTimeString()>>)
+Day:      <<print $day>>
+Lights:   <<print $lightsOn ? "on" : "OFF">>
 <<print setup.Library.debugSegment($side, $position, $floor)>>
-Hunger:    <<print Math.floor($hunger)>>
-Thirst:    <<print Math.floor($thirst)>>
-Exhaustion:<<print Math.floor($exhaustion)>>
-Morale:    <<print Math.floor($morale)>>
-Despairing:<<print $despairing>>
   </pre>
 </details>
 <</if>>

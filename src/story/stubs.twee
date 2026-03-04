@@ -3,10 +3,10 @@
 [[Back|Corridor]]
 
 ::Wait Stub
-<<script>>setup.Survival.onMove();<</script>>
+<<script>>setup.Tick.onMove();<</script>>
 <<goto "Corridor">>
 
 ::Sleep Stub
-<<script>>setup.Survival.onSleep();<</script>>
+<<script>>setup.Tick.onSleep();<</script>>
 <p>You find a bunk and collapse into it. Hours pass. When the lights brighten you stir, stiff and still thirsty, but less likely to fall over.</p>
 [[Get up|Corridor]]

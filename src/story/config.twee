@@ -33,8 +33,9 @@ A Short Stay in Hell
     State.variables.lifeStory  = story;
     State.variables.targetBook = story.bookCoords;
 
-    // Survival stats
+    // Survival stats + time
     setup.Survival.init();
+    setup.Tick.init();
 
     // Debug: ?goto=PassageName deep-links to a passage directly
     // Optional: ?openBook=side,position,floor,bookIndex pre-sets the open book

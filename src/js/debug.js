@@ -57,6 +57,70 @@
             url.searchParams.set("seed", String(seed));
             window.location.href = url.toString();
         },
+
+        // --- Time ---
+
+        /** Set the current tick (0–239) without advancing day. */
+        setTick(n) {
+            State.variables.tick     = Math.max(0, Math.min(239, n));
+            State.variables.lightsOn = State.variables.tick < 160;
+            Engine.play(passage());
+        },
+
+        /** Set the current day number. */
+        setDay(n) {
+            State.variables.day = Math.max(1, n);
+            Engine.play(passage());
+        },
+
+        /** Jump to just before lights-out (tick 155). */
+        nearLightsOut() {
+            this.setTick(155);
+        },
+
+        /** Jump to just before dawn (tick 235). */
+        nearDawn() {
+            this.setTick(235);
+        },
+
+        /** Get current time state. */
+        getTime() {
+            return {
+                tick:     State.variables.tick,
+                day:      State.variables.day,
+                lightsOn: State.variables.lightsOn,
+            };
+        },
+
+        // --- Survival ---
+
+        /** Set a survival stat by name. */
+        setStat(name, value) {
+            const allowed = ["hunger", "thirst", "exhaustion", "morale", "mortality"];
+            if (!allowed.includes(name)) return `unknown stat: ${name}`;
+            State.variables[name] = Math.max(0, Math.min(100, value));
+            Engine.play(passage());
+        },
+
+        /** Trigger Parched condition (thirst → 0). */
+        triggerParched() { this.setStat("thirst", 0); },
+
+        /** Trigger Starving condition (hunger → 0). */
+        triggerStarving() { this.setStat("hunger", 0); },
+
+        /** Get current survival stats. */
+        getStats() {
+            const v = State.variables;
+            return {
+                hunger:    v.hunger,
+                thirst:    v.thirst,
+                exhaustion: v.exhaustion,
+                morale:    v.morale,
+                mortality: v.mortality,
+                despairing: v.despairing,
+                dead:      v.dead,
+            };
+        },
     };
 
     setup.Debug = api;

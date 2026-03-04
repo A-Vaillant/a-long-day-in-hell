@@ -2,9 +2,7 @@
  * Palette: near-black bg, aged-paper text, rust/amber accents, dim green for features
  */
 
-/* Font imports — uncomment to use web fonts, or replace with @font-face base64 blocks:
 @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Share+Tech+Mono&display=swap');
-*/
 
 :root {
     --bg:         #0a0906;
@@ -17,8 +15,8 @@
     --found:      #4a7c59;   /* muted green — coherent text discovery */
     --danger:     #7a1f1f;
     --border:     #2a2018;
-    --font-body:  'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
-    --font-mono:  'Menlo', 'Consolas', 'Courier New', monospace;
+    --font-body:  'IM Fell English', Georgia, serif;
+    --font-mono:  'Share Tech Mono', 'Courier New', monospace;
 }
 
 /* === BASE === */
@@ -113,7 +111,6 @@ button:disabled {
     padding: 0;
     display: flex;
     justify-content: flex-start;
-    transform: translateZ(0); /* force GPU compositing layer — fixes headless Chrome render */
 }
 
 .passage {
@@ -159,13 +156,6 @@ button:disabled {
     font-style: italic;
 }
 
-.rest-area-marker {
-    font-family: var(--font-mono);
-    font-size: 0.8em;
-    color: var(--accent);
-    margin-bottom: 0.5rem;
-}
-
 /* === MOVES & ACTIONS === */
 
 #moves, #actions {
@@ -203,65 +193,109 @@ button:disabled {
     border-top: 1px solid var(--border);
 }
 
-/* === SIDEBAR STATS (StoryCaption) === */
+/* === STATUS BARS (Chapel Meter macros) === */
 
-#sidebar-stats {
-    padding: 0.8rem 0.5rem 0;
-    font-family: var(--font-mono);
-    font-size: 0.72em;
-    color: var(--text-dim);
+.stat-bars {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
     border-top: 1px solid var(--border);
-    margin-top: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+    color: var(--text-dim);
 }
 
 .stat-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.45rem;
-}
-
-.stat-label {
-    width: 6em;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    flex-shrink: 0;
-    font-size: 0.9em;
-}
-
-.stat-label.stat-critical { color: #a03030; }
-.stat-label.stat-low      { color: #8b6914; }
-
-.meter-track {
-    flex: 1;
-    height: 4px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-}
-
-.meter-fill {
-    height: 100%;
-    transition: width 0.3s ease;
-}
-.meter-fill.morale  { background: #4a6a9a; }
-.meter-fill.hunger  { background: #8b6914; }
-.meter-fill.thirst  { background: #2a6a7a; }
-.meter-fill.exhaust { background: #5a4a7a; }
-
-.condition-despairing {
-    color: var(--danger);
-    font-style: italic;
-    font-size: 0.9em;
+    gap: 0.8rem;
     margin-bottom: 0.5rem;
 }
 
-.sidebar-held {
-    margin-top: 0.6rem;
-    color: var(--text-dim);
-    font-style: italic;
-    font-size: 0.9em;
+.stat-label {
+    width: 7em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
 }
 
+/* Chapel meter macro targets */
+.macro-meter {
+    height: 6px;
+    flex: 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 0;
+}
+.macro-meter-bar {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.4s ease;
+}
+.macro-meter-bar.morale { background: #6a8fbf; }
+.macro-meter-bar.hunger { background: #8b6914; }
+.macro-meter-bar.thirst { background: #2a6a7a; }
+.macro-meter-bar.exhaust { background: #5a4a7a; }
+
+/* === STATUS BAR === */
+
+#status-bar {
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+    color: var(--text-dim);
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+#time-display {
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
+}
+
+.lights-out-indicator {
+    color: #2a2018;  /* near-invisible dot when lights off */
+}
+
+/* Stat spans — hunger/thirst/exhaustion count up, so high = bad */
+.stat { display: inline-block; margin-right: 1rem; }
+
+/* stat-low: value >= 70 (growing toward suffering) */
+.stat-low { color: #8b6914; }
+
+/* stat-critical: value >= 90 (near maximum suffering) */
+.stat-critical { color: #9a2a2a; }
+
+/* Condition indicators */
+.condition-despairing {
+    color: var(--danger);
+    font-style: italic;
+}
+
+.condition-mortality {
+    color: #9a2a2a;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+}
+
+/* === NOTIFY (Chapel notify macro) === */
+
+#notify {
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    background: var(--bg-surface);
+    border-left: 3px solid var(--accent);
+    color: var(--text);
+    padding: 0.6rem 1rem;
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    max-width: 320px;
+    z-index: 100;
+}
 
 /* === DEBUG PANEL === */
 
@@ -312,64 +346,15 @@ button:disabled {
     border-bottom: 1px solid var(--found);
 }
 
-/* === SHELF GRID === */
+/* === TRANSITIONS === */
 
-.shelf-grid {
-    display: grid;
-    grid-template-columns: repeat(24, 1fr);
-    grid-template-rows: repeat(8, 28px);
-    gap: 2px;
-    background: #0d0a06;
-    border: 1px solid var(--border);
-    padding: 6px;
-    margin: 1rem 0;
-    width: 100%;
+.passage {
+    animation: fadeIn 0.3s ease;
 }
 
-.book-spine {
-    position: relative;
-    cursor: pointer;
-    transition: filter 0.1s, transform 0.1s;
-    min-height: 20px;
-}
-
-.book-spine:hover {
-    filter: brightness(2);
-    transform: scaleY(1.06);
-    z-index: 1;
-}
-
-.book-spine.held {
-    outline: 1px solid var(--text);
-    outline-offset: 1px;
-}
-
-.book-spine.target-nearby {
-    animation: pulse-spine 2s ease-in-out infinite;
-}
-
-@keyframes pulse-spine {
-    0%, 100% { filter: brightness(1); }
-    50%       { filter: brightness(2) saturate(1.4); }
-}
-
-/* Link inside spine fills the whole cell, no underline */
-.book-spine a {
-    display: block;
-    width: 100%;
-    height: 100%;
-    border-bottom: none;
-    color: transparent;
-    user-select: none;
-}
-
-.book-spine a:hover { border-bottom: none; }
-
-.key-hint {
-    font-family: var(--font-mono);
-    font-size: 0.7em;
-    color: var(--text-dim);
-    margin-top: 0.5rem;
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 /* === RESPONSIVE === */

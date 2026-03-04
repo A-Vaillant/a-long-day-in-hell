@@ -8,47 +8,51 @@
     setup.Survival = {
         /** Initialize stats on a new game (call from StoryInit). */
         init() {
-            const d = core.defaultStats();
+            const d = core.survivalDefaults();
             const v = State.variables;
             v.hunger     = d.hunger;
             v.thirst     = d.thirst;
             v.exhaustion = d.exhaustion;
             v.morale     = d.morale;
+            v.mortality  = d.mortality;
             v.despairing = d.despairing;
+            v.dead       = d.dead;
+        },
+
+        _statsFromVars() {
+            const v = State.variables;
+            return {
+                hunger: v.hunger, thirst: v.thirst, exhaustion: v.exhaustion,
+                morale: v.morale, mortality: v.mortality,
+                despairing: v.despairing, dead: v.dead,
+            };
         },
 
         /** Apply a move/wait tick. Mutates State.variables in place. */
         onMove() {
-            const v = State.variables;
-            const next = core.tickMove({
-                hunger: v.hunger, thirst: v.thirst,
-                exhaustion: v.exhaustion, morale: v.morale, despairing: v.despairing,
-            });
-            Object.assign(v, next);
+            Object.assign(State.variables, core.survivalApplyMove(this._statsFromVars()));
         },
 
-        /** Apply a sleep rest. Mutates State.variables in place. */
+        /** Apply one sleep-hour. Mutates State.variables in place. */
         onSleep() {
-            const v = State.variables;
-            const next = core.applySleep({
-                hunger: v.hunger, thirst: v.thirst,
-                exhaustion: v.exhaustion, morale: v.morale, despairing: v.despairing,
-            });
-            Object.assign(v, next);
+            Object.assign(State.variables, core.survivalApplySleep(this._statsFromVars()));
         },
 
-        onEat()   { const v = State.variables; Object.assign(v, core.applyEat(v)); },
-        onDrink() { const v = State.variables; Object.assign(v, core.applyDrink(v)); },
+        /** Restore all stats (resurrection at dawn). */
+        onResurrection() {
+            Object.assign(State.variables, core.survivalApplyResurrection());
+        },
 
-        severity(val) { return core.severity(val); },
+        onEat()   { Object.assign(State.variables, core.survivalApplyEat(this._statsFromVars())); },
+        onDrink() { Object.assign(State.variables, core.survivalApplyDrink(this._statsFromVars())); },
+
+        severity(val) { return core.survivalSeverity(val); },
+
+        showMortality() { return core.survivalShowMortality(this._statsFromVars()); },
 
         /** Returns array of warning strings for current state. */
         warnings() {
-            const v = State.variables;
-            return core.getWarnings({
-                hunger: v.hunger, thirst: v.thirst,
-                exhaustion: v.exhaustion, morale: v.morale, despairing: v.despairing,
-            });
+            return core.survivalWarnings(this._statsFromVars());
         },
     };
 }());

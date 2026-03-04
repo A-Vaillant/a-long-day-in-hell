@@ -3,67 +3,47 @@
 <<set _seg   = setup.Library.getSegment($side, $position, $floor)>>
 <<set _moves = setup.Library.availableMoves(_loc)>>
 <<set _warnings = setup.Survival.warnings()>>
-<div id="corridor-view">
+<div id="corridor-view" class="mode-explore">
 <p class="location-header"><<print setup.Library.describeLocation(_loc)>></p>
-<<if _seg.lightLevel === "dim">><p class="dim-notice">The lights flicker here.</p><</if>>
+<<if _seg.lightLevel === "dim">><p class="dim-notice">The lights flicker here. Something hums in the walls.</p><</if>>
 <<if _warnings.length > 0>><p class="warnings"><<for _w range _warnings>><<print _w>> <</for>></p><</if>>
-<<if _seg.restArea>><div class="rest-area-marker">[ rest area — kiosk | bedroom | stairs ]</div><<else>><<script>>
-(function () {
-    const v    = State.variables;
-    const COLS = 24, ROWS = 8, COUNT = COLS * ROWS;
-    const grid = document.createElement("div");
-    grid.className = "shelf-grid";
-    for (let bi = 0; bi < COUNT; bi++) {
-        const isHeld   = v.heldBook !== null && v.heldBook.side === v.side && v.heldBook.position === v.position && v.heldBook.floor === v.floor && v.heldBook.bookIndex === bi;
-        const isTarget = v.targetBook.side === v.side && v.targetBook.position === v.position && v.targetBook.floor === v.floor && v.targetBook.bookIndex === bi;
-        const rng = setup.PRNG.fork("spine:" + v.side + ":" + v.position + ":" + v.floor + ":" + bi);
-        const h = Math.floor(rng.next() * 30);
-        const s = 15 + Math.floor(rng.next() * 20);
-        const l = 12 + Math.floor(rng.next() * 14);
-        const spine = document.createElement("div");
-        spine.className = "book-spine" + (isHeld ? " held" : "") + (isTarget ? " target-nearby" : "");
-        spine.style.background = "hsl(" + h + "," + s + "%," + l + "%)";
-        spine.addEventListener("click", (function (idx) {
-            return function () {
-                State.variables.openBook = { side: v.side, position: v.position, floor: v.floor, bookIndex: idx };
-                State.variables.openPage = 0;
-                Engine.play("Shelf Open Book");
-            };
-        })(bi));
-        grid.appendChild(spine);
-    }
-    output.appendChild(grid);
-})();
-<</script>><</if>>
-<div id="moves">
+<p>A long corridor. The shelves recede in both directions until perspective fails. On your left, a railing over the chasm. On your right, books — floor to ceiling, each identical in binding, each filled with noise.</p>
+<<if _seg.restArea>><p class="feature">A rest area is here: clock, kiosk, bedroom, submission slot. Stairs lead up<<if $floor > 0>> and down<</if>>.</p><</if>>
+<<if _seg.hasBridge>><p class="feature">The chasm narrows here. A bridge connects to the other side.</p><</if>>
+<div id="moves"><strong>Move:</strong>
 <<if _moves.includes("left")>><span data-move="left">[[← Left|Corridor Move Left]]</span> <</if>>
 <<if _moves.includes("right")>><span data-move="right">[[Right →|Corridor Move Right]]</span> <</if>>
 <<if _moves.includes("up")>><span data-move="up">[[↑ Up|Corridor Move Up]]</span> <</if>>
 <<if _moves.includes("down")>><span data-move="down">[[↓ Down|Corridor Move Down]]</span> <</if>>
 <<if _moves.includes("cross")>><span data-move="cross">[[⇌ Cross|Corridor Move Cross]]</span><</if>>
 </div>
-<div id="actions">[[Wait|Wait Stub]] | [[Sleep|Sleep Stub]] | [[Jump|Chasm Stub]]
-<<if _seg.restArea>> | [[Kiosk|Kiosk]] | [[Bedroom|Bedroom]]<</if>>
+<div id="actions">[[Look at shelves|Shelf Browse]] | [[Wait|Wait Stub]] | [[Sleep|Sleep Stub]] | [[Jump|Chasm Stub]]
+<<if _seg.restArea>> | [[Kiosk|Kiosk]] | [[Bedroom|Bedroom]] | [[Submission slot|Submission Slot]]<</if>>
 </div>
 <<include "Debug Panel">>
 </div>
 
-::Corridor Move Left [nohistory]
-<<set $move = "left">><<goto "Corridor Do Move">>
+::Corridor Move Left
+<<script>>setup.Tick.onMove();<</script>>
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "left")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>
 
-::Corridor Move Right [nohistory]
-<<set $move = "right">><<goto "Corridor Do Move">>
+::Corridor Move Right
+<<script>>setup.Tick.onMove();<</script>>
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "right")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>
 
-::Corridor Move Up [nohistory]
-<<set $move = "up">><<goto "Corridor Do Move">>
+::Corridor Move Up
+<<script>>setup.Tick.onMove();<</script>>
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "up")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>
 
-::Corridor Move Down [nohistory]
-<<set $move = "down">><<goto "Corridor Do Move">>
+::Corridor Move Down
+<<script>>setup.Tick.onMove();<</script>>
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "down")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>
 
-::Corridor Move Cross [nohistory]
-<<set $move = "cross">><<goto "Corridor Do Move">>
-
-::Corridor Do Move [nohistory]
-<<script>>setup.Survival.onMove();<</script>>
-<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, $move)>>
-<<set $side = _dest.side>><<set $position = _dest.position>><<set $floor = _dest.floor>><<goto "Corridor">>
+::Corridor Move Cross
+<<script>>setup.Tick.onMove();<</script>>
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "cross")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>
