@@ -6,7 +6,7 @@ import {
     tickToTimeString, ticksUntilDawn, hoursUntilDawn,
 } from "../lib/tick.core.js";
 import {
-    defaultStats, applyMove, applySleep, applyEat, applyDrink,
+    defaultStats, applyMoveTick, applySleep, applyEat, applyDrink,
     applyResurrection, showMortality, getWarnings, STAT_MIN, STAT_MAX,
 } from "../lib/survival.core.js";
 
@@ -111,23 +111,23 @@ describe("defaultStats", () => {
     });
 });
 
-describe("applyMove", () => {
+describe("applyMoveTick", () => {
     it("increases hunger, thirst, exhaustion", () => {
-        const s = applyMove(defaultStats());
+        const s = applyMoveTick(defaultStats());
         assert.ok(s.hunger > 0);
         assert.ok(s.thirst > 0);
         assert.ok(s.exhaustion > 0);
     });
 
     it("does not touch mortality when stats are healthy", () => {
-        const s = applyMove(defaultStats());
+        const s = applyMoveTick(defaultStats());
         assert.strictEqual(s.mortality, 100);
         assert.strictEqual(s.dead, false);
     });
 
     it("activates mortality when thirst hits 100", () => {
         const stats = { ...defaultStats(), thirst: 99.95 }; // will clamp to 100 after move
-        const s = applyMove(stats);
+        const s = applyMoveTick(stats);
         assert.strictEqual(s.thirst, 100);
         assert.ok(s.mortality < 100, "mortality should start draining");
         assert.strictEqual(s.dead, false);
@@ -136,14 +136,14 @@ describe("applyMove", () => {
 
 describe("mortality", () => {
     it("drains faster when both parched and starving", () => {
-        const both    = applyMove({ ...defaultStats(), hunger: 100, thirst: 100, mortality: 100 });
-        const parched = applyMove({ ...defaultStats(), hunger: 0,   thirst: 100, mortality: 100 });
+        const both    = applyMoveTick({ ...defaultStats(), hunger: 100, thirst: 100, mortality: 100 });
+        const parched = applyMoveTick({ ...defaultStats(), hunger: 0,   thirst: 100, mortality: 100 });
         assert.ok(both.mortality < parched.mortality, "both conditions drain faster");
     });
 
     it("drains faster when parched than when starving", () => {
-        const parched  = applyMove({ ...defaultStats(), hunger: 0,   thirst: 100, mortality: 100 });
-        const starving = applyMove({ ...defaultStats(), hunger: 100, thirst: 0,   mortality: 100 });
+        const parched  = applyMoveTick({ ...defaultStats(), hunger: 0,   thirst: 100, mortality: 100 });
+        const starving = applyMoveTick({ ...defaultStats(), hunger: 100, thirst: 0,   mortality: 100 });
         assert.ok(parched.mortality < starving.mortality, "parched drains faster than starving");
     });
 
@@ -161,7 +161,7 @@ describe("mortality", () => {
     });
 
     it("sets dead when mortality reaches 0", () => {
-        const s = applyMove({ ...defaultStats(), hunger: 100, thirst: 100, mortality: 0.5 });
+        const s = applyMoveTick({ ...defaultStats(), hunger: 100, thirst: 100, mortality: 0.5 });
         assert.strictEqual(s.dead, true);
     });
 });

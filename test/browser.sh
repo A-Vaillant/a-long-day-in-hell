@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT=7331
 BASE="http://localhost:${PORT}"
 SEED=666
-URL="${BASE}/?seed=${SEED}"
+URL="${BASE}/?seed=${SEED}&goto=Corridor"
 SS_DIR="${ROOT}/test/screenshots"
 PASS=0
 FAIL=0
@@ -92,23 +92,25 @@ pos1=$(js "$URL" "#corridor-view" "({side:SugarCube.State.variables.side,positio
 pos2=$(js "$URL" "#corridor-view" "({side:SugarCube.State.variables.side,position:SugarCube.State.variables.position,floor:SugarCube.State.variables.floor})")
 assert_eq        "same seed → same start position" "$pos1" "$pos2"
 
-debug_a=$(js "${BASE}/?seed=aaa" "#corridor-view" "document.querySelector('#debug-panel')?.innerText ?? ''")
-debug_b=$(js "${BASE}/?seed=bbb" "#corridor-view" "document.querySelector('#debug-panel')?.innerText ?? ''")
+debug_a=$(js "${BASE}/?seed=aaa&goto=Corridor" "#corridor-view" "document.querySelector('#debug-panel')?.innerText ?? ''")
+debug_b=$(js "${BASE}/?seed=bbb&goto=Corridor" "#corridor-view" "document.querySelector('#debug-panel')?.innerText ?? ''")
 assert_not_eq    "different seeds → different output" "$debug_a" "$debug_b"
 
-# Navigation: click Right
+# Navigation: click Right link
 NAV=$(mktemp /tmp/sstest.js.XXXXXX)
 cat > "$NAV" <<'NAVSCRIPT'
 res(new Promise((res2, rej2) => {
-    const before = SugarCube.State.variables.position;
+    const v = SugarCube.State.variables;
+    const before = v.position;
+    const tickBefore = v.tick;
     const link = [...document.querySelectorAll('#moves a')].find(a => a.innerText.includes('Right'));
     if (!link) { res2({error:'no Right link'}); return; }
     link.click();
     const t = Date.now() + 5000;
     const w = () => {
-        const after = SugarCube.State.variables.position;
-        if (after !== before) res2({before, after});
-        else if (Date.now() > t) res2({timeout:true, before, after});
+        const after = v.position;
+        if (after !== before) res2({before, after, tickBefore, tickAfter: v.tick});
+        else if (Date.now() > t) res2({timeout:true, before, after, tickBefore, tickAfter: v.tick});
         else setTimeout(w, 50);
     };
     setTimeout(w, 50);
@@ -117,6 +119,42 @@ NAVSCRIPT
 nav=$(js_file "$URL" "#corridor-view" "$NAV")
 rm -f "$NAV"
 assert_contains "clicking Right increments position" "$nav" '"after": 1'
+assert_contains "clicking Right advances tick"       "$nav" '"tickAfter": 1'
+
+# Navigation: setup.doMove directly
+DOMOVE=$(mktemp /tmp/sstest.js.XXXXXX)
+cat > "$DOMOVE" <<'DOMOVESCRIPT'
+const v = SugarCube.State.variables;
+const before = v.position;
+const result = SugarCube.setup.doMove('left');
+const after = v.position;
+res({before, after, result, moved: before !== after});
+DOMOVESCRIPT
+domove=$(js_file "$URL" "#corridor-view" "$DOMOVE")
+rm -f "$DOMOVE"
+assert_contains "doMove('left') changes position" "$domove" '"moved": true'
+assert_contains "doMove returns true"             "$domove" '"result": true'
+
+# Navigation: keyboard (press 'l' for right)
+KEYMOVE=$(mktemp /tmp/sstest.js.XXXXXX)
+cat > "$KEYMOVE" <<'KEYMOVESCRIPT'
+res(new Promise((res2) => {
+    const v = SugarCube.State.variables;
+    const before = v.position;
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'l', bubbles: true}));
+    const t = Date.now() + 5000;
+    const w = () => {
+        const after = v.position;
+        if (after !== before) res2({before, after});
+        else if (Date.now() > t) res2({timeout: true, before, after});
+        else setTimeout(w, 50);
+    };
+    setTimeout(w, 50);
+}));
+KEYMOVESCRIPT
+keymove=$(js_file "$URL" "#corridor-view" "$KEYMOVE")
+rm -f "$KEYMOVE"
+assert_contains "keyboard 'l' moves right" "$keymove" '"after":'
 
 # --- SHELF TESTS (via Debug API) ---
 echo "▶ shelf browse"
@@ -212,7 +250,7 @@ res(new Promise((res2) => {
     setTimeout(w, 50);
 }));
 ALTSCRIPT
-text_alt=$(js_file "${BASE}/?seed=999" "#corridor-view" "$ALTDET")
+text_alt=$(js_file "${BASE}/?seed=999&goto=Corridor" "#corridor-view" "$ALTDET")
 rm -f "$ALTDET"
 assert_not_eq "different seed → different book content" "$text1" "$text_alt"
 

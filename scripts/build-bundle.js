@@ -58,7 +58,7 @@ const CORES = [
         file:   "lib/survival.core.js",
         global: "_SurvivalCore",
         exports: [
-            "STAT_MAX", "STAT_MIN", "defaultStats", "applyMove",
+            "STAT_MAX", "STAT_MIN", "defaultStats", "applyMoveTick",
             "applySleep", "applyEat", "applyDrink",
             "severity", "getWarnings", "showMortality",
         ],

@@ -528,7 +528,7 @@
      * @param {object} stats
      * @returns {object}
      */
-    function applyMove(stats) {
+    function applyMoveTick(stats) {
         let { hunger, thirst, exhaustion, morale, despairing } = stats;
 
         hunger     = clamp(hunger     + HUNGER_RATE);
@@ -633,5 +633,5 @@
         return stats.thirst >= STAT_MAX || stats.hunger >= STAT_MAX;
     }
 
-    window._SurvivalCore = { STAT_MAX, STAT_MIN, defaultStats, applyMove, applySleep, applyEat, applyDrink, severity, getWarnings, showMortality };
+    window._SurvivalCore = { STAT_MAX, STAT_MIN, defaultStats, applyMoveTick, applySleep, applyEat, applyDrink, severity, getWarnings, showMortality };
 }());

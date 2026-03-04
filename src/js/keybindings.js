@@ -34,24 +34,23 @@
         return State.variables.mode || "explore";
     }
 
-    const DIR_PASSAGE = {
-        left: "Corridor Move Left",
-        right: "Corridor Move Right",
-        up: "Corridor Move Up",
-        down: "Corridor Move Down",
-        cross: "Corridor Move Cross",
-    };
-
-    function doMove(dir) {
+    // Mutates state for a move action. Returns true if move was valid.
+    // Callers are responsible for navigation (Engine.play or <<goto>>).
+    setup.doMove = function (dir) {
         const loc = {
             side:     State.variables.side,
             position: State.variables.position,
             floor:    State.variables.floor,
         };
         const available = setup.Library.availableMoves(loc);
-        if (!available.includes(dir)) return;
-        Engine.play(DIR_PASSAGE[dir]);
-    }
+        if (!available.includes(dir)) return false;
+        const dest = setup.Library.applyMove(loc, dir);
+        State.variables.side     = dest.side;
+        State.variables.position = dest.position;
+        State.variables.floor    = dest.floor;
+        setup.Tick.onMove();
+        return true;
+    };
 
     $(document).on("keydown.hell", function (ev) {
         // Don't capture inside inputs
@@ -63,7 +62,7 @@
         if (mode === "explore") {
             if (Object.prototype.hasOwnProperty.call(VI_MOVE, key)) {
                 ev.preventDefault();
-                doMove(VI_MOVE[key]);
+                if (setup.doMove(VI_MOVE[key])) Engine.play("Corridor");
                 return;
             }
             switch (key) {

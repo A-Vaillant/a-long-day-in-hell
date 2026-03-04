@@ -347,15 +347,7 @@ button:disabled {
 }
 
 /* === TRANSITIONS === */
-
-.passage {
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
+/* fadeIn removed — causes double-flash with [nohistory] redirect passages */
 
 /* === RESPONSIVE === */
 

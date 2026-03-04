@@ -30,7 +30,7 @@
 
         /** Apply a move/wait tick. Mutates State.variables in place. */
         onMove() {
-            Object.assign(State.variables, core.applyMove(this._statsFromVars()));
+            Object.assign(State.variables, core.applyMoveTick(this._statsFromVars()));
         },
 
         /** Apply one sleep-hour. Mutates State.variables in place. */
