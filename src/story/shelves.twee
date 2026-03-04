@@ -1,5 +1,52 @@
 ::Shelf Browse
-<<goto "Corridor">>
+<<set $mode = "shelf">>
+<<set _loc = { side: $side, position: $position, floor: $floor }>>
+<div id="shelf-view" class="mode-shelf">
+
+<p class="location-header"><<print setup.Library.describeLocation(_loc)>></p>
+
+<<script>>
+postdisplay["shelfGrid"] = function () {
+    delete postdisplay["shelfGrid"];
+    var v = State.variables;
+    var COLS = 24, ROWS = 8, COUNT = COLS * ROWS;
+    var grid = document.createElement("div");
+    grid.className = "shelf-grid";
+    for (var bi = 0; bi < COUNT; bi++) {
+        var isHeld = v.heldBook !== null && v.heldBook.side === v.side &&
+            v.heldBook.position === v.position && v.heldBook.floor === v.floor &&
+            v.heldBook.bookIndex === bi;
+        var isTarget = v.targetBook.side === v.side &&
+            v.targetBook.position === v.position && v.targetBook.floor === v.floor &&
+            v.targetBook.bookIndex === bi;
+        var rng = setup.PRNG.fork("spine:" + v.side + ":" + v.position + ":" + v.floor + ":" + bi);
+        var h = Math.floor(rng.next() * 30);
+        var s = 15 + Math.floor(rng.next() * 20);
+        var l = 12 + Math.floor(rng.next() * 14);
+        var spine = document.createElement("div");
+        spine.className = "book-spine" + (isHeld ? " held" : "") + (isTarget ? " target-nearby" : "");
+        spine.style.background = "hsl(" + h + "," + s + "%," + l + "%)";
+        spine.addEventListener("click", (function (idx) {
+            return function () {
+                State.variables.openBook = { side: v.side, position: v.position, floor: v.floor, bookIndex: idx };
+                State.variables.openPage = 0;
+                Engine.play("Shelf Open Book");
+            };
+        })(bi));
+        grid.appendChild(spine);
+    }
+    var container = document.getElementById("shelf-grid-container");
+    if (container) container.appendChild(grid);
+};
+<</script>>
+<div id="shelf-grid-container"></div>
+
+<<if $heldBook !== null>>
+<p class="held-notice">Holding: <<print $heldBook.side === 0 ? "west" : "east">> §<<print $heldBook.position>> fl.<<print $heldBook.floor>> #<<print $heldBook.bookIndex + 1>></p>
+<</if>>
+
+<p class="key-hint">[Esc] back to corridor</p>
+</div>
 
 
 ::Shelf Open Book
@@ -12,12 +59,18 @@
 <<set _isTarget = _book.side === $targetBook.side && _book.position === $targetBook.position && _book.floor === $targetBook.floor && _book.bookIndex === $targetBook.bookIndex>>
 <div id="book-view" class="mode-book">
 
-<p class="location-header">Book #<<print _book.bookIndex + 1>> — Page <<print _page + 1>> / <<print setup.Book.PAGES_PER_BOOK>></p>
+<p class="location-header">Book #<<print _book.bookIndex + 1>> — PAGE <<print _page + 1>> / <<print setup.Book.PAGES_PER_BOOK>></p>
 
 <<if _isTarget>><p class="target-book-hint">Something about this book makes you stop.</p><</if>>
 
 <pre class="book-page" id="book-page-content"></pre>
-<<script>>document.getElementById("book-page-content").textContent = State.temporary.pageText;<</script>>
+<<script>>
+postdisplay["bookPage"] = function () {
+    delete postdisplay["bookPage"];
+    var el = document.getElementById("book-page-content");
+    if (el) el.textContent = State.temporary.pageText;
+};
+<</script>>
 
 <<if _fragment !== null && _fragment.length > 6>>
 <p class="coherent-fragment">You notice: <em>"<<print _fragment.trim()>>"</em></p>

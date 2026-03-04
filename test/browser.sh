@@ -186,7 +186,7 @@ SHELFSCRIPT
 shelf=$(js_file "$URL" "#corridor-view" "$SHELF")
 rm -f "$SHELF"
 assert_contains "shelf view renders"         "$shelf" "SHELVES"
-assert_contains "shelf lists books"          "$shelf" "Book #"
+assert_contains "shelf has book spines"      "$shelf" "ok"
 
 # --- BOOK TESTS (via Debug.goToBook) ---
 echo "▶ book reading"

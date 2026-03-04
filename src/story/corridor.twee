@@ -17,7 +17,7 @@
 <<if _moves.includes("down")>><span data-move="down"><<link "↓ Down" "Corridor">><<run setup.doMove("down")>><</link>></span> <</if>>
 <<if _moves.includes("cross")>><span data-move="cross"><<link "⇌ Cross" "Corridor">><<run setup.doMove("cross")>><</link>></span><</if>>
 </div>
-<div id="actions">[[Look at shelves|Shelf Browse]] | [[Wait|Wait Stub]] | [[Sleep|Sleep Stub]] | [[Jump|Chasm Stub]]
+<div id="actions">[[Wait|Wait Stub]] | [[Sleep|Sleep Stub]] | [[Jump|Chasm Stub]]
 <<if _seg.restArea>> | [[Kiosk|Kiosk]] | [[Bedroom|Bedroom]]<</if>>
 </div>
 <<include "Debug Panel">>
