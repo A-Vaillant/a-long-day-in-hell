@@ -26,8 +26,17 @@ A Short Stay in Hell
     State.variables.openBook    = null;
     State.variables.openPage    = 0;
     State.variables.debug       = true;
+
+    // Life story + target book coordinates
+    const story = setup.LifeStory.generate(seed);
+    State.variables.lifeStory  = story;
+    State.variables.targetBook = story.bookCoords;
+
+    // Survival stats
+    setup.Survival.init();
+
 })();
 <</script>>
 
 ::Init
-<<goto "Corridor">>
+<<goto "Life Story">>

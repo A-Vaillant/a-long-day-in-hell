@@ -1,0 +1,85 @@
+::Kiosk
+<div id="kiosk-view">
+<p class="location-header">Kiosk</p>
+<p>A vending machine occupies the alcove, humming quietly. There is no coin slot. A small sign reads: <em>"Request what you need."</em></p>
+
+[[Ask for water|Kiosk Get Drink]]
+[[Ask for food|Kiosk Get Food]]
+[[Leave|Corridor]]
+</div>
+
+::Kiosk Get Drink
+<<script>>setup.Survival.onDrink();<</script>>
+<p>A cup of water drops into the tray. It is flat and slightly warm but it helps.</p>
+[[Continue|Kiosk]]
+
+::Kiosk Get Food
+<<script>>setup.Survival.onEat();<</script>>
+<p>A dense, flavourless bar. You eat it standing up.</p>
+[[Continue|Kiosk]]
+
+
+::Bedroom
+<div id="bedroom-view">
+<p class="location-header">Bedroom</p>
+<p>Seven narrow bunks, stacked. The mattresses are thin but horizontal. The lights are on, but they won't be forever.</p>
+[[Sleep|Sleep Stub]]
+[[Leave|Corridor]]
+</div>
+
+
+::Submission Slot
+/* Win condition: submit the exact correct book */
+<div id="submission-view">
+<p class="location-header">Submission Slot</p>
+<p>A brass slot in the wall, about the width of a book. A card above it reads: <em>"Submit your life-record for review. Approved submissions result in immediate release."</em></p>
+<p>You have submitted <<print $submissionsAttempted || 0>> book<<if ($submissionsAttempted || 0) !== 1>>s<</if>> so far.</p>
+
+<<if $heldBook !== null>>
+  <<set _isCorrect = (
+    $heldBook.side      === $targetBook.side      &&
+    $heldBook.position  === $targetBook.position  &&
+    $heldBook.floor     === $targetBook.floor     &&
+    $heldBook.bookIndex === $targetBook.bookIndex
+  )>>
+  [[Submit held book|Submission Attempt]]
+<<else>>
+  <p><em>You are not holding a book.</em></p>
+<</if>>
+
+[[Leave|Corridor]]
+</div>
+
+::Submission Attempt
+<<set $submissionsAttempted = ($submissionsAttempted || 0) + 1>>
+<<if $heldBook.side === $targetBook.side && $heldBook.position === $targetBook.position && $heldBook.floor === $targetBook.floor && $heldBook.bookIndex === $targetBook.bookIndex>>
+  <<goto "Win">>
+<<else>>
+  <<set $heldBook = null>>
+  <p>The slot accepts the book. A moment passes. Nothing happens. The book is gone — returned to its shelf, presumably. You remain.</p>
+  [[Continue|Corridor]]
+<</if>>
+
+
+::Win
+<div id="win-view">
+<p class="location-header">Release</p>
+<p>The slot accepts the book. The brass panel glows briefly. A door you had not noticed opens in the wall beside you — just wide enough.</p>
+<p>You step through.</p>
+<p>On the other side: light. Ordinary, imperfect, morning light.</p>
+<p class="win-message">You are free.</p>
+<hr>
+<p><em>Seed: <<print $seed>><br>
+Your name was <<print $lifeStory.name>>.<br>
+Submissions: <<print $submissionsAttempted>></em></p>
+</div>
+
+
+::Life Story
+/* Shown at start of game */
+<div id="lifestory-view">
+<<print setup.LifeStory.format($lifeStory)>>
+<hr>
+<p><em>Your book is somewhere on the <<print $targetBook.side === 0 ? "west" : "east">> side, floor <<print $targetBook.floor>>.</em></p>
+[[Begin|Corridor]]
+</div>

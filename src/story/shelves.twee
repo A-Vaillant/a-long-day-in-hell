@@ -40,10 +40,13 @@
 <<set _pageText = setup.Book.getPage(_book.side, _book.position, _book.floor, _book.bookIndex, _page)>>
 <<set _fragment = setup.Book.findCoherentFragment(_pageText)>>
 <<set _isHeld = $heldBook !== null && $heldBook.side === _book.side && $heldBook.position === _book.position && $heldBook.floor === _book.floor && $heldBook.bookIndex === _book.bookIndex>>
+<<set _isTarget = _book.side === $targetBook.side && _book.position === $targetBook.position && _book.floor === $targetBook.floor && _book.bookIndex === $targetBook.bookIndex>>
 <div id="book-view" class="mode-book">
 
 <p class="location-header">Book #<<print _book.bookIndex + 1>> — Page <<print _page + 1>> / <<print setup.Book.PAGES_PER_BOOK>></p>
 <p><em><<print _book.side === 0 ? "West" : "East">> corridor, segment <<print _book.position>>, floor <<print _book.floor>></em></p>
+
+<<if _isTarget>><p class="target-book-hint">Something about this book makes you stop.</p><</if>>
 
 <pre class="book-page"><<print _pageText>></pre>
 
@@ -58,7 +61,9 @@
 
 <div id="book-actions">
   <<if _isHeld>>
-    [[Put book back on shelf|Shelf Browse][$heldBook = null]]
+    [[Put back|Shelf Browse][$heldBook = null]]
+  <<elseif $heldBook !== null>>
+    [[Swap: take this, drop held book|Shelf Browse][$heldBook = { side: _book.side, position: _book.position, floor: _book.floor, bookIndex: _book.bookIndex }]]
   <<else>>
     [[Take this book|Shelf Browse][$heldBook = { side: _book.side, position: _book.position, floor: _book.floor, bookIndex: _book.bookIndex }]]
   <</if>>
