@@ -1,0 +1,21 @@
+# Tweego binary distribution
+tweego/
+
+# Build output
+dist/
+
+# macOS
+.DS_Store
+
+# VDD workflow artifacts
+.chainlink/
+reviews/
+*.review.md
+
+# Test artifacts
+test/screenshots/
+
+# Editor
+*.swp
+*.swo
+*~

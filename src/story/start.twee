@@ -1,0 +1,125 @@
+::StoryTitle
+A Short Stay in Hell
+
+::StoryData
+{
+  "ifid": "D674C58C-DEFA-4F70-B7A2-27742230C950",
+  "format": "SugarCube",
+  "format-version": "2.36.1",
+  "start": "Init"
+}
+
+::StoryInit
+<<script>>
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const seed = params.get("seed") || String(Math.floor(Math.random() * 0xFFFFFFFF));
+    setup.PRNG.seed(seed);
+
+    State.variables.seed     = seed;
+    State.variables.side     = 0;       // 0 = west corridor, 1 = east corridor
+    State.variables.position = 0;       // segment index along corridor
+    State.variables.floor    = 10;      // start partway up, not at the bottom
+    State.variables.mode     = "explore";
+    State.variables.debug    = true;
+})();
+<</script>>
+
+::Init
+<<goto "Corridor">>
+
+::Corridor
+<<set _loc  = { side: $side, position: $position, floor: $floor }>>
+<<set _seg  = setup.Library.getSegment($side, $position, $floor)>>
+<<set _moves = setup.Library.availableMoves(_loc)>>
+<div id="corridor-view" class="mode-explore">
+
+<p class="location-header"><<print setup.Library.describeLocation(_loc)>></p>
+
+<<if _seg.lightLevel === "dim">>
+<p class="dim-notice">The lights flicker here. Something hums in the walls.</p>
+<</if>>
+
+<p>A long corridor. The shelves recede in both directions until perspective fails. On your left, a railing over the chasm. On your right, books — floor to ceiling, each identical in binding, each filled with noise.</p>
+
+<<if _seg.restArea>>
+<p class="feature">A rest area is here: clock, kiosk, bedroom, submission slot. Stairs lead up<<if $floor > 0>> and down<</if>>.</p>
+<</if>>
+
+<<if _seg.hasBridge>>
+<p class="feature">The chasm narrows here. A bridge connects to the other side.</p>
+<</if>>
+
+<div id="moves">
+  <strong>Move:</strong>
+  <<if _moves.includes("left")>><span data-move="left">[[← Left|Corridor Move Left]]</span>  <</if>>
+  <<if _moves.includes("right")>><span data-move="right">[[Right →|Corridor Move Right]]</span>  <</if>>
+  <<if _moves.includes("up")>><span data-move="up">[[↑ Up (stairs)|Corridor Move Up]]</span>  <</if>>
+  <<if _moves.includes("down")>><span data-move="down">[[↓ Down (stairs)|Corridor Move Down]]</span>  <</if>>
+  <<if _moves.includes("cross")>><span data-move="cross">[[⇌ Cross bridge|Corridor Move Cross]]</span><</if>>
+</div>
+
+<div id="actions">
+  [[Look at shelves|Shelf Stub]]
+  | [[Wait|Wait Stub]]
+  | [[Sleep|Sleep Stub]]
+  | [[Jump into chasm|Chasm Stub]]
+</div>
+
+<<include "Debug Panel">>
+</div>
+
+::Corridor Move Left
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "left")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>>
+<<goto "Corridor">>
+
+::Corridor Move Right
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "right")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>>
+<<goto "Corridor">>
+
+::Corridor Move Up
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "up")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>>
+<<goto "Corridor">>
+
+::Corridor Move Down
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "down")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>>
+<<goto "Corridor">>
+
+::Corridor Move Cross
+<<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "cross")>>
+<<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>>
+<<goto "Corridor">>
+
+::Shelf Stub
+<p>[Shelf mode — not yet implemented]</p>
+[[Back to corridor|Corridor]]
+
+::Chasm Stub
+<p>[Chasm jump — not yet implemented]</p>
+[[Back|Corridor]]
+
+::Wait Stub
+<<goto "Corridor">>
+
+::Sleep Stub
+<p>[Sleep — not yet implemented]</p>
+[[Back|Corridor]]
+
+::Debug Panel
+<<if $debug>>
+<details id="debug-panel" open>
+  <summary>DEBUG</summary>
+  <pre>
+Seed:     <<print $seed>>
+Side:     <<print $side === 0 ? "west" : "east">>
+Position: <<print $position>>
+Floor:    <<print $floor>>
+Mode:     <<print $mode>>
+<<print setup.Library.debugSegment($side, $position, $floor)>>
+  </pre>
+</details>
+<</if>>
