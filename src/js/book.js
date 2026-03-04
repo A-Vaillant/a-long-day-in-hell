@@ -13,7 +13,7 @@
         getPage(side, position, floor, bookIndex, pageIndex) {
             return core.generateBookPage(
                 side, position, floor, bookIndex, pageIndex,
-                k => setup.PRNG.fork(k)
+                setup.PRNG.getSeed()
             );
         },
 

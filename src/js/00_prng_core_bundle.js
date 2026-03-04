@@ -43,16 +43,14 @@
         };
     }
 
-    window._PRNGCore = {
-        hash,
-        makeXoshiro128ss,
-        seedFromString(str) {
-            return makeXoshiro128ss(
-                hash(str + "a"), hash(str + "b"),
-                hash(str + "c"), hash(str + "d")
-            );
-        }
-    };
+    function seedFromString(str) {
+        return makeXoshiro128ss(
+            hash(str + "a"), hash(str + "b"),
+            hash(str + "c"), hash(str + "d")
+        );
+    }
+
+    window._PRNGCore = { hash, makeXoshiro128ss, seedFromString };
 
     const BOTTOM_FLOOR = 0;
     const SEGMENT_BOOK_COUNT = 640;
@@ -120,8 +118,8 @@
     const CHARS_PER_BOOK = PAGES_PER_BOOK * CHARS_PER_PAGE;
     const CHARSET = Array.from({ length: 95 }, (_, i) => String.fromCharCode(i + 32)).join("");
 
-    function generateBookPage(side, position, floor, bookIndex, pageIndex, forkRng) {
-        const rng = forkRng(`book:${side}:${position}:${floor}:${bookIndex}:p${pageIndex}`);
+    function generateBookPage(side, position, floor, bookIndex, pageIndex, globalSeed) {
+        const rng = seedFromString(`${globalSeed}:book:${side}:${position}:${floor}:${bookIndex}:p${pageIndex}`);
         const n = CHARSET.length;
         const lines = [];
         for (let l = 0; l < LINES_PER_PAGE; l++) {

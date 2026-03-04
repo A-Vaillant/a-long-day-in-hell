@@ -4,13 +4,6 @@ import {
     generateBookPage, bookMeta, findCoherentFragment,
     PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE, CHARS_PER_PAGE, CHARS_PER_BOOK, CHARSET,
 } from "../lib/book.core.js";
-import { seedFromString } from "../lib/prng.core.js";
-
-function makeFork(seed) {
-    const rng = seedFromString(seed);
-    return (key) => rng.fork(key);
-}
-
 describe("constants", () => {
     it("charset is 95 characters", () => {
         assert.strictEqual(CHARSET.length, 95);
@@ -25,20 +18,20 @@ describe("constants", () => {
 
 describe("generateBookPage", () => {
     it("returns correct number of lines", () => {
-        const page = generateBookPage(0, 0, 0, 0, 0, makeFork("seed"));
+        const page = generateBookPage(0, 0, 0, 0, 0, "seed");
         const lines = page.split("\n");
         assert.strictEqual(lines.length, LINES_PER_PAGE);
     });
 
     it("each line is 80 characters", () => {
-        const page = generateBookPage(0, 0, 0, 0, 0, makeFork("seed"));
+        const page = generateBookPage(0, 0, 0, 0, 0, "seed");
         for (const line of page.split("\n")) {
             assert.strictEqual(line.length, CHARS_PER_LINE);
         }
     });
 
     it("all characters are in the charset", () => {
-        const page = generateBookPage(0, 0, 0, 0, 0, makeFork("seed"));
+        const page = generateBookPage(0, 0, 0, 0, 0, "seed");
         for (const ch of page) {
             if (ch === "\n") continue;
             assert.ok(CHARSET.includes(ch), `unexpected char: ${JSON.stringify(ch)}`);
@@ -46,38 +39,38 @@ describe("generateBookPage", () => {
     });
 
     it("is deterministic for same inputs", () => {
-        const a = generateBookPage(0, 0, 1, 3, 7, makeFork("seed"));
-        const b = generateBookPage(0, 0, 1, 3, 7, makeFork("seed"));
+        const a = generateBookPage(0, 0, 1, 3, 7, "seed");
+        const b = generateBookPage(0, 0, 1, 3, 7, "seed");
         assert.strictEqual(a, b);
     });
 
     it("differs for different book indices", () => {
-        const a = generateBookPage(0, 0, 1, 0, 0, makeFork("seed"));
-        const b = generateBookPage(0, 0, 1, 1, 0, makeFork("seed"));
+        const a = generateBookPage(0, 0, 1, 0, 0, "seed");
+        const b = generateBookPage(0, 0, 1, 1, 0, "seed");
         assert.notStrictEqual(a, b);
     });
 
     it("differs for different page indices", () => {
-        const a = generateBookPage(0, 0, 1, 0, 0, makeFork("seed"));
-        const b = generateBookPage(0, 0, 1, 0, 1, makeFork("seed"));
+        const a = generateBookPage(0, 0, 1, 0, 0, "seed");
+        const b = generateBookPage(0, 0, 1, 0, 1, "seed");
         assert.notStrictEqual(a, b);
     });
 
     it("differs for different positions", () => {
-        const a = generateBookPage(0, 100, 1, 0, 0, makeFork("seed"));
-        const b = generateBookPage(0, 200, 1, 0, 0, makeFork("seed"));
+        const a = generateBookPage(0, 100, 1, 0, 0, "seed");
+        const b = generateBookPage(0, 200, 1, 0, 0, "seed");
         assert.notStrictEqual(a, b);
     });
 
     it("differs for different seeds", () => {
-        const a = generateBookPage(0, 0, 1, 0, 0, makeFork("seed-a"));
-        const b = generateBookPage(0, 0, 1, 0, 0, makeFork("seed-b"));
+        const a = generateBookPage(0, 0, 1, 0, 0, "seed-a");
+        const b = generateBookPage(0, 0, 1, 0, 0, "seed-b");
         assert.notStrictEqual(a, b);
     });
 
     it("all 410 pages are accessible without error", () => {
         for (let i = 0; i < PAGES_PER_BOOK; i++) {
-            assert.doesNotThrow(() => generateBookPage(0, 0, 0, 0, i, makeFork("seed")));
+            assert.doesNotThrow(() => generateBookPage(0, 0, 0, 0, i, "seed"));
         }
     });
 });
