@@ -46,12 +46,21 @@ const CORES = [
         exports: ["generateLifeStory", "formatLifeStory"],
     },
     {
+        file:   "lib/tick.core.js",
+        global: "_TickCore",
+        exports: [
+            "TICKS_PER_HOUR", "TICKS_PER_DAY", "LIGHTS_ON_TICKS",
+            "defaultTickState", "advanceTick", "isLightsOn",
+            "tickToTimeString", "ticksUntilDawn", "hoursUntilDawn",
+        ],
+    },
+    {
         file:   "lib/survival.core.js",
         global: "_SurvivalCore",
         exports: [
-            "STAT_MAX", "STAT_MIN", "defaultStats", "tickMove",
+            "STAT_MAX", "STAT_MIN", "defaultStats", "applyMove",
             "applySleep", "applyEat", "applyDrink",
-            "severity", "getWarnings",
+            "severity", "getWarnings", "showMortality",
         ],
     },
 ];

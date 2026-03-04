@@ -8,7 +8,7 @@
 <<if _seg.lightLevel === "dim">><p class="dim-notice">The lights flicker here. Something hums in the walls.</p><</if>>
 <<if _warnings.length > 0>><p class="warnings"><<for _w range _warnings>><<print _w>> <</for>></p><</if>>
 <p>A long corridor. The shelves recede in both directions until perspective fails. On your left, a railing over the chasm. On your right, books — floor to ceiling, each identical in binding, each filled with noise.</p>
-<<if _seg.restArea>><p class="feature">A rest area is here: clock, kiosk, bedroom, submission slot. Stairs lead up<<if $floor > 0>> and down<</if>>.</p><</if>>
+<<if _seg.restArea>><p class="feature">A rest area is here: clock, kiosk, bedroom. Stairs lead up<<if $floor > 0>> and down<</if>>.</p><</if>>
 <<if _seg.hasBridge>><p class="feature">The chasm narrows here. A bridge connects to the other side.</p><</if>>
 <div id="moves"><strong>Move:</strong>
 <<if _moves.includes("left")>><span data-move="left">[[← Left|Corridor Move Left]]</span> <</if>>
@@ -18,32 +18,32 @@
 <<if _moves.includes("cross")>><span data-move="cross">[[⇌ Cross|Corridor Move Cross]]</span><</if>>
 </div>
 <div id="actions">[[Look at shelves|Shelf Browse]] | [[Wait|Wait Stub]] | [[Sleep|Sleep Stub]] | [[Jump|Chasm Stub]]
-<<if _seg.restArea>> | [[Kiosk|Kiosk]] | [[Bedroom|Bedroom]] | [[Submission slot|Submission Slot]]<</if>>
+<<if _seg.restArea>> | [[Kiosk|Kiosk]] | [[Bedroom|Bedroom]]<</if>>
 </div>
 <<include "Debug Panel">>
 </div>
 
-::Corridor Move Left
+::Corridor Move Left [nohistory]
 <<script>>setup.Tick.onMove();<</script>>
 <<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "left")>>
 <<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>
 
-::Corridor Move Right
+::Corridor Move Right [nohistory]
 <<script>>setup.Tick.onMove();<</script>>
 <<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "right")>>
 <<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>
 
-::Corridor Move Up
+::Corridor Move Up [nohistory]
 <<script>>setup.Tick.onMove();<</script>>
 <<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "up")>>
 <<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>
 
-::Corridor Move Down
+::Corridor Move Down [nohistory]
 <<script>>setup.Tick.onMove();<</script>>
 <<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "down")>>
 <<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>
 
-::Corridor Move Cross
+::Corridor Move Cross [nohistory]
 <<script>>setup.Tick.onMove();<</script>>
 <<set _dest = setup.Library.applyMove({ side: $side, position: $position, floor: $floor }, "cross")>>
 <<set $side = _dest.side, $position = _dest.position, $floor = _dest.floor>><<goto "Corridor">>

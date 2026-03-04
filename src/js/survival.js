@@ -8,7 +8,7 @@
     setup.Survival = {
         /** Initialize stats on a new game (call from StoryInit). */
         init() {
-            const d = core.survivalDefaults();
+            const d = core.defaultStats();
             const v = State.variables;
             v.hunger     = d.hunger;
             v.thirst     = d.thirst;
@@ -30,29 +30,29 @@
 
         /** Apply a move/wait tick. Mutates State.variables in place. */
         onMove() {
-            Object.assign(State.variables, core.survivalApplyMove(this._statsFromVars()));
+            Object.assign(State.variables, core.applyMove(this._statsFromVars()));
         },
 
         /** Apply one sleep-hour. Mutates State.variables in place. */
         onSleep() {
-            Object.assign(State.variables, core.survivalApplySleep(this._statsFromVars()));
+            Object.assign(State.variables, core.applySleep(this._statsFromVars()));
         },
 
         /** Restore all stats (resurrection at dawn). */
         onResurrection() {
-            Object.assign(State.variables, core.survivalApplyResurrection());
+            Object.assign(State.variables, core.defaultStats());
         },
 
-        onEat()   { Object.assign(State.variables, core.survivalApplyEat(this._statsFromVars())); },
-        onDrink() { Object.assign(State.variables, core.survivalApplyDrink(this._statsFromVars())); },
+        onEat()   { Object.assign(State.variables, core.applyEat(this._statsFromVars())); },
+        onDrink() { Object.assign(State.variables, core.applyDrink(this._statsFromVars())); },
 
-        severity(val) { return core.survivalSeverity(val); },
+        severity(val) { return core.severity(val); },
 
-        showMortality() { return core.survivalShowMortality(this._statsFromVars()); },
+        showMortality() { return core.showMortality(this._statsFromVars()); },
 
         /** Returns array of warning strings for current state. */
         warnings() {
-            return core.survivalWarnings(this._statsFromVars());
+            return core.getWarnings(this._statsFromVars());
         },
     };
 }());

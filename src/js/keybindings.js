@@ -34,6 +34,14 @@
         return State.variables.mode || "explore";
     }
 
+    const DIR_PASSAGE = {
+        left: "Corridor Move Left",
+        right: "Corridor Move Right",
+        up: "Corridor Move Up",
+        down: "Corridor Move Down",
+        cross: "Corridor Move Cross",
+    };
+
     function doMove(dir) {
         const loc = {
             side:     State.variables.side,
@@ -41,16 +49,8 @@
             floor:    State.variables.floor,
         };
         const available = setup.Library.availableMoves(loc);
-        if (!available.includes(dir)) return; // silently ignore invalid moves
-        try {
-            const dest = setup.Library.applyMove(loc, dir);
-            State.variables.side     = dest.side;
-            State.variables.position = dest.position;
-            State.variables.floor    = dest.floor;
-            Engine.play("Corridor"); // keybindings bypass passage routing, update state directly
-        } catch (e) {
-            // applyMove threw — blocked move, ignore
-        }
+        if (!available.includes(dir)) return;
+        Engine.play(DIR_PASSAGE[dir]);
     }
 
     $(document).on("keydown.hell", function (ev) {
