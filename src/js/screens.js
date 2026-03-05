@@ -65,9 +65,9 @@
         html += '<p class="location-header">' + esc(Tick.getTimeString()) + '</p>';
 
         if (seg.restArea) {
-            html += '<p>' + esc(TEXT.screens.darkness_rest_area) + '</p>';
+            html += '<p>' + esc(T(TEXT.screens.darkness_rest_area, "darkness_rest_area:" + state.tick)) + '</p>';
         } else {
-            html += '<p>' + esc(TEXT.screens.darkness_corridor) + '</p>';
+            html += '<p>' + esc(T(TEXT.screens.darkness_corridor, "darkness_corridor:" + state.tick)) + '</p>';
         }
 
         var warnings = Surv.warnings();
@@ -118,7 +118,7 @@
             html += '<p class="location-header">' + esc(Lib.describeLocation(loc)) + '</p>';
 
             if (seg.lightLevel === "dim") {
-                html += '<p class="dim-notice">' + esc(TEXT.screens.corridor_dim) + '</p>';
+                html += '<p class="dim-notice">' + esc(T(TEXT.screens.corridor_dim, "corridor_dim:" + state.tick)) + '</p>';
             }
             if (warnings.length > 0) {
                 html += '<p class="warnings">';
@@ -126,10 +126,10 @@
                 html += '</p>';
             }
 
-            html += '<p>' + esc(TEXT.screens.corridor) + '</p>';
+            html += '<p>' + esc(T(TEXT.screens.corridor, "corridor:" + state.tick)) + '</p>';
 
             if (state.lastEvent) {
-                html += '<p class="event-text">' + esc(state.lastEvent.text) + '</p>';
+                html += '<p class="event-text">' + esc(T(state.lastEvent.text, "event:" + state.lastEvent.id + ":" + state.tick)) + '</p>';
             }
 
             var npcsHere = (typeof Npc !== "undefined") ? Npc.here() : [];
@@ -140,7 +140,7 @@
                     var dispClass = n.alive ? "npc-" + n.disposition : "npc-dead";
                     html += '<p class="npc-entry ' + dispClass + '">';
                     if (!n.alive) {
-                        html += '<span class="npc-name">' + esc(n.name) + '</span> ' + esc(TEXT.screens.dead_npc_at_location);
+                        html += '<span class="npc-name">' + esc(n.name) + '</span> ' + esc(T(TEXT.screens.dead_npc_at_location, "dead_npc:" + n.id));
                     } else {
                         html += '<a class="npc-name" data-npc-id="' + n.id + '">' + esc(n.name) + '</a>';
                         html += ' <span class="npc-disposition">(' + n.disposition + ')</span>';
@@ -151,7 +151,7 @@
             }
 
             if (seg.restArea) {
-                html += '<p class="feature">' + esc(TEXT.screens.corridor_rest);
+                html += '<p class="feature">' + esc(T(TEXT.screens.corridor_rest, "corridor_rest:" + state.tick));
                 if (state.floor > 0) html += ' and down';
                 html += '.</p>';
             } else {
@@ -159,7 +159,7 @@
             }
 
             if (seg.hasBridge) {
-                html += '<p class="feature">' + esc(TEXT.screens.corridor_bridge) + '</p>';
+                html += '<p class="feature">' + esc(T(TEXT.screens.corridor_bridge, "corridor_bridge:" + state.tick)) + '</p>';
             }
 
             html += '<div id="moves"><strong>Move:</strong> ';
@@ -329,7 +329,7 @@
         render: function () {
             return '<div id="kiosk-view">' +
                 '<p class="location-header">Kiosk</p>' +
-                '<p>' + esc(TEXT.screens.kiosk_intro) + '</p>' +
+                '<p>' + esc(T(TEXT.screens.kiosk_intro, "kiosk_intro:" + state.tick)) + '</p>' +
                 '<a data-goto="Kiosk Get Drink">Ask for water</a><br>' +
                 '<a data-goto="Kiosk Get Food">Ask for food</a><br>' +
                 '<a data-goto="Corridor">Leave</a>' +
@@ -340,7 +340,7 @@
     Engine.register("Kiosk Get Drink", {
         enter: function () { Tick.advance(1); Surv.onDrink(); },
         render: function () {
-            return '<p>' + esc(TEXT.screens.kiosk_drink) + '</p>' +
+            return '<p>' + esc(T(TEXT.screens.kiosk_drink, "kiosk_drink:" + state.tick)) + '</p>' +
                 '<a data-goto="Kiosk">Continue</a>';
         }
     });
@@ -348,7 +348,7 @@
     Engine.register("Kiosk Get Food", {
         enter: function () { Tick.advance(1); Surv.onEat(); },
         render: function () {
-            return '<p>' + esc(TEXT.screens.kiosk_food) + '</p>' +
+            return '<p>' + esc(T(TEXT.screens.kiosk_food, "kiosk_food:" + state.tick)) + '</p>' +
                 '<a data-goto="Kiosk">Continue</a>';
         }
     });
@@ -359,7 +359,7 @@
         render: function () {
             return '<div id="bedroom-view">' +
                 '<p class="location-header">Bedroom</p>' +
-                '<p>' + esc(TEXT.screens.bedroom_intro) + '</p>' +
+                '<p>' + esc(T(TEXT.screens.bedroom_intro, "bedroom_intro:" + state.tick)) + '</p>' +
                 '<a data-goto="Sleep Stub">Sleep</a><br>' +
                 '<a data-goto="Corridor">Leave</a>' +
                 '</div>';
@@ -373,7 +373,7 @@
             var attempts = state.submissionsAttempted || 0;
             var html = '<div id="submission-view">' +
                 '<p class="location-header">Submission Slot</p>' +
-                '<p>' + esc(TEXT.screens.submission_intro) + '</p>' +
+                '<p>' + esc(T(TEXT.screens.submission_intro, "submission_intro:" + state.tick)) + '</p>' +
                 '<p>You have submitted ' + attempts + ' book' + (attempts !== 1 ? 's' : '') + ' so far.</p>';
 
             if (state.heldBook !== null) {
@@ -405,7 +405,7 @@
                 setTimeout(function () { Engine.goto("Win"); }, 0);
                 return "";
             }
-            return '<p>' + esc(TEXT.screens.submission_fail) + '</p>' +
+            return '<p>' + esc(T(TEXT.screens.submission_fail, "submission_fail:" + state.tick)) + '</p>' +
                 '<a data-goto="Corridor">Continue</a>';
         }
     });
@@ -416,9 +416,9 @@
         render: function () {
             return '<div id="win-view">' +
                 '<p class="location-header">Release</p>' +
-                '<p>' + esc(TEXT.screens.win_release) + '</p>' +
-                '<p>' + esc(TEXT.screens.win_through) + '</p>' +
-                '<p>' + esc(TEXT.screens.win_light) + '</p>' +
+                '<p>' + esc(T(TEXT.screens.win_release, "win_release")) + '</p>' +
+                '<p>' + esc(T(TEXT.screens.win_through, "win_through")) + '</p>' +
+                '<p>' + esc(T(TEXT.screens.win_light, "win_light")) + '</p>' +
                 '<p class="win-message">You are free.</p>' +
                 '<hr>' +
                 '<p><em>Seed: ' + esc(state.seed) + '<br>' +
@@ -441,16 +441,14 @@
     Engine.register("Sleep Stub", {
         enter: function () { Tick.onSleep(); },
         render: function () {
-            var sleepTexts = TEXT.screens.sleep;
-            var sleepText = sleepTexts[state.day % sleepTexts.length];
-            return '<p>' + esc(sleepText) + '</p>' +
+            return '<p>' + esc(T(TEXT.screens.sleep, "sleep:" + state.day)) + '</p>' +
                 '<a data-goto="Corridor">Get up</a>';
         }
     });
 
     Engine.register("Chasm Stub", {
         render: function () {
-            return '<p>' + esc(TEXT.screens.chasm) + '</p>' +
+            return '<p>' + esc(T(TEXT.screens.chasm, "chasm:" + state.tick)) + '</p>' +
                 '<a data-goto="Corridor">Back</a>';
         }
     });

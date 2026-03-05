@@ -9,6 +9,16 @@
 
     window.state = {};
 
+    /** Resolve a TEXT field: if array, sample one via game PRNG; if string, return as-is.
+     *  contextKey should vary by situation (e.g. field path + tick) for deterministic variety. */
+    window.T = function (value, contextKey) {
+        if (!Array.isArray(value)) return value;
+        if (value.length === 0) return "";
+        if (value.length === 1) return value[0];
+        var rng = PRNG.fork("text:" + (contextKey || ""));
+        return value[rng.nextInt(value.length)];
+    };
+
     window.Engine = {
         _screens: {},   // populated by screens.js
         _actions: {},   // named action callbacks (avoids new Function)
