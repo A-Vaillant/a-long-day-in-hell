@@ -5,6 +5,5 @@ set -euo pipefail
 if compgen -G "lib/*.core.ts" > /dev/null; then
     npx tsc
 fi
-node scripts/build-bundle.js
 mkdir -p dist
 node scripts/build-vanilla.js
