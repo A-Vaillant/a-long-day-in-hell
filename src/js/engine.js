@@ -148,7 +148,9 @@
                 state.openPage    = 0;
                 state.debug       = true;
 
-                var story = LifeStory.generate(seed);
+                var placement = params.get("placement") || "gaussian";
+                var startLoc = { side: state.side, position: state.position, floor: state.floor };
+                var story = LifeStory.generate(seed, { placement: placement, startLoc: startLoc });
                 state.lifeStory  = story;
                 state.targetBook = story.bookCoords;
 

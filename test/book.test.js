@@ -11,8 +11,8 @@ describe("constants", () => {
     it("CHARS_PER_PAGE is 3200", () => {
         assert.strictEqual(CHARS_PER_PAGE, 3200);
     });
-    it("CHARS_PER_BOOK is 1312000", () => {
-        assert.strictEqual(CHARS_PER_BOOK, 1_312_000);
+    it("CHARS_PER_BOOK is 35200", () => {
+        assert.strictEqual(CHARS_PER_BOOK, 35_200);
     });
 });
 
@@ -68,7 +68,7 @@ describe("generateBookPage", () => {
         assert.notStrictEqual(a, b);
     });
 
-    it("all 410 pages are accessible without error", () => {
+    it("all pages are accessible without error", () => {
         for (let i = 0; i < PAGES_PER_BOOK; i++) {
             assert.doesNotThrow(() => generateBookPage(0, 0, 0, 0, i, "seed"));
         }

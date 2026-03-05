@@ -43,7 +43,7 @@ const CORES = [
     {
         file:   "lib/lifestory.core.js",
         global: "_LifeStoryCore",
-        exports: ["generateLifeStory", "formatLifeStory"],
+        exports: ["generateLifeStory", "formatLifeStory", "generateBookPage"],
     },
     {
         file:   "lib/tick.core.js",
@@ -63,6 +63,17 @@ const CORES = [
             "applySleep", "applyEat", "applyDrink",
             "severity", "getWarnings", "showMortality",
             "describeFromTable",
+        ],
+    },
+    {
+        file:   "lib/invertible.core.js",
+        global: "_InvertibleCore",
+        exports: [
+            "encodeCoords", "decodeCoords",
+            "generateTargetPage", "recoverCoords",
+            "LCG_A", "LCG_C", "LCG_A_INV", "CHARSET_LEN",
+            "packCoords", "unpackCoords", "mix32", "unmix32", "seedKey",
+            "lcgNext", "lcgPrev", "makeLCG",
         ],
     },
     {
