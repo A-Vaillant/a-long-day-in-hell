@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
     generateBookPage, bookMeta, findCoherentFragment, scoreSensibility,
+    dwellMoraleDelta, SENSIBILITY_THRESHOLD, DWELL_MS,
     PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE, CHARS_PER_PAGE, CHARS_PER_BOOK, CHARSET,
 } from "../lib/book.core.js";
 describe("constants", () => {
@@ -131,6 +132,77 @@ describe("scoreSensibility", () => {
             const s = scoreSensibility(t);
             assert.ok(s >= 0 && s <= 1, `score ${s} out of [0,1] for input`);
         }
+    });
+});
+
+describe("dwellMoraleDelta", () => {
+    it("rewards sensible pages with positive delta", () => {
+        const result = dwellMoraleDelta(0.30, 0);
+        assert.ok(result.delta > 0, `expected positive delta, got ${result.delta}`);
+        assert.strictEqual(result.isNonsense, false);
+    });
+
+    it("penalizes nonsense pages with negative delta", () => {
+        const result = dwellMoraleDelta(0.02, 0);
+        assert.ok(result.delta < 0, `expected negative delta, got ${result.delta}`);
+        assert.strictEqual(result.isNonsense, true);
+    });
+
+    it("threshold boundary: at threshold counts as sensible", () => {
+        const result = dwellMoraleDelta(SENSIBILITY_THRESHOLD, 0);
+        assert.ok(result.delta > 0);
+        assert.strictEqual(result.isNonsense, false);
+    });
+
+    it("threshold boundary: just below is nonsense", () => {
+        const result = dwellMoraleDelta(SENSIBILITY_THRESHOLD - 0.001, 0);
+        assert.ok(result.delta < 0);
+        assert.strictEqual(result.isNonsense, true);
+    });
+
+    it("nonsense penalty diminishes with pages read", () => {
+        const first  = dwellMoraleDelta(0.02, 0);
+        const second = dwellMoraleDelta(0.02, 1);
+        const fifth  = dwellMoraleDelta(0.02, 4);
+        const tenth  = dwellMoraleDelta(0.02, 9);
+
+        // All negative
+        assert.ok(first.delta < 0);
+        assert.ok(second.delta < 0);
+        assert.ok(fifth.delta < 0);
+        assert.ok(tenth.delta < 0);
+
+        // Strictly diminishing (less negative = closer to 0)
+        assert.ok(first.delta < second.delta,
+            `first ${first.delta} should hurt more than second ${second.delta}`);
+        assert.ok(second.delta < fifth.delta,
+            `second ${second.delta} should hurt more than fifth ${fifth.delta}`);
+        assert.ok(fifth.delta < tenth.delta,
+            `fifth ${fifth.delta} should hurt more than tenth ${tenth.delta}`);
+    });
+
+    it("nonsense penalty approaches zero for large counts", () => {
+        const result = dwellMoraleDelta(0.02, 100);
+        assert.ok(Math.abs(result.delta) < 0.05,
+            `after 100 pages, penalty should be negligible, got ${result.delta}`);
+    });
+
+    it("sensible reward is constant regardless of nonsense count", () => {
+        const a = dwellMoraleDelta(0.30, 0);
+        const b = dwellMoraleDelta(0.30, 50);
+        assert.strictEqual(a.delta, b.delta);
+    });
+});
+
+describe("dwell constants", () => {
+    it("SENSIBILITY_THRESHOLD is between random noise and English", () => {
+        assert.ok(SENSIBILITY_THRESHOLD > 0.03, "threshold too low — random pages would pass");
+        assert.ok(SENSIBILITY_THRESHOLD < 0.30, "threshold too high — only perfect English would pass");
+    });
+
+    it("DWELL_MS is a reasonable delay", () => {
+        assert.ok(DWELL_MS >= 1000, "dwell too short — rapid flipping would trigger");
+        assert.ok(DWELL_MS <= 5000, "dwell too long — tedious to trigger");
     });
 });
 
