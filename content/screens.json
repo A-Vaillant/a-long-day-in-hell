@@ -49,6 +49,7 @@
   "chasm": "You stand at the railing. The chasm drops away beneath you — deeper than anything you've seen. Not even the Grand Canyon seemed so vast. The other side is visible, identical shelves mirroring yours. Below, nothing. Above, floors rising until they vanish.",
 
   "death_mortality": "Your body gives out. Thirst or hunger or both — in the end it doesn't matter which. You fall where you stand. The carpet is the last thing you feel.",
+  "death_chasm": "You hit the bottom of the chasm. The impact is absolute. For a moment you are aware of every bone in your body, and then you are not aware of anything at all.",
   "resurrection": "That strange hour before dawn. Sleep that can't be helped. All things repaired, made right and new. You wake. Your body is whole. The library is unchanged.",
 
   "dead_npc_at_location": [
@@ -74,6 +75,16 @@
     "What's the point. They're all nonsense. Every one of them.",
     "Your hand won't move. The books are there. You are not."
   ],
+
+  "falling_slow": "Floors drift past. You can make out individual shelves on each level. The air is still.",
+  "falling_medium": "The shelves blur into bands of color. Wind pulls at your clothes.",
+  "falling_fast": "Everything is a streak of brown and gold. The wind tears at you. You can't hear yourself think.",
+  "falling_dark": "Darkness. Falling. No way to tell how fast or how far.",
+  "falling_grab_success": "Your hands close on the railing. The impact wrenches your shoulders. You hold.",
+  "falling_grab_fail": "You reach for the railing. Your fingers scrape metal and slip. The floor falls away again.",
+  "falling_landed": "You hit the bottom. The floor is solid stone.",
+  "falling_landed_fatal": "You hit the bottom at speed. Everything breaks.",
+  "chasm_jump_confirm": "The chasm yawns below. Jump?",
 
   "menu_save_confirm": "Saved.",
   "menu_new_game_confirm": "Are you sure? All progress will be lost."

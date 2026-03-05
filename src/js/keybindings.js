@@ -3,6 +3,8 @@
 import { state } from "./state.js";
 import { Engine } from "./engine.js";
 import { Book } from "./book.js";
+import { Chasm } from "./chasm.js";
+import { Lib } from "./library.js";
 import { doMove } from "./screens.js";
 
 const VI_MOVE = {
@@ -54,6 +56,45 @@ document.addEventListener("keydown", function (ev) {
             Engine.goto("Corridor");
             return;
         }
+    } else if (screen === "Falling") {
+        switch (key) {
+            case "w":
+                ev.preventDefault();
+                document.getElementById("fall-wait")?.click();
+                return;
+            case "g":
+                ev.preventDefault();
+                document.getElementById("fall-grab")?.click();
+                return;
+            case "t":
+                ev.preventDefault();
+                document.getElementById("fall-throw")?.click();
+                return;
+            case "Escape":
+                ev.preventDefault();
+                state._menuReturn = screen;
+                Engine.goto("Menu");
+                return;
+        }
+        if (key === "`" || key === "~") {
+            ev.preventDefault();
+            state.debug = !state.debug;
+            Engine.goto(screen);
+        }
+        return;
+    } else if (screen === "Chasm Stub") {
+        if (key === "y" || key === "Y") {
+            ev.preventDefault();
+            const btn = document.getElementById("chasm-jump-yes");
+            if (btn) btn.click();
+            return;
+        }
+        if (key === "n" || key === "N" || key === "Escape" || key === "q") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
+        return;
     } else if (screen === "Death") {
         if (key === "`" || key === "~") {
             ev.preventDefault();
@@ -84,10 +125,14 @@ document.addEventListener("keydown", function (ev) {
             ev.preventDefault();
             Engine.goto("Wait Stub");
             break;
-        case "J":
+        case "J": {
             ev.preventDefault();
-            Engine.goto("Chasm Stub");
+            const seg = Lib.getSegment(state.side, state.position, state.floor);
+            if (seg.restArea && state.floor > 0) {
+                Engine.goto("Chasm Stub");
+            }
             break;
+        }
         case "~":
         case "`":
             ev.preventDefault();
