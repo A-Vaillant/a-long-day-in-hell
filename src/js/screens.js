@@ -239,7 +239,7 @@
             }
             var bk = state.openBook;
             var pg = state.openPage;
-            var maxPage = 411;
+            var maxPage = Book.PAGES_PER_BOOK + 1; // +1 for back cover
             var isHeld = state.heldBook !== null && state.heldBook.side === bk.side &&
                 state.heldBook.position === bk.position && state.heldBook.floor === bk.floor &&
                 state.heldBook.bookIndex === bk.bookIndex;
@@ -253,7 +253,7 @@
             } else if (pg === maxPage) {
                 html += '<p class="location-header">Book #' + (bk.bookIndex + 1) + ' — Back Cover</p>';
             } else {
-                html += '<p class="location-header">Book #' + (bk.bookIndex + 1) + ' — Page ' + pg + ' / 410</p>';
+                html += '<p class="location-header">Book #' + (bk.bookIndex + 1) + ' — Page ' + pg + ' / ' + Book.PAGES_PER_BOOK + '</p>';
             }
 
             if (isTarget) {
@@ -298,7 +298,7 @@
             if (pg === 0) {
                 el.className = "book-single book-page-cover";
                 el.textContent = "Book " + (bk.bookIndex + 1);
-            } else if (pg === 411) {
+            } else if (pg === Book.PAGES_PER_BOOK + 1) {
                 el.className = "book-single book-page-cover book-page-back";
             } else {
                 el.textContent = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
@@ -415,7 +415,13 @@
     /* ---------- Win ---------- */
 
     Engine.register("Win", {
+        enter: function () {
+            state.won = true;
+            Engine.save();
+        },
         render: function () {
+            var tb = state.targetBook;
+            var sideLabel = tb.side === 0 ? "west" : "east";
             return '<div id="win-view">' +
                 '<p class="location-header">Release</p>' +
                 '<p>' + esc(T(TEXT.screens.win_release, "win_release")) + '</p>' +
@@ -425,9 +431,23 @@
                 '<hr>' +
                 '<p><em>Seed: ' + esc(state.seed) + '<br>' +
                 'Your name was ' + esc(state.lifeStory.name) + '.<br>' +
+                'Placement: ' + esc(state.lifeStory.placement || "random") + '<br>' +
+                'Book location: ' + sideLabel + ' side, segment ' + tb.position + ', floor ' + tb.floor + ', book #' + (tb.bookIndex + 1) + '<br>' +
+                'Days survived: ' + state.day + '<br>' +
                 'Submissions: ' + (state.submissionsAttempted || 0) + '<br>' +
                 'Deaths: ' + (state.deaths || 0) + '</em></p>' +
+                '<p><a id="new-game-link">New game</a></p>' +
                 '</div>';
+        },
+        afterRender: function () {
+            var link = document.getElementById("new-game-link");
+            if (link) {
+                link.addEventListener("click", function (ev) {
+                    ev.preventDefault();
+                    Engine.clearSave();
+                    window.location.reload();
+                });
+            }
         }
     });
 

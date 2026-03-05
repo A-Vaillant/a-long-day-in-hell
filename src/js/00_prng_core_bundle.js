@@ -168,11 +168,11 @@
 
     // ---- _BookCore ----
 
-    const PAGES_PER_BOOK  = 410;
+    const PAGES_PER_BOOK  = 11;
     const LINES_PER_PAGE  = 40;
     const CHARS_PER_LINE  = 80;
     const CHARS_PER_PAGE  = LINES_PER_PAGE * CHARS_PER_LINE; // 3200
-    const CHARS_PER_BOOK  = PAGES_PER_BOOK * CHARS_PER_PAGE; // 1,312,000
+    const CHARS_PER_BOOK  = PAGES_PER_BOOK * CHARS_PER_PAGE; // 35,200
 
     /**
      * The 95-character printable ASCII set (codepoints 32–126).
@@ -294,22 +294,45 @@
         "You were making a list.",
     ];
 
-    const FLOORS_TOTAL = 1000; // effectively unbounded; use large number for coord gen
+    /**
+     * Box-Muller transform: two uniform [0,1) → one standard normal sample.
+     * Returns a value from approximately N(0,1).
+     */
+    function gaussianSample(rng) {
+        let u, v;
+        do { u = rng.next(); } while (u === 0);
+        v = rng.next();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
 
     /**
      * Generate a life story and book coordinates from a seed string.
      *
+     * Placement modes:
+     *   "gaussian" — target book is placed in a Gaussian distribution around the
+     *                player's starting position. A brute-force scanner checking
+     *                nearby books can find it.
+     *   "random"   — target book is placed anywhere in the library. Recovery
+     *                requires inverting the LCG (reading the source code).
+     *
      * @param {string} seed
+     * @param {object} [opts]
+     * @param {string} [opts.placement="gaussian"] - "gaussian" or "random"
+     * @param {{ side: number, position: number, floor: number }} [opts.startLoc] - player start (for gaussian)
      * @returns {{
      *   name: string,
      *   occupation: string,
      *   hometown: string,
      *   causeOfDeath: string,
      *   lastThing: string,
+     *   placement: string,
      *   bookCoords: { side: number, position: number, floor: number, bookIndex: number }
      * }}
      */
-    function generateLifeStory(seed) {
+    function generateLifeStory(seed, opts) {
+        const placement = (opts && opts.placement) || "gaussian";
+        const startLoc = (opts && opts.startLoc) || { side: 0, position: 0, floor: 10 };
+
         const rng = seedFromString("life:" + seed);
         const pick = (arr) => arr[rng.nextInt(arr.length)];
 
@@ -319,11 +342,21 @@
         // Book coordinates: derived independently so changing template pools
         // doesn't shift everyone's book.
         const coordRng  = seedFromString("coords:" + seed);
-        const side      = coordRng.nextInt(2);
-        // Position: spread across a wide range so players rarely start near their book
-        const position  = coordRng.nextInt(10000) - 5000;
-        const floor     = coordRng.nextInt(100);
-        const bookIndex = coordRng.nextInt(SEGMENT_BOOK_COUNT);
+
+        let side, position, floor, bookIndex;
+
+        if (placement === "random") {
+            side      = coordRng.nextInt(2);
+            position  = coordRng.nextInt(10000) - 5000;
+            floor     = coordRng.nextInt(100);
+            bookIndex = coordRng.nextInt(SEGMENT_BOOK_COUNT);
+        } else {
+            // Gaussian: centered on start, σ=50 segments, σ=15 floors
+            side      = coordRng.nextInt(2);
+            position  = startLoc.position + Math.round(gaussianSample(coordRng) * 50);
+            floor     = Math.max(0, startLoc.floor + Math.round(gaussianSample(coordRng) * 15));
+            bookIndex = coordRng.nextInt(SEGMENT_BOOK_COUNT);
+        }
 
         return {
             name:         `${firstName} ${lastName}`,
@@ -331,12 +364,13 @@
             hometown:     pick(HOMETOWNS),
             causeOfDeath: pick(CAUSE_OF_DEATH),
             lastThing:    pick(LAST_THINGS),
+            placement,
             bookCoords:   { side, position, floor, bookIndex },
         };
     }
 
     /**
-     * Format a life story as a short prose paragraph.
+     * Format a life story as a short prose paragraph (for the Life Story screen).
      *
      * @param {ReturnType<typeof generateLifeStory>} story
      * @returns {string}
@@ -354,7 +388,98 @@
         ].join(" ");
     }
 
-    window._LifeStoryCore = { generateLifeStory, formatLifeStory };
+    const CHARS_PER_LINE = 80;
+    const LINES_PER_PAGE = 40;
+
+    /**
+     * Word-wrap text to fit within CHARS_PER_LINE, preserving blank lines.
+     * Returns an array of lines.
+     */
+    function wordWrap(text) {
+        const result = [];
+        const paragraphs = text.split("\n");
+        for (const para of paragraphs) {
+            if (para.trim() === "") {
+                result.push("");
+                continue;
+            }
+            const words = para.split(/\s+/);
+            let line = "";
+            for (const word of words) {
+                if (line.length === 0) {
+                    line = word;
+                } else if (line.length + 1 + word.length <= CHARS_PER_LINE) {
+                    line += " " + word;
+                } else {
+                    result.push(line);
+                    line = word;
+                }
+            }
+            if (line.length > 0) result.push(line);
+        }
+        return result;
+    }
+
+    /**
+     * Pad a line to exactly CHARS_PER_LINE with trailing spaces.
+     */
+    function padLine(line) {
+        if (line.length >= CHARS_PER_LINE) return line.slice(0, CHARS_PER_LINE);
+        return line + " ".repeat(CHARS_PER_LINE - line.length);
+    }
+
+    /**
+     * Generate a page of the target book as a string (40 lines × 80 chars).
+     * Page 0 is the title page. Pages 1+ contain the life story prose.
+     * All pages are whitespace-padded to exactly LINES_PER_PAGE × CHARS_PER_LINE.
+     *
+     * @param {ReturnType<typeof generateLifeStory>} story
+     * @param {number} pageIndex - 0-based (0..PAGES_PER_BOOK-1)
+     * @returns {string}
+     */
+    function generateBookPage(story, pageIndex) {
+        const lines = [];
+
+        if (pageIndex === 0) {
+            // Title page: centered-ish
+            for (let i = 0; i < 15; i++) lines.push("");
+            lines.push("The Life of " + story.name);
+            lines.push("");
+            lines.push("a " + story.occupation + ",");
+            lines.push("from " + story.hometown);
+        } else {
+            // Prose pages — for now, page 1 gets the full summary, rest are blank
+            if (pageIndex === 1) {
+                const prose = [
+                    "Your name was " + story.name + ".",
+                    "You were a " + story.occupation + ", from " + story.hometown + ".",
+                    "You died of " + story.causeOfDeath + ".",
+                    story.lastThing,
+                    "",
+                    "Somewhere in this library is a book that contains every detail",
+                    "of your life -- every word you ever spoke, every thought you kept",
+                    "to yourself, every morning you woke up and made coffee or didn't.",
+                    "",
+                    "This is that book.",
+                    "",
+                    "Most of it is blank. That is not a flaw. Your life, in the end,",
+                    "was mostly silence. The parts that mattered fit on a few pages.",
+                    "The rest is whitespace. Margins. The quiet between sentences.",
+                    "",
+                    "Find it. Submit it. Go home.",
+                ].join("\n");
+                const wrapped = wordWrap(prose);
+                for (const l of wrapped) lines.push(l);
+            }
+            // Other pages: blank (whitespace padding below fills them)
+        }
+
+        // Pad to exactly LINES_PER_PAGE lines, each padded to CHARS_PER_LINE
+        while (lines.length < LINES_PER_PAGE) lines.push("");
+        return lines.slice(0, LINES_PER_PAGE).map(padLine).join("\n");
+    }
+
+    window._LifeStoryCore = { generateLifeStory, formatLifeStory, generateBookPage };
 
     // ---- _TickCore ----
 
@@ -667,6 +792,269 @@
     }
 
     window._SurvivalCore = { STAT_MAX, STAT_MIN, defaultStats, applyMoveTick, applySleep, applyEat, applyDrink, severity, getWarnings, showMortality, describeFromTable };
+
+    // ---- _InvertibleCore ----
+
+    /* ---- Constants ---- */
+
+    const CHARSET_LEN = 95;
+    const CHARS_PER_LINE = 80;
+    const LINES_PER_PAGE = 40;
+
+    /** LCG parameters (mod 2^32). Multiplier from Numerical Recipes. */
+    const LCG_A = 1664525;
+    const LCG_C = 1013904223;
+
+    /* ---- Invertible coordinate encoding ---- */
+
+    /**
+     * Pack coordinates into a single 64-bit-ish pair of 32-bit words.
+     * Layout:
+     *   word0: (side << 31) | ((floor & 0x7FFF) << 16) | (bookIndex & 0xFFFF)
+     *   word1: position as signed int32 (reinterpreted as uint32)
+     */
+    function packCoords(side, position, floor, bookIndex) {
+        const w0 = ((side & 1) << 31) | ((floor & 0x7FFF) << 16) | (bookIndex & 0xFFFF);
+        const w1 = position | 0; // signed → int32 bits
+        return [w0 >>> 0, w1 >>> 0];
+    }
+
+    function unpackCoords(w0, w1) {
+        const side = (w0 >>> 31) & 1;
+        const floor = (w0 >>> 16) & 0x7FFF;
+        const bookIndex = w0 & 0xFFFF;
+        const position = w1 | 0; // reinterpret as signed
+        return { side, position, floor, bookIndex };
+    }
+
+    /**
+     * Invertible 32-bit mix (based on splitmix32 finalizer).
+     * Each step is reversible.
+     */
+    function mix32(x) {
+        x = x >>> 0;
+        x ^= x >>> 16;
+        x = Math.imul(x, 0x45d9f3b);
+        x ^= x >>> 16;
+        x = Math.imul(x, 0x45d9f3b);
+        x ^= x >>> 16;
+        return x >>> 0;
+    }
+
+    /** Inverse of mix32. */
+    function unmix32(x) {
+        x = x >>> 0;
+        x ^= x >>> 16;
+        x = Math.imul(x, 0x119de1f3); // modular inverse of 0x45d9f3b mod 2^32
+        x ^= x >>> 16;
+        x = Math.imul(x, 0x119de1f3);
+        x ^= x >>> 16;
+        return x >>> 0;
+    }
+
+    /**
+     * Derive a 2-word key from the global seed string.
+     * This is what the player needs to know (it's just hash(seed + suffix)).
+     */
+    function seedKey(globalSeed) {
+        return [hash(globalSeed + ":inv0"), hash(globalSeed + ":inv1")];
+    }
+
+    /**
+     * Encode coordinates into a 2-word LCG state.
+     *
+     * coords → pack → mix each word → XOR with seed key
+     *
+     * @param {number} side
+     * @param {number} position
+     * @param {number} floor
+     * @param {number} bookIndex
+     * @param {string} globalSeed
+     * @returns {[number, number]} two uint32 state words
+     */
+    function encodeCoords(side, position, floor, bookIndex, globalSeed) {
+        const [w0, w1] = packCoords(side, position, floor, bookIndex);
+        const [k0, k1] = seedKey(globalSeed);
+        return [(mix32(w0) ^ k0) >>> 0, (mix32(w1) ^ k1) >>> 0];
+    }
+
+    /**
+     * Decode a 2-word state back to coordinates.
+     *
+     * state → XOR with seed key → unmix each word → unpack
+     *
+     * @param {number} s0
+     * @param {number} s1
+     * @param {string} globalSeed
+     * @returns {{ side, position, floor, bookIndex }}
+     */
+    function decodeCoords(s0, s1, globalSeed) {
+        const [k0, k1] = seedKey(globalSeed);
+        const w0 = unmix32((s0 ^ k0) >>> 0);
+        const w1 = unmix32((s1 ^ k1) >>> 0);
+        return unpackCoords(w0, w1);
+    }
+
+    /* ---- LCG ---- */
+
+    /** Advance LCG state by one step. */
+    function lcgNext(s) {
+        return (Math.imul(LCG_A, s) + LCG_C) >>> 0;
+    }
+
+    /** Reverse LCG state by one step. */
+    // LCG_A_INV is the modular inverse of LCG_A mod 2^32.
+    const LCG_A_INV = 4276115653; // computed: LCG_A * LCG_A_INV ≡ 1 (mod 2^32)
+    function lcgPrev(s) {
+        return Math.imul((s - LCG_C) >>> 0, LCG_A_INV) >>> 0;
+    }
+
+    /**
+     * Create an LCG stream from a 2-word state.
+     * s0 is the running LCG state. s1 is mixed in once at the start via XOR,
+     * giving 64 bits of effective key space while keeping a simple 32-bit LCG
+     * that's easy to reverse from output.
+     *
+     * Recovery: from consecutive outputs mod 95, brute-force s_combined.
+     * Then: s_combined = s0 ^ s1, and we know s1 from the seed, so s0 = s_combined ^ s1.
+     * Wait — we don't know s1 independently. Let's just combine them into one value.
+     *
+     * Actually: we keep both words recoverable by outputting from s0's chain for
+     * even chars and s1's chain for odd chars. No interleave swapping — just two
+     * independent LCGs read in alternation.
+     */
+    function makeLCG(s0, s1) {
+        let a = s0 >>> 0, b = s1 >>> 0;
+        let even = true;
+        return {
+            nextInt(n) {
+                if (even) {
+                    a = lcgNext(a);
+                    even = false;
+                    return a % n;
+                } else {
+                    b = lcgNext(b);
+                    even = true;
+                    return b % n;
+                }
+            },
+            state() { return [a, b]; }
+        };
+    }
+
+    /* ---- Page generation ---- */
+
+    /**
+     * Generate a page of the target book.
+     *
+     * Unlike the main book generator (xoshiro128**), this uses the invertible LCG.
+     * The state is derived from coordinates + seed, and can be reversed.
+     *
+     * @param {number} side
+     * @param {number} position
+     * @param {number} floor
+     * @param {number} bookIndex
+     * @param {number} pageIndex - 0-based (0..409)
+     * @param {string} globalSeed
+     * @returns {string}
+     */
+    function generateTargetPage(side, position, floor, bookIndex, pageIndex, globalSeed) {
+        const [s0, s1] = encodeCoords(side, position, floor, bookIndex, globalSeed);
+
+        // Advance LCG past prior pages to maintain determinism.
+        // Each page consumes LINES_PER_PAGE * CHARS_PER_LINE nextInt() calls.
+        // Even calls advance s0's chain, odd calls advance s1's chain.
+        const charsPerPage = LINES_PER_PAGE * CHARS_PER_LINE;
+        const skipCalls = pageIndex * charsPerPage;
+        const skipPerChain = Math.floor(skipCalls / 2);
+        const extraEven = skipCalls % 2; // if odd total, even chain gets one extra
+
+        let a = s0, b = s1;
+        for (let i = 0; i < skipPerChain + extraEven; i++) a = lcgNext(a);
+        for (let i = 0; i < skipPerChain; i++) b = lcgNext(b);
+
+        const lcg = makeLCG(a, b);
+        const lines = [];
+        for (let l = 0; l < LINES_PER_PAGE; l++) {
+            let line = "";
+            for (let c = 0; c < CHARS_PER_LINE; c++) {
+                line += String.fromCharCode(32 + lcg.nextInt(CHARSET_LEN));
+            }
+            lines.push(line);
+        }
+        return lines.join("\n");
+    }
+
+    /**
+     * Recover coordinates from consecutive output characters of a target book page.
+     *
+     * The solver reads characters from page 0 of a book, recovers the LCG state,
+     * and decodes it back to coordinates.
+     *
+     * Requires at least 10 consecutive characters from the START of page 0.
+     * (5 per chain → ~32.8 bits of constraint, uniquely pins each 32-bit state.)
+     *
+     * How it works:
+     *   - Even chars (0,2,4,...) come from lcgNext^(k+1)(s0) % 95
+     *   - Odd chars (1,3,5,...) come from lcgNext^(k+1)(s1) % 95
+     *   - For each chain, enumerate candidates for lcgNext(s) matching first output mod 95
+     *     (~45M candidates), filter by subsequent outputs
+     *   - With 5 outputs per chain, expect ~45M / 95^4 ≈ 0.55 false positives → unique match
+     *   - Recover s0, s1 → decodeCoords
+     *
+     * @param {string} chars - at least 10 characters from the beginning of page 0
+     * @param {string} globalSeed
+     * @returns {{ side, position, floor, bookIndex } | null}
+     */
+    function recoverCoords(chars, globalSeed) {
+        if (chars.length < 10) return null;
+
+        const v = [];
+        for (let i = 0; i < chars.length && i < 12; i++) {
+            v.push(chars.charCodeAt(i) - 32);
+        }
+
+        // Even-indexed chars come from s0's LCG chain
+        const evenTargets = [];
+        for (let i = 0; i < v.length; i += 2) evenTargets.push(v[i]);
+
+        // Odd-indexed chars come from s1's LCG chain
+        const oddTargets = [];
+        for (let i = 1; i < v.length; i += 2) oddTargets.push(v[i]);
+
+        const foundS0 = recoverOneChain(evenTargets);
+        if (foundS0 === null) return null;
+
+        const foundS1 = recoverOneChain(oddTargets);
+        if (foundS1 === null) return null;
+
+        return decodeCoords(foundS0, foundS1, globalSeed);
+    }
+
+    /**
+     * Recover the initial state of one LCG chain given consecutive outputs mod 95.
+     * targets[0] = lcgNext(s) % 95, targets[1] = lcgNext^2(s) % 95, etc.
+     * Returns s, or null if no match.
+     */
+    function recoverOneChain(targets) {
+        if (targets.length < 2) return null;
+
+        // Enumerate all a1 where a1 % 95 === targets[0]
+        for (let a = targets[0]; a < 0x100000000; a += CHARSET_LEN) {
+            let match = true;
+            let cur = a;
+            for (let i = 1; i < targets.length; i++) {
+                cur = lcgNext(cur);
+                if (cur % CHARSET_LEN !== targets[i]) { match = false; break; }
+            }
+            if (match) return lcgPrev(a);
+        }
+        return null;
+    }
+
+    /* ---- Exports for solver/test use ---- */
+
+    window._InvertibleCore = { encodeCoords, decodeCoords, generateTargetPage, recoverCoords, LCG_A, LCG_C, LCG_A_INV, CHARSET_LEN, packCoords, unpackCoords, mix32, unmix32, seedKey, lcgNext, lcgPrev, makeLCG };
 
     // ---- _EventsCore ----
 
