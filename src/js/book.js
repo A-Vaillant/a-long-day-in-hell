@@ -31,6 +31,10 @@
             return core.findCoherentFragment(pageText);
         },
 
+        scoreSensibility: function (pageText) {
+            return core.scoreSensibility(pageText);
+        },
+
         isTargetBook: isTargetBook,
 
         PAGES_PER_BOOK: core.PAGES_PER_BOOK,

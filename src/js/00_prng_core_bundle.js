@@ -239,7 +239,60 @@
         return match.reduce((best, s) => s.length > best.length ? s : best, "");
     }
 
-    window._BookCore = { PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE, CHARS_PER_PAGE, CHARS_PER_BOOK, CHARSET, generateBookPage, bookMeta, findCoherentFragment };
+    /**
+     * English bigram frequency table (log-probability weights).
+     * Top 40 bigrams from large English corpora, normalized so the max weight = 1.0.
+     * Lowercase only — input is downcased before scoring.
+     */
+    const BIGRAM_WEIGHTS = {
+        "th":1.00,"he":0.95,"in":0.88,"er":0.84,"an":0.82,
+        "re":0.78,"on":0.75,"nd":0.72,"en":0.70,"at":0.68,
+        "ou":0.65,"ed":0.63,"ha":0.61,"to":0.60,"or":0.58,
+        "it":0.56,"is":0.55,"hi":0.53,"es":0.52,"ng":0.51,
+        "st":0.49,"al":0.47,"te":0.46,"ar":0.44,"nt":0.43,
+        "se":0.41,"co":0.40,"de":0.38,"ra":0.37,"ti":0.36,
+        "ne":0.34,"ri":0.33,"li":0.32,"io":0.31,"le":0.30,
+        "ve":0.29,"me":0.28,"no":0.27,"ta":0.26,"ea":0.25,
+    };
+
+    /**
+     * Score a page's "sensibility" — how much it resembles English text.
+     * Returns a float in [0, 1]. Pure random 95-charset text scores ~0.01–0.03.
+     * Coherent English prose scores ~0.4–0.7. The target book scores high.
+     *
+     * Method: sum bigram weights for every consecutive lowercase letter pair,
+     * divided by the number of letter pairs examined. Non-letter characters
+     * are skipped (they break bigram chains but don't penalize).
+     *
+     * @param {string} pageText
+     * @returns {number}
+     */
+    function scoreSensibility(pageText) {
+        const text = pageText.toLowerCase();
+        let score = 0;
+        let pairs = 0;
+        let prevLetter = "";
+
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            if (ch >= "a" && ch <= "z") {
+                if (prevLetter) {
+                    pairs++;
+                    const bigram = prevLetter + ch;
+                    const w = BIGRAM_WEIGHTS[bigram];
+                    if (w !== undefined) score += w;
+                }
+                prevLetter = ch;
+            } else {
+                prevLetter = "";
+            }
+        }
+
+        if (pairs === 0) return 0;
+        return score / pairs;
+    }
+
+    window._BookCore = { PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE, CHARS_PER_PAGE, CHARS_PER_BOOK, CHARSET, generateBookPage, bookMeta, findCoherentFragment, scoreSensibility };
 
     // ---- _LifeStoryCore ----
 

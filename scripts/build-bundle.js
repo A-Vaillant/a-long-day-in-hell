@@ -37,7 +37,7 @@ const CORES = [
         global: "_BookCore",
         exports: [
             "PAGES_PER_BOOK", "LINES_PER_PAGE", "CHARS_PER_LINE", "CHARS_PER_PAGE",
-            "CHARS_PER_BOOK", "CHARSET", "generateBookPage", "bookMeta", "findCoherentFragment",
+            "CHARS_PER_BOOK", "CHARSET", "generateBookPage", "bookMeta", "findCoherentFragment", "scoreSensibility",
         ],
     },
     {
