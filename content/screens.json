@@ -36,5 +36,8 @@
 
   "despair_read_blocked": [
     "[Despairing — can't bring yourself to open a book. Array for variety.]"
-  ]
+  ],
+
+  "menu_save_confirm": "Saved.",
+  "menu_new_game_confirm": "Are you sure? All progress will be lost."
 }
