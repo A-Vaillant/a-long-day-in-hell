@@ -475,12 +475,16 @@ button:disabled {
 
 /* Fragment highlighting — surviving original phrases */
 .fragment {
-    color: var(--text-main, #3a3228);
+    color: #3a3228;
     background: transparent;
-    transition: background 1.5s ease;
+    transition: color 2s ease, background 2s ease, border-color 2s ease;
+    border-bottom: 1px solid transparent;
 }
 .fragment.revealed {
-    background: rgba(180, 160, 100, 0.15);
+    color: #1a0a04;
+    background: rgba(160, 120, 40, 0.22);
+    border-bottom: 2px solid rgba(100, 70, 20, 0.5);
+    font-weight: 600;
 }
 
 /* === BOOK CONTROLS === */
