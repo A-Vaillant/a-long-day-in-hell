@@ -13,6 +13,7 @@ import { JSDOM } from "jsdom";
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { buildSync } from "esbuild";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dir, "..");
@@ -20,28 +21,22 @@ const ROOT = resolve(__dir, "..");
 const HTML_TEMPLATE = readFileSync(resolve(ROOT, "src/html/index.html"), "utf8")
     .replace("/* INJECT:CSS */", "/* tests skip CSS */");
 
-// JS load order (matches build-vanilla.js), minus debug
-const JS_FILES = [
-    "00_prng_core_bundle.js",
-    "prng.js",
-    "library.js",
-    "book.js",
-    "lifestory.js",
-    "despairing.js",
-    "survival.js",
-    "tick.js",
-    "events.js",
-    "npc.js",
-    "engine.js",
-    "screens.js",
-    "keybindings.js",
-];
+// Bundle the game JS via esbuild (same as build-vanilla.js)
+const entryPoint = resolve(ROOT, "src/js/main.js");
+const bundleResult = buildSync({
+    entryPoints: [entryPoint],
+    bundle: true,
+    write: false,
+    format: "iife",
+    target: "es2020",
+    minify: false,
+});
+const bundledJS = bundleResult.outputFiles[0].text;
 
-const jsDir = resolve(ROOT, "src/js");
-const jsSources = JS_FILES.map(name => ({
-    name,
-    code: readFileSync(resolve(jsDir, name), "utf8"),
-}));
+// Strip the auto-boot block from the bundle so tests control init.
+// The boot code is at the end: `if (document.readyState ...` through to Engine.init()
+const bootPattern = /\/\/ Boot when DOM is ready[\s\S]*?Engine\.init\(\);\s*\}/;
+const testJS = bundledJS.replace(bootPattern, "// Auto-boot disabled for tests");
 
 // Build window.TEXT from content/*.json (mirrors build-vanilla.js)
 const contentDir = resolve(ROOT, "content");
@@ -76,25 +71,15 @@ export function createGame() {
     });
     const win = dom.window;
 
-    // Inject TEXT and execute scripts via jsdom's native script evaluation.
-    // This ensures document/window references inside IIFEs resolve correctly.
-    const scriptEl = win.document.createElement("script");
-    scriptEl.textContent = "window.TEXT = " + JSON.stringify(TEXT) + ";";
-    win.document.body.appendChild(scriptEl);
+    // Inject TEXT
+    const textEl = win.document.createElement("script");
+    textEl.textContent = "window.TEXT = " + JSON.stringify(TEXT) + ";";
+    win.document.body.appendChild(textEl);
 
-    for (const { name, code } of jsSources) {
-        let src = code;
-        if (name === "engine.js") {
-            // Replace the DOMContentLoaded auto-boot block at the bottom
-            src = src.replace(
-                /\/\/ Boot when DOM is ready[\s\S]*$/m,
-                "// Auto-boot disabled for tests\n}());"
-            );
-        }
-        const el = win.document.createElement("script");
-        el.textContent = src;
-        win.document.body.appendChild(el);
-    }
+    // Inject bundled game code
+    const scriptEl = win.document.createElement("script");
+    scriptEl.textContent = testJS;
+    win.document.body.appendChild(scriptEl);
 
     return {
         window: win,
@@ -117,10 +102,6 @@ export function createGame() {
  */
 export function bootGame(seed = "test-seed-42") {
     const game = createGame();
-    // Set URL seed param
-    const url = new URL(game.window.location.href);
-    url.searchParams.set("seed", seed);
-    // jsdom doesn't let us change location easily, so we manually init
     game.PRNG.seed(seed);
     const win = game.window;
     win.state.seed = seed;

@@ -1,24 +1,21 @@
-/* PRNG wrapper — registers window.PRNG. */
+/* PRNG wrapper — seeded xoshiro128** with fork support. */
 
-(function () {
-    "use strict";
+import { seedFromString } from "../../lib/prng.core.js";
 
-    window.PRNG = {
-        _rng:  null,
-        _seed: null,
+let _rng = null;
+let _seed = null;
 
-        seed: function (s) {
-            this._seed = String(s);
-            this._rng  = window._PRNGCore.seedFromString(this._seed);
-        },
+function assertSeeded() {
+    if (!_rng) throw new Error("PRNG not seeded — call PRNG.seed() first");
+}
 
-        next: function ()     { this._assertSeeded(); return this._rng.next(); },
-        nextInt: function (n) { this._assertSeeded(); return this._rng.nextInt(n); },
-        fork: function (key)  { this._assertSeeded(); return this._rng.fork(key); },
-        getSeed: function ()  { return this._seed; },
-
-        _assertSeeded: function () {
-            if (!this._rng) throw new Error("PRNG not seeded — call PRNG.seed() first");
-        }
-    };
-}());
+export const PRNG = {
+    seed(s) {
+        _seed = String(s);
+        _rng = seedFromString(_seed);
+    },
+    next()      { assertSeeded(); return _rng.next(); },
+    nextInt(n)  { assertSeeded(); return _rng.nextInt(n); },
+    fork(key)   { assertSeeded(); return _rng.fork(key); },
+    getSeed()   { return _seed; },
+};

@@ -1,49 +1,37 @@
-/* Despairing wrapper — registers window.Despair.
- * Reads window.state, delegates to _DespairingCore.
- */
-(function () {
-    "use strict";
-    var core = window._DespairingCore;
+/* Despairing wrapper — morale corruption and despair effects. */
 
-    window.Despair = {
-        /** Apply ambient morale drain. Called from Surv.onMove(). */
-        applyAmbientDrain: function () {
-            state.morale = core.applyAmbientDrain(state.morale);
-            if (state.morale <= 0) state.despairing = true;
-        },
+import {
+    applyAmbientDrain, modifySleepRecovery, shouldClearDespairing,
+    corruptStatValue as _corruptStatValue, shouldCorruptDescriptor as _shouldCorruptDescriptor,
+    isReadingBlocked as _isReadingBlocked, chasmSkipsConfirm as _chasmSkipsConfirm,
+} from "../../lib/despairing.core.js";
+import { state } from "./state.js";
 
-        /** Modify sleep recovery for despairing. Returns effective delta. */
-        modifySleepRecovery: function (baseDelta) {
-            return core.modifySleepRecovery(baseDelta, state.despairing);
-        },
-
-        /** Check and clear despairing if morale exceeds exit threshold. */
-        checkExit: function () {
-            if (state.despairing && core.shouldClearDespairing(state.morale)) {
-                state.despairing = false;
-            }
-        },
-
-        /** Corrupt a stat value for sidebar display. */
-        corruptStatValue: function (trueValue) {
-            if (!state.despairing) return trueValue;
-            return core.corruptStatValue(trueValue, Math.random());
-        },
-
-        /** Whether a stat descriptor should show a wrong word. */
-        shouldCorruptDescriptor: function () {
-            if (!state.despairing) return false;
-            return core.shouldCorruptDescriptor(Math.random());
-        },
-
-        /** Whether book reading is blocked right now. */
-        isReadingBlocked: function () {
-            return core.isReadingBlocked(state.despairing, Math.random());
-        },
-
-        /** Whether chasm jump skips confirmation. */
-        chasmSkipsConfirm: function () {
-            return core.chasmSkipsConfirm(state.despairing);
-        },
-    };
-}());
+export const Despair = {
+    applyAmbientDrain() {
+        state.morale = applyAmbientDrain(state.morale);
+        if (state.morale <= 0) state.despairing = true;
+    },
+    modifySleepRecovery(baseDelta) {
+        return modifySleepRecovery(baseDelta, state.despairing);
+    },
+    checkExit() {
+        if (state.despairing && shouldClearDespairing(state.morale)) {
+            state.despairing = false;
+        }
+    },
+    corruptStatValue(trueValue) {
+        if (!state.despairing) return trueValue;
+        return _corruptStatValue(trueValue, Math.random());
+    },
+    shouldCorruptDescriptor() {
+        if (!state.despairing) return false;
+        return _shouldCorruptDescriptor(Math.random());
+    },
+    isReadingBlocked() {
+        return _isReadingBlocked(state.despairing, Math.random());
+    },
+    chasmSkipsConfirm() {
+        return _chasmSkipsConfirm(state.despairing);
+    },
+};

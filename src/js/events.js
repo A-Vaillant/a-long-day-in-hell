@@ -1,36 +1,34 @@
-/* Events wrapper — exposes window.Events from _EventsCore + TEXT. */
+/* Events wrapper — event deck draw and initialization. */
 
-(function () {
-    "use strict";
-    var C = window._EventsCore;
-    var cards = window.TEXT.events;
+import { createDeck, drawEvent } from "../../lib/events.core.js";
+import { PRNG } from "./prng.js";
+import { state } from "./state.js";
 
-    window.Events = {
-        cards: cards,
-        createDeck:  C.createDeck,
-        drawEvent:   C.drawEvent,
+export const Events = {
+    cards: null, // set at init from TEXT
+    createDeck,
+    drawEvent,
 
-        /** Draw an event, mutate state in place. Returns event card or null. */
-        draw: function () {
-            var rng = PRNG.fork("event:" + state.tick + ":" + state.day);
-            var result = C.drawEvent(state.eventDeck || [], cards, rng);
-            state.eventDeck = result.deck;
-            if (result.event) {
-                state.lastEvent = result.event;
-                if (result.event.morale) {
-                    state.morale = Math.max(0, Math.min(100, state.morale + result.event.morale));
-                }
-            } else {
-                state.lastEvent = null;
+    draw() {
+        const cards = this.cards || TEXT.events;
+        const rng = PRNG.fork("event:" + state.tick + ":" + state.day);
+        const result = drawEvent(state.eventDeck || [], cards, rng);
+        state.eventDeck = result.deck;
+        if (result.event) {
+            state.lastEvent = result.event;
+            if (result.event.morale) {
+                state.morale = Math.max(0, Math.min(100, state.morale + result.event.morale));
             }
-            return result.event;
-        },
-
-        /** Initialize event deck in state. */
-        init: function () {
-            var rng = PRNG.fork("eventdeck:init");
-            state.eventDeck = C.createDeck(cards.length, rng);
+        } else {
             state.lastEvent = null;
         }
-    };
-}());
+        return result.event;
+    },
+
+    init() {
+        this.cards = TEXT.events;
+        const rng = PRNG.fork("eventdeck:init");
+        state.eventDeck = createDeck(this.cards.length, rng);
+        state.lastEvent = null;
+    },
+};
