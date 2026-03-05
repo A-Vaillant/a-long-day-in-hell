@@ -37,7 +37,8 @@ const CORES = [
         global: "_BookCore",
         exports: [
             "PAGES_PER_BOOK", "LINES_PER_PAGE", "CHARS_PER_LINE", "CHARS_PER_PAGE",
-            "CHARS_PER_BOOK", "CHARSET", "generateBookPage", "bookMeta", "findCoherentFragment", "scoreSensibility",
+            "CHARS_PER_BOOK", "CHARSET", "generateBookPage", "bookMeta", "findCoherentFragment",
+            "scoreSensibility", "SENSIBILITY_THRESHOLD", "DWELL_MS", "dwellMoraleDelta",
         ],
     },
     {
@@ -71,7 +72,7 @@ const CORES = [
         exports: [
             "encodeCoords", "decodeCoords",
             "generateTargetPage", "recoverCoords",
-            "LCG_A", "LCG_C", "LCG_A_INV", "CHARSET_LEN",
+            "LCG_A", "LCG_C", "LCG_A_INV", "INV_CHARSET_LEN",
             "packCoords", "unpackCoords", "mix32", "unmix32", "seedKey",
             "lcgNext", "lcgPrev", "makeLCG",
         ],
