@@ -318,14 +318,9 @@ Engine.register("Shelf Open Book", {
             el.className = "book-single book-page-cover book-page-back";
             Book.clearDwell();
         } else {
-            const pageText = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
-            el.textContent = pageText;
-            const frag = Book.findCoherentFragment(pageText);
-            const notices = document.getElementById("book-notices");
-            if (notices && frag && frag.length > 6) {
-                notices.innerHTML = '<p class="coherent-fragment">You notice: <em>"' + esc(frag.trim()) + '"</em></p>';
-            }
-            Book.startDwell(bk, pg - 1, pageText);
+            const pageResult = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
+            el.textContent = pageResult.text;
+            Book.startDwell(bk, pg - 1, pageResult);
         }
     },
 });
