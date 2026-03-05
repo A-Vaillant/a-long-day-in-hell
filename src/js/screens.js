@@ -489,7 +489,7 @@
     Engine.register("Menu", {
         enter: function () {
             if (!state._menuReturn) state._menuReturn = "Corridor";
-            state._menuSaved = false;
+            if (state._menuSaved === undefined) state._menuSaved = false;
             if (state._menuConfirmNew === undefined) state._menuConfirmNew = false;
         },
         render: function () {
