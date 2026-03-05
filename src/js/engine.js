@@ -161,7 +161,7 @@ export const Engine = {
             state.shelfOffset = 0;
             state.openBook    = null;
             state.openPage    = 0;
-            state.debug       = true;
+            state.debug       = false;
             state.deaths      = 0;
             state.deathCause  = null;
 
