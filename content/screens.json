@@ -53,7 +53,8 @@
   "chasm_near": "You stand at the railing. The bottom is close. You can see the stone floor of the chasm, the bridge, people moving. A fall from here would hurt but you'd walk away.",
 
   "death_mortality": "Your body gives out. Thirst or hunger or both — in the end it doesn't matter which. You fall where you stand. The carpet is the last thing you feel.",
-  "death_chasm": "You hit the bottom of the chasm. The impact is absolute. For a moment you are aware of every bone in your body, and then you are not aware of anything at all.",
+  "death_gravity": "You hit the bottom of the chasm. The impact is absolute. For a moment you are aware of every bone in your body, and then you are not aware of anything at all.",
+  "death_trauma": "You reach for the railing. At this speed, reaching means colliding. Metal meets bone. The library spins. Then it stops.",
   "resurrection": "That strange hour before dawn. Sleep that can't be helped. All things repaired, made right and new. You wake. Your body is whole. The library is unchanged.",
 
   "dead_npc_at_location": [
@@ -92,7 +93,7 @@
   "falling_near_fast": "The ground. It's coming up fast.",
   "falling_dark": "Darkness. Falling. No way to know how fast, how far, how long. Just the wind and the absence of everything.",
   "falling_grab_success": "Your hands close on a railing. The impact wrenches your shoulders. You hold on.",
-  "falling_grab_fail": "You reach for a railing. Your fingers scrape metal and slip free. The floor falls away again.",
+  "falling_grab_fail": "You reach for a railing. The impact tears through your arm. Your grip fails. The floor falls away again.",
   "falling_grab_hopeless": "The railings are a blur. You couldn't grab one if you tried.",
   "falling_landed": "You hit the bottom. The floor is solid stone. You lie still. Everything hurts, but everything works.",
   "falling_landed_fatal": "You hit the bottom. The impact is absolute.",

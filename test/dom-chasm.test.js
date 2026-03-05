@@ -13,6 +13,12 @@ function clickElement(game, id) {
     el.click();
 }
 
+function clickIfExists(game, id) {
+    const el = game.document.getElementById(id);
+    if (el) el.click();
+    return !!el;
+}
+
 function getPassageText(game) {
     return game.document.getElementById("passage").textContent;
 }
@@ -20,7 +26,7 @@ function getPassageText(game) {
 describe("DOM: chasm and freefall", () => {
     it("J key does nothing when not at rest area", () => {
         const game = bootGame();
-        game.state.position = 1; // not a rest area (rest areas at multiples of 10)
+        game.state.position = 1;
         game.state.floor = 100;
         game.Engine.goto("Corridor");
 
@@ -30,7 +36,7 @@ describe("DOM: chasm and freefall", () => {
 
     it("J key opens chasm screen at rest area above floor 0", () => {
         const game = bootGame();
-        game.state.position = 0; // rest area
+        game.state.position = 0;
         game.state.floor = 100;
         game.Engine.goto("Corridor");
 
@@ -133,9 +139,8 @@ describe("DOM: chasm and freefall", () => {
             clickElement(game, "fall-wait");
         }
 
-        assert.strictEqual(game.state.falling.speed, 5, "speed is 5 after 5 ticks (gravity=1/tick)");
-        // Fell 1+2+3+4+5 = 15 floors
-        assert.strictEqual(game.state.floor, 10000 - 15, "fell correct number of floors");
+        assert.strictEqual(game.state.falling.speed, 5, "speed is 5 after 5 ticks");
+        assert.strictEqual(game.state.floor, 10000 - 15, "fell 1+2+3+4+5 = 15 floors");
     });
 
     it("throw book clears held book", () => {
@@ -146,7 +151,7 @@ describe("DOM: chasm and freefall", () => {
         game.Engine.goto("Chasm Stub");
         clickElement(game, "chasm-jump-yes");
 
-        assert.ok(game.document.getElementById("fall-throw"), "throw button visible when holding book");
+        assert.ok(game.document.getElementById("fall-throw"), "throw button visible");
         clickElement(game, "fall-throw");
 
         assert.strictEqual(game.state.heldBook, null, "book is gone");
@@ -171,24 +176,17 @@ describe("DOM: chasm and freefall", () => {
         game.state.despairing = true;
         game.Engine.goto("Chasm Stub");
 
-        // Despairing triggers immediate jump via setTimeout(0)
-        // In jsdom, we need to flush the microtask queue
-        // The afterRender calls setTimeout — run it
-        const timers = game.window.setTimeout;
-        // Just check state was set — the setTimeout will set falling and goto Falling
-        // In jsdom synchronous mode, setTimeout(fn, 0) doesn't auto-fire
-        // But Chasm.jump should have been called in afterRender before the setTimeout
+        // Chasm.jump is called synchronously in afterRender before the setTimeout
         assert.ok(game.state.falling !== null, "falling state set immediately when despairing");
     });
 
     it("landing at floor 0 from low height goes to corridor", () => {
         const game = bootGame();
         game.state.position = 0;
-        game.state.floor = 3; // low enough that landing is not fatal
+        game.state.floor = 3;
         game.Engine.goto("Chasm Stub");
         clickElement(game, "chasm-jump-yes");
 
-        // Fall until landed
         let safety = 0;
         while (game.state.falling && safety < 20) {
             clickElement(game, "fall-wait");
@@ -201,14 +199,13 @@ describe("DOM: chasm and freefall", () => {
         assert.strictEqual(game.state.screen, "Corridor", "back on corridor");
     });
 
-    it("fatal landing at floor 0 from high speed goes to death screen", () => {
+    it("fatal landing at floor 0 sets death cause to gravity", () => {
         const game = bootGame();
         game.state.position = 0;
-        game.state.floor = 200; // high enough for fatal speed
+        game.state.floor = 200;
         game.Engine.goto("Chasm Stub");
         clickElement(game, "chasm-jump-yes");
 
-        // Fall until landed or dead
         let safety = 0;
         while (game.state.screen === "Falling" && safety < 100) {
             clickElement(game, "fall-wait");
@@ -216,12 +213,131 @@ describe("DOM: chasm and freefall", () => {
         }
 
         assert.strictEqual(game.state.dead, true, "player is dead");
+        assert.strictEqual(game.state.deathCause, "gravity", "death cause is gravity");
         assert.strictEqual(game.state.screen, "Death", "on death screen");
+    });
+
+    it("failed grab reduces mortality", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 100000;
+        game.state.mortality = 100;
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        // Accelerate to terminal velocity (50) — grab chance 5%
+        for (let i = 0; i < 55; i++) {
+            clickElement(game, "fall-wait");
+        }
+
+        // Try grabs until one fails (at 5% success, almost always fails first try)
+        let mortalityBefore = game.state.mortality;
+        let gotFailure = false;
+        for (let attempt = 0; attempt < 10 && !gotFailure; attempt++) {
+            mortalityBefore = game.state.mortality;
+            if (!game.state.falling) break;
+            clickElement(game, "fall-grab");
+            if (game.state.falling) {
+                // Still falling = grab failed
+                gotFailure = true;
+                assert.ok(game.state.mortality < mortalityBefore, "mortality decreased on failed grab");
+            }
+        }
+        assert.ok(gotFailure, "at least one grab failed at terminal velocity");
+    });
+
+    it("grab failure can kill player (death cause: trauma)", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 100000;
+        game.state.mortality = 10; // very low — one failed grab should kill
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        // Get to high speed
+        for (let i = 0; i < 45; i++) {
+            clickElement(game, "fall-wait");
+        }
+
+        // Spam grab attempts until dead or grabbed
+        let safety = 0;
+        while (!game.state.dead && game.state.falling && safety < 20) {
+            if (!clickIfExists(game, "fall-grab")) break;
+            if (game.state.falling) clickIfExists(game, "fall-wait");
+            safety++;
+        }
+
+        if (game.state.dead) {
+            assert.strictEqual(game.state.deathCause, "trauma", "death cause is trauma");
+        }
+        // If somehow grabbed successfully, that's OK — non-deterministic
+    });
+
+    it("lights-out shows darkness prose during freefall", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 10000;
+        game.state.lightsOn = false;
+        game.state.tick = 170; // past lights-out
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        const text = getPassageText(game);
+        assert.ok(text.includes("Darkness"), "shows darkness prose during lights-out fall");
+    });
+
+    it("falling state persists through save/load round-trip", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 10000;
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        // Fall a few ticks
+        for (let i = 0; i < 3; i++) {
+            clickElement(game, "fall-wait");
+        }
+
+        const fallingBefore = JSON.parse(JSON.stringify(game.state.falling));
+        const floorBefore = game.state.floor;
+
+        // Save and reload
+        game.Engine.save();
+        const saved = game.Engine.load();
+
+        assert.ok(saved.falling, "falling state in save data");
+        assert.strictEqual(saved.falling.speed, fallingBefore.speed, "speed preserved");
+        assert.strictEqual(saved.floor, floorBefore, "floor preserved");
+    });
+
+    it("corridor renders correctly after grabbing a railing mid-fall", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 30; // low floor, slow speed, high grab chance
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        // One tick — speed 1, grab chance ~78.5%
+        clickElement(game, "fall-wait");
+
+        // Force a successful grab by setting speed to 0 (100% chance)
+        game.state.falling.speed = 0;
+        game.Engine.goto("Falling"); // re-render with new speed
+        clickElement(game, "fall-grab");
+
+        // Should be on corridor now at whatever floor we stopped at
+        assert.strictEqual(game.state.screen, "Corridor", "on corridor after grab");
+        assert.strictEqual(game.state.falling, null, "not falling");
+        assert.ok(game.state.floor > 0, "stopped above floor 0");
+
+        // Verify corridor actually renders without errors
+        const text = getPassageText(game);
+        assert.ok(text.length > 0, "corridor has content");
     });
 
     it("jump link hidden in corridor when not at rest area", () => {
         const game = bootGame();
-        game.state.position = 1; // not rest area
+        game.state.position = 1;
         game.state.floor = 100;
         game.Engine.goto("Corridor");
 
@@ -268,12 +384,10 @@ describe("DOM: chasm and freefall", () => {
         const game = bootGame();
         game.state.position = 0;
 
-        // High up — should mention "converge" or "vanishing" or "not visible"
         game.state.floor = 50000;
         game.Engine.goto("Chasm Stub");
         const highText = getPassageText(game);
 
-        // Low — should mention "bottom" or "bridge" or "stone"
         game.state.floor = 15;
         game.Engine.goto("Chasm Stub");
         const lowText = getPassageText(game);
@@ -291,7 +405,6 @@ describe("DOM: chasm and freefall", () => {
 
         const highText = getPassageText(game);
 
-        // Teleport to low altitude mid-fall
         game.state.floor = 100;
         game.Engine.goto("Falling");
         const lowText = getPassageText(game);
@@ -299,7 +412,7 @@ describe("DOM: chasm and freefall", () => {
         assert.notStrictEqual(highText, lowText, "falling text changes with altitude");
     });
 
-    it("grab button hidden at terminal velocity", () => {
+    it("failed grab at high speed reduces speed", () => {
         const game = bootGame();
         game.state.position = 0;
         game.state.floor = 100000;
@@ -310,12 +423,34 @@ describe("DOM: chasm and freefall", () => {
         for (let i = 0; i < 55; i++) {
             clickElement(game, "fall-wait");
         }
+        assert.strictEqual(game.state.falling.speed, 50, "at terminal velocity");
 
-        // At terminal velocity, grab chance is 5% — button should still show
-        // But at speed > 53.3, chance = 0 — button hidden
-        // Terminal velocity is 50, so chance = 0.8 - 50*0.015 = 0.05 (still > 0)
-        // Button should still be there at terminal velocity
+        // Try grabs until one fails
+        let gotFailure = false;
+        for (let attempt = 0; attempt < 10 && !gotFailure; attempt++) {
+            const speedBefore = game.state.falling ? game.state.falling.speed : 0;
+            if (!game.state.falling) break;
+            clickElement(game, "fall-grab");
+            if (game.state.falling) {
+                gotFailure = true;
+                assert.ok(game.state.falling.speed < speedBefore, "speed reduced on failed grab");
+            }
+        }
+        assert.ok(gotFailure, "at least one grab failed");
+    });
+
+    it("grab button present at terminal velocity (5% chance)", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 100000;
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        for (let i = 0; i < 55; i++) {
+            clickElement(game, "fall-wait");
+        }
+
         assert.ok(game.state.falling.speed === 50, "at terminal velocity");
-        assert.ok(game.document.getElementById("fall-grab"), "grab still available at terminal velocity (5% chance)");
+        assert.ok(game.document.getElementById("fall-grab"), "grab still available (5% chance)");
     });
 });

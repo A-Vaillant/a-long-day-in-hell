@@ -2,7 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
     GRAVITY, TERMINAL_VELOCITY, GRAB_BASE_CHANCE, GRAB_SPEED_PENALTY,
-    GRAB_FAIL_MORTALITY_HIT, LANDING_KILL_SPEED,
+    GRAB_DAMAGE_SPEED_THRESHOLD, GRAB_FAIL_MAX_MORTALITY_HIT, GRAB_FAIL_SPEED_REDUCTION,
+    LANDING_KILL_SPEED,
     defaultFallingState, fallTick, grabChance, attemptGrab, altitudeBand,
 } from "../lib/chasm.core.js";
 
@@ -138,14 +139,25 @@ describe("attemptGrab", () => {
         const result = attemptGrab(0, fakeRng);
         assert.strictEqual(result.success, true);
         assert.strictEqual(result.mortalityHit, 0);
+        assert.strictEqual(result.speedAfter, 0);
     });
 
-    it("fails when roll is above chance", () => {
+    it("fails when roll is above chance — no damage at low speed", () => {
         // At speed 0, chance is 0.8. RNG returns 0.9 → fail
         const fakeRng = { next() { return 0.9; } };
         const result = attemptGrab(0, fakeRng);
         assert.strictEqual(result.success, false);
-        assert.strictEqual(result.mortalityHit, GRAB_FAIL_MORTALITY_HIT);
+        assert.strictEqual(result.mortalityHit, 0, "no damage below speed threshold");
+        assert.strictEqual(result.speedAfter, 0, "no speed change at low speed");
+    });
+
+    it("fails at high speed — takes max damage, loses speed", () => {
+        const fakeRng = { next() { return 0.99; } };
+        // At terminal velocity, chance is 5%. Roll 0.99 → fail with max damage.
+        const result = attemptGrab(TERMINAL_VELOCITY, fakeRng);
+        assert.strictEqual(result.success, false);
+        assert.strictEqual(result.mortalityHit, GRAB_FAIL_MAX_MORTALITY_HIT);
+        assert.strictEqual(result.speedAfter, Math.round(TERMINAL_VELOCITY * (1 - GRAB_FAIL_SPEED_REDUCTION)));
     });
 
     it("always fails at speed where chance is 0", () => {
@@ -153,7 +165,29 @@ describe("attemptGrab", () => {
         // At very high speed, chance = 0. Roll of 0 is not < 0, so fail.
         const result = attemptGrab(1000, fakeRng);
         assert.strictEqual(result.success, false);
-        assert.strictEqual(result.mortalityHit, GRAB_FAIL_MORTALITY_HIT);
+        assert.strictEqual(result.mortalityHit, GRAB_FAIL_MAX_MORTALITY_HIT);
+    });
+
+    it("damage and speed reduction scale between threshold and terminal velocity", () => {
+        const fakeRng = { next() { return 0.99; } };
+        // Midpoint between threshold (10) and terminal (50) = 30
+        const result = attemptGrab(30, fakeRng);
+        assert.strictEqual(result.success, false);
+        const expectedFraction = (30 - GRAB_DAMAGE_SPEED_THRESHOLD) / (TERMINAL_VELOCITY - GRAB_DAMAGE_SPEED_THRESHOLD);
+        const expected = Math.round(expectedFraction * GRAB_FAIL_MAX_MORTALITY_HIT);
+        assert.strictEqual(result.mortalityHit, expected);
+        assert.ok(result.mortalityHit > 0 && result.mortalityHit < GRAB_FAIL_MAX_MORTALITY_HIT);
+        assert.strictEqual(result.speedAfter, Math.round(30 * (1 - GRAB_FAIL_SPEED_REDUCTION)));
+    });
+
+    it("repeated failed grabs can decelerate to safe speed", () => {
+        let speed = TERMINAL_VELOCITY;
+        for (let i = 0; i < 20 && speed >= LANDING_KILL_SPEED; i++) {
+            const fakeRng = { next() { return 0.99; } };
+            const result = attemptGrab(speed, fakeRng);
+            speed = result.speedAfter;
+        }
+        assert.ok(speed < LANDING_KILL_SPEED, "eventually slows below kill speed");
     });
 
     it("succeeds at boundary when roll equals 0 and chance > 0", () => {
