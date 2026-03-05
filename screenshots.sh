@@ -129,6 +129,29 @@ snap "16_corridor_dim"      "Corridor"        "#corridor-view" \
      }
      Engine.goto('Corridor');"
 
+# --- Fragment highlighting (book near target with dwell fired) ---
+# Fragment highlighting — inject mock fragments into a book page
+FRAG_URL="${BASE}/?seed=${SEED}&vohu=$(python3 -c "import urllib.parse; print(urllib.parse.quote('Shelf Open Book'))")&openBook=0,1,10,5&spread=3"
+shot-scraper shot "$FRAG_URL" \
+    --wait-for "document.querySelector('#book-single')&&document.querySelector('#book-single').innerText.trim().length>0" \
+    --javascript "
+        var el = document.getElementById('book-single');
+        if (el) {
+            var text = el.textContent;
+            var words = text.split(' ');
+            var mid = Math.floor(words.length / 4);
+            var frag1 = words.slice(mid, mid+6).join(' ');
+            var frag2 = words.slice(mid+12, mid+15).join(' ');
+            el.innerHTML = el.innerHTML
+                .replace(frag1, '<mark class=\"fragment revealed\">' + frag1 + '</mark>')
+                .replace(frag2, '<mark class=\"fragment revealed\">' + frag2 + '</mark>');
+        }
+    " \
+    --timeout 12000 \
+    -o "${OUT}/17a_book_fragments.png" \
+    --width "$W" --height "$H" 2>/dev/null
+echo "  ✔  17a_book_fragments.png"
+
 # --- Sleep result ---
 snap "17_sleep"             "Sleep Stub"      ".passage" \
     ""
