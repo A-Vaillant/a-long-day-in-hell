@@ -445,6 +445,9 @@
             bookIndex = coordRng.nextInt(BOOKS_PER_GALLERY);
         }
 
+        // Rest areas have no shelves — nudge to nearest gallery
+        if (isRestArea(position)) position += 1;
+
         return {
             name:         `${firstName} ${lastName}`,
             occupation:   pick(OCCUPATIONS),
