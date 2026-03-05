@@ -58,6 +58,18 @@ describe("DOM: book rendering", () => {
         assert.ok(text.includes(game.state.lifeStory.name), "contains player name");
     });
 
+    it("non-target pages of target book are normal degraded text", () => {
+        const game = bootGame();
+        const tb = game.state.targetBook;
+        const targetPage = game.state.lifeStory.targetPage;
+        // Pick a content page that is NOT the target page
+        let otherPage = targetPage === 0 ? 1 : 0;
+        const result = game.window.Book.getPage(tb.side, tb.position, tb.floor, tb.bookIndex, otherPage);
+        assert.ok(result.storyId >= 0, "non-target page has a real storyId, got " + result.storyId);
+        assert.ok(result.editDistance >= 0, "has editDistance");
+        assert.ok(result.text.length > 50, "has substantial text");
+    });
+
     it("cover page shows book number", () => {
         const game = bootGame();
         game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 5 };
