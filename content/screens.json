@@ -1,41 +1,78 @@
 {
-  "corridor": "[Default corridor view. Shown every move. Keep short.]",
-  "corridor_dim": "[Appended when lighting is dim. 1 sentence.]",
-  "corridor_rest": "[Rest area landmark. Kiosk, beds, clock, stairs, submission slot.]",
-  "corridor_bridge": "[Floor 0 — can walk across the chasm here.]",
+  "corridor": [
+    "Shelves line both walls, floor to ceiling. Identical spines, identical gilding. The corridor stretches ahead.",
+    "Books in endless rows. The carpet muffles your steps. Another gallery, same as the last.",
+    "Calfskin spines packed tight on every shelf. The corridor continues in both directions without variation."
+  ],
+  "corridor_dim": [
+    "The lights here are dim. Shadows pool between the shelves.",
+    "A faint flicker overhead. This section is darker than most.",
+    "The light barely reaches the lower shelves. Everything feels closer."
+  ],
+  "corridor_rest": "A rest area. Clock on the wall, kiosk humming faintly, a row of seven beds behind a partition. Stairs. A submission slot set into the stone.",
+  "corridor_bridge": "The chasm opens before you. At this level there is a floor — you can walk across to the other side. The railing runs along the edge.",
 
-  "kiosk_intro": "[Kiosk/vending machine screen.]",
-  "kiosk_dark": "[Kiosk is off — lights are out. Can't use it.]",
-  "kiosk_drink": "[After drinking water.]",
-  "kiosk_food": "[After eating.]",
-  "kiosk_alcohol": "[After drinking alcohol. Morale boost. Array for variety.]",
-
-  "bedroom_intro": "[Bedroom screen. 7 beds per rest area.]",
-
-  "submission_intro": "[Submission slot screen. Where you try your book.]",
-  "submission_fail": "[Wrong book. Nothing happens.]",
-
-  "win_release": "[Win sequence line 1 — the slot accepts the book.]",
-  "win_through": "[Win sequence line 2 — transition out of the library.]",
-  "win_light": "[Win sequence line 3 — arrival, release, the end.]",
-
-  "sleep": [
-    "[Sleep description. Array — add multiple for variety. Randomly selected.]"
+  "kiosk_intro": "The kiosk glows softly. A panel, a slot. It gives anything you ask for — any food, any drink, any specificity. A vanilla shake from a shop you remember. A diet Coke. It appears likewise.",
+  "kiosk_dark": "The kiosk is dark. It doesn't work when the lights are out.",
+  "kiosk_drink": [
+    "Water. Cold and clean. The only thing here that feels real.",
+    "You drink. The thirst recedes.",
+    "Cool water. You'd forgotten how bad it had gotten."
+  ],
+  "kiosk_food": [
+    "You eat. It tastes exactly like what you asked for. That's almost worse.",
+    "Food. Warm, specific, perfect. The memory of the meal will outlast the satisfaction.",
+    "You eat. The hunger fades. Everything else remains."
+  ],
+  "kiosk_alcohol": [
+    "It burns going down. The warmth spreads. For a moment, the shelves seem less oppressive.",
+    "You drink until the edges soften. Addiction doesn't stick here — just the temporary mercy of it.",
+    "The alcohol works. It always works. And it never lasts."
   ],
 
-  "chasm": "[Looking into the chasm from the railing.]",
+  "bedroom_intro": "Seven beds in a row, thin mattresses on metal frames. A bathroom through the far door. The room is identical to every other bedroom you've seen.",
 
-  "death_mortality": "[Died from accumulated stat decay. Body gave out.]",
-  "resurrection": "[Waking up at dawn. Restored. Still in the library.]",
+  "submission_intro": "A slot in the wall, about the size of a mail slot. Brass edges, slightly worn. This is where you submit your book — if you've found it.",
+  "submission_fail": "You slide the book in. A pause. It slides back out. Nothing happens.",
 
-  "dead_npc_at_location": "[Dead NPC body description. Shown after their name. Fragment.]",
+  "win_release": "The slot accepts the book. It does not come back.",
+  "win_through": "Something shifts. The shelves, the corridor, the endless carpet — all of it thins, like a page held up to light.",
+  "win_light": "You step through. The library is behind you. Whatever comes next, you are no longer there.",
 
-  "darkness_corridor": "[Lights out, in a gallery corridor. Can't see. Navigating by touch.]",
-  "darkness_rest_area": "[Lights out, in a rest area. Open space, darkness.]",
-  "darkness_no_read": "[Lights out, trying to read. Can't see.]",
+  "sleep": [
+    "You lie down. The mattress is thin. Sleep takes you anyway.",
+    "You close your eyes. The silence is absolute — not even the whisper of air movement.",
+    "Sleep comes. Dreamless, as always. The strange mercy of unconsciousness in a place with no mercy.",
+    "You sleep. In the dark, there is nothing to distinguish this bed from any other, this night from any other."
+  ],
+
+  "chasm": "You stand at the railing. The chasm drops away beneath you — deeper than anything you've seen. Not even the Grand Canyon seemed so vast. The other side is visible, identical shelves mirroring yours. Below, nothing. Above, floors rising until they vanish.",
+
+  "death_mortality": "Your body gives out. Thirst or hunger or both — in the end it doesn't matter which. You fall where you stand. The carpet is the last thing you feel.",
+  "resurrection": "That strange hour before dawn. Sleep that can't be helped. All things repaired, made right and new. You wake. Your body is whole. The library is unchanged.",
+
+  "dead_npc_at_location": [
+    "lies still on the carpet. They'll be back at dawn.",
+    "is crumpled against the shelves. Not breathing. It's temporary.",
+    "lies face-down. Tomorrow they'll wake, same as always."
+  ],
+
+  "darkness_corridor": [
+    "The lights are out. Total darkness. Not even the whisper of any air movement. The stillness of the grave.",
+    "Dark. You navigate by touch — fingertips along the shelf edges. The silence is complete.",
+    "Pitch black. Your footsteps are the only sound in the world."
+  ],
+  "darkness_rest_area": [
+    "The rest area is dark. The kiosk is off. The clock face is unreadable. Open space around you, felt but not seen.",
+    "Darkness. The beds are somewhere nearby. The open air of the chasm-side pulls faintly at your awareness."
+  ],
+  "darkness_no_read": "You can't see. The book is in your hands but the pages are invisible.",
 
   "despair_read_blocked": [
-    "[Despairing — can't bring yourself to open a book. Array for variety.]"
+    "You reach for a book and your hand stops. You can't make yourself care what's inside.",
+    "You stare at the shelf. The spines blur together. You can't bring yourself to open one.",
+    "What's the point. They're all nonsense. Every one of them.",
+    "Your hand won't move. The books are there. You are not."
   ],
 
   "menu_save_confirm": "Saved.",
