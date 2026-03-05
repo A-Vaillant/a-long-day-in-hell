@@ -28,6 +28,7 @@ const jsOrder = [
     "library.js",
     "book.js",
     "lifestory.js",
+    "despairing.js",
     "survival.js",
     "tick.js",
     "events.js",

@@ -27,10 +27,21 @@
 
         onMove: function () {
             Object.assign(state, core.applyMoveTick(this._statsFromState()));
+            Despair.applyAmbientDrain();
         },
 
         onSleep: function () {
+            var moraleBefore = state.morale;
             Object.assign(state, core.applySleep(this._statsFromState()));
+            // Reduce sleep recovery while despairing
+            if (state.despairing) {
+                var baseDelta = state.morale - moraleBefore;
+                if (baseDelta > 0) {
+                    var effective = Despair.modifySleepRecovery(baseDelta);
+                    state.morale = Math.max(0, moraleBefore + effective);
+                }
+            }
+            Despair.checkExit();
         },
 
         onResurrection: function () {

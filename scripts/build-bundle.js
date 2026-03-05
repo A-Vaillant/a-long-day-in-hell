@@ -78,6 +78,15 @@ const CORES = [
         ],
     },
     {
+        file:   "lib/despairing.core.js",
+        global: "_DespairingCore",
+        exports: [
+            "CONFIG", "applyAmbientDrain", "modifySleepRecovery",
+            "shouldClearDespairing", "corruptStatValue", "shouldCorruptDescriptor",
+            "isReadingBlocked", "chasmSkipsConfirm", "applyAlcohol",
+        ],
+    },
+    {
         file:   "lib/events.core.js",
         global: "_EventsCore",
         exports: ["createDeck", "drawEvent"],
