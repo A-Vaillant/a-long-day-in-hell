@@ -54,7 +54,7 @@
                 el.innerHTML = screen.render();
                 if (screen.afterRender) screen.afterRender();
                 this.updateSidebar();
-                this.save();
+                if (name !== "Menu") this.save();
             } catch (err) {
                 console.error("Screen render error:", err);
                 el.innerHTML = '<p style="color:#9a2a2a">Render error: ' + err.message + '</p>';

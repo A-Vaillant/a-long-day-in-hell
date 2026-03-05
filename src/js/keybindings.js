@@ -42,6 +42,12 @@
                     Engine.goto("Corridor");
                     return;
             }
+        } else if (screen === "Menu") {
+            if (key === "Escape") {
+                ev.preventDefault();
+                Engine.goto(state._menuReturn || "Corridor");
+            }
+            return;
         } else if (screen === "Life Story") {
             if (key === "e" || key === "E") {
                 ev.preventDefault();
@@ -54,6 +60,14 @@
                 state.debug = !state.debug;
                 Engine.goto(screen);
             }
+            return;
+        }
+
+        // Menu (Escape from gameplay screens)
+        if (key === "Escape") {
+            ev.preventDefault();
+            state._menuReturn = screen;
+            Engine.goto("Menu");
             return;
         }
 
