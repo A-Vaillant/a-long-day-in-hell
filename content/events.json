@@ -1,5 +1,5 @@
 [
-  { "id": 0,  "text": "[Sound event. Morale -1.]",  "type": "sound",       "morale": -1 },
+  { "id": 0,  "text": "A sharp, distant noise startles you.",  "type": "sound",       "morale": -1 },
   { "id": 1,  "text": "[Sound event. Morale -1.]",  "type": "sound",       "morale": -1 },
   { "id": 2,  "text": "[Sound event. Neutral.]",    "type": "sound"                     },
   { "id": 3,  "text": "[Sound event. Neutral.]",    "type": "sound"                     },

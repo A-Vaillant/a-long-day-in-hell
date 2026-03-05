@@ -12,6 +12,7 @@ SEED="${1:-666}"
 OUT="${ROOT}/screenshots"
 W=1280; H=800
 
+rm -rf "$OUT"
 mkdir -p "$OUT"
 
 python3 -m http.server "$PORT" --directory "${ROOT}/dist" &>/dev/null &

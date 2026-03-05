@@ -113,8 +113,21 @@
                 html += '<div class="sb-held">book #' + (state.heldBook.bookIndex + 1) + '</div>';
             }
 
+            // Menu button
+            html += '<div class="sb-divider"></div>';
+            html += '<div class="sb-menu"><a id="sidebar-menu">menu</a></div>';
+
             html += '</div>';
             cap.innerHTML = html;
+
+            var menuBtn = document.getElementById("sidebar-menu");
+            if (menuBtn) {
+                menuBtn.addEventListener("click", function (ev) {
+                    ev.preventDefault();
+                    state._menuReturn = state.screen;
+                    Engine.goto("Menu");
+                });
+            }
         },
 
         save: function () {
