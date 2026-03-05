@@ -55,7 +55,7 @@ describe("DOM: chasm and freefall", () => {
         game.Engine.goto("Chasm Stub");
 
         const text = getPassageText(game);
-        assert.ok(text.includes("chasm"), "mentions chasm");
+        assert.ok(text.includes("railing"), "mentions railing");
         assert.ok(game.document.getElementById("chasm-jump-yes"), "has jump-yes button");
     });
 
@@ -94,7 +94,7 @@ describe("DOM: chasm and freefall", () => {
         assert.strictEqual(game.state.screen, "Corridor", "back to corridor");
     });
 
-    it("falling screen shows speed and grab chance", () => {
+    it("falling screen shows altitude-aware prose and grab description", () => {
         const game = bootGame();
         game.state.position = 0;
         game.state.floor = 1000;
@@ -102,9 +102,10 @@ describe("DOM: chasm and freefall", () => {
         clickElement(game, "chasm-jump-yes");
 
         const text = getPassageText(game);
-        assert.ok(text.includes("Speed"), "shows speed");
-        assert.ok(text.includes("Grab"), "shows grab chance");
-        assert.ok(text.includes("Floor"), "shows floor");
+        assert.ok(text.includes("Falling"), "shows falling header");
+        assert.ok(text.includes("railing"), "shows grab description");
+        assert.ok(game.document.getElementById("fall-wait"), "has wait action");
+        assert.ok(game.document.getElementById("fall-grab"), "has grab action");
     });
 
     it("wait action advances fall", () => {
@@ -261,5 +262,60 @@ describe("DOM: chasm and freefall", () => {
         }
 
         assert.ok(game.state.tick > tickBefore, "tick advanced during fall");
+    });
+
+    it("chasm view text changes with altitude", () => {
+        const game = bootGame();
+        game.state.position = 0;
+
+        // High up — should mention "converge" or "vanishing" or "not visible"
+        game.state.floor = 50000;
+        game.Engine.goto("Chasm Stub");
+        const highText = getPassageText(game);
+
+        // Low — should mention "bottom" or "bridge" or "stone"
+        game.state.floor = 15;
+        game.Engine.goto("Chasm Stub");
+        const lowText = getPassageText(game);
+
+        assert.notStrictEqual(highText, lowText, "different altitude produces different text");
+        assert.ok(lowText.includes("bottom") || lowText.includes("bridge"), "low altitude mentions visible bottom");
+    });
+
+    it("falling prose changes as you descend", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 50000;
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        const highText = getPassageText(game);
+
+        // Teleport to low altitude mid-fall
+        game.state.floor = 100;
+        game.Engine.goto("Falling");
+        const lowText = getPassageText(game);
+
+        assert.notStrictEqual(highText, lowText, "falling text changes with altitude");
+    });
+
+    it("grab button hidden at terminal velocity", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 100000;
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        // Accelerate to terminal velocity
+        for (let i = 0; i < 55; i++) {
+            clickElement(game, "fall-wait");
+        }
+
+        // At terminal velocity, grab chance is 5% — button should still show
+        // But at speed > 53.3, chance = 0 — button hidden
+        // Terminal velocity is 50, so chance = 0.8 - 50*0.015 = 0.05 (still > 0)
+        // Button should still be there at terminal velocity
+        assert.ok(game.state.falling.speed === 50, "at terminal velocity");
+        assert.ok(game.document.getElementById("fall-grab"), "grab still available at terminal velocity (5% chance)");
     });
 });

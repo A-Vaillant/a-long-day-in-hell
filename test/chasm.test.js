@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
     GRAVITY, TERMINAL_VELOCITY, GRAB_BASE_CHANCE, GRAB_SPEED_PENALTY,
     GRAB_FAIL_MORTALITY_HIT, LANDING_KILL_SPEED,
-    defaultFallingState, fallTick, grabChance, attemptGrab,
+    defaultFallingState, fallTick, grabChance, attemptGrab, altitudeBand,
 } from "../lib/chasm.core.js";
 
 // --- defaultFallingState ---
@@ -160,5 +160,43 @@ describe("attemptGrab", () => {
         const fakeRng = { next() { return 0.0; } };
         const result = attemptGrab(5, fakeRng);
         assert.strictEqual(result.success, true);
+    });
+});
+
+// --- altitudeBand ---
+
+describe("altitudeBand", () => {
+    it("returns 'bottom' at floor 0", () => {
+        assert.strictEqual(altitudeBand(0), "bottom");
+    });
+
+    it("returns 'near' at low floors", () => {
+        assert.strictEqual(altitudeBand(10), "near");
+        assert.strictEqual(altitudeBand(20), "near");
+    });
+
+    it("returns 'low' at moderate floors", () => {
+        assert.strictEqual(altitudeBand(100), "low");
+        assert.strictEqual(altitudeBand(200), "low");
+    });
+
+    it("returns 'mid' at medium floors", () => {
+        assert.strictEqual(altitudeBand(500), "mid");
+        assert.strictEqual(altitudeBand(2000), "mid");
+    });
+
+    it("returns 'deep' at high floors", () => {
+        assert.strictEqual(altitudeBand(5000), "deep");
+        assert.strictEqual(altitudeBand(20000), "deep");
+    });
+
+    it("returns 'abyss' at extreme floors", () => {
+        assert.strictEqual(altitudeBand(50000), "abyss");
+        assert.strictEqual(altitudeBand(100000), "abyss");
+    });
+
+    it("bands are ordered by height", () => {
+        const bands = [0, 10, 100, 500, 5000, 50000].map(altitudeBand);
+        assert.deepStrictEqual(bands, ["bottom", "near", "low", "mid", "deep", "abyss"]);
     });
 });

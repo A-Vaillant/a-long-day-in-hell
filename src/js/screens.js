@@ -624,7 +624,10 @@ Engine.register("Sleep Stub", {
 Engine.register("Chasm Stub", {
     render() {
         let html = '<div id="chasm-view">';
-        html += '<p>' + esc(T(TEXT.screens.chasm, "chasm:" + state.tick)) + '</p>';
+        const alt = Chasm.getAltitude();
+        const chasmKey = "chasm_" + alt;
+        const chasmText = TEXT.screens[chasmKey] || TEXT.screens.chasm_abyss;
+        html += '<p>' + esc(T(chasmText, chasmKey + ":" + state.tick)) + '</p>';
         if (state.floor === 0) {
             html += '<p><em>You are at the bottom. There is nowhere to fall.</em></p>';
         } else if (Despair.chasmSkipsConfirm()) {
@@ -662,29 +665,37 @@ Engine.register("Falling", {
     render() {
         const f = state.falling;
         if (!f) {
-            // Landed already — redirect
             setTimeout(function () { Engine.goto("Corridor"); }, 0);
             return "";
         }
 
+        const alt = Chasm.getAltitude();
+        const chance = Chasm.getGrabChance();
         let html = '<div id="falling-view">';
         html += '<p class="location-header">Falling</p>';
 
-        // Speed description
+        // Altitude × speed prose (or darkness)
         if (!state.lightsOn) {
             html += '<p>' + esc(T(TEXT.screens.falling_dark, "falling_dark:" + state.tick)) + '</p>';
-        } else if (f.speed < 10) {
-            html += '<p>' + esc(T(TEXT.screens.falling_slow, "falling_slow:" + state.tick)) + '</p>';
-        } else if (f.speed <= 30) {
-            html += '<p>' + esc(T(TEXT.screens.falling_medium, "falling_medium:" + state.tick)) + '</p>';
         } else {
-            html += '<p>' + esc(T(TEXT.screens.falling_fast, "falling_fast:" + state.tick)) + '</p>';
+            const speedKey = f.speed < 10 ? "slow" : "fast";
+            const textKey = "falling_" + alt + "_" + speedKey;
+            const fallText = TEXT.screens[textKey];
+            if (fallText) {
+                html += '<p>' + esc(T(fallText, textKey + ":" + state.tick)) + '</p>';
+            }
         }
 
-        html += '<p>Floor: ' + state.floor + ' | Speed: ' + f.speed + ' floors/tick</p>';
-
-        const chance = Chasm.getGrabChance();
-        html += '<p>Grab chance: ' + Math.round(chance * 100) + '%</p>';
+        // Grab — described as perception, not a number
+        if (chance <= 0) {
+            html += '<p class="grab-desc">' + esc(T(TEXT.screens.falling_grab_hopeless, "grab_hopeless:" + state.tick)) + '</p>';
+        } else if (chance < 0.2) {
+            html += '<p class="grab-desc">The railings flash past. Maybe — just barely — you could catch one.</p>';
+        } else if (chance < 0.5) {
+            html += '<p class="grab-desc">The railings are moving fast, but you can track them.</p>';
+        } else {
+            html += '<p class="grab-desc">The railings pass within reach.</p>';
+        }
 
         // Survival warnings
         const warnings = Surv.warnings();
@@ -697,7 +708,9 @@ Engine.register("Falling", {
         // Actions
         html += '<div id="actions">';
         html += '<a id="fall-wait">[w] Fall</a>';
-        html += ' | <a id="fall-grab">[g] Grab railing (' + Math.round(chance * 100) + '%)</a>';
+        if (chance > 0) {
+            html += ' | <a id="fall-grab">[g] Grab railing</a>';
+        }
         if (state.heldBook !== null) {
             html += ' | <a id="fall-throw">[t] Throw book</a>';
         }

@@ -1,7 +1,7 @@
 /* Chasm wrapper — freefall state mutations on window.state. */
 
 import {
-    fallTick, attemptGrab, defaultFallingState, grabChance,
+    fallTick, attemptGrab, defaultFallingState, grabChance, altitudeBand,
 } from "../../lib/chasm.core.js";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
@@ -56,5 +56,9 @@ export const Chasm = {
 
     getGrabChance() {
         return grabChance(state.falling.speed);
+    },
+
+    getAltitude(floor) {
+        return altitudeBand(floor !== undefined ? floor : state.floor);
     },
 };
