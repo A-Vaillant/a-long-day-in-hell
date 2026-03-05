@@ -1,0 +1,19 @@
+{
+  "occupations": [
+    "[5+ occupations. Randomly selected for 'You were a ___'.]",
+    "OCC_1", "OCC_2", "OCC_3", "OCC_4"
+  ],
+  "hometowns": [
+    "[3+ place names. Randomly selected for 'from ___'.]",
+    "TOWN_1", "TOWN_2"
+  ],
+  "causes_of_death": [
+    "[3+ causes. Randomly selected for 'You died of ___'.]",
+    "COD_1", "COD_2"
+  ],
+  "last_things": [
+    "[3+ sentences. Final life detail. Complete sentences, standalone.]",
+    "LAST_1", "LAST_2"
+  ],
+  "intro_template": "[NOT YET WIRED — see #51. Template for the life story intro. Currently hardcoded in lifestory.core.js:formatLifeStory().]"
+}

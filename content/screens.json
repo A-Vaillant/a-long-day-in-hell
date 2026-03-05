@@ -1,0 +1,34 @@
+{
+  "corridor": "[Default corridor view. Shown every move. Keep short.]",
+  "corridor_dim": "[Appended when lighting is dim. 1 sentence.]",
+  "corridor_rest": "[Rest area landmark. Kiosk, beds, clock, stairs, submission slot.]",
+  "corridor_bridge": "[Floor 0 — can walk across the chasm here.]",
+
+  "kiosk_intro": "[Kiosk/vending machine screen.]",
+  "kiosk_drink": "[After drinking.]",
+  "kiosk_food": "[After eating.]",
+
+  "bedroom_intro": "[Bedroom screen. 7 beds per rest area.]",
+
+  "submission_intro": "[Submission slot screen. Where you try your book.]",
+  "submission_fail": "[Wrong book. Nothing happens.]",
+
+  "win_release": "[Win sequence line 1 — the slot accepts the book.]",
+  "win_through": "[Win sequence line 2 — transition out of the library.]",
+  "win_light": "[Win sequence line 3 — arrival, release, the end.]",
+
+  "sleep": [
+    "[Sleep description. Array — add multiple for variety. Randomly selected.]"
+  ],
+
+  "chasm": "[Looking into the chasm from the railing.]",
+
+  "death_mortality": "[Died from accumulated stat decay. Body gave out.]",
+  "resurrection": "[Waking up at dawn. Restored. Still in the library.]",
+
+  "dead_npc_at_location": "[Dead NPC body description. Shown after their name. Fragment.]",
+
+  "darkness_corridor": "[Lights out, in a gallery corridor. Can't see. Navigating by touch.]",
+  "darkness_rest_area": "[Lights out, in a rest area. Open space, darkness.]",
+  "darkness_no_read": "[Lights out, trying to read. Can't see.]"
+}

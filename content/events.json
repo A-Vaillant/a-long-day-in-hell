@@ -1,0 +1,22 @@
+[
+  { "id": 0,  "text": "[Sound event. Morale -1.]",  "type": "sound",       "morale": -1 },
+  { "id": 1,  "text": "[Sound event. Morale -1.]",  "type": "sound",       "morale": -1 },
+  { "id": 2,  "text": "[Sound event. Neutral.]",    "type": "sound"                     },
+  { "id": 3,  "text": "[Sound event. Neutral.]",    "type": "sound"                     },
+  { "id": 4,  "text": "[Sound event. Morale -1.]",  "type": "sound",       "morale": -1 },
+  { "id": 5,  "text": "[Atmospheric. Morale -1.]",  "type": "atmospheric", "morale": -1 },
+  { "id": 6,  "text": "[Atmospheric. Neutral.]",    "type": "atmospheric"               },
+  { "id": 7,  "text": "[Atmospheric. Morale -2.]",  "type": "atmospheric", "morale": -2 },
+  { "id": 8,  "text": "[Atmospheric. Neutral.]",    "type": "atmospheric"               },
+  { "id": 9,  "text": "[Atmospheric. Neutral.]",    "type": "atmospheric"               },
+  { "id": 10, "text": "[Atmospheric. Morale -2.]",  "type": "atmospheric", "morale": -2 },
+  { "id": 11, "text": "[Atmospheric. Neutral.]",    "type": "atmospheric"               },
+  { "id": 12, "text": "[Atmospheric. Morale -1.]",  "type": "atmospheric", "morale": -1 },
+  { "id": 13, "text": "[Atmospheric. Neutral.]",    "type": "atmospheric"               },
+  { "id": 14, "text": "[Atmospheric. Neutral.]",    "type": "atmospheric"               },
+  { "id": 15, "text": "[Sighting. Neutral.]",       "type": "sighting"                  },
+  { "id": 16, "text": "[Sighting. Morale +1.]",     "type": "sighting",    "morale": 1  },
+  { "id": 17, "text": "[Sighting. Morale -2.]",     "type": "sighting",    "morale": -2 },
+  { "id": 18, "text": "[Sighting. Morale -1.]",     "type": "sighting",    "morale": -1 },
+  { "id": 19, "text": "[Sighting. Morale +1.]",     "type": "sighting",    "morale": 1  }
+]
