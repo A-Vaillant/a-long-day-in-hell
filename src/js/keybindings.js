@@ -37,6 +37,7 @@
                     return;
                 case "Escape": case "q":
                     ev.preventDefault();
+                    Book.clearDwell();
                     state.openBook = null;
                     Engine.goto("Corridor");
                     return;

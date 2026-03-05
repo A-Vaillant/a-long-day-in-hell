@@ -29,6 +29,10 @@
             if (result.events.includes("dawn")) {
                 if (state.dead) Surv.onResurrection();
                 if (typeof Npc !== "undefined") Npc.onDawn();
+                // Nonsense numbness decays overnight
+                if (state.nonsensePagesRead) {
+                    state.nonsensePagesRead = Math.floor(state.nonsensePagesRead / 2);
+                }
             }
 
             return result.events;
