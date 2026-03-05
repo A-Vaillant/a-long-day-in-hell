@@ -50,9 +50,10 @@ snap "02_corridor_rest"    "Corridor"        "#corridor-view"
 snap "03_corridor_gallery" "Corridor"        "#corridor-view" \
     "SugarCube&&SugarCube.State&&(SugarCube.State.variables.position=1);"
 snap "04_shelf_browse"     "Shelf Browse"    "#shelf-view"
-snap_url "05_book_open" "${BASE}/?seed=${SEED}&goto=Shelf%20Open%20Book&openBook=0,0,10,0" "#book-view"
-snap "06_kiosk"            "Kiosk"           "#kiosk-view"
-snap "07_bedroom"          "Bedroom"         "#bedroom-view"
+snap_url "05_book_cover" "${BASE}/?seed=${SEED}&goto=Shelf%20Open%20Book&openBook=0,0,10,0" "#book-view"
+snap_url "06_book_spread" "${BASE}/?seed=${SEED}&goto=Shelf%20Open%20Book&openBook=0,0,10,0&spread=3" "#book-view"
+snap "07_kiosk"            "Kiosk"           "#kiosk-view"
+snap "08_bedroom"          "Bedroom"         "#bedroom-view"
 
 echo ""
 echo "Done. Open screenshots/ to review."

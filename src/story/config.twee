@@ -13,40 +13,51 @@ A Short Stay in Hell
 <<script>>
 (function() {
     const params = new URLSearchParams(window.location.search);
-    const seed = params.get("seed") || String(Math.floor(Math.random() * 0xFFFFFFFF));
-    setup.PRNG.seed(seed);
+    const v = State.variables;
 
-    State.variables.seed     = seed;
-    State.variables.side     = 0;
-    State.variables.position = 0;
-    State.variables.floor    = 10;
-    State.variables.mode        = "explore";
-    State.variables.move        = "";
-    State.variables.heldBook    = null;
-    State.variables.shelfOffset = 0;
-    State.variables.openBook    = null;
-    State.variables.openPage    = 0;
-    State.variables.debug       = true;
+    /* If seed already exists in state (session restore), just re-seed the PRNG.
+       Only do full init on a truly fresh start. */
+    const isRestore = v.seed != null && !params.has("seed") && !params.has("goto");
 
-    // Life story + target book coordinates
-    const story = setup.LifeStory.generate(seed);
-    State.variables.lifeStory  = story;
-    State.variables.targetBook = story.bookCoords;
+    if (isRestore) {
+        setup.PRNG.seed(v.seed);
+    } else {
+        const seed = params.get("seed") || String(Math.floor(Math.random() * 0xFFFFFFFF));
+        setup.PRNG.seed(seed);
 
-    // Survival stats + time
-    setup.Survival.init();
-    setup.Tick.init();
+        v.seed     = seed;
+        v.side     = 0;
+        v.position = 0;
+        v.floor    = 10;
+        v.mode        = "explore";
+        v.move        = "";
+        v.heldBook    = null;
+        v.shelfOffset = 0;
+        v.openBook    = null;
+        v.openPage    = 0;
+        v.debug       = true;
+
+        // Life story + target book coordinates
+        const story = setup.LifeStory.generate(seed);
+        v.lifeStory  = story;
+        v.targetBook = story.bookCoords;
+
+        // Survival stats + time
+        setup.Survival.init();
+        setup.Tick.init();
+    }
 
     // Debug: ?goto=PassageName deep-links to a passage directly
     // Optional: ?openBook=side,position,floor,bookIndex pre-sets the open book
-    if (State.variables.debug) {
+    if (v.debug) {
         const go = params.get("goto");
         if (go) Config.passages.start = go;
         const ob = params.get("openBook");
         if (ob) {
             const [side, position, floor, bookIndex] = ob.split(",").map(Number);
-            State.variables.openBook = { side, position, floor, bookIndex };
-            State.variables.openPage = 0;
+            v.openBook = { side, position, floor, bookIndex };
+            const sp = params.get("spread");
+            v.openPage = sp ? Number(sp) : 0;
         }
     }
 

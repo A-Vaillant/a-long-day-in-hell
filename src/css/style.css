@@ -106,7 +106,8 @@ button:disabled {
 
 /* === PASSAGE AREA === */
 
-#story { margin-inline: 0; }
+/* Remove story margin only for book view */
+#story:has(#book-view) { margin-inline: 0; }
 
 #passages {
     padding: 0;
@@ -343,7 +344,7 @@ button:disabled {
        Two pages = 160ch + 4em. With monospace 1ch ≈ 0.6em → 160ch = 96em.
        Total page area = 100em (96 text + 4 padding).
        font-size = (100vw - 299px) / 100 */
-    --book-fs: calc((100vw - 299px) / 100);
+    --book-fs: calc((100vw - 299px) / 125);
 }
 
 .book-page-left,
