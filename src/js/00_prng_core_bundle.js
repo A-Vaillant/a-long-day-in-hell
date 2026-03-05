@@ -436,13 +436,13 @@
             side      = coordRng.nextInt(2);
             position  = coordRng.nextInt(10000) - 5000;
             floor     = coordRng.nextInt(100);
-            bookIndex = coordRng.nextInt(SEGMENT_BOOK_COUNT);
+            bookIndex = coordRng.nextInt(BOOKS_PER_GALLERY);
         } else {
             // Gaussian: centered on start, σ=50 segments, σ=15 floors
             side      = coordRng.nextInt(2);
             position  = startLoc.position + Math.round(gaussianSample(coordRng) * 50);
             floor     = Math.max(0, startLoc.floor + Math.round(gaussianSample(coordRng) * 15));
-            bookIndex = coordRng.nextInt(SEGMENT_BOOK_COUNT);
+            bookIndex = coordRng.nextInt(BOOKS_PER_GALLERY);
         }
 
         return {
