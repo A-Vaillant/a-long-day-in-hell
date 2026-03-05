@@ -1,10 +1,11 @@
-/* LifeStory wrapper — registers window.LifeStory. */
-(function () {
-    "use strict";
-    var core = window._LifeStoryCore;
-    window.LifeStory = {
-        generate: function (seed, opts) { return core.generateLifeStory(seed, opts); },
-        format: function (story)  { return core.formatLifeStory(story); },
-        bookPage: function (story, pageIndex) { return core.generateBookPage(story, pageIndex); },
-    };
-}());
+/* LifeStory wrapper — life story generation and formatting. */
+
+import {
+    generateLifeStory, formatLifeStory, generateBookPage,
+} from "../../lib/lifestory.core.js";
+
+export const LifeStory = {
+    generate(seed, opts) { return generateLifeStory(seed, opts); },
+    format(story)        { return formatLifeStory(story); },
+    bookPage(story, pageIndex) { return generateBookPage(story, pageIndex); },
+};
