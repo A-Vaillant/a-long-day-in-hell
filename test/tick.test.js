@@ -6,7 +6,7 @@ import {
     tickToTimeString, ticksUntilDawn, hoursUntilDawn,
 } from "../lib/tick.core.js";
 import {
-    defaultStats, applyMoveTick, applySleep, applyEat, applyDrink,
+    defaultStats, applyMoveTick, applySleep, applyEat, applyDrink, applyAlcohol,
     applyResurrection, showMortality, getWarnings, STAT_MIN, STAT_MAX,
 } from "../lib/survival.core.js";
 
@@ -216,6 +216,29 @@ describe("applyResurrection", () => {
         assert.strictEqual(s.thirst, 0);
         assert.strictEqual(s.mortality, 100);
         assert.strictEqual(s.dead, false);
+    });
+});
+
+describe("applyAlcohol", () => {
+    it("boosts morale", () => {
+        const s = applyAlcohol({ ...defaultStats(), morale: 50 });
+        assert.strictEqual(s.morale, 70);
+    });
+
+    it("clamps morale at 100", () => {
+        const s = applyAlcohol({ ...defaultStats(), morale: 90 });
+        assert.strictEqual(s.morale, 100);
+    });
+
+    it("also reduces thirst", () => {
+        const s = applyAlcohol({ ...defaultStats(), thirst: 50 });
+        assert.strictEqual(s.thirst, 30);
+    });
+
+    it("does not affect hunger or exhaustion", () => {
+        const s = applyAlcohol({ ...defaultStats(), hunger: 60, exhaustion: 40 });
+        assert.strictEqual(s.hunger, 60);
+        assert.strictEqual(s.exhaustion, 40);
     });
 });
 

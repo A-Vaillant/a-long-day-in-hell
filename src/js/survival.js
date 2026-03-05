@@ -58,6 +58,10 @@
 
         onEat: function ()   { Object.assign(state, core.applyEat(this._statsFromState())); },
         onDrink: function () { Object.assign(state, core.applyDrink(this._statsFromState())); },
+        onAlcohol: function () {
+            Object.assign(state, core.applyAlcohol(this._statsFromState()));
+            Despair.checkExit();
+        },
 
         severity: function (val) { return core.severity(val); },
         showMortality: function () { return core.showMortality(this._statsFromState()); },

@@ -346,11 +346,19 @@
 
     Engine.register("Kiosk", {
         render: function () {
+            if (!state.lightsOn) {
+                return '<div id="kiosk-view">' +
+                    '<p class="location-header">Kiosk</p>' +
+                    '<p>' + esc(T(TEXT.screens.kiosk_dark, "kiosk_dark:" + state.tick)) + '</p>' +
+                    '<a data-goto="Corridor">Leave</a>' +
+                    '</div>';
+            }
             return '<div id="kiosk-view">' +
                 '<p class="location-header">Kiosk</p>' +
                 '<p>' + esc(T(TEXT.screens.kiosk_intro, "kiosk_intro:" + state.tick)) + '</p>' +
                 '<a data-goto="Kiosk Get Drink">Ask for water</a><br>' +
                 '<a data-goto="Kiosk Get Food">Ask for food</a><br>' +
+                '<a data-goto="Kiosk Get Alcohol">Ask for a drink</a><br>' +
                 '<a data-goto="Corridor">Leave</a>' +
                 '</div>';
         }
@@ -368,6 +376,14 @@
         enter: function () { Tick.advance(1); Surv.onEat(); },
         render: function () {
             return '<p>' + esc(T(TEXT.screens.kiosk_food, "kiosk_food:" + state.tick)) + '</p>' +
+                '<a data-goto="Kiosk">Continue</a>';
+        }
+    });
+
+    Engine.register("Kiosk Get Alcohol", {
+        enter: function () { Tick.advance(1); Surv.onAlcohol(); },
+        render: function () {
+            return '<p>' + esc(T(TEXT.screens.kiosk_alcohol, "kiosk_alcohol:" + state.tick)) + '</p>' +
                 '<a data-goto="Kiosk">Continue</a>';
         }
     });

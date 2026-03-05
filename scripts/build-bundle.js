@@ -61,7 +61,7 @@ const CORES = [
         global: "_SurvivalCore",
         exports: [
             "STAT_MAX", "STAT_MIN", "defaultStats", "applyMoveTick",
-            "applySleep", "applyEat", "applyDrink",
+            "applySleep", "applyEat", "applyDrink", "applyAlcohol",
             "severity", "getWarnings", "showMortality",
             "describeFromTable",
         ],

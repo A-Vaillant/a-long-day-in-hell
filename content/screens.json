@@ -5,8 +5,10 @@
   "corridor_bridge": "[Floor 0 — can walk across the chasm here.]",
 
   "kiosk_intro": "[Kiosk/vending machine screen.]",
-  "kiosk_drink": "[After drinking.]",
+  "kiosk_dark": "[Kiosk is off — lights are out. Can't use it.]",
+  "kiosk_drink": "[After drinking water.]",
   "kiosk_food": "[After eating.]",
+  "kiosk_alcohol": "[After drinking alcohol. Morale boost. Array for variety.]",
 
   "bedroom_intro": "[Bedroom screen. 7 beds per rest area.]",
 

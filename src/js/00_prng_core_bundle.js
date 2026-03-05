@@ -817,6 +817,21 @@
         return applyMortality({ ...stats, thirst: clamp(stats.thirst - 40) });
     }
 
+    /** Base morale boost from alcohol. */
+    const ALCOHOL_MORALE_BOOST = 20;
+
+    /**
+     * Apply drinking alcohol. Boosts morale, also quenches some thirst.
+     *
+     * @param {object} stats
+     * @returns {object}
+     */
+    function applyAlcohol(stats) {
+        let morale = Math.min(STAT_MAX, stats.morale + ALCOHOL_MORALE_BOOST);
+        let thirst = clamp(stats.thirst - 20);
+        return applyMortality({ ...stats, morale, thirst });
+    }
+
     /**
      * Get a severity label for a hunger/thirst/exhaustion value (higher = worse).
      *
@@ -878,7 +893,7 @@
         return { word: last.word, level: last.level };
     }
 
-    window._SurvivalCore = { STAT_MAX, STAT_MIN, defaultStats, applyMoveTick, applySleep, applyEat, applyDrink, severity, getWarnings, showMortality, describeFromTable };
+    window._SurvivalCore = { STAT_MAX, STAT_MIN, defaultStats, applyMoveTick, applySleep, applyEat, applyDrink, applyAlcohol, severity, getWarnings, showMortality, describeFromTable };
 
     // ---- _InvertibleCore ----
 

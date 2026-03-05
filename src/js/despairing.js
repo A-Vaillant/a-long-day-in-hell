@@ -45,12 +45,5 @@
         chasmSkipsConfirm: function () {
             return core.chasmSkipsConfirm(state.despairing);
         },
-
-        /** Apply alcohol. */
-        drink: function () {
-            var result = core.applyAlcohol({ morale: state.morale, despairing: state.despairing });
-            state.morale = result.morale;
-            state.despairing = result.despairing;
-        },
     };
 }());
