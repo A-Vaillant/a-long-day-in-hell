@@ -82,7 +82,7 @@ document.addEventListener("keydown", function (ev) {
             break;
         case "z":
             ev.preventDefault();
-            Engine.goto("Wait Stub");
+            Engine.goto("Sleep Stub");
             break;
         case "J":
             ev.preventDefault();

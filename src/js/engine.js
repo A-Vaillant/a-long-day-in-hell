@@ -109,7 +109,7 @@ export const Engine = {
         }
 
         html += '<div class="sb-divider"></div>';
-        html += '<div class="sb-menu"><a id="sidebar-menu">menu</a></div>';
+        html += '<div class="sb-menu"><a id="sidebar-menu">menu <kbd>esc</kbd></a></div>';
         html += '</div>';
         cap.innerHTML = html;
 
@@ -142,7 +142,7 @@ export const Engine = {
     init() {
         const params = new URLSearchParams(window.location.search);
         const saved = this.load();
-        const isDebugGoto = params.has("goto");
+        const isDebugGoto = params.has("vohu");
         const hasSeedParam = params.has("seed");
 
         if (saved && saved.seed != null && !hasSeedParam && !isDebugGoto) {
@@ -161,7 +161,7 @@ export const Engine = {
             state.shelfOffset = 0;
             state.openBook    = null;
             state.openPage    = 0;
-            state.debug       = false;
+            state.debug       = isDebugGoto;
             state.deaths      = 0;
             state.deathCause  = null;
 
@@ -189,7 +189,7 @@ export const Engine = {
 
         let startScreen = "Life Story";
         if (isDebugGoto && state.debug) {
-            startScreen = params.get("goto");
+            startScreen = params.get("vohu");
         } else if (saved && saved.seed != null && !hasSeedParam && !isDebugGoto) {
             startScreen = state.screen || "Corridor";
         }

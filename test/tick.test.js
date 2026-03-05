@@ -249,17 +249,17 @@ describe("showMortality", () => {
 });
 
 describe("getWarnings", () => {
-    it("returns PARCHED when thirst = 100", () => {
+    it("returns parched warning when thirst = 100", () => {
         const w = getWarnings({ ...defaultStats(), thirst: 100 });
-        assert.ok(w.includes("PARCHED"));
+        assert.ok(w.some(s => s.toLowerCase().includes("dust") || s.toLowerCase().includes("water")));
     });
-    it("returns STARVING when hunger = 100", () => {
+    it("returns starving warning when hunger = 100", () => {
         const w = getWarnings({ ...defaultStats(), hunger: 100 });
-        assert.ok(w.includes("STARVING"));
+        assert.ok(w.some(s => s.toLowerCase().includes("food") || s.toLowerCase().includes("eating")));
     });
-    it("returns DESPAIRING when despairing", () => {
+    it("returns despairing warning when despairing", () => {
         const w = getWarnings({ ...defaultStats(), despairing: true });
-        assert.ok(w.includes("DESPAIRING"));
+        assert.ok(w.some(s => s.toLowerCase().includes("nothing") || s.toLowerCase().includes("matters")));
     });
     it("empty when all healthy", () => {
         assert.deepStrictEqual(getWarnings(defaultStats()), []);

@@ -35,7 +35,7 @@ snap_url() {
 
 snap() {
     local name="$1" passage="$2" selector="$3" extra="${4:-}"
-    local url="${BASE}/?seed=${SEED}&goto=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$passage")"
+    local url="${BASE}/?seed=${SEED}&vohu=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$passage")"
     local sel_json; sel_json=$(printf '%s' "$selector" | python3 -c 'import sys,json;print(json.dumps(sys.stdin.read()))')
     shot-scraper shot "$url" \
         ${extra:+--javascript "$extra"} \
@@ -53,8 +53,8 @@ snap "03_corridor_gallery" "Corridor"        "#corridor-view" \
     "state.position=1; Engine.goto('Corridor');"
 
 # --- Book views ---
-snap_url "04_book_cover" "${BASE}/?seed=${SEED}&goto=Shelf%20Open%20Book&openBook=0,0,10,0" "#book-view"
-snap_url "05_book_page" "${BASE}/?seed=${SEED}&goto=Shelf%20Open%20Book&openBook=0,0,10,0&spread=5" "#book-view"
+snap_url "04_book_cover" "${BASE}/?seed=${SEED}&vohu=Shelf%20Open%20Book&openBook=0,0,10,0" "#book-view"
+snap_url "05_book_page" "${BASE}/?seed=${SEED}&vohu=Shelf%20Open%20Book&openBook=0,0,10,0&spread=5" "#book-view"
 
 # --- Facilities ---
 snap "06_kiosk"            "Kiosk"           "#kiosk-view"

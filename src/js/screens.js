@@ -119,23 +119,23 @@ function renderCorridorDark(loc, moves) {
 
     html += '<div id="moves"><strong>Move:</strong> ';
     const moveLinks = [
-        { dir: "left",  label: "\u2190 Left" },
-        { dir: "right", label: "Right \u2192" },
-        { dir: "up",    label: "\u2191 Up" },
-        { dir: "down",  label: "\u2193 Down" },
-        { dir: "cross", label: "\u21cc Cross" },
+        { dir: "left",  label: "\u2190", key: "h" },
+        { dir: "right", label: "\u2192", key: "l" },
+        { dir: "up",    label: "\u2191", key: "k" },
+        { dir: "down",  label: "\u2193", key: "j" },
+        { dir: "cross", label: "\u21cc", key: "x" },
     ];
     for (let m = 0; m < moveLinks.length; m++) {
         if (moves.indexOf(moveLinks[m].dir) !== -1) {
-            html += '<a data-goto="Corridor" data-action="move-' + moveLinks[m].dir + '">' + moveLinks[m].label + '</a> ';
+            html += '<a data-goto="Corridor" data-action="move-' + moveLinks[m].dir + '"><kbd>' + moveLinks[m].key + '</kbd> ' + moveLinks[m].label + '</a> ';
         }
     }
     html += '</div>';
 
     html += '<div id="actions">';
-    html += '<a data-goto="Wait Stub">Wait</a> | <a data-goto="Sleep Stub">Sleep</a> | <a data-goto="Chasm Stub">Jump</a>';
+    html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a> <a data-goto="Chasm Stub"><kbd>J</kbd> jump</a>';
     if (seg.restArea) {
-        html += ' | <a data-goto="Bedroom">Bedroom</a>';
+        html += '<a data-goto="Bedroom">bedroom</a>';
     }
     html += '</div>';
 
@@ -200,10 +200,11 @@ Engine.register("Corridor", {
 
         if (seg.restArea) {
             html += '<p class="feature">' + esc(T(TEXT.screens.corridor_rest, "corridor_rest:" + state.tick));
-            if (state.floor > 0) html += ' and down';
-            html += '.</p>';
+            html += (state.floor > 0) ? ' Stairs lead up and down.' : ' Stairs lead up.';
+            html += '</p>';
         } else {
             html += '<div id="corridor-grid"></div>';
+            html += '<p class="shelf-hint">Click a spine to read.</p>';
         }
 
         if (seg.hasBridge) {
@@ -212,23 +213,23 @@ Engine.register("Corridor", {
 
         html += '<div id="moves"><strong>Move:</strong> ';
         const moveLinks = [
-            { dir: "left",  label: "\u2190 Left" },
-            { dir: "right", label: "Right \u2192" },
-            { dir: "up",    label: "\u2191 Up" },
-            { dir: "down",  label: "\u2193 Down" },
-            { dir: "cross", label: "\u21cc Cross" },
+            { dir: "left",  label: "\u2190", key: "h" },
+            { dir: "right", label: "\u2192", key: "l" },
+            { dir: "up",    label: "\u2191", key: "k" },
+            { dir: "down",  label: "\u2193", key: "j" },
+            { dir: "cross", label: "\u21cc", key: "x" },
         ];
         for (let m = 0; m < moveLinks.length; m++) {
             if (moves.indexOf(moveLinks[m].dir) !== -1) {
-                html += '<a data-goto="Corridor" data-action="move-' + moveLinks[m].dir + '">' + moveLinks[m].label + '</a> ';
+                html += '<a data-goto="Corridor" data-action="move-' + moveLinks[m].dir + '"><kbd>' + moveLinks[m].key + '</kbd> ' + moveLinks[m].label + '</a> ';
             }
         }
         html += '</div>';
 
         html += '<div id="actions">';
-        html += '<a data-goto="Wait Stub">Wait</a> | <a data-goto="Sleep Stub">Sleep</a> | <a data-goto="Chasm Stub">Jump</a>';
+        html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a> <a data-goto="Chasm Stub"><kbd>J</kbd> jump</a>';
         if (seg.restArea) {
-            html += ' | <a data-goto="Kiosk">Kiosk</a> | <a data-goto="Bedroom">Bedroom</a> | <a data-goto="Submission Slot">Submit</a>';
+            html += '<a data-goto="Kiosk">kiosk</a> <a data-goto="Bedroom">bedroom</a> <a data-goto="Submission Slot">submit</a>';
         }
         html += '</div>';
 
@@ -318,9 +319,10 @@ Engine.register("Shelf Open Book", {
         html += '<div class="book-single" id="book-single"></div>';
         html += '<div id="book-notices"></div>';
 
+        html += '<div id="book-controls">';
         html += '<div id="page-nav">';
-        if (pg > 0) html += '<a data-goto="Shelf Open Book" data-action="page-prev">\u25c0</a>  ';
-        if (pg < maxPage) html += '<a data-goto="Shelf Open Book" data-action="page-next">\u25b6</a>';
+        if (pg > 0) html += '<a data-goto="Shelf Open Book" data-action="page-prev"><kbd>h</kbd> prev</a> ';
+        if (pg < maxPage) html += '<a data-goto="Shelf Open Book" data-action="page-next">next <kbd>l</kbd></a>';
         html += '</div>';
 
         Engine.action("take-book", function () {
@@ -329,13 +331,14 @@ Engine.register("Shelf Open Book", {
 
         html += '<div id="book-actions">';
         if (isHeld) {
-            html += '<a data-goto="Corridor" data-action="drop-book">Put back</a>';
+            html += '<a data-goto="Corridor" data-action="drop-book">put back</a> ';
         } else if (state.heldBook !== null) {
-            html += '<a data-goto="Corridor" data-action="take-book">Swap</a>';
+            html += '<a data-goto="Corridor" data-action="take-book">swap</a> ';
         } else {
-            html += '<a data-goto="Corridor" data-action="take-book">Take</a>';
+            html += '<a data-goto="Corridor" data-action="take-book">take</a> ';
         }
-        html += ' | <a data-goto="Corridor">Back</a>';
+        html += '<a data-goto="Corridor"><kbd>q</kbd> close</a>';
+        html += '</div>';
         html += '</div>';
 
         html += '</div>';
@@ -392,7 +395,7 @@ Engine.register("Life Story", {
             '<hr>' +
             '<p><em>Your book is somewhere on the ' + (state.targetBook.side === 0 ? "west" : "east") +
             ' side, floor ' + state.targetBook.floor + '.</em></p>' +
-            '<p class="key-hint"><a data-goto="Corridor">[E] Continue</a></p>' +
+            '<p class="key-hint"><a data-goto="Corridor">Continue <kbd>E</kbd></a></p>' +
             '</div>';
     },
 });
@@ -559,7 +562,7 @@ Engine.register("Menu", {
             html += '<p class="menu-warning">Start a new game? Current progress will be lost.</p>';
             html += '<p><a id="menu-confirm-new">Yes, start over</a> | <a data-goto="Menu">No, go back</a></p>';
         } else {
-            html += '<p><a data-goto="' + esc(state._menuReturn) + '">Resume</a></p>';
+            html += '<p><a data-goto="' + esc(state._menuReturn) + '"><kbd>Esc</kbd> Resume</a></p>';
             html += '<p><a id="menu-save">Save game</a></p>';
             html += '<p><a id="menu-new-game">New game</a></p>';
         }

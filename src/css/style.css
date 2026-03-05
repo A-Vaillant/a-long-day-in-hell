@@ -46,6 +46,20 @@ a:hover {
     border-bottom-color: #c8783a;
 }
 
+/* === KBD HINTS === */
+
+kbd {
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.05em 0.35em;
+    background: var(--bg-mid);
+    vertical-align: baseline;
+    letter-spacing: 0.04em;
+}
+
 /* === BUTTONS === */
 
 button {
@@ -166,7 +180,7 @@ button:disabled {
 /* === WARNINGS === */
 
 .warnings {
-    color: var(--danger);
+    color: #8a4a30;
     font-style: italic;
     font-size: 0.9em;
 }
@@ -174,37 +188,34 @@ button:disabled {
 /* === MOVES & ACTIONS === */
 
 #moves, #actions {
-    margin-top: 1rem;
     font-family: var(--font-mono);
-    font-size: 0.85em;
+    font-size: 0.8em;
+    color: var(--text-dim);
 }
 
-#moves strong, #actions strong {
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-size: 0.8em;
-    display: block;
-    margin-bottom: 0.4rem;
+#moves {
+    margin-top: 1.2rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+}
+
+#moves strong {
+    display: none;
 }
 
 #moves a, #actions a {
     border-bottom: none;
-    color: var(--text);
-    margin-right: 1.2rem;
-    padding: 0.15rem 0;
+    color: var(--text-dim);
+    margin-right: 1rem;
+    padding: 0.2rem 0;
+    transition: color 0.15s;
 }
 #moves a:hover, #actions a:hover {
-    color: #c8783a;
+    color: var(--text);
 }
 
-#moves a::before { content: '['; color: var(--text-dim); }
-#moves a::after  { content: ']'; color: var(--text-dim); }
-
 #actions {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
+    margin-top: 0.6rem;
 }
 
 /* === SIDEBAR STATS === */
@@ -259,23 +270,21 @@ button:disabled {
 .sb-low        { color: #8b6914; }
 .sb-critical   { color: #a05030; }
 .sb-max .sb-label,
-.sb-max .sb-word { color: #a03030; font-weight: bold; }
+.sb-max .sb-word { color: #a04030; }
 
 .sb-condition {
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.95em;
+    letter-spacing: 0.04em;
+    font-size: 0.9em;
     padding: 0.1rem 0;
+    font-style: italic;
 }
 
 .sb-dying {
-    color: #a03030;
-    font-weight: bold;
+    color: #8a3a2a;
 }
 
 .sb-despairing {
-    color: var(--danger);
-    font-style: italic;
+    color: #6a3a2a;
 }
 
 .sb-held {
@@ -474,6 +483,30 @@ button:disabled {
     background: rgba(180, 160, 100, 0.15);
 }
 
+/* === BOOK CONTROLS === */
+
+#book-controls {
+    max-width: 580px;
+    margin: 0.8rem auto 0;
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+#book-controls a {
+    border-bottom: none;
+    color: var(--text-dim);
+}
+#book-controls a:hover {
+    color: var(--text);
+}
+
+#page-nav a, #book-actions a {
+    margin: 0 0.4rem;
+}
+
 /* === SHELF GRID === */
 
 .shelf-grid {
@@ -524,6 +557,14 @@ button:disabled {
     border-bottom: none;
     color: transparent;
     user-select: none;
+}
+
+.shelf-hint {
+    font-family: var(--font-mono);
+    font-size: 0.7em;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    margin: 0.2rem 0 0;
 }
 
 /* === EVENTS === */
