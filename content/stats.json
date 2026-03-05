@@ -1,0 +1,17 @@
+{
+  "rising": [
+    { "min": 100, "word": "critical", "level": "max" },
+    { "min": 90,  "word": "severe",   "level": "critical" },
+    { "min": 70,  "word": "high",     "level": "low" },
+    { "min": 40,  "word": "moderate", "level": "ok" },
+    { "min": 15,  "word": "mild",     "level": "ok" },
+    { "min": 0,   "word": "fine",     "level": "ok" }
+  ],
+  "morale": [
+    { "min": 100, "word": "broken",   "level": "max" },
+    { "min": 90,  "word": "bleak",    "level": "critical" },
+    { "min": 70,  "word": "low",      "level": "low" },
+    { "min": 40,  "word": "uneasy",   "level": "ok" },
+    { "min": 0,   "word": "steady",   "level": "ok" }
+  ]
+}

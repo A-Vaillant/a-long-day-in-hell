@@ -44,9 +44,27 @@ const scripts = jsOrder.map(name => {
     return readFileSync(path, "utf8");
 });
 
-// Inline content/text.json as window.TEXT
-const textJson = readFileSync(resolve(ROOT, "content/text.json"), "utf8");
-const textBlock = "<script>window.TEXT = " + textJson + ";</script>";
+// Assemble window.TEXT from content/*.json
+const contentDir = resolve(ROOT, "content");
+const contentMap = {
+    "events.json":    "events",
+    "npcs.json":      null,       // keys merge at top level (names → npc_names, dialogue → npc_dialogue)
+    "screens.json":   "screens",
+    "lifestory.json": "lifestory",
+    "stats.json":     "stats",
+};
+const TEXT = {};
+for (const [file, key] of Object.entries(contentMap)) {
+    const data = JSON.parse(readFileSync(resolve(contentDir, file), "utf8"));
+    if (key) {
+        TEXT[key] = data;
+    } else {
+        // npcs.json: remap to legacy keys
+        TEXT.npc_names = data.names;
+        TEXT.npc_dialogue = data.dialogue;
+    }
+}
+const textBlock = "<script>window.TEXT = " + JSON.stringify(TEXT) + ";</script>";
 
 const jsBlock = "<script>\n" + scripts.join("\n\n") + "\n</script>";
 html = html.replace("<!-- INJECT:JS -->", textBlock + "\n" + jsBlock);

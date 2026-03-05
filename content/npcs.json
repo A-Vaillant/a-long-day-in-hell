@@ -1,0 +1,31 @@
+{
+  "names": [
+    "[15 names. Diverse cultures/eras. Other dead people trapped here.]",
+    "NAME_1", "NAME_2", "NAME_3", "NAME_4",
+    "NAME_5", "NAME_6", "NAME_7", "NAME_8", "NAME_9",
+    "NAME_10", "NAME_11", "NAME_12", "NAME_13", "NAME_14"
+  ],
+
+  "dialogue": {
+    "calm": [
+      "[6 lines. Calm — newly arrived or holding together. Muttered, not to you. Dark Souls vibe: cryptic, resigned.]",
+      "CALM_1", "CALM_2", "CALM_3", "CALM_4", "CALM_5"
+    ],
+    "anxious": [
+      "[6 lines. Anxious — starting to crack. Repetitive, strained, still coherent.]",
+      "ANXIOUS_1", "ANXIOUS_2", "ANXIOUS_3", "ANXIOUS_4", "ANXIOUS_5"
+    ],
+    "mad": [
+      "[6 lines. Mad — broken. Ranting, nonsensical, aggressive fragments.]",
+      "MAD_1", "MAD_2", "MAD_3", "MAD_4", "MAD_5"
+    ],
+    "catatonic": [
+      "[4 lines. Catatonic — barely there. Single words, trailing off, almost not language.]",
+      "CATATONIC_1", "CATATONIC_2", "CATATONIC_3"
+    ],
+    "dead": [
+      "[3 lines. Dead NPC body. They resurrect at dawn. Not gory.]",
+      "DEAD_1", "DEAD_2"
+    ]
+  }
+}
