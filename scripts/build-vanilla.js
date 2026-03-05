@@ -41,6 +41,8 @@ const contentMap = {
     "screens.json":   "screens",
     "lifestory.json": "lifestory",
     "stats.json":     "stats",
+    "stories.json":   "stories",
+    "dictionary.json": "dictionary",
 };
 const TEXT = {};
 for (const [file, key] of Object.entries(contentMap)) {
