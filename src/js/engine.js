@@ -117,7 +117,12 @@ export const Engine = {
         if (menuBtn) {
             menuBtn.addEventListener("click", function (ev) {
                 ev.preventDefault();
-                state._menuReturn = state.screen;
+                var scr = state.screen;
+                var KIOSK_SUBS = ["Kiosk Get Drink", "Kiosk Get Food", "Kiosk Get Alcohol"];
+                var TRANSIENT = ["Wait Stub", "Sleep Stub", "Submission Attempt"].concat(KIOSK_SUBS);
+                if (KIOSK_SUBS.indexOf(scr) !== -1) state._menuReturn = "Kiosk";
+                else if (TRANSIENT.indexOf(scr) !== -1) state._menuReturn = "Corridor";
+                else state._menuReturn = scr;
                 Engine.goto("Menu");
             });
         }
@@ -125,7 +130,13 @@ export const Engine = {
 
     save() {
         try {
+            var KIOSK_SUBS = ["Kiosk Get Drink", "Kiosk Get Food", "Kiosk Get Alcohol"];
+            var TRANSIENT = ["Wait Stub", "Sleep Stub", "Submission Attempt"].concat(KIOSK_SUBS);
+            var savedScreen = state.screen;
+            if (KIOSK_SUBS.indexOf(state.screen) !== -1) state.screen = "Kiosk";
+            else if (TRANSIENT.indexOf(state.screen) !== -1) state.screen = "Corridor";
             localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+            state.screen = savedScreen;
         } catch (e) { /* ignore quota errors */ }
     },
     load() {
@@ -148,6 +159,15 @@ export const Engine = {
         if (saved && saved.seed != null && !hasSeedParam && !isDebugGoto) {
             Object.assign(state, saved);
             PRNG.seed(state.seed);
+            // Migrate missing fields from older saves
+            if (state.mortality === undefined) state.mortality = 100;
+            if (state.despairing === undefined) state.despairing = false;
+            if (state.deaths === undefined) state.deaths = 0;
+            if (state.deathCause === undefined) state.deathCause = null;
+            if (state.submissionsAttempted === undefined) state.submissionsAttempted = 0;
+            if (state.won === undefined) state.won = false;
+            if (!state.eventDeck) Events.init();
+            if (!state.npcs) Npc.init();
         } else {
             const seed = params.get("seed") || String(Math.floor(Math.random() * 0xFFFFFFFF));
             PRNG.seed(seed);

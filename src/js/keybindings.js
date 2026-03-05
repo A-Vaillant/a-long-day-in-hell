@@ -30,7 +30,7 @@ document.addEventListener("keydown", function (ev) {
                 return;
             case "l": case "ArrowRight":
                 ev.preventDefault();
-                if (state.openPage < 411) {
+                if (state.openPage < Book.PAGES_PER_BOOK + 1) {
                     state.openPage += 1;
                     Engine.goto("Shelf Open Book");
                 }
@@ -55,6 +55,11 @@ document.addEventListener("keydown", function (ev) {
             return;
         }
     } else if (screen === "Death") {
+        if (key === "Enter" || key === " " || key === "e") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
         if (key === "`" || key === "~") {
             ev.preventDefault();
             state.debug = !state.debug;
@@ -65,7 +70,15 @@ document.addEventListener("keydown", function (ev) {
 
     if (key === "Escape") {
         ev.preventDefault();
-        state._menuReturn = screen;
+        const KIOSK_SUBS = ["Kiosk Get Drink", "Kiosk Get Food", "Kiosk Get Alcohol"];
+        const TRANSIENT = ["Wait Stub", "Sleep Stub", "Submission Attempt"].concat(KIOSK_SUBS);
+        if (KIOSK_SUBS.indexOf(screen) !== -1) {
+            state._menuReturn = "Kiosk";
+        } else if (TRANSIENT.indexOf(screen) !== -1) {
+            state._menuReturn = "Corridor";
+        } else {
+            state._menuReturn = screen;
+        }
         Engine.goto("Menu");
         return;
     }

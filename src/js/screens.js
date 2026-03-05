@@ -291,7 +291,7 @@ Engine.register("Corridor", {
 Engine.register("Shelf Open Book", {
     render() {
         if (state.openBook === null || !state.lightsOn) {
-            Engine.goto("Corridor");
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
             return "";
         }
         const bk = state.openBook;
@@ -560,7 +560,7 @@ Engine.register("Menu", {
 
         if (state._menuConfirmNew) {
             html += '<p class="menu-warning">Start a new game? Current progress will be lost.</p>';
-            html += '<p><a id="menu-confirm-new">Yes, start over</a> | <a data-goto="Menu">No, go back</a></p>';
+            html += '<p><a id="menu-confirm-new">Yes, start over</a> | <a data-goto="Menu" data-action="menu-cancel-new">No, go back</a></p>';
         } else {
             html += '<p><a data-goto="' + esc(state._menuReturn) + '"><kbd>Esc</kbd> Resume</a></p>';
             html += '<p><a id="menu-save">Save game</a></p>';
@@ -571,6 +571,10 @@ Engine.register("Menu", {
         return html;
     },
     afterRender() {
+        Engine.action("menu-cancel-new", function () {
+            state._menuConfirmNew = false;
+            state._menuSaved = false;
+        });
         const saveLink = document.getElementById("menu-save");
         if (saveLink) {
             saveLink.addEventListener("click", function (ev) {
