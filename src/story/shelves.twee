@@ -52,41 +52,89 @@ postdisplay["shelfGrid"] = function () {
 ::Shelf Open Book
 <<if $openBook === null>><<goto "Shelf Browse">><</if>>
 <<set _book = $openBook>>
-<<set _page = $openPage>>
-<<set _pageText = setup.Book.getPage(_book.side, _book.position, _book.floor, _book.bookIndex, _page)>>
-<<set _fragment = setup.Book.findCoherentFragment(_pageText)>>
+<<set _spread = $openPage>>
+<<set _maxSpread = 207>>
 <<set _isHeld = $heldBook !== null && $heldBook.side === _book.side && $heldBook.position === _book.position && $heldBook.floor === _book.floor && $heldBook.bookIndex === _book.bookIndex>>
 <<set _isTarget = _book.side === $targetBook.side && _book.position === $targetBook.position && _book.floor === $targetBook.floor && _book.bookIndex === $targetBook.bookIndex>>
-<div id="book-view" class="mode-book">
-
-<p class="location-header">Book #<<print _book.bookIndex + 1>> — PAGE <<print _page + 1>> / <<print setup.Book.PAGES_PER_BOOK>></p>
-
-<<if _isTarget>><p class="target-book-hint">Something about this book makes you stop.</p><</if>>
-
-<pre class="book-page" id="book-page-content"></pre>
+<<set _leftPageNum = _spread * 2 - 2>>
+<<set _rightPageNum = _spread * 2 - 1>>
+<div id="book-view" class="mode-book">\
+<p class="location-header">Book #<<print _book.bookIndex + 1>><<if _spread > 0 && _spread < _maxSpread>> — Pages <<print Math.max(1, _leftPageNum)>>–<<print Math.min(410, _rightPageNum)>> / 410<</if>></p>\
+<<if _isTarget>><p class="target-book-hint">Something about this book makes you stop.</p><</if>>\
+<div class="book-spread" id="book-spread">\
+<div class="book-page-left" id="page-left"></div>\
+<div class="book-spine-divider"></div>\
+<div class="book-page-right" id="page-right"></div>\
+</div>
 <<script>>
-postdisplay["bookPage"] = function () {
-    delete postdisplay["bookPage"];
-    var el = document.getElementById("book-page-content");
-    if (el) el.textContent = State.temporary.pageText;
+postdisplay["bookSpread"] = function () {
+    delete postdisplay["bookSpread"];
+    var v = State.variables, t = State.temporary;
+    var spread = v.openPage;
+    var bk = v.openBook;
+    var left = document.getElementById("page-left");
+    var right = document.getElementById("page-right");
+    if (!left || !right) return;
+    /* Spread layout:
+       0: [null, cover]
+       1: [back-of-cover, page 1]   (leftPageNum=0, rightPageNum=1)
+       2: [page 2, page 3]
+       ...
+       206: [page 410, back-of-back]
+       207: [back-of-book, null]     */
+    var leftPageNum  = spread * 2 - 2;  /* 1-indexed content page */
+    var rightPageNum = spread * 2 - 1;
+    /* Left page */
+    if (spread === 0) {
+        left.className = "book-page-left book-page-null";
+    } else if (leftPageNum === 0) {
+        left.className = "book-page-left book-page-blank";
+    } else if (spread === 207) {
+        left.className = "book-page-left book-page-endpaper";
+        left.textContent = "⊡";
+    } else if (leftPageNum >= 1 && leftPageNum <= 410) {
+        left.textContent = setup.Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, leftPageNum - 1);
+        t.leftFragment = setup.Book.findCoherentFragment(left.textContent);
+    } else {
+        left.className = "book-page-left book-page-blank";
+    }
+    /* Right page */
+    if (spread === 207) {
+        right.className = "book-page-right book-page-null";
+    } else if (spread === 0) {
+        right.className = "book-page-right book-page-cover";
+    } else if (rightPageNum > 410) {
+        right.className = "book-page-right book-page-blank";
+    } else if (rightPageNum >= 1 && rightPageNum <= 410) {
+        right.textContent = setup.Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, rightPageNum - 1);
+        t.rightFragment = setup.Book.findCoherentFragment(right.textContent);
+    } else {
+        right.className = "book-page-right book-page-blank";
+    }
+    /* Coherent fragment notices */
+    var notices = document.getElementById("book-notices");
+    if (notices) {
+        var frags = [];
+        if (t.leftFragment && t.leftFragment.length > 6) frags.push(t.leftFragment.trim());
+        if (t.rightFragment && t.rightFragment.length > 6) frags.push(t.rightFragment.trim());
+        if (frags.length > 0) {
+            notices.innerHTML = '<p class="coherent-fragment">You notice: <em>"' +
+                frags.join('"</em></p><p class="coherent-fragment">…and: <em>"') +
+                '"</em></p>';
+        }
+    }
 };
 <</script>>
-
-<<if _fragment !== null && _fragment.length > 6>>
-<p class="coherent-fragment">You notice: <em>"<<print _fragment.trim()>>"</em></p>
-<</if>>
-
-<div id="page-nav">
-  <<if _page > 0>>[[◀|Shelf Open Book][$openPage -= 1]]  <</if>>
-  <<if _page < setup.Book.PAGES_PER_BOOK - 1>>[[▶|Shelf Open Book][$openPage += 1]]<</if>>
+<div id="book-notices"></div>
+<div id="page-nav">\
+  <<if _spread > 0>>[[◀|Shelf Open Book][$openPage -= 1]]  <</if>>\
+  <<if _spread < _maxSpread>>[[▶|Shelf Open Book][$openPage += 1]]<</if>>\
 </div>
-
-<div id="book-actions">
-  <<if _isHeld>>[[Put back|Shelf Browse][$heldBook = null]]
-  <<elseif $heldBook !== null>>[[Swap|Shelf Browse][$heldBook = { side: _book.side, position: _book.position, floor: _book.floor, bookIndex: _book.bookIndex }]]
-  <<else>>[[Take|Shelf Browse][$heldBook = { side: _book.side, position: _book.position, floor: _book.floor, bookIndex: _book.bookIndex }]]<</if>>
-  | [[Shelves|Shelf Browse]]
-  | [[Corridor|Corridor][$mode = "explore"]]
-</div>
-
+<div id="book-actions">\
+  <<if _isHeld>>[[Put back|Shelf Browse][$heldBook = null]]\
+  <<elseif $heldBook !== null>>[[Swap|Shelf Browse][$heldBook = { side: _book.side, position: _book.position, floor: _book.floor, bookIndex: _book.bookIndex }]]\
+  <<else>>[[Take|Shelf Browse][$heldBook = { side: _book.side, position: _book.position, floor: _book.floor, bookIndex: _book.bookIndex }]]<</if>>\
+  | [[Shelves|Shelf Browse]]\
+  | [[Corridor|Corridor][$mode = "explore"]]\
+</div>\
 </div>

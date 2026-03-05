@@ -15,8 +15,12 @@
  *   ~            → toggle debug panel
  *
  * Shelf mode (mode === "shelf"):
- *   Esc          → back to gallery
- *   (TBD)
+ *   Esc          → back to corridor
+ *
+ * Book open (mode === "shelf", openBook set):
+ *   h / ArrowLeft  → previous spread
+ *   l / ArrowRight → next spread
+ *   Esc / q        → back to shelf browse
  */
 
 (function () {
@@ -98,10 +102,37 @@
                     break;
             }
         } else if (mode === "shelf") {
-            if (key === "Escape") {
-                ev.preventDefault();
-                State.variables.mode = "explore";
-                Engine.play("Corridor");
+            var v = State.variables;
+            if (v.openBook !== null) {
+                // Book is open — page flip and close
+                switch (key) {
+                    case "h": case "ArrowLeft":
+                        ev.preventDefault();
+                        if (v.openPage > 0) {
+                            v.openPage -= 1;
+                            Engine.play("Shelf Open Book");
+                        }
+                        break;
+                    case "l": case "ArrowRight":
+                        ev.preventDefault();
+                        if (v.openPage < 207) {
+                            v.openPage += 1;
+                            Engine.play("Shelf Open Book");
+                        }
+                        break;
+                    case "Escape": case "q":
+                        ev.preventDefault();
+                        v.openBook = null;
+                        Engine.play("Shelf Browse");
+                        break;
+                }
+            } else {
+                // Shelf browse
+                if (key === "Escape") {
+                    ev.preventDefault();
+                    v.mode = "explore";
+                    Engine.play("Corridor");
+                }
             }
         }
     });

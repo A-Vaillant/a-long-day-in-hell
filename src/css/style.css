@@ -106,6 +106,8 @@ button:disabled {
 
 /* === PASSAGE AREA === */
 
+#story { margin-inline: 0; }
+
 #passages {
     padding: 0;
     display: flex;
@@ -116,6 +118,13 @@ button:disabled {
     max-width: 640px;
     width: 100%;
     padding: 1rem 2rem 2rem;
+}
+
+/* Book view needs full width for two-page spread */
+.passage:has(#book-view) {
+    max-width: none;
+    padding: 0.5rem 0.5rem 1rem;
+    margin: 0;
 }
 
 /* === CORRIDOR VIEW === */
@@ -318,18 +327,84 @@ button:disabled {
     white-space: pre-wrap;
 }
 
-/* === BOOK READING (stub, Day 2) === */
+/* === BOOK READING === */
 
-.book-page {
+/* Kill SugarCube <br> insertions inside book view */
+#book-view br { display: none; }
+
+.book-spread {
+    display: flex;
+    margin: 0.5rem 0;
+    box-shadow: 2px 4px 16px rgba(0,0,0,0.6);
+    /* Height: 40 lines × 1.25 line-height + 2.4em padding = 52.4em at book font-size */
+    height: calc(var(--book-fs) * 52.4);
+    /* Sidebar = 17.5em ≈ 280px. Passage padding = 1rem = 16px. Spine = 3px.
+       Available = 100vw - 299px. Each page needs 80ch + 2em padding.
+       Two pages = 160ch + 4em. With monospace 1ch ≈ 0.6em → 160ch = 96em.
+       Total page area = 100em (96 text + 4 padding).
+       font-size = (100vw - 299px) / 100 */
+    --book-fs: calc((100vw - 299px) / 100);
+}
+
+.book-page-left,
+.book-page-right {
     font-family: var(--font-mono);
-    font-size: 0.78em;
-    line-height: 1.5;
-    color: var(--text-dim);
-    background: var(--bg-surface);
-    padding: 1.5rem;
-    border: 1px solid var(--border);
-    word-break: break-all;
-    white-space: pre-wrap;
+    font-size: var(--book-fs);
+    line-height: 1.25;
+    color: #3a3228;
+    background: #d4c9a8;
+    padding: 1.2em 1em;
+    white-space: pre;
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+}
+
+.book-page-left {
+    border-radius: 2px 0 0 2px;
+    box-shadow: inset -8px 0 16px rgba(0,0,0,0.06);
+}
+
+.book-page-right {
+    border-radius: 0 2px 2px 0;
+    box-shadow: inset 8px 0 16px rgba(0,0,0,0.06);
+}
+
+.book-spine-divider {
+    width: 3px;
+    background: linear-gradient(to right, #8a7a60, #a09080, #8a7a60);
+    flex-shrink: 0;
+}
+
+.book-page-null {
+    background: transparent;
+    box-shadow: none;
+}
+
+.book-page-blank {
+    background: #d4c9a8;
+}
+
+.book-page-cover {
+    background: #6b4226;
+    color: #c8b89a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body);
+    font-size: 1em;
+    font-style: italic;
+    letter-spacing: 0.05em;
+}
+
+.book-page-endpaper {
+    background: #b8a880;
+    color: #6b5a40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
 }
 
 /* Coherent fragment highlight — for proximity signal hits */
