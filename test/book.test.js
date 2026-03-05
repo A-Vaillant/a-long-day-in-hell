@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-    generateBookPage, bookMeta, findCoherentFragment,
+    generateBookPage, bookMeta, findCoherentFragment, scoreSensibility,
     PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE, CHARS_PER_PAGE, CHARS_PER_BOOK, CHARSET,
 } from "../lib/book.core.js";
 describe("constants", () => {
@@ -79,6 +79,58 @@ describe("bookMeta", () => {
     it("returns correct fields", () => {
         const m = bookMeta(1, 5, 3, 42);
         assert.deepStrictEqual(m, { side: 1, position: 5, floor: 3, bookIndex: 42 });
+    });
+});
+
+describe("scoreSensibility", () => {
+    it("returns 0 for empty string", () => {
+        assert.strictEqual(scoreSensibility(""), 0);
+    });
+
+    it("returns 0 for non-letter content", () => {
+        assert.strictEqual(scoreSensibility("1234 !@#$ %^&*"), 0);
+    });
+
+    it("scores random book pages very low", () => {
+        const page = generateBookPage(0, 0, 0, 0, 0, "seed");
+        const score = scoreSensibility(page);
+        assert.ok(score < 0.08, `random page scored ${score}, expected < 0.08`);
+    });
+
+    it("scores English prose significantly higher than random", () => {
+        const english = "The quick brown fox jumps over the lazy dog. " +
+            "She sat by the window and watched the rain fall on the street. " +
+            "There was nothing left to do but wait for the morning light.";
+        const random = generateBookPage(0, 0, 0, 0, 0, "seed");
+        const engScore = scoreSensibility(english);
+        const rndScore = scoreSensibility(random);
+        assert.ok(engScore > rndScore * 3,
+            `English ${engScore.toFixed(4)} should be >3x random ${rndScore.toFixed(4)}`);
+    });
+
+    it("scores are deterministic", () => {
+        const text = "Hello there, this is a test of the scoring system.";
+        assert.strictEqual(scoreSensibility(text), scoreSensibility(text));
+    });
+
+    it("is case-insensitive", () => {
+        assert.strictEqual(
+            scoreSensibility("THE QUICK BROWN FOX"),
+            scoreSensibility("the quick brown fox")
+        );
+    });
+
+    it("returns value in [0, 1]", () => {
+        const texts = [
+            "the the the the the",
+            generateBookPage(0, 0, 0, 0, 0, "seed"),
+            "abcdefghijklmnopqrstuvwxyz",
+            "aaaa bbbb cccc dddd",
+        ];
+        for (const t of texts) {
+            const s = scoreSensibility(t);
+            assert.ok(s >= 0 && s <= 1, `score ${s} out of [0,1] for input`);
+        }
     });
 });
 
