@@ -1,89 +1,71 @@
-/* Tick wrapper — registers window.Tick.
- * Reads/writes window.state directly.
- */
-(function () {
-    "use strict";
-    var core = window._TickCore;
+/* Tick wrapper — time advancement, light cycle, dawn/reset events. */
 
-    window.Tick = {
-        init: function () {
-            var d = core.defaultTickState();
-            state.tick     = d.tick;
-            state.day      = d.day;
-            state.lightsOn = true;
-        },
+import {
+    TICKS_PER_HOUR, defaultTickState, advanceTick, isLightsOn,
+    isResetHour, tickToTimeString, hoursUntilDawn,
+} from "../../lib/tick.core.js";
+import { Surv } from "./survival.js";
+import { Npc } from "./npc.js";
+import { Events } from "./events.js";
+import { state } from "./state.js";
 
-        advance: function (n) {
-            var result = core.advanceTick({ tick: state.tick, day: state.day }, n);
-            state.tick = result.state.tick;
-            state.day  = result.state.day;
-            state.lightsOn = core.isLightsOn(state.tick);
+export const Tick = {
+    init() {
+        const d = defaultTickState();
+        state.tick     = d.tick;
+        state.day      = d.day;
+        state.lightsOn = true;
+    },
+    advance(n) {
+        const result = advanceTick({ tick: state.tick, day: state.day }, n);
+        state.tick = result.state.tick;
+        state.day  = result.state.day;
+        state.lightsOn = isLightsOn(state.tick);
 
-            if (result.events.includes("resetHour")) {
-                // Close any open book — you're falling asleep
-                state.openBook = null;
-                state.openPage = 0;
-                // heldBook persists (you're touching it)
+        if (result.events.includes("resetHour")) {
+            state.openBook = null;
+            state.openPage = 0;
+        }
+        if (result.events.includes("dawn")) {
+            if (state.dead) Surv.onResurrection();
+            Npc.onDawn();
+            if (state.nonsensePagesRead) {
+                state.nonsensePagesRead = Math.floor(state.nonsensePagesRead / 2);
             }
-
-            if (result.events.includes("dawn")) {
-                if (state.dead) Surv.onResurrection();
-                if (typeof Npc !== "undefined") Npc.onDawn();
-                // Nonsense numbness decays overnight
-                if (state.nonsensePagesRead) {
-                    state.nonsensePagesRead = Math.floor(state.nonsensePagesRead / 2);
-                }
-            }
-
-            return result.events;
-        },
-
-        onMove: function () {
-            if (core.isResetHour(state.tick)) {
-                this.onForcedSleep();
-                return [];
-            }
-            var events = this.advance(1);
-            Surv.onMove();
-            if (typeof Events !== "undefined") Events.draw();
-            return events;
-        },
-
-        onSleep: function () {
-            // Sleep hour-by-hour until reset hour
-            while (!core.isResetHour(state.tick) && !state.dead) {
-                this.advance(core.TICKS_PER_HOUR);
-                Surv.onSleep();
-            }
-            // Reset hour: forced sleep through dawn (skip if dead — death screen handles it)
-            if (!state.dead && core.isResetHour(state.tick)) {
-                this.onForcedSleep();
-            }
-        },
-
-        onForcedSleep: function () {
-            while (!state.lightsOn || core.isResetHour(state.tick)) {
-                var events = this.advance(core.TICKS_PER_HOUR);
-                Surv.onSleep();
-                if (events.includes("dawn")) break;
-            }
-        },
-
-        getTimeString: function () {
-            return core.tickToTimeString(state.tick);
-        },
-
-        getDayDisplay: function () {
-            return "Day " + state.day;
-        },
-
-        hoursUntilDawn: function () {
-            return core.hoursUntilDawn(state.tick);
-        },
-
-        getClockDisplay: function () {
-            var year = String(state.day > 365 ? Math.floor(state.day / 365) : 0).padStart(7, "0");
-            return "Year " + year + ", Day " + state.day + "\n" + core.tickToTimeString(state.tick);
-        },
-    };
-}());
+        }
+        return result.events;
+    },
+    onMove() {
+        if (isResetHour(state.tick)) {
+            this.onForcedSleep();
+            return [];
+        }
+        const events = this.advance(1);
+        Surv.onMove();
+        Events.draw();
+        return events;
+    },
+    onSleep() {
+        while (!isResetHour(state.tick) && !state.dead) {
+            this.advance(TICKS_PER_HOUR);
+            Surv.onSleep();
+        }
+        if (!state.dead && isResetHour(state.tick)) {
+            this.onForcedSleep();
+        }
+    },
+    onForcedSleep() {
+        while (!state.lightsOn || isResetHour(state.tick)) {
+            const events = this.advance(TICKS_PER_HOUR);
+            Surv.onSleep();
+            if (events.includes("dawn")) break;
+        }
+    },
+    getTimeString() { return tickToTimeString(state.tick); },
+    getDayDisplay() { return "Day " + state.day; },
+    hoursUntilDawn() { return hoursUntilDawn(state.tick); },
+    getClockDisplay() {
+        const year = String(state.day > 365 ? Math.floor(state.day / 365) : 0).padStart(7, "0");
+        return "Year " + year + ", Day " + state.day + "\n" + tickToTimeString(state.tick);
+    },
+};
