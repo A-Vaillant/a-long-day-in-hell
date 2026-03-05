@@ -1,0 +1,164 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import {
+    GRAVITY, TERMINAL_VELOCITY, GRAB_BASE_CHANCE, GRAB_SPEED_PENALTY,
+    GRAB_FAIL_MORTALITY_HIT, LANDING_KILL_SPEED,
+    defaultFallingState, fallTick, grabChance, attemptGrab,
+} from "../lib/chasm.core.js";
+
+// --- defaultFallingState ---
+
+describe("defaultFallingState", () => {
+    it("returns speed 0 and the given side", () => {
+        const s = defaultFallingState(1);
+        assert.strictEqual(s.speed, 0);
+        assert.strictEqual(s.floorsToFall, 0);
+        assert.strictEqual(s.side, 1);
+    });
+});
+
+// --- fallTick ---
+
+describe("fallTick", () => {
+    it("accelerates by GRAVITY each tick", () => {
+        const result = fallTick({ speed: 0 }, 100);
+        assert.strictEqual(result.newSpeed, GRAVITY);
+        assert.strictEqual(result.newFloor, 100 - GRAVITY);
+        assert.strictEqual(result.landed, false);
+        assert.strictEqual(result.fatal, false);
+    });
+
+    it("accumulates speed over multiple ticks", () => {
+        let speed = 0;
+        let floor = 1000;
+        for (let i = 0; i < 5; i++) {
+            const r = fallTick({ speed }, floor);
+            speed = r.newSpeed;
+            floor = r.newFloor;
+        }
+        assert.strictEqual(speed, 5);
+        // Fell 1+2+3+4+5 = 15 floors
+        assert.strictEqual(floor, 1000 - 15);
+    });
+
+    it("caps speed at TERMINAL_VELOCITY", () => {
+        const result = fallTick({ speed: TERMINAL_VELOCITY }, 1000);
+        assert.strictEqual(result.newSpeed, TERMINAL_VELOCITY);
+        assert.strictEqual(result.newFloor, 1000 - TERMINAL_VELOCITY);
+    });
+
+    it("does not exceed terminal velocity when approaching it", () => {
+        const result = fallTick({ speed: TERMINAL_VELOCITY - 1 }, 1000);
+        assert.strictEqual(result.newSpeed, TERMINAL_VELOCITY);
+    });
+
+    it("detects landing at floor 0", () => {
+        const result = fallTick({ speed: 5 }, 3);
+        assert.strictEqual(result.newFloor, 0);
+        assert.strictEqual(result.landed, true);
+        assert.strictEqual(result.fatal, false);
+    });
+
+    it("floor never goes below 0", () => {
+        const result = fallTick({ speed: 20 }, 5);
+        assert.strictEqual(result.newFloor, 0);
+        assert.strictEqual(result.landed, true);
+    });
+
+    it("marks fatal landing when speed >= LANDING_KILL_SPEED", () => {
+        const result = fallTick({ speed: LANDING_KILL_SPEED - 1 }, 5);
+        assert.strictEqual(result.landed, true);
+        assert.strictEqual(result.fatal, true);
+        // speed becomes LANDING_KILL_SPEED after acceleration
+        assert.strictEqual(result.newSpeed, LANDING_KILL_SPEED);
+    });
+
+    it("marks fatal at terminal velocity", () => {
+        const result = fallTick({ speed: TERMINAL_VELOCITY }, 10);
+        assert.strictEqual(result.fatal, true);
+    });
+
+    it("non-fatal at low speed landing", () => {
+        const result = fallTick({ speed: 1 }, 2);
+        assert.strictEqual(result.newSpeed, 2);
+        assert.strictEqual(result.landed, true);
+        assert.strictEqual(result.fatal, false);
+    });
+
+    it("reaches floor 0 eventually from any height", () => {
+        let speed = 0;
+        let floor = 100000;
+        let ticks = 0;
+        while (floor > 0) {
+            const r = fallTick({ speed }, floor);
+            speed = r.newSpeed;
+            floor = r.newFloor;
+            ticks++;
+            if (ticks > 10000) break;
+        }
+        assert.strictEqual(floor, 0);
+        assert.ok(ticks < 10000, "should reach floor 0 in reasonable ticks");
+    });
+});
+
+// --- grabChance ---
+
+describe("grabChance", () => {
+    it("returns GRAB_BASE_CHANCE at speed 0", () => {
+        assert.strictEqual(grabChance(0), GRAB_BASE_CHANCE);
+    });
+
+    it("decreases with speed", () => {
+        assert.ok(grabChance(10) < grabChance(5));
+        assert.ok(grabChance(20) < grabChance(10));
+    });
+
+    it("returns ~5% at terminal velocity", () => {
+        const c = grabChance(TERMINAL_VELOCITY);
+        assert.ok(Math.abs(c - 0.05) < 0.001);
+    });
+
+    it("never goes below 0", () => {
+        assert.strictEqual(grabChance(1000), 0);
+        assert.strictEqual(grabChance(100), 0);
+    });
+
+    it("returns expected value at speed 5", () => {
+        const expected = GRAB_BASE_CHANCE - 5 * GRAB_SPEED_PENALTY;
+        assert.ok(Math.abs(grabChance(5) - expected) < 0.0001);
+    });
+});
+
+// --- attemptGrab ---
+
+describe("attemptGrab", () => {
+    it("succeeds when roll is below chance", () => {
+        // At speed 0, chance is 0.8. RNG returns 0.5 → success
+        const fakeRng = { next() { return 0.5; } };
+        const result = attemptGrab(0, fakeRng);
+        assert.strictEqual(result.success, true);
+        assert.strictEqual(result.mortalityHit, 0);
+    });
+
+    it("fails when roll is above chance", () => {
+        // At speed 0, chance is 0.8. RNG returns 0.9 → fail
+        const fakeRng = { next() { return 0.9; } };
+        const result = attemptGrab(0, fakeRng);
+        assert.strictEqual(result.success, false);
+        assert.strictEqual(result.mortalityHit, GRAB_FAIL_MORTALITY_HIT);
+    });
+
+    it("always fails at speed where chance is 0", () => {
+        const fakeRng = { next() { return 0.0; } };
+        // At very high speed, chance = 0. Roll of 0 is not < 0, so fail.
+        const result = attemptGrab(1000, fakeRng);
+        assert.strictEqual(result.success, false);
+        assert.strictEqual(result.mortalityHit, GRAB_FAIL_MORTALITY_HIT);
+    });
+
+    it("succeeds at boundary when roll equals 0 and chance > 0", () => {
+        const fakeRng = { next() { return 0.0; } };
+        const result = attemptGrab(5, fakeRng);
+        assert.strictEqual(result.success, true);
+    });
+});

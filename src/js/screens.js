@@ -10,6 +10,7 @@ import { Surv } from "./survival.js";
 import { Tick } from "./tick.js";
 import { Npc } from "./npc.js";
 import { Despair } from "./despairing.js";
+import { Chasm } from "./chasm.js";
 
 function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -133,7 +134,10 @@ function renderCorridorDark(loc, moves) {
     html += '</div>';
 
     html += '<div id="actions">';
-    html += '<a data-goto="Wait Stub">Wait</a> | <a data-goto="Sleep Stub">Sleep</a> | <a data-goto="Chasm Stub">Jump</a>';
+    html += '<a data-goto="Wait Stub">Wait</a> | <a data-goto="Sleep Stub">Sleep</a>';
+    if (seg.restArea && state.floor > 0) {
+        html += ' | <a data-goto="Chasm Stub">Jump</a>';
+    }
     if (seg.restArea) {
         html += ' | <a data-goto="Bedroom">Bedroom</a>';
     }
@@ -226,7 +230,10 @@ Engine.register("Corridor", {
         html += '</div>';
 
         html += '<div id="actions">';
-        html += '<a data-goto="Wait Stub">Wait</a> | <a data-goto="Sleep Stub">Sleep</a> | <a data-goto="Chasm Stub">Jump</a>';
+        html += '<a data-goto="Wait Stub">Wait</a> | <a data-goto="Sleep Stub">Sleep</a>';
+        if (seg.restArea && state.floor > 0) {
+            html += ' | <a data-goto="Chasm Stub">Jump</a>';
+        }
         if (seg.restArea) {
             html += ' | <a data-goto="Kiosk">Kiosk</a> | <a data-goto="Bedroom">Bedroom</a> | <a data-goto="Submission Slot">Submit</a>';
         }
@@ -616,8 +623,135 @@ Engine.register("Sleep Stub", {
 
 Engine.register("Chasm Stub", {
     render() {
-        return '<p>' + esc(T(TEXT.screens.chasm, "chasm:" + state.tick)) + '</p>' +
-            '<a data-goto="Corridor">Back</a>';
+        let html = '<div id="chasm-view">';
+        html += '<p>' + esc(T(TEXT.screens.chasm, "chasm:" + state.tick)) + '</p>';
+        if (state.floor === 0) {
+            html += '<p><em>You are at the bottom. There is nowhere to fall.</em></p>';
+        } else if (Despair.chasmSkipsConfirm()) {
+            html += '<p><em>' + esc(T(TEXT.screens.chasm_jump_confirm, "chasm_confirm:" + state.tick)) + '</em></p>';
+        } else {
+            html += '<p>' + esc(T(TEXT.screens.chasm_jump_confirm, "chasm_confirm:" + state.tick)) + '</p>';
+            html += '<a id="chasm-jump-yes">Yes</a> | ';
+        }
+        html += '<a data-goto="Corridor">Back</a>';
+        html += '</div>';
+        return html;
+    },
+    afterRender() {
+        if (state.floor === 0) return;
+        if (Despair.chasmSkipsConfirm()) {
+            Chasm.jump(state.side);
+            setTimeout(function () { Engine.goto("Falling"); }, 0);
+            return;
+        }
+        const btn = document.getElementById("chasm-jump-yes");
+        if (btn) {
+            btn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                Chasm.jump(state.side);
+                Engine.goto("Falling");
+            });
+        }
+    },
+});
+
+/* ---------- Falling ---------- */
+
+Engine.register("Falling", {
+    enter() {},
+    render() {
+        const f = state.falling;
+        if (!f) {
+            // Landed already — redirect
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
+            return "";
+        }
+
+        let html = '<div id="falling-view">';
+        html += '<p class="location-header">Falling</p>';
+
+        // Speed description
+        if (!state.lightsOn) {
+            html += '<p>' + esc(T(TEXT.screens.falling_dark, "falling_dark:" + state.tick)) + '</p>';
+        } else if (f.speed < 10) {
+            html += '<p>' + esc(T(TEXT.screens.falling_slow, "falling_slow:" + state.tick)) + '</p>';
+        } else if (f.speed <= 30) {
+            html += '<p>' + esc(T(TEXT.screens.falling_medium, "falling_medium:" + state.tick)) + '</p>';
+        } else {
+            html += '<p>' + esc(T(TEXT.screens.falling_fast, "falling_fast:" + state.tick)) + '</p>';
+        }
+
+        html += '<p>Floor: ' + state.floor + ' | Speed: ' + f.speed + ' floors/tick</p>';
+
+        const chance = Chasm.getGrabChance();
+        html += '<p>Grab chance: ' + Math.round(chance * 100) + '%</p>';
+
+        // Survival warnings
+        const warnings = Surv.warnings();
+        if (warnings.length > 0) {
+            html += '<p class="warnings">';
+            for (let w = 0; w < warnings.length; w++) html += esc(warnings[w]) + " ";
+            html += '</p>';
+        }
+
+        // Actions
+        html += '<div id="actions">';
+        html += '<a id="fall-wait">[w] Fall</a>';
+        html += ' | <a id="fall-grab">[g] Grab railing (' + Math.round(chance * 100) + '%)</a>';
+        if (state.heldBook !== null) {
+            html += ' | <a id="fall-throw">[t] Throw book</a>';
+        }
+        html += '</div>';
+
+        html += debugPanelHTML();
+        html += '</div>';
+        return html;
+    },
+    afterRender() {
+        const waitBtn = document.getElementById("fall-wait");
+        const grabBtn = document.getElementById("fall-grab");
+        const throwBtn = document.getElementById("fall-throw");
+
+        function doFallTick() {
+            const result = Chasm.tick();
+            if (state.dead) {
+                Engine.goto("Death");
+            } else if (result.landed) {
+                if (result.fatal) {
+                    Engine.goto("Death");
+                } else {
+                    Engine.goto("Corridor");
+                }
+            } else {
+                Engine.goto("Falling");
+            }
+        }
+
+        if (waitBtn) {
+            waitBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                doFallTick();
+            });
+        }
+        if (grabBtn) {
+            grabBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                const result = Chasm.grab();
+                if (result.success) {
+                    Engine.goto("Corridor");
+                } else {
+                    // Continue falling — advance one tick too
+                    doFallTick();
+                }
+            });
+        }
+        if (throwBtn) {
+            throwBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                Chasm.throwBook();
+                Engine.goto("Falling");
+            });
+        }
     },
 });
 
