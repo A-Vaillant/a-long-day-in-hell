@@ -5,7 +5,6 @@ import {
     generateBookPage, bookMeta, tokenize,
     findOriginalFragments, dwellMoraleDelta,
 } from "../../lib/book.core.js";
-import { generateLifeBookPage } from "../../lib/lifestory.core.js";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
 import { Engine } from "./engine.js";
@@ -48,9 +47,10 @@ function startDwell(bk, pageIndex, pageResult) {
 
 export const Book = {
     getPage(side, position, floor, bookIndex, pageIndex) {
-        if (isTargetBook(side, position, floor, bookIndex)) {
+        if (isTargetBook(side, position, floor, bookIndex) &&
+            pageIndex === state.lifeStory.targetPage) {
             return {
-                text: generateLifeBookPage(state.lifeStory, pageIndex),
+                text: state.lifeStory.storyText,
                 storyId: -1,
                 editDistance: 0,
             };

@@ -49,7 +49,7 @@ describe("DOM: book rendering", () => {
         game.state.position = tb.position;
         game.state.floor = tb.floor;
         game.state.openBook = { side: tb.side, position: tb.position, floor: tb.floor, bookIndex: tb.bookIndex };
-        game.state.openPage = 2; // page 1 (prose page)
+        game.state.openPage = game.state.lifeStory.targetPage + 1; // openPage is 1-indexed (0=cover)
         game.Engine.goto("Shelf Open Book");
 
         const el = game.document.getElementById("book-single");
