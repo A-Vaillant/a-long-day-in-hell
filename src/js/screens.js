@@ -484,6 +484,63 @@
         }
     });
 
+    /* ---------- Menu ---------- */
+
+    Engine.register("Menu", {
+        enter: function () {
+            if (!state._menuReturn) state._menuReturn = "Corridor";
+            state._menuSaved = false;
+            state._menuConfirmNew = false;
+        },
+        render: function () {
+            var html = '<div id="menu-view">';
+            html += '<p class="location-header">Menu</p>';
+
+            if (state._menuSaved) {
+                html += '<p class="menu-confirm">' + esc(TEXT.screens.menu_save_confirm) + '</p>';
+            }
+
+            if (state._menuConfirmNew) {
+                html += '<p class="menu-warning">' + esc(TEXT.screens.menu_new_game_confirm) + '</p>';
+                html += '<p><a id="menu-confirm-new">Yes, start over</a> | <a data-goto="Menu">Cancel</a></p>';
+            } else {
+                html += '<a data-goto="' + esc(state._menuReturn) + '">Continue</a><br>';
+                html += '<a id="menu-save">Save</a><br>';
+                html += '<a id="menu-new-game">New Game</a>';
+            }
+
+            html += '</div>';
+            return html;
+        },
+        afterRender: function () {
+            var saveLink = document.getElementById("menu-save");
+            if (saveLink) {
+                saveLink.addEventListener("click", function (ev) {
+                    ev.preventDefault();
+                    Engine.save();
+                    state._menuSaved = true;
+                    Engine.goto("Menu");
+                });
+            }
+            var newLink = document.getElementById("menu-new-game");
+            if (newLink) {
+                newLink.addEventListener("click", function (ev) {
+                    ev.preventDefault();
+                    state._menuConfirmNew = true;
+                    Engine.goto("Menu");
+                });
+            }
+            var confirmLink = document.getElementById("menu-confirm-new");
+            if (confirmLink) {
+                confirmLink.addEventListener("click", function (ev) {
+                    ev.preventDefault();
+                    Engine.clearSave();
+                    window.location.reload();
+                });
+            }
+        }
+    });
+
     /* ---------- Stubs ---------- */
 
     Engine.register("Wait Stub", {
