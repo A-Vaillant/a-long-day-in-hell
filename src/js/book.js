@@ -22,6 +22,7 @@ let _dwellPage = null;
 function clearDwell() {
     if (_dwellTimer !== null) { clearTimeout(_dwellTimer); _dwellTimer = null; }
     _dwellPage = null;
+    state._dwellFired = null;
 }
 
 function startDwell(bk, pageIndex, pageResult) {
@@ -30,6 +31,7 @@ function startDwell(bk, pageIndex, pageResult) {
     _dwellPage = { side: bk.side, position: bk.position, floor: bk.floor,
                    bookIndex: bk.bookIndex, pageIndex: pageIndex };
     const totalWords = tokenize(TEXT.stories[pageResult.storyId].text).length;
+    state._dwellFired = null;
     _dwellTimer = setTimeout(function () {
         _dwellTimer = null;
         const result = dwellMoraleDelta(pageResult.editDistance, totalWords, state.nonsensePagesRead || 0);
@@ -37,6 +39,7 @@ function startDwell(bk, pageIndex, pageResult) {
         if (result.isNonsense) {
             state.nonsensePagesRead = (state.nonsensePagesRead || 0) + 1;
         }
+        state._dwellFired = { bookIndex: bk.bookIndex, pageIndex: pageIndex };
         if (state.screen === "Shelf Open Book") Engine.goto("Shelf Open Book");
     }, DWELL_MS);
 }
