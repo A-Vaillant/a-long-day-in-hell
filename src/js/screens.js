@@ -131,6 +131,11 @@
                 html += '</p>';
             }
 
+            if (state._readBlocked) {
+                html += '<p class="despair-notice">' + esc(T(TEXT.screens.despair_read_blocked, "despair_read:" + state.tick)) + '</p>';
+                state._readBlocked = false;
+            }
+
             html += '<p>' + esc(T(TEXT.screens.corridor, "corridor:" + state.tick)) + '</p>';
 
             if (state.lastEvent) {
@@ -219,6 +224,11 @@
                 spine.style.background = "hsl(" + h + "," + s + "%," + l + "%)";
                 spine.addEventListener("click", (function (idx) {
                     return function () {
+                        if (Despair.isReadingBlocked()) {
+                            state._readBlocked = true;
+                            Engine.goto("Corridor");
+                            return;
+                        }
                         state.openBook = { side: state.side, position: state.position, floor: state.floor, bookIndex: idx };
                         state.openPage = 0;
                         Engine.goto("Shelf Open Book");

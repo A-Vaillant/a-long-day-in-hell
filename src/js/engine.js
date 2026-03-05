@@ -76,12 +76,16 @@
 
             html += '<div class="sb-divider"></div>';
 
-            // Stats as descriptive words
+            // Stats as descriptive words (corrupted when despairing)
+            var dh = Despair.corruptStatValue(state.hunger);
+            var dt = Despair.corruptStatValue(state.thirst);
+            var de = Despair.corruptStatValue(state.exhaustion);
+            var dm = Despair.corruptStatValue(state.morale);
             var stats = [
-                { label: "hunger",     desc: Surv.describeRising(state.hunger) },
-                { label: "thirst",     desc: Surv.describeRising(state.thirst) },
-                { label: "exhaustion", desc: Surv.describeRising(state.exhaustion) },
-                { label: "morale",     desc: Surv.describeMorale(state.morale) }
+                { label: "hunger",     desc: Surv.describeRising(dh) },
+                { label: "thirst",     desc: Surv.describeRising(dt) },
+                { label: "exhaustion", desc: Surv.describeRising(de) },
+                { label: "morale",     desc: Surv.describeMorale(dm) }
             ];
             for (var i = 0; i < stats.length; i++) {
                 var st = stats[i];
