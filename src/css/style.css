@@ -1,5 +1,5 @@
-/* A Short Stay in Hell — horror theme for SugarCube 2
- * Palette: near-black bg, aged-paper text, rust/amber accents, dim green for features
+/* A Short Stay in Hell — horror roguelike
+ * Palette: near-black bg, aged-paper text, rust/amber accents, dim green for discoveries
  */
 
 @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Share+Tech+Mono&display=swap');
@@ -10,13 +10,14 @@
     --bg-surface: #1a1510;
     --text:       #c8b89a;
     --text-dim:   #7a6a56;
-    --accent:     #8b4513;   /* rust/saddle brown */
+    --accent:     #8b4513;
     --accent-dim: #5a2d0c;
-    --found:      #4a7c59;   /* muted green — coherent text discovery */
+    --found:      #4a7c59;
     --danger:     #7a1f1f;
     --border:     #2a2018;
     --font-body:  'IM Fell English', Georgia, serif;
     --font-mono:  'Share Tech Mono', 'Courier New', monospace;
+    --sidebar-w:  12em;
 }
 
 /* === BASE === */
@@ -34,13 +35,13 @@ html, body {
     line-height: 1.7;
 }
 
-a, .link-internal {
+a {
     color: var(--accent);
     text-decoration: none;
     border-bottom: 1px solid var(--accent-dim);
     transition: color 0.15s, border-color 0.15s;
 }
-a:hover, .link-internal:hover {
+a:hover {
     color: #c8783a;
     border-bottom-color: #c8783a;
 }
@@ -69,28 +70,28 @@ button:disabled {
     cursor: default;
 }
 
-/* === SUGARCUBE UI CHROME === */
+/* === LAYOUT: SIDEBAR + MAIN === */
 
 #ui-bar {
-    width: 12em;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-w);
     background-color: var(--bg-mid);
     border-right: 1px solid var(--border);
+    overflow-y: auto;
+    z-index: 10;
 }
-#story { margin-left: 12em; }
-#ui-bar-body { color: var(--text-dim); }
-#ui-bar hr { border-color: var(--border); }
 
-#ui-bar-toggle,
-#ui-bar-history [id|="history"] {
+#ui-bar-body {
+    padding: 0.6rem;
     color: var(--text-dim);
-    border-color: var(--border);
-    background: transparent;
 }
-#ui-bar-toggle:hover,
-#ui-bar-history [id|="history"]:hover {
-    color: var(--text);
-    background-color: var(--bg-surface);
-    border-color: var(--accent-dim);
+
+#ui-bar hr {
+    border: none;
+    border-top: 1px solid var(--border);
 }
 
 #story-title {
@@ -99,15 +100,15 @@ button:disabled {
     font-size: 1em;
     color: var(--text-dim);
     letter-spacing: 0.05em;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.3rem;
 }
 
-#menu ul { border-color: var(--border); }
-#menu li:not(:first-child) { border-top-color: var(--border); }
-#menu li a { color: var(--text-dim); }
-#menu li a:hover { color: var(--text); background-color: var(--bg-surface); }
-
-/* === PASSAGE AREA === */
-
+#story {
+    margin-left: var(--sidebar-w);
+    min-height: 100vh;
+}
 
 #passages {
     padding: 0;
@@ -116,10 +117,10 @@ button:disabled {
 .passage {
     max-width: 640px;
     width: 100%;
-    padding: 1rem 2rem 2rem;
+    padding: 1.5rem 2rem 2rem;
 }
 
-/* Book view needs full width for two-page spread */
+/* Book view needs full width for page spread */
 .passage:has(#book-view) {
     max-width: none;
     padding: 0.5rem 0.5rem 1rem;
@@ -142,12 +143,11 @@ button:disabled {
 #corridor-view p {
     margin: 0 0 0.6rem;
 }
-/* SugarCube converts blank Twee lines to <br> — collapse them */
+
 #corridor-view br,
 .passage > br {
     display: none;
 }
-/* But allow <br> inside paragraphs for intentional breaks */
 #corridor-view p br,
 #corridor-view pre br {
     display: inline;
@@ -161,6 +161,14 @@ button:disabled {
 .feature {
     color: var(--found);
     font-style: italic;
+}
+
+/* === WARNINGS === */
+
+.warnings {
+    color: var(--danger);
+    font-style: italic;
+    font-size: 0.9em;
 }
 
 /* === MOVES & ACTIONS === */
@@ -190,7 +198,6 @@ button:disabled {
     color: #c8783a;
 }
 
-/* Keyboard hint — subtle, next to move links */
 #moves a::before { content: '['; color: var(--text-dim); }
 #moves a::after  { content: ']'; color: var(--text-dim); }
 
@@ -203,7 +210,7 @@ button:disabled {
 /* === SIDEBAR STATS === */
 
 #sidebar-stats {
-    padding: 0.6rem 0.6rem 0;
+    padding: 0.6rem 0 0;
     font-family: var(--font-mono);
     font-size: 0.75em;
     color: var(--text-dim);
@@ -277,7 +284,7 @@ button:disabled {
     padding: 0.1rem 0;
 }
 
-/* === NOTIFY (Chapel notify macro) === */
+/* === NOTIFICATIONS === */
 
 #notify {
     font-family: var(--font-mono);
@@ -323,11 +330,9 @@ button:disabled {
 
 /* === BOOK READING === */
 
-/* Kill SugarCube <br> insertions inside book view */
 #book-view br { display: none; }
 
-/* === SINGLE PAGE VIEW === */
-
+/* Single page view */
 .book-single {
     font-family: var(--font-mono);
     font-size: clamp(0.38em, 0.85vw, 0.62em);
@@ -362,17 +367,13 @@ button:disabled {
     background: #5a3820;
 }
 
-/* === TWO-PAGE SPREAD (disabled, kept for future use) === */
-
+/* Two-page spread */
 .book-spread {
     display: flex;
     margin: 0.5rem 0;
     box-shadow: 2px 4px 16px rgba(0,0,0,0.6);
-    /* Height: 40 lines × 1.25 line-height + 2.4em padding = 52.4em at book font-size */
     height: calc(var(--book-fs) * 52.4);
-    /* Sidebar = 12em = 192px. Story margin = 2.5em = 40px. Padding = 16px.
-       Available = 100vw - 248px. Divisor tuned for ch/em ratio. */
-    --book-fs: calc((100vw - 248px) / 125);
+    --book-fs: calc((100vw - var(--sidebar-w) - 56px) / 125);
 }
 
 .book-page-left,
@@ -436,15 +437,12 @@ button:disabled {
     font-size: 2em;
 }
 
-/* Coherent fragment highlight — for proximity signal hits */
+/* Coherent fragment highlight — proximity signal */
 .coherent-fragment {
     color: var(--text);
     background: rgba(74, 124, 89, 0.15);
     border-bottom: 1px solid var(--found);
 }
-
-/* === TRANSITIONS === */
-/* fadeIn removed — causes double-flash with [nohistory] redirect passages */
 
 /* === SHELF GRID === */
 
@@ -549,6 +547,68 @@ button:disabled {
 
 /* === RESPONSIVE === */
 
-@media (max-width: 768px) {
-    .passage { padding: 1rem 1rem 2rem; }
+@media (max-width: 640px) {
+    :root {
+        --sidebar-w: 0px;
+    }
+
+    #ui-bar {
+        position: relative;
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    #ui-bar-body {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0 1rem;
+    }
+
+    #story-title {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+        margin-right: auto;
+    }
+
+    #sidebar-stats {
+        border-top: none;
+        margin-top: 0;
+        padding-top: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 0.8rem;
+        width: 100%;
+    }
+
+    #sidebar-stats .sb-time,
+    #sidebar-stats .sb-clock {
+        margin-right: 0.8rem;
+    }
+
+    #sidebar-stats .sb-divider {
+        display: none;
+    }
+
+    #sidebar-stats .sb-stat {
+        gap: 0.3rem;
+    }
+
+    #story {
+        margin-left: 0;
+    }
+
+    .passage {
+        padding: 1rem 1rem 2rem;
+    }
+
+    .shelf-grid {
+        max-height: 300px;
+    }
+
+    .book-spread {
+        --book-fs: calc((100vw - 16px) / 125);
+    }
 }
