@@ -40,10 +40,10 @@ const jsOrder = [
 ];
 
 const jsDir = resolve(ROOT, "src/js");
-const scripts = jsOrder.map(name => {
-    const path = resolve(jsDir, name);
-    return readFileSync(path, "utf8");
-});
+const skipDebug = process.env.PRODUCTION === "1";
+const scripts = jsOrder
+    .filter(name => !(skipDebug && name === "debug.js"))
+    .map(name => readFileSync(resolve(jsDir, name), "utf8"));
 
 // Assemble window.TEXT from content/*.json
 const contentDir = resolve(ROOT, "content");

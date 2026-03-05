@@ -27,6 +27,8 @@ jobs:
       - run: npm ci
 
       - run: bash build.sh
+        env:
+          PRODUCTION: "1"
 
       - uses: actions/upload-pages-artifact@v3
         with:
