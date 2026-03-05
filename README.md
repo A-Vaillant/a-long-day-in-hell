@@ -1,91 +1,70 @@
 # A Short Stay in Hell
 
-A 7DRL (7-Day Roguelike) built in Twine/SugarCube 2. Based on the novella *A Short Stay in Hell* by Steven L. Peck, itself inspired by Borges' *The Library of Babel*.
+A 7DRL (7-Day Roguelike) based on the novella *A Short Stay in Hell* by Steven L. Peck, itself inspired by Borges' *The Library of Babel*.
 
-## Concept
+You are a condemned soul in a Hell that takes the form of an impossibly vast library. Every possible book exists here. Your only way out: find the one book that perfectly describes your life. The library is deterministically generated from a seed — infinite in practice, navigable in theory.
 
-You are a condemned soul in a Hell that takes the form of an impossibly vast library. Every possible 410-page book exists here. Your only way out: find the one book that perfectly describes your life. The library is deterministically generated from a seed — infinite in practice, navigable in theory.
+## Build & Run
+
+```bash
+bash build.sh          # tsc + bundle + build → dist/index.html
+npm test               # node:test (~140 tests)
+bash screenshots.sh    # shot-scraper → screenshots/*.png
+```
+
+Requires Node.js. TypeScript is the only dev dependency.
+
+Open `dist/index.html` in a browser to play.
+
+## The Library
+
+Two parallel corridors (west and east) separated by a chasm. Each corridor is divided into segments containing 10 galleries of 1,920 books each. Rest areas appear at every segment boundary, equipped with a clock, kiosk, bedroom (7 beds), bathroom, submission slot, and stairs.
+
+Books are 11 pages, 40 lines of 80 characters (35,200 characters total), drawn from ~95 printable ASCII characters. Every book is procedurally generated from the global seed + shelf coordinates. Most are gibberish. Your book — containing your life story — is hidden somewhere in the library.
 
 ## Core Systems
 
-### The Library (Seeded Deterministic Generation)
-- Hexagonal galleries, each containing shelves of books
-- Navigation: move between galleries, select shelves, pull books
-- Every book is procedurally generated from the seed + location coordinates
-- Most books are gibberish. Occasionally: a coherent word, a sentence, a fragment of meaning
+- **Navigation**: Move between galleries and segments. Climb stairs between floors. Cross the chasm at floor 0.
+- **Survival**: Hunger, thirst, exhaustion, and morale. Kiosks provide food/drink at every rest area. Sleep in bedrooms. Morale degrades over time; reaching zero triggers the Despairing condition.
+- **Death & Resurrection**: You die, you come back at dawn. Same location.
+- **Events**: Stochastic event deck drawn on movement — environmental, existential, and mechanical encounters.
+- **NPCs**: 8 characters spawn near the player, wander daily, and deteriorate over time (calm → anxious → mad → catatonic → dead). Ambient dialogue only.
+- **Win Condition**: Find your book and submit it at a submission slot. Two placement modes:
+  - **Gaussian** (default): Target book placed near the start. Books nearby contain fragments of your life story as proximity signals.
+  - **Random** (`?placement=random`): Target book placed anywhere. Requires reverse-engineering the PRNG.
 
-### Books & Reading
-- 410 pages, 40 lines of 80 characters, 95 printable ASCII characters
-- Reading a book reveals its contents (generated deterministically, streamed page-by-page — never generate the full 1.3M chars at once)
-- Coherent fragments are vanishingly rare but possible — and trackable
+## Controls
 
-### Your Book & Proximity Signals
-- At game start, the player's life story is generated (or seeded) and placed at a specific location in the library
-- **Your book exists.** Its coordinates are derived deterministically from the game seed.
-- As the player navigates, proximity signals fire based on distance to the book's location:
-  - Far: nothing
-  - Closer: books on this shelf contain your name, a familiar word, a date
-  - Near: fragments of coherent autobiography appear in adjacent books
-  - Adjacent: unmistakable. A page that describes a memory perfectly.
-- This creates a "warmer/colder" mechanic without ever making the search tractable
+| Key | Action |
+|-----|--------|
+| `h` / `l` / Left / Right | Move left / right (flip pages in book view) |
+| `k` / `j` / Up / Down | Move up / down |
+| `x` | Cross chasm (floor 0 only) |
+| `z` | Sleep |
+| `.` | Wait |
+| `J` | Jump into chasm |
+| `Esc` / `q` | Close book |
+| `E` | Continue (life story) |
 
-### Survival
-- **Morale**: Degrades over time. Finding coherent text restores it. Hitting zero applies the **Despairing** condition (effects TBD — deferred for v0.1).
-- **Hunger/Thirst**: Separate tracks. Vending machines are common (as in the book — every few galleries). They produce anything you want. Not a scarcity problem, more a "did you remember to eat" problem.
-- **Exhaustion**: Sleep requirement. Separate from morale. You need to rest periodically.
-- **Death & Resurrection**: You die, you come back. You respawn where you died. If you were falling, you're still falling. Time of day matters — resurrection is not instant, it follows the library's clock.
-
-### The Tick System
-- Time passes. Events happen stochastically.
-- Events drawn from a deck (encounter table). Shuffled, drawn, reshuffled when empty.
-- Event categories: environmental (lights flicker, distant sounds), discovery (coherent text fragment), mechanical (vending machine found/lost), existential (time dilation moments, déjà vu)
-- Future: NPCs as decks ("a person is a kind of deck")
-
-### Win Condition
-- Find your book. The one that describes your life with no errors.
-- This is theoretically possible. Practically: you are searching 95^1,312,000 books.
-- The game should make you *feel* this.
-
-## Tech Stack
-
-- **Twine / SugarCube 2**: Story format and macro system
-- **Tweego**: CLI compiler (Twee → HTML)
-- **JavaScript/TypeScript**: Game logic, PRNG, generation systems
-- **Assets**: Kyrise 16x16 RPG icons, ThaleahFat pixel font
-
-## Build
-
-```bash
-tweego/tweego -f sugarcube-2 -o dist/index.html src/
-```
-
-## Project Structure (Planned)
+## Architecture
 
 ```
+lib/                    # Pure logic modules (no DOM, no window)
+  *.core.js             # JS core modules (prng, library, book, survival, tick, etc.)
+  *.core.ts             # TS core modules (events, npc) — compiled by tsc
+scripts/
+  build-bundle.js       # Bundles lib/*.core.js → IIFE (window._XxxCore)
+  build-vanilla.js      # Merges content + CSS + JS → dist/index.html
+content/
+  *.json                # All prose, event text, NPC dialogue, screen text
 src/
-  story/          # Twee passage files
-    start.twee    # Entry point
-    library.twee  # Gallery navigation passages
-    book.twee     # Book reading interface
-    events.twee   # Event passages
-    status.twee   # Player status/inventory
-  js/
-    prng.js       # Seeded PRNG (xoshiro256** or similar)
-    library.js    # Deterministic gallery/book generation
-    tick.js       # Tick system and event deck
-    player.js     # Player state management
-    book.js       # Book content generation (streaming, page-at-a-time)
-    lifebook.js   # Player life story generation and placement
-  css/
-    style.css     # Styling, horror aesthetic
+  js/                   # Browser modules — wrappers + engine + screens + input
+  css/style.css         # Styles
+test/
+  *.test.js             # node:test suites for core modules
 ```
 
-## Development Timeline (4 days)
-
-1. **Day 1**: Scaffolding. PRNG, basic gallery generation, movement between galleries, tweego pipeline working.
-2. **Day 2**: Book generation and reading. Morale system. Vending machines. Basic survival loop.
-3. **Day 3**: Event deck. Horror atmosphere (CSS, writing). Coherent text fragment detection/celebration.
-4. **Day 4**: Polish, playtesting, edge cases. Win condition (even if unreachable). Ship it.
+Pure game logic lives in `lib/`. Browser wiring lives in `src/js/`. All prose and content lives in `content/*.json` — zero hardcoded strings in code.
 
 ## License
 
