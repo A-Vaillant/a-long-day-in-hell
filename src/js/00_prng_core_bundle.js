@@ -292,7 +292,41 @@
         return score / pairs;
     }
 
-    window._BookCore = { PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE, CHARS_PER_PAGE, CHARS_PER_BOOK, CHARSET, generateBookPage, bookMeta, findCoherentFragment, scoreSensibility };
+    /* ---- Dwell-time reading: morale effects from lingering on pages ---- */
+
+    /** Sensibility threshold: pages above this contain enough structure to reward. */
+    const SENSIBILITY_THRESHOLD = 0.12;
+
+    /** Dwell time in ms before a page triggers its morale effect. */
+    const DWELL_MS = 2000;
+
+    /** Base morale restored when dwelling on a sensible page. */
+    const DWELL_REWARD_BASE = 3;
+
+    /** Base morale penalty for dwelling on a nonsense page. */
+    const DWELL_PENALTY_BASE = 2;
+
+    /**
+     * Compute morale delta from dwelling on a page.
+     *
+     * Sensible pages (score >= threshold) give a flat morale boost.
+     * Nonsense pages (score < threshold) drain morale with diminishing returns:
+     *   penalty = basePenalty / (1 + nonsensePagesRead)
+     * So the first nonsense page hurts most, later ones fade toward zero.
+     *
+     * @param {number} sensibility - scoreSensibility() result for the page
+     * @param {number} nonsensePagesRead - how many nonsense pages already dwelled on this session
+     * @returns {{ delta: number, isNonsense: boolean }}
+     */
+    function dwellMoraleDelta(sensibility, nonsensePagesRead) {
+        if (sensibility >= SENSIBILITY_THRESHOLD) {
+            return { delta: DWELL_REWARD_BASE, isNonsense: false };
+        }
+        const penalty = DWELL_PENALTY_BASE / (1 + nonsensePagesRead);
+        return { delta: -penalty, isNonsense: true };
+    }
+
+    window._BookCore = { PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE, CHARS_PER_PAGE, CHARS_PER_BOOK, CHARSET, generateBookPage, bookMeta, findCoherentFragment, scoreSensibility, SENSIBILITY_THRESHOLD, DWELL_MS, dwellMoraleDelta };
 
     // ---- _LifeStoryCore ----
 
@@ -441,11 +475,11 @@
         ].join(" ");
     }
 
-    const CHARS_PER_LINE = 80;
-    const LINES_PER_PAGE = 40;
+    const LS_CHARS_PER_LINE = 80;
+    const LS_LINES_PER_PAGE = 40;
 
     /**
-     * Word-wrap text to fit within CHARS_PER_LINE, preserving blank lines.
+     * Word-wrap text to fit within LS_CHARS_PER_LINE, preserving blank lines.
      * Returns an array of lines.
      */
     function wordWrap(text) {
@@ -461,7 +495,7 @@
             for (const word of words) {
                 if (line.length === 0) {
                     line = word;
-                } else if (line.length + 1 + word.length <= CHARS_PER_LINE) {
+                } else if (line.length + 1 + word.length <= LS_CHARS_PER_LINE) {
                     line += " " + word;
                 } else {
                     result.push(line);
@@ -474,17 +508,17 @@
     }
 
     /**
-     * Pad a line to exactly CHARS_PER_LINE with trailing spaces.
+     * Pad a line to exactly LS_CHARS_PER_LINE with trailing spaces.
      */
     function padLine(line) {
-        if (line.length >= CHARS_PER_LINE) return line.slice(0, CHARS_PER_LINE);
-        return line + " ".repeat(CHARS_PER_LINE - line.length);
+        if (line.length >= LS_CHARS_PER_LINE) return line.slice(0, LS_CHARS_PER_LINE);
+        return line + " ".repeat(LS_CHARS_PER_LINE - line.length);
     }
 
     /**
      * Generate a page of the target book as a string (40 lines × 80 chars).
      * Page 0 is the title page. Pages 1+ contain the life story prose.
-     * All pages are whitespace-padded to exactly LINES_PER_PAGE × CHARS_PER_LINE.
+     * All pages are whitespace-padded to exactly LS_LINES_PER_PAGE × LS_CHARS_PER_LINE.
      *
      * @param {ReturnType<typeof generateLifeStory>} story
      * @param {number} pageIndex - 0-based (0..PAGES_PER_BOOK-1)
@@ -527,9 +561,9 @@
             // Other pages: blank (whitespace padding below fills them)
         }
 
-        // Pad to exactly LINES_PER_PAGE lines, each padded to CHARS_PER_LINE
-        while (lines.length < LINES_PER_PAGE) lines.push("");
-        return lines.slice(0, LINES_PER_PAGE).map(padLine).join("\n");
+        // Pad to exactly LS_LINES_PER_PAGE lines, each padded to LS_CHARS_PER_LINE
+        while (lines.length < LS_LINES_PER_PAGE) lines.push("");
+        return lines.slice(0, LS_LINES_PER_PAGE).map(padLine).join("\n");
     }
 
     window._LifeStoryCore = { generateLifeStory, formatLifeStory, generateBookPage };
@@ -850,9 +884,9 @@
 
     /* ---- Constants ---- */
 
-    const CHARSET_LEN = 95;
-    const CHARS_PER_LINE = 80;
-    const LINES_PER_PAGE = 40;
+    const INV_CHARSET_LEN = 95;
+    const INV_CHARS_PER_LINE = 80;
+    const INV_LINES_PER_PAGE = 40;
 
     /** LCG parameters (mod 2^32). Multiplier from Numerical Recipes. */
     const LCG_A = 1664525;
@@ -1015,9 +1049,9 @@
         const [s0, s1] = encodeCoords(side, position, floor, bookIndex, globalSeed);
 
         // Advance LCG past prior pages to maintain determinism.
-        // Each page consumes LINES_PER_PAGE * CHARS_PER_LINE nextInt() calls.
+        // Each page consumes INV_LINES_PER_PAGE * INV_CHARS_PER_LINE nextInt() calls.
         // Even calls advance s0's chain, odd calls advance s1's chain.
-        const charsPerPage = LINES_PER_PAGE * CHARS_PER_LINE;
+        const charsPerPage = INV_LINES_PER_PAGE * INV_CHARS_PER_LINE;
         const skipCalls = pageIndex * charsPerPage;
         const skipPerChain = Math.floor(skipCalls / 2);
         const extraEven = skipCalls % 2; // if odd total, even chain gets one extra
@@ -1028,10 +1062,10 @@
 
         const lcg = makeLCG(a, b);
         const lines = [];
-        for (let l = 0; l < LINES_PER_PAGE; l++) {
+        for (let l = 0; l < INV_LINES_PER_PAGE; l++) {
             let line = "";
-            for (let c = 0; c < CHARS_PER_LINE; c++) {
-                line += String.fromCharCode(32 + lcg.nextInt(CHARSET_LEN));
+            for (let c = 0; c < INV_CHARS_PER_LINE; c++) {
+                line += String.fromCharCode(32 + lcg.nextInt(INV_CHARSET_LEN));
             }
             lines.push(line);
         }
@@ -1093,12 +1127,12 @@
         if (targets.length < 2) return null;
 
         // Enumerate all a1 where a1 % 95 === targets[0]
-        for (let a = targets[0]; a < 0x100000000; a += CHARSET_LEN) {
+        for (let a = targets[0]; a < 0x100000000; a += INV_CHARSET_LEN) {
             let match = true;
             let cur = a;
             for (let i = 1; i < targets.length; i++) {
                 cur = lcgNext(cur);
-                if (cur % CHARSET_LEN !== targets[i]) { match = false; break; }
+                if (cur % INV_CHARSET_LEN !== targets[i]) { match = false; break; }
             }
             if (match) return lcgPrev(a);
         }
@@ -1107,7 +1141,7 @@
 
     /* ---- Exports for solver/test use ---- */
 
-    window._InvertibleCore = { encodeCoords, decodeCoords, generateTargetPage, recoverCoords, LCG_A, LCG_C, LCG_A_INV, CHARSET_LEN, packCoords, unpackCoords, mix32, unmix32, seedKey, lcgNext, lcgPrev, makeLCG };
+    window._InvertibleCore = { encodeCoords, decodeCoords, generateTargetPage, recoverCoords, LCG_A, LCG_C, LCG_A_INV, INV_CHARSET_LEN, packCoords, unpackCoords, mix32, unmix32, seedKey, lcgNext, lcgPrev, makeLCG };
 
     // ---- _EventsCore ----
 

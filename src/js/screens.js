@@ -107,6 +107,9 @@
     }
 
     Engine.register("Corridor", {
+        enter: function () {
+            Book.clearDwell();
+        },
         render: function () {
             var loc = { side: state.side, position: state.position, floor: state.floor };
             var moves = Lib.availableMoves(loc);
@@ -144,8 +147,8 @@
                     if (!n.alive) {
                         html += '<span class="npc-name">' + esc(n.name) + '</span> ' + esc(T(TEXT.screens.dead_npc_at_location, "dead_npc:" + n.id));
                     } else {
-                        html += '<a class="npc-name" data-npc-id="' + n.id + '">' + esc(n.name) + '</a>';
-                        html += ' <span class="npc-disposition">(' + n.disposition + ')</span>';
+                        html += '<span class="npc-name" data-npc-id="' + n.id + '">' + esc(n.name) + '</span> ';
+                        html += '<span class="npc-dialogue">' + esc(Npc.talk(n)) + '</span>';
                     }
                     html += '</p>';
                 }
@@ -291,22 +294,26 @@
         afterRender: function () {
             var pg = state.openPage;
             var bk = state.openBook;
-            if (!bk) return;
+            if (!bk) { Book.clearDwell(); return; }
             var el = document.getElementById("book-single");
             if (!el) return;
 
             if (pg === 0) {
                 el.className = "book-single book-page-cover";
                 el.textContent = "Book " + (bk.bookIndex + 1);
+                Book.clearDwell();
             } else if (pg === Book.PAGES_PER_BOOK + 1) {
                 el.className = "book-single book-page-cover book-page-back";
+                Book.clearDwell();
             } else {
-                el.textContent = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
-                var frag = Book.findCoherentFragment(el.textContent);
+                var pageText = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
+                el.textContent = pageText;
+                var frag = Book.findCoherentFragment(pageText);
                 var notices = document.getElementById("book-notices");
                 if (notices && frag && frag.length > 6) {
                     notices.innerHTML = '<p class="coherent-fragment">You notice: <em>"' + esc(frag.trim()) + '"</em></p>';
                 }
+                Book.startDwell(bk, pg - 1, pageText);
             }
         }
     });
