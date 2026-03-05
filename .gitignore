@@ -24,7 +24,6 @@ reviews/
 
 # Dependencies
 node_modules/
-package-lock.json
 
 # Screenshots
 screenshots/
