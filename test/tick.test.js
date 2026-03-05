@@ -96,6 +96,48 @@ describe("ticksUntilDawn / hoursUntilDawn", () => {
     it("hoursUntilDawn at tick 0 = 24", () => assert.strictEqual(hoursUntilDawn(0), 24));
 });
 
+describe("repeated death-resurrection cycle", () => {
+    it("days climb rapidly when killed immediately after resurrection", () => {
+        let tick = { tick: 0, day: 1 };
+        let stats = defaultStats();
+        const MURDERS = 100;
+
+        for (let i = 0; i < MURDERS; i++) {
+            stats = { ...stats, dead: true, mortality: 0 };
+            while (true) {
+                const result = advanceTick(tick, TICKS_PER_HOUR);
+                tick = result.state;
+                if (result.events.includes("dawn")) {
+                    stats = applyResurrection(stats);
+                    break;
+                }
+            }
+            assert.strictEqual(stats.dead, false, "should be alive after dawn");
+            assert.strictEqual(stats.mortality, 100, "mortality should be full");
+        }
+        assert.strictEqual(tick.day, 1 + MURDERS, "each murder should advance exactly one day");
+    });
+
+    it("held book persists through repeated deaths", () => {
+        let tick = { tick: 0, day: 1 };
+        let stats = defaultStats();
+        const heldBook = { side: 0, position: 5, floor: 3, bookIndex: 42 };
+
+        for (let i = 0; i < 10; i++) {
+            stats = { ...stats, dead: true, mortality: 0 };
+            while (true) {
+                const result = advanceTick(tick, TICKS_PER_HOUR);
+                tick = result.state;
+                if (result.events.includes("dawn")) {
+                    stats = applyResurrection(stats);
+                    break;
+                }
+            }
+        }
+        assert.deepStrictEqual(heldBook, { side: 0, position: 5, floor: 3, bookIndex: 42 });
+    });
+});
+
 // --- survival.core ---
 
 describe("defaultStats", () => {

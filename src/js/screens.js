@@ -54,6 +54,8 @@
             "Morale:    " + state.morale.toFixed(2) + "\n" +
             "Mortality: " + state.mortality.toFixed(2) + "\n" +
             "Despairing:" + state.despairing + "\n" +
+            "Dead:       " + state.dead + "\n" +
+            "Deaths:    " + (state.deaths || 0) + "\n" +
             '</pre></details>';
     }
 
@@ -423,7 +425,8 @@
                 '<hr>' +
                 '<p><em>Seed: ' + esc(state.seed) + '<br>' +
                 'Your name was ' + esc(state.lifeStory.name) + '.<br>' +
-                'Submissions: ' + (state.submissionsAttempted || 0) + '</em></p>' +
+                'Submissions: ' + (state.submissionsAttempted || 0) + '<br>' +
+                'Deaths: ' + (state.deaths || 0) + '</em></p>' +
                 '</div>';
         }
     });
@@ -450,6 +453,25 @@
         render: function () {
             return '<p>' + esc(T(TEXT.screens.chasm, "chasm:" + state.tick)) + '</p>' +
                 '<a data-goto="Corridor">Back</a>';
+        }
+    });
+
+    /* ---------- Death ---------- */
+
+    Engine.register("Death", {
+        enter: function () {
+            Tick.onForcedSleep();
+        },
+        render: function () {
+            var causeKey = "death_" + (state.deathCause || "mortality");
+            var causeText = TEXT.screens[causeKey] || TEXT.screens.death_mortality;
+            return '<div id="death-view">' +
+                '<p>' + esc(T(causeText, causeKey + ":" + state.day)) + '</p>' +
+                '<hr>' +
+                '<p>' + esc(T(TEXT.screens.resurrection, "resurrection:" + state.day)) + '</p>' +
+                '<p>Day ' + state.day + '. Deaths: ' + state.deaths + '.</p>' +
+                '<p><a data-goto="Corridor">Continue</a></p>' +
+                '</div>';
         }
     });
 

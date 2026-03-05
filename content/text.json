@@ -84,6 +84,8 @@
       "SLEEP_PLACEHOLDER_0"
     ],
     "chasm": "CHASM_PLACEHOLDER",
+    "death_mortality": "DEATH_MORTALITY_PLACEHOLDER",
+    "resurrection": "RESURRECTION_PLACEHOLDER",
     "dead_npc_at_location": "DEAD_NPC_PLACEHOLDER",
     "darkness_corridor": "Pitch black. Your fingers brush the spines of books on either side. The shelves press close. You feel your way forward, one hand on the shelf edge.",
     "darkness_rest_area": "Darkness. Your hand finds the cool metal of a railing. The open space of a rest area stretches around you. Somewhere nearby, a faucet drips.",

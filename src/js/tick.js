@@ -47,12 +47,12 @@
 
         onSleep: function () {
             // Sleep hour-by-hour until reset hour
-            while (!core.isResetHour(state.tick)) {
+            while (!core.isResetHour(state.tick) && !state.dead) {
                 this.advance(core.TICKS_PER_HOUR);
                 Surv.onSleep();
             }
-            // Reset hour: forced sleep through dawn
-            if (core.isResetHour(state.tick)) {
+            // Reset hour: forced sleep through dawn (skip if dead — death screen handles it)
+            if (!state.dead && core.isResetHour(state.tick)) {
                 this.onForcedSleep();
             }
         },

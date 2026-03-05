@@ -32,6 +32,8 @@
             this._actions[name] = fn;
         },
 
+        _inGoto: false,
+
         goto: function (name) {
             var screen = this._screens[name];
             if (!screen) {
@@ -40,6 +42,13 @@
             }
             state.screen = name;
             if (screen.enter) screen.enter();
+            // Centralized death check: if any enter() caused death, redirect
+            if (state.dead && name !== "Death" && !this._inGoto) {
+                if (!state.deathCause) Surv.kill("mortality");
+                this._inGoto = true;
+                try { return this.goto("Death"); }
+                finally { this._inGoto = false; }
+            }
             var el = document.getElementById("passage");
             try {
                 el.innerHTML = screen.render();
@@ -147,6 +156,8 @@
                 state.openBook    = null;
                 state.openPage    = 0;
                 state.debug       = true;
+                state.deaths      = 0;
+                state.deathCause  = null;
 
                 var story = LifeStory.generate(seed);
                 state.lifeStory  = story;

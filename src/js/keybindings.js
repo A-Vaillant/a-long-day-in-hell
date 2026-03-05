@@ -47,6 +47,13 @@
                 Engine.goto("Corridor");
                 return;
             }
+        } else if (screen === "Death") {
+            if (key === "`" || key === "~") {
+                ev.preventDefault();
+                state.debug = !state.debug;
+                Engine.goto(screen);
+            }
+            return;
         }
 
         // Corridor and general navigation

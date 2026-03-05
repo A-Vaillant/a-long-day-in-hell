@@ -35,6 +35,14 @@
 
         onResurrection: function () {
             Object.assign(state, core.defaultStats());
+            state.deathCause = null;
+        },
+
+        /** External kill — any game system can call this to kill the player. */
+        kill: function (cause) {
+            state.dead = true;
+            state.deaths = (state.deaths || 0) + 1;
+            state.deathCause = cause || "unknown";
         },
 
         onEat: function ()   { Object.assign(state, core.applyEat(this._statsFromState())); },
