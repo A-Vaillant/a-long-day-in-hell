@@ -132,5 +132,11 @@ snap "16_corridor_dim"      "Corridor"        "#corridor-view" \
 snap "17_sleep"             "Sleep Stub"      ".passage" \
     ""
 
+# --- Win screen ---
+snap "18_win"                "Win"             "#win-view" \
+    "state.won = true;
+     state.submissionsAttempted = 1;
+     Engine.goto('Win');"
+
 echo ""
 echo "Done. Open screenshots/ to review."
