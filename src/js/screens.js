@@ -15,6 +15,40 @@ function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/**
+ * Wrap fragment runs in <mark class="fragment"> tags within page text.
+ * fragments: array of { start, end, text } from Book.findFragments
+ */
+function highlightFragments(text, fragments) {
+    if (!fragments.length) return esc(text);
+    // Build a set of character ranges to highlight
+    // Fragments refer to word indices; we need character positions
+    const words = text.split(/(\s+)/);  // split preserving whitespace
+    let html = "";
+    let wordIdx = 0;
+    let inFragment = false;
+    const fragStarts = new Set(fragments.map(f => f.start));
+    const fragEnds = new Set(fragments.map(f => f.end));
+    for (let i = 0; i < words.length; i++) {
+        if (i % 2 === 0) {  // word token (even indices)
+            if (fragStarts.has(wordIdx)) {
+                html += '<mark class="fragment">';
+                inFragment = true;
+            }
+            html += esc(words[i]);
+            wordIdx++;
+            if (fragEnds.has(wordIdx) && inFragment) {
+                html += '</mark>';
+                inFragment = false;
+            }
+        } else {  // whitespace
+            html += esc(words[i]);
+        }
+    }
+    if (inFragment) html += '</mark>';
+    return html;
+}
+
 /* ---------- helpers ---------- */
 
 export function doMove(dir) {
@@ -234,7 +268,12 @@ Engine.register("Corridor", {
                         return;
                     }
                     state.openBook = { side: state.side, position: state.position, floor: state.floor, bookIndex: idx };
-                    state.openPage = 0;
+                    if (state.morale >= 80) {
+                        state.openPage = 0;  // cover
+                    } else {
+                        var pageRng = PRNG.fork("pageopen:" + state.tick);
+                        state.openPage = pageRng.nextInt(Book.PAGES_PER_BOOK) + 1;  // random content page
+                    }
                     Engine.goto("Shelf Open Book");
                 };
             })(bi));
@@ -319,8 +358,27 @@ Engine.register("Shelf Open Book", {
             Book.clearDwell();
         } else {
             const pageResult = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
-            el.textContent = pageResult.text;
-            Book.startDwell(bk, pg - 1, pageResult);
+            // Check if dwell already fired (re-render after morale update)
+            const dwellFired = state._dwellFired &&
+                state._dwellFired.bookIndex === bk.bookIndex &&
+                state._dwellFired.pageIndex === (pg - 1);
+            if (dwellFired && pageResult.storyId >= 0) {
+                // Render with fragment highlighting
+                const fragments = Book.findFragments(pageResult.storyId, pageResult.text);
+                if (fragments.length > 0) {
+                    el.innerHTML = highlightFragments(pageResult.text, fragments);
+                    // Trigger reveal animation
+                    setTimeout(function () {
+                        const marks = el.querySelectorAll(".fragment");
+                        for (let i = 0; i < marks.length; i++) marks[i].classList.add("revealed");
+                    }, 50);
+                } else {
+                    el.textContent = pageResult.text;
+                }
+            } else {
+                el.textContent = pageResult.text;
+                Book.startDwell(bk, pg - 1, pageResult);
+            }
         }
     },
 });
