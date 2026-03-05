@@ -28,6 +28,8 @@ function clearDwell() {
 function startDwell(bk, pageIndex, pageResult) {
     clearDwell();
     if (pageIndex < 0) return;
+    // Target book (storyId -1) has no dwell effect
+    if (pageResult.storyId < 0) return;
     _dwellPage = { side: bk.side, position: bk.position, floor: bk.floor,
                    bookIndex: bk.bookIndex, pageIndex: pageIndex };
     const totalWords = tokenize(TEXT.stories[pageResult.storyId].text).length;
