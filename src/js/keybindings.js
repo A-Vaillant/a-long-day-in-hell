@@ -38,6 +38,35 @@ document.addEventListener("keydown", function (ev) {
                     Engine.goto("Shelf Open Book");
                 }
                 return;
+            case "t": {
+                ev.preventDefault();
+                const bk = state.openBook;
+                if (bk) {
+                    const isHeld = state.heldBook && state.heldBook.side === bk.side &&
+                        state.heldBook.position === bk.position && state.heldBook.floor === bk.floor &&
+                        state.heldBook.bookIndex === bk.bookIndex;
+                    if (!isHeld) {
+                        state.heldBook = { side: bk.side, position: bk.position, floor: bk.floor, bookIndex: bk.bookIndex };
+                        Book.clearDwell();
+                        state.openBook = null;
+                        Engine.goto("Corridor");
+                    }
+                }
+                return;
+            }
+            case "p": {
+                ev.preventDefault();
+                const bk2 = state.openBook;
+                if (bk2 && state.heldBook && state.heldBook.side === bk2.side &&
+                    state.heldBook.position === bk2.position && state.heldBook.floor === bk2.floor &&
+                    state.heldBook.bookIndex === bk2.bookIndex) {
+                    state.heldBook = null;
+                    Book.clearDwell();
+                    state.openBook = null;
+                    Engine.goto("Corridor");
+                }
+                return;
+            }
             case "Escape": case "q":
                 ev.preventDefault();
                 Book.clearDwell();

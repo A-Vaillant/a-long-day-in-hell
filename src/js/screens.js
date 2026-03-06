@@ -342,11 +342,11 @@ Engine.register("Shelf Open Book", {
 
         html += '<div id="book-actions">';
         if (isHeld) {
-            html += '<a data-goto="Corridor" data-action="drop-book">put back</a> ';
+            html += '<a data-goto="Corridor" data-action="drop-book"><kbd>p</kbd> put back</a> ';
         } else if (state.heldBook !== null) {
-            html += '<a data-goto="Corridor" data-action="take-book">swap</a> ';
+            html += '<a data-goto="Corridor" data-action="take-book"><kbd>t</kbd> swap</a> ';
         } else {
-            html += '<a data-goto="Corridor" data-action="take-book">take</a> ';
+            html += '<a data-goto="Corridor" data-action="take-book"><kbd>t</kbd> take</a> ';
         }
         html += '<a data-goto="Corridor"><kbd>q</kbd> close</a>';
         html += '</div>';
@@ -807,7 +807,7 @@ Engine.register("Death", {
             '<hr>' +
             '<p>' + esc(T(TEXT.screens.resurrection, "resurrection:" + state.day)) + '</p>' +
             '<p>Day ' + state.day + '. Deaths: ' + state.deaths + '.</p>' +
-            '<p><a data-goto="Corridor">Continue</a></p>' +
+            '<p><a data-goto="Corridor"><kbd>⏎</kbd> Continue</a></p>' +
             '</div>';
     },
 });
