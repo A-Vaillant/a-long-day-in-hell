@@ -213,9 +213,9 @@ State management, screen routing, save/load (localStorage), sidebar rendering.
 | Win | Victory | Shows seed, stats, coordinates, new game link |
 | Death | Death screen | Cause text, resurrection info, forced sleep to dawn |
 | Menu | Pause (Escape) | Continue/save/new game |
-| Wait Stub | Pass time | 1 tick, minimal |
-| Sleep Stub | Sleep until morning | Calls Tick.onSleep() |
-| Chasm Stub | Placeholder | Not implemented (see docs/chasm.md) |
+| Wait | Pass time | 1 tick, minimal |
+| Sleep | Sleep until morning | Calls Tick.onSleep() |
+| Chasm | Placeholder | Not implemented (see docs/chasm.md) |
 
 **Status:** Core screens complete. Wait/Sleep/Chasm are stubs.
 

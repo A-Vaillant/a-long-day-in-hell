@@ -150,7 +150,7 @@ document.addEventListener("keydown", function (ev) {
         switch (key) {
             case "z":
                 ev.preventDefault();
-                Engine.goto("Sleep Stub");
+                Engine.goto("Sleep");
                 return;
             case "q": case "Escape":
                 ev.preventDefault();
@@ -158,7 +158,7 @@ document.addEventListener("keydown", function (ev) {
                 return;
         }
         return;
-    } else if (screen === "Sleep Stub") {
+    } else if (screen === "Sleep") {
         if (key === "Enter" || key === " " || key === "e") {
             ev.preventDefault();
             Engine.goto("Corridor");
@@ -190,7 +190,7 @@ document.addEventListener("keydown", function (ev) {
             return;
         }
         return;
-    } else if (screen === "Chasm Stub") {
+    } else if (screen === "Chasm") {
         if (key === "y" || key === "Y") {
             ev.preventDefault();
             const btn = document.getElementById("chasm-jump-yes");
@@ -220,7 +220,7 @@ document.addEventListener("keydown", function (ev) {
     if (key === "Escape") {
         ev.preventDefault();
         const KIOSK_SUBS = ["Kiosk Get Drink", "Kiosk Get Food", "Kiosk Get Alcohol"];
-        const TRANSIENT = ["Wait Stub", "Sleep Stub", "Submission Attempt", "Chasm Stub", "Falling"].concat(KIOSK_SUBS);
+        const TRANSIENT = ["Wait", "Sleep", "Submission Attempt", "Chasm", "Falling"].concat(KIOSK_SUBS);
         if (KIOSK_SUBS.indexOf(screen) !== -1) {
             state._menuReturn = "Kiosk";
         } else if (TRANSIENT.indexOf(screen) !== -1) {
@@ -240,11 +240,11 @@ document.addEventListener("keydown", function (ev) {
     switch (key) {
         case ".":
             ev.preventDefault();
-            Engine.goto("Wait Stub");
+            Engine.goto("Wait");
             break;
         case "z":
             ev.preventDefault();
-            if (Surv.canSleep()) Engine.goto("Sleep Stub");
+            if (Surv.canSleep()) Engine.goto("Sleep");
             break;
         case "J": {
             ev.preventDefault();
@@ -253,7 +253,7 @@ document.addEventListener("keydown", function (ev) {
                     Chasm.jump(state.side);
                     Engine.goto("Falling");
                 } else {
-                    Engine.goto("Chasm Stub");
+                    Engine.goto("Chasm");
                 }
             }
             break;

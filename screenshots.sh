@@ -153,7 +153,7 @@ shot-scraper shot "$FRAG_URL" \
 echo "  ✔  17a_book_fragments.png"
 
 # --- Sleep result ---
-snap "17_sleep"             "Sleep Stub"      ".passage" \
+snap "17_sleep"             "Sleep"      ".passage" \
     ""
 
 # --- Win screen ---
