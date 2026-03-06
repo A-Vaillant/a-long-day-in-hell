@@ -3,6 +3,7 @@
 import { state } from "./state.js";
 import { Engine, T } from "./engine.js";
 import { PRNG } from "./prng.js";
+import { seedFromString } from "../../lib/prng.core.js";
 import { Lib } from "./library.js";
 import { Book } from "./book.js";
 import { LifeStory } from "./lifestory.js";
@@ -107,7 +108,7 @@ function locKey(loc) {
 function renderCorridorDark(loc, moves) {
     const seg = Lib.getSegment(loc.side, loc.position, loc.floor);
     let html = '<div id="corridor-view" class="mode-explore dark">';
-    html += '<p class="location-header">' + esc(Tick.getTimeString()) + '</p>';
+    html += '<p class="location-header">' + (state.side === 0 ? 'The Corridor' : 'The Other Corridor') + '</p>';
 
     if (seg.restArea) {
         html += '<p>' + esc(T(TEXT.screens.darkness_rest_area, "darkness_rest_area:" + locKey(loc))) + '</p>';
@@ -140,7 +141,7 @@ function renderCorridorDark(loc, moves) {
     html += '<div id="actions">';
     html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a>';
     if (Surv.canSleep()) html += ' <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
-    if (seg.restArea && state.floor > 0) {
+    if (state.floor > 0) {
         html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
     }
     if (seg.restArea) {
@@ -167,7 +168,7 @@ Engine.register("Corridor", {
         const warnings = Surv.warnings();
 
         let html = '<div id="corridor-view" class="mode-explore">';
-        html += '<p class="location-header">' + esc(Lib.describeLocation(loc)) + '</p>';
+        html += '<p class="location-header">' + (state.side === 0 ? 'The Corridor' : 'The Other Corridor') + '</p>';
 
         if (seg.lightLevel === "dim") {
             html += '<p class="dim-notice">' + esc(T(TEXT.screens.corridor_dim, "corridor_dim:" + locKey(loc))) + '</p>';
@@ -238,7 +239,7 @@ Engine.register("Corridor", {
         html += '<div id="actions">';
         html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a>';
         if (Surv.canSleep()) html += ' <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
-        if (seg.restArea && state.floor > 0) {
+        if (state.floor > 0) {
             html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
         }
         if (seg.restArea) {
@@ -267,7 +268,7 @@ Engine.register("Corridor", {
             const isTarget = state.targetBook.side === state.side &&
                 state.targetBook.position === state.position && state.targetBook.floor === state.floor &&
                 state.targetBook.bookIndex === bi;
-            const rng = PRNG.fork("spine:" + state.side + ":" + state.position + ":" + state.floor + ":" + bi);
+            const rng = seedFromString("spine:" + PRNG.getSeed() + ":" + state.side + ":" + state.position + ":" + state.floor + ":" + bi);
             const h = Math.floor(rng.next() * 30);
             const s = 15 + Math.floor(rng.next() * 20);
             const l = 12 + Math.floor(rng.next() * 14);
@@ -426,6 +427,7 @@ Engine.register("Kiosk", {
         }
         return '<div id="kiosk-view">' +
             '<p class="location-header">Kiosk</p>' +
+            '<p class="kiosk-clock">' + esc(Tick.getClockDisplay()) + '</p>' +
             '<p>' + esc(T(TEXT.screens.kiosk_intro, "kiosk_intro:" + state.tick)) + '</p>' +
             '<a data-goto="Kiosk Get Drink"><kbd>1</kbd> Ask for water</a><br>' +
             '<a data-goto="Kiosk Get Food"><kbd>2</kbd> Ask for food</a><br>' +

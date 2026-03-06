@@ -340,14 +340,14 @@ describe("DOM: chasm and freefall", () => {
         assert.ok(text.length > 0, "corridor has content");
     });
 
-    it("jump link hidden in corridor when not at rest area", () => {
+    it("jump link shown in corridor at non-rest-area when above floor 0", () => {
         const game = bootGame();
         game.state.position = 1;
         game.state.floor = 100;
         game.Engine.goto("Corridor");
 
         const html = game.document.getElementById("passage").innerHTML;
-        assert.ok(!html.includes("Chasm Stub"), "no jump link at non-rest-area");
+        assert.ok(html.includes("Chasm Stub"), "chasm link at non-rest-area above floor 0");
     });
 
     it("jump link hidden at floor 0", () => {

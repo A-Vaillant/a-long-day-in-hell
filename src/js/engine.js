@@ -10,7 +10,7 @@ import { Surv } from "./survival.js";
 import { Tick } from "./tick.js";
 import { Events } from "./events.js";
 import { Npc } from "./npc.js";
-import { Despair } from "./despairing.js";
+
 
 export { state };
 
@@ -69,21 +69,14 @@ export const Engine = {
         if (state.hunger === undefined) { cap.innerHTML = ""; return; }
 
         let html = '<div id="sidebar-stats">';
-        html += '<div class="sb-time">' + Tick.getDayDisplay() + '</div>';
-        html += '<div class="sb-clock">' + Tick.getTimeString();
-        if (!state.lightsOn) html += '  <span class="sb-dark">dark</span>';
-        html += '</div>';
+        if (!state.lightsOn) html += '<div class="sb-dark">dark</div>';
         html += '<div class="sb-divider"></div>';
 
-        const dh = Despair.corruptStatValue(state.hunger);
-        const dt = Despair.corruptStatValue(state.thirst);
-        const de = Despair.corruptStatValue(state.exhaustion);
-        const dm = Despair.corruptStatValue(state.morale);
         const stats = [
-            { label: "hunger",     desc: Surv.describeRising(dh) },
-            { label: "thirst",     desc: Surv.describeRising(dt) },
-            { label: "exhaustion", desc: Surv.describeRising(de) },
-            { label: "morale",     desc: Surv.describeMorale(dm) },
+            { label: "hunger",     desc: Surv.describeRising(state.hunger) },
+            { label: "thirst",     desc: Surv.describeRising(state.thirst) },
+            { label: "exhaustion", desc: Surv.describeRising(state.exhaustion) },
+            { label: "morale",     desc: Surv.describeMorale(state.morale) },
         ];
         for (let i = 0; i < stats.length; i++) {
             const st = stats[i];

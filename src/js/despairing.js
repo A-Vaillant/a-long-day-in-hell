@@ -20,9 +20,10 @@ export const Despair = {
             state.despairing = false;
         }
     },
-    corruptStatValue(trueValue) {
+    corruptStatValue(trueValue, statLabel) {
         if (!state.despairing) return trueValue;
-        return _corruptStatValue(trueValue, Math.random());
+        var rng = seedFromString("corrupt:" + state.tick + ":" + state.day + ":" + (statLabel || ""));
+        return _corruptStatValue(trueValue, rng.next());
     },
     shouldCorruptDescriptor() {
         if (!state.despairing) return false;
