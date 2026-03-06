@@ -10,6 +10,7 @@ import {
 import {
     inviteAcceptance, invite, dismiss, attack, decideAction, buildAwareness,
 } from "../lib/actions.core.js";
+import { HABITUATION } from "../lib/psych.core.js";
 
 // --- Helpers ---
 
@@ -365,22 +366,24 @@ describe("attack", () => {
         assert.ok(p.lucidity < 100, "should lose lucidity");
     });
 
-    it("costs more hope when killing someone you know", () => {
-        const w1 = createWorld();
-        const s1 = makeEntity(w1, { name: "Player" });
-        const t1 = makeEntity(w1, { name: "Stranger" });
+    it("attacker cost habituates with repeated kills", () => {
+        const w = createWorld();
+        const src = makeEntity(w, { name: "Player" });
+        addComponent(w, src, HABITUATION, { exposures: new Map() });
 
-        const w2 = createWorld();
-        const s2 = makeEntity(w2, { name: "Player" });
-        const t2 = makeEntity(w2, { name: "Friend" });
-        setBond(w2, s2, t2, 80, 50);
+        // First kill: full committingViolence shock
+        const t1 = makeEntity(w, { name: "NPC1" });
+        const hopeBefore1 = getComponent(w, src, PSYCHOLOGY).hope;
+        attack(w, src, t1);
+        const loss1 = hopeBefore1 - getComponent(w, src, PSYCHOLOGY).hope;
 
-        attack(w1, s1, t1);
-        attack(w2, s2, t2);
+        // Second kill: attenuated
+        const t2 = makeEntity(w, { name: "NPC2" });
+        const hopeBefore2 = getComponent(w, src, PSYCHOLOGY).hope;
+        attack(w, src, t2);
+        const loss2 = hopeBefore2 - getComponent(w, src, PSYCHOLOGY).hope;
 
-        const hope1 = getComponent(w1, s1, PSYCHOLOGY).hope;
-        const hope2 = getComponent(w2, s2, PSYCHOLOGY).hope;
-        assert.ok(hope2 < hope1, "killing someone you know costs more hope");
+        assert.ok(loss2 < loss1, "second kill should cost less hope than first");
     });
 
     it("target remembers (strong negative affinity to attacker)", () => {

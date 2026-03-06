@@ -18,9 +18,13 @@ import {
     type Position, type Identity, type Psychology, type Relationships, type Bond,
     type BondConfig, type DispositionThresholds, type AwarenessConfig,
     DEFAULT_BOND, DEFAULT_THRESHOLDS, DEFAULT_AWARENESS,
-    coLocated, getOrCreateBond, deriveDisposition, applyShock,
+    coLocated, getOrCreateBond, deriveDisposition,
     segmentDistance, canSee,
 } from "./social.core.js";
+import {
+    HABITUATION, type Habituation, type ShockConfig, DEFAULT_SHOCKS,
+    applyShock as applyHabituatedShock,
+} from "./psych.core.js";
 
 export interface Rng {
     next(): number;
@@ -184,11 +188,10 @@ export function dismiss(
         }
     }
 
-    // Hope shock to the abandoned
+    // Hope shock to the abandoned (habituated)
     if (tgtPsych) {
-        const srcRel = tgtRels?.bonds.get(source);
-        const hopeLoss = srcRel ? Math.min(15, 3 + srcRel.familiarity / 10) : 3;
-        applyShock(tgtPsych, 0, -hopeLoss);
+        const tgtHabit = getComponent<Habituation>(world, target, HABITUATION);
+        applyHabituatedShock(tgtPsych, tgtHabit, "beingDismissed");
     }
 
     return ok();
@@ -224,22 +227,13 @@ export function attack(
     // Kill target
     tgtIdent.alive = false;
 
-    // Psychological cost to attacker
+    // Psychological cost to attacker (habituated)
     const srcPsych = getComponent<Psychology>(world, source, PSYCHOLOGY);
     const srcRels = getComponent<Relationships>(world, source, RELATIONSHIPS);
 
     if (srcPsych) {
-        let hopeCost = 5; // base cost of violence
-        let lucidityCost = 2;
-        if (srcRels) {
-            const bond = srcRels.bonds.get(target);
-            if (bond && bond.familiarity > 0) {
-                // Killing someone you know costs more
-                hopeCost += Math.floor(bond.familiarity / 5);
-                lucidityCost += Math.floor(bond.familiarity / 10);
-            }
-        }
-        applyShock(srcPsych, -lucidityCost, -hopeCost);
+        const srcHabit = getComponent<Habituation>(world, source, HABITUATION);
+        applyHabituatedShock(srcPsych, srcHabit, "committingViolence");
     }
 
     // Target remembers
