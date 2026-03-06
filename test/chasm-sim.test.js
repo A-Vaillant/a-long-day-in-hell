@@ -91,7 +91,7 @@ describe("chasm simulation: freefall from height", () => {
 
             // Dawn resurrection
             if (adv.events.includes("dawn") && stats.dead) {
-                stats = Surv.applyResurrection();
+                stats = Surv.applyResurrection(stats);
                 deaths++;
             }
 

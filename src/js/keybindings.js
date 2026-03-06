@@ -6,6 +6,7 @@ import { Book } from "./book.js";
 import { Chasm } from "./chasm.js";
 import { Despair } from "./despairing.js";
 import { Lib } from "./library.js";
+import { Surv } from "./survival.js";
 import { doMove } from "./screens.js";
 
 const VI_MOVE = {
@@ -243,7 +244,7 @@ document.addEventListener("keydown", function (ev) {
             break;
         case "z":
             ev.preventDefault();
-            Engine.goto("Sleep Stub");
+            if (Surv.canSleep()) Engine.goto("Sleep Stub");
             break;
         case "J": {
             ev.preventDefault();

@@ -138,7 +138,8 @@ function renderCorridorDark(loc, moves) {
     html += '</div>';
 
     html += '<div id="actions">';
-    html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
+    html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a>';
+    if (Surv.canSleep()) html += ' <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
     if (seg.restArea && state.floor > 0) {
         html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
     }
@@ -235,7 +236,8 @@ Engine.register("Corridor", {
         html += '</div>';
 
         html += '<div id="actions">';
-        html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
+        html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a>';
+        if (Surv.canSleep()) html += ' <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
         if (seg.restArea && state.floor > 0) {
             html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
         }
@@ -464,7 +466,7 @@ Engine.register("Bedroom", {
         return '<div id="bedroom-view">' +
             '<p class="location-header">Bedroom</p>' +
             '<p>' + esc(T(TEXT.screens.bedroom_intro, "bedroom_intro:" + state.tick)) + '</p>' +
-            '<a data-goto="Sleep Stub"><kbd>z</kbd> Sleep</a><br>' +
+            (Surv.canSleep() ? '<a data-goto="Sleep Stub"><kbd>z</kbd> Sleep</a><br>' : '<p><em>You aren\'t tired enough to sleep.</em></p>') +
             '<a data-goto="Corridor"><kbd>q</kbd> Leave</a>' +
             '</div>';
     },
