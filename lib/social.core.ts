@@ -127,19 +127,26 @@ export interface DecayConfig {
 }
 
 export const DEFAULT_DECAY: DecayConfig = {
-    lucidityBase: 0.02,
-    hopeBase: 0.03,
-    isolationMultiplier: 2.0,
-    companionDamper: 0.3,
+    lucidityBase: 0.003,       // ~0.72/day alone → anxious ~day 55, mad ~day 83
+    hopeBase: 0.004,           // ~0.96/day alone → anxious ~day 62, catatonic ~day 88
+    isolationMultiplier: 1.0,  // no extra penalty — base rate IS the isolation rate
+    companionDamper: 0.15,     // companion slows decay to 15% of base
     lucidityFloor: 0,
     hopeFloor: 0,
 };
 
 /**
- * Check if an entity has any co-located bonded entity (familiarity > 0,
- * affinity > 0, at same position, alive).
+ * Check if an entity has any nearby bonded entity (within hearing range,
+ * familiarity > 0, affinity > 0, alive).
+ *
+ * You feel less alone when you can hear someone you know nearby,
+ * even if they're not right next to you.
  */
-export function hasSocialContact(world: World, entity: Entity): boolean {
+export function hasSocialContact(
+    world: World,
+    entity: Entity,
+    awarenessConfig: AwarenessConfig = DEFAULT_AWARENESS,
+): boolean {
     const pos = getComponent<Position>(world, entity, POSITION);
     const rels = getComponent<Relationships>(world, entity, RELATIONSHIPS);
     if (!pos || !rels) return false;
@@ -148,9 +155,7 @@ export function hasSocialContact(world: World, entity: Entity): boolean {
         const otherPos = getComponent<Position>(world, other, POSITION);
         const otherIdent = getComponent<Identity>(world, other, IDENTITY);
         if (!otherPos || !otherIdent || !otherIdent.alive) continue;
-        if (otherPos.side === pos.side &&
-            otherPos.position === pos.position &&
-            otherPos.floor === pos.floor) {
+        if (canHear(pos, otherPos, awarenessConfig)) {
             const bond = rels.bonds.get(other)!;
             if (bond.familiarity > 0 && bond.affinity > 0) return true;
         }
@@ -220,10 +225,10 @@ export interface BondConfig {
 }
 
 export const DEFAULT_BOND: BondConfig = {
-    familiarityPerTick: 0.1,
-    affinityPerTick: 0.05,
-    familiarityDecayRate: 0.001,
-    affinityDecayRate: 0.01,
+    familiarityPerTick: 0.15,   // ~36/day co-located → grouping threshold (10) in ~67 ticks
+    affinityPerTick: 0.08,      // ~19/day co-located → grouping threshold (5) in ~63 ticks
+    familiarityDecayRate: 0.002, // very slow — you don't forget people
+    affinityDecayRate: 0.02,    // feelings fade faster than memory
     maxFamiliarity: 100,
     maxAffinity: 100,
     minAffinity: -100,
@@ -277,10 +282,129 @@ export function decayBond(
 }
 
 /**
- * Check if two positions are co-located.
+ * Check if two positions are co-located (exact same spot).
  */
 export function coLocated(a: Position, b: Position): boolean {
     return a.side === b.side && a.position === b.position && a.floor === b.floor;
+}
+
+// --- Awareness ranges ---
+
+/**
+ * Awareness range thresholds (in segments).
+ */
+export interface AwarenessConfig {
+    talkRange: number;    // must be co-located (always 0)
+    hearRange: number;    // can hear footsteps, muttering
+    shoutRange: number;   // can hear shouting (mad NPCs)
+    sightRange: number;   // can see someone in the corridor
+}
+
+export const DEFAULT_AWARENESS: AwarenessConfig = {
+    talkRange: 0,
+    hearRange: 3,
+    shoutRange: 6,
+    sightRange: 10,
+};
+
+/**
+ * Distance between two positions. Returns Infinity if different floor.
+ * Same side: absolute position difference.
+ * Different side (across chasm): only visual — returns distance but
+ * flagged via the separate `canSeeAcrossChasm` function.
+ */
+export function segmentDistance(a: Position, b: Position): number {
+    if (a.floor !== b.floor) return Infinity;
+    if (a.side !== b.side) return Infinity; // use canSeeAcrossChasm for cross-chasm
+    return Math.abs(a.position - b.position);
+}
+
+/**
+ * Whether entity A can see entity B across the chasm.
+ * Same floor, different side. Visual only — no interaction possible
+ * except at floor 0 where you can cross.
+ */
+export function canSeeAcrossChasm(a: Position, b: Position): boolean {
+    return a.floor === b.floor && a.side !== b.side;
+}
+
+/**
+ * Whether A can hear B (same side, same floor, within hearing range).
+ */
+export function canHear(
+    a: Position,
+    b: Position,
+    config: AwarenessConfig = DEFAULT_AWARENESS,
+): boolean {
+    return segmentDistance(a, b) <= config.hearRange;
+}
+
+/**
+ * Whether A can see B (same side, same floor, within sight range).
+ */
+export function canSee(
+    a: Position,
+    b: Position,
+    config: AwarenessConfig = DEFAULT_AWARENESS,
+): boolean {
+    const dist = segmentDistance(a, b);
+    if (dist <= config.sightRange) return true;
+    return false;
+}
+
+/**
+ * Get all entities visible to a given entity (same side within sight range,
+ * or across chasm on same floor). Returns array of [entity, distance] pairs.
+ * Distance is Infinity for cross-chasm sightings.
+ */
+export function getVisibleEntities(
+    world: World,
+    entity: Entity,
+    config: AwarenessConfig = DEFAULT_AWARENESS,
+): [Entity, number][] {
+    const pos = getComponent<Position>(world, entity, POSITION);
+    if (!pos) return [];
+
+    const results: [Entity, number][] = [];
+    const entities = query(world, [POSITION, IDENTITY]);
+
+    for (const [other, otherPos, otherIdent] of entities) {
+        if ((other as Entity) === entity) continue;
+        if (!(otherIdent as Identity).alive) continue;
+        const op = otherPos as Position;
+
+        const dist = segmentDistance(pos, op);
+        if (dist <= config.sightRange) {
+            results.push([other as Entity, dist]);
+        } else if (canSeeAcrossChasm(pos, op)) {
+            results.push([other as Entity, Infinity]);
+        }
+    }
+    return results;
+}
+
+/**
+ * Get entities within hearing range (same side, same floor, within hearRange).
+ */
+export function getNearbyEntities(
+    world: World,
+    entity: Entity,
+    config: AwarenessConfig = DEFAULT_AWARENESS,
+): Entity[] {
+    const pos = getComponent<Position>(world, entity, POSITION);
+    if (!pos) return [];
+
+    const results: Entity[] = [];
+    const entities = query(world, [POSITION, IDENTITY]);
+
+    for (const [other, otherPos, otherIdent] of entities) {
+        if ((other as Entity) === entity) continue;
+        if (!(otherIdent as Identity).alive) continue;
+        if (canHear(pos, otherPos as Position, config)) {
+            results.push(other as Entity);
+        }
+    }
+    return results;
 }
 
 /**
@@ -555,55 +679,48 @@ export function applyShock(
 // --- Social pressure ---
 
 /**
- * Mad entities at a location exert social pressure on non-mad entities,
- * accelerating their lucidity decay. This is the Direite recruitment mechanic.
+ * Mad entities exert social pressure on nearby non-mad entities
+ * (within shout range), accelerating their lucidity decay.
+ * This is the Direite recruitment mechanic. You can hear them ranting
+ * from corridors away.
  *
+ * Requires 2+ mad entities within shout range to trigger.
  * Call after groupFormationSystem.
  */
 export function socialPressureSystem(
     world: World,
     thresholds: DispositionThresholds = DEFAULT_THRESHOLDS,
     pressureRate: number = 0.1,
+    awareness: AwarenessConfig = DEFAULT_AWARENESS,
 ): void {
     const entities = query(world, [POSITION, PSYCHOLOGY, IDENTITY]);
 
-    // Build location index with disposition info
-    const locationMadCount = new Map<string, number>();
-    const locationEntities = new Map<string, [Entity, Psychology][]>();
-
+    // Collect all alive entities with their disposition
+    const alive: { entity: Entity, pos: Position, psych: Psychology, disp: Disposition }[] = [];
     for (const [entity, pos, psych, ident] of entities) {
-        const identity = ident as Identity;
-        if (!identity.alive) continue;
-        const position = pos as Position;
+        if (!(ident as Identity).alive) continue;
         const psychology = psych as Psychology;
-        const key = `${position.side}:${position.position}:${position.floor}`;
-
+        const position = pos as Position;
         const disp = deriveDisposition(psychology, true, thresholds);
-
-        let list = locationEntities.get(key);
-        if (!list) {
-            list = [];
-            locationEntities.set(key, list);
-        }
-        list.push([entity as Entity, psychology]);
-
-        if (disp === "mad") {
-            locationMadCount.set(key, (locationMadCount.get(key) || 0) + 1);
-        }
+        alive.push({ entity: entity as Entity, pos: position, psych: psychology, disp });
     }
 
-    // Apply pressure: for each location with 2+ mad entities,
-    // non-mad entities lose lucidity faster
-    for (const [key, madCount] of locationMadCount) {
-        if (madCount < 2) continue;
-        const ents = locationEntities.get(key);
-        if (!ents) continue;
-        for (const [, psychology] of ents) {
-            const disp = deriveDisposition(psychology, true, thresholds);
-            if (disp !== "mad" && disp !== "catatonic") {
-                psychology.lucidity = Math.max(0,
-                    psychology.lucidity - pressureRate * madCount);
+    // For each non-mad, non-catatonic entity, count mad entities within shout range
+    for (const target of alive) {
+        if (target.disp === "mad" || target.disp === "catatonic") continue;
+
+        let nearbyMadCount = 0;
+        for (const other of alive) {
+            if (other.disp !== "mad") continue;
+            const dist = segmentDistance(target.pos, other.pos);
+            if (dist <= awareness.shoutRange) {
+                nearbyMadCount++;
             }
+        }
+
+        if (nearbyMadCount >= 2) {
+            target.psych.lucidity = Math.max(0,
+                target.psych.lucidity - pressureRate * nearbyMadCount);
         }
     }
 }

@@ -8,7 +8,7 @@ import {
     DEFAULT_THRESHOLDS, DEFAULT_BOND,
 } from "../lib/social.core.js";
 import {
-    inviteAcceptance, invite, dismiss, attack, decideAction,
+    inviteAcceptance, invite, dismiss, attack, decideAction, buildAwareness,
 } from "../lib/actions.core.js";
 
 // --- Helpers ---
@@ -31,6 +31,15 @@ function makeEntity(world, { name = "Test", alive = true, lucidity = 100, hope =
 function setBond(world, source, target, fam, aff) {
     const rels = getComponent(world, source, RELATIONSHIPS);
     rels.bonds.set(target, { familiarity: fam, affinity: aff, lastContact: 0 });
+}
+
+// Build awareness with all entities at same position (co-located = nearby = visible)
+function awareness(coLocated = [], nearby = [], visible = []) {
+    return {
+        coLocated,
+        nearby: [...coLocated, ...nearby],
+        visible: [...coLocated, ...nearby, ...visible],
+    };
 }
 
 // --- inviteAcceptance ---
@@ -460,30 +469,26 @@ describe("attack", () => {
 // --- decideAction ---
 
 describe("decideAction", () => {
+    const empty = awareness();
+
     it("catatonic entities always idle", () => {
         const w = createWorld();
         const e = makeEntity(w, { name: "Cat", lucidity: 80, hope: 5 });
-
-        const action = decideAction(w, e, [], stubRng([0.5]));
-        assert.strictEqual(action.action, "idle");
+        assert.strictEqual(decideAction(w, e, empty, stubRng([0.5])).action, "idle");
     });
 
     it("catatonic idles even with co-located entities", () => {
         const w = createWorld();
         const e = makeEntity(w, { name: "Cat", lucidity: 80, hope: 5 });
         const other = makeEntity(w, { name: "Other" });
-
-        const action = decideAction(w, e, [other], stubRng([0.5]));
-        assert.strictEqual(action.action, "idle");
+        assert.strictEqual(decideAction(w, e, awareness([other]), stubRng([0.5])).action, "idle");
     });
 
     it("mad entity may attack non-mad co-located entity", () => {
         const w = createWorld();
         const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50 });
         const sane = makeEntity(w, { name: "Sane" });
-
-        // rng.next() < 0.3 triggers attack
-        const action = decideAction(w, mad, [sane], stubRng([0.1]));
+        const action = decideAction(w, mad, awareness([sane]), stubRng([0.1]));
         assert.strictEqual(action.action, "attack");
         assert.strictEqual(action.target, sane);
     });
@@ -491,66 +496,65 @@ describe("decideAction", () => {
     it("mad entity idles when no targets", () => {
         const w = createWorld();
         const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50 });
-
-        const action = decideAction(w, mad, [], stubRng([0.5]));
-        assert.strictEqual(action.action, "idle");
+        assert.strictEqual(decideAction(w, mad, empty, stubRng([0.5])).action, "idle");
     });
 
     it("mad entity idles when only other mad entities present", () => {
         const w = createWorld();
         const mad1 = makeEntity(w, { name: "Mad1", lucidity: 20, hope: 50 });
         const mad2 = makeEntity(w, { name: "Mad2", lucidity: 20, hope: 50 });
-
-        const action = decideAction(w, mad1, [mad2], stubRng([0.1]));
-        assert.strictEqual(action.action, "idle");
+        assert.strictEqual(decideAction(w, mad1, awareness([mad2]), stubRng([0.1])).action, "idle");
     });
 
     it("mad entity idles when roll >= 0.3", () => {
         const w = createWorld();
         const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50 });
         const sane = makeEntity(w, { name: "Sane" });
-
-        const action = decideAction(w, mad, [sane], stubRng([0.5]));
-        assert.strictEqual(action.action, "idle");
+        assert.strictEqual(decideAction(w, mad, awareness([sane]), stubRng([0.5])).action, "idle");
     });
 
-    it("anxious entity flees from mad", () => {
+    it("anxious entity flees from visible mad (not just co-located)", () => {
         const w = createWorld();
         const anxious = makeEntity(w, { name: "Anx", lucidity: 55, hope: 80 });
-        const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50 });
-
-        const action = decideAction(w, anxious, [mad], stubRng([0.5]));
+        const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50, position: 5 });
+        // Mad is visible but not co-located
+        const action = decideAction(w, anxious, awareness([], [], [mad]), stubRng([0.5]));
         assert.strictEqual(action.action, "flee");
         assert.strictEqual(action.from, mad);
     });
 
-    it("anxious entity may invite bonded entity", () => {
+    it("anxious entity may invite co-located bonded entity", () => {
         const w = createWorld();
         const anx = makeEntity(w, { name: "Anx", lucidity: 55, hope: 80 });
         const friend = makeEntity(w, { name: "Friend" });
         setBond(w, anx, friend, 10, 10);
-
-        // rng: 0.1 < 0.2 = invite
-        const action = decideAction(w, anx, [friend], stubRng([0.1]));
+        const action = decideAction(w, anx, awareness([friend]), stubRng([0.1]));
         assert.strictEqual(action.action, "invite");
+    });
+
+    it("anxious entity may approach visible bonded entity", () => {
+        const w = createWorld();
+        const anx = makeEntity(w, { name: "Anx", lucidity: 55, hope: 80 });
+        const friend = makeEntity(w, { name: "Friend", position: 5 });
+        setBond(w, anx, friend, 10, 10);
+        // friend is visible but not co-located
+        const action = decideAction(w, anx, awareness([], [], [friend]), stubRng([0.1]));
+        assert.strictEqual(action.action, "approach");
+        assert.strictEqual(action.target, friend);
     });
 
     it("anxious entity may wander", () => {
         const w = createWorld();
         const anx = makeEntity(w, { name: "Anx", lucidity: 55, hope: 80 });
-
-        // No co-located, skip invite loop, rng: 0.1 < 0.3 = wander, 0.3 < 0.5 = direction -1
-        const action = decideAction(w, anx, [], stubRng([0.1, 0.3]));
+        const action = decideAction(w, anx, empty, stubRng([0.1, 0.3]));
         assert.strictEqual(action.action, "wander");
     });
 
-    it("calm entity flees from mad with probability", () => {
+    it("calm entity flees from visible mad with probability", () => {
         const w = createWorld();
         const calm = makeEntity(w, { name: "Calm" });
         const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50 });
-
-        // rng 0.3 < 0.5 = flee
-        const action = decideAction(w, calm, [mad], stubRng([0.3]));
+        const action = decideAction(w, calm, awareness([mad]), stubRng([0.3]));
         assert.strictEqual(action.action, "flee");
     });
 
@@ -558,71 +562,129 @@ describe("decideAction", () => {
         const w = createWorld();
         const calm = makeEntity(w, { name: "Calm" });
         const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50 });
-
-        // rng 0.6 >= 0.5 = don't flee, then falls through to invite/wander
-        const action = decideAction(w, calm, [mad], stubRng([0.6, 0.9, 0.9, 0.9, 0.9]));
+        const action = decideAction(w, calm, awareness([], [], [mad]), stubRng([0.6, 0.9, 0.9, 0.9, 0.9]));
         assert.notStrictEqual(action.action, "flee");
     });
 
-    it("calm entity may invite stranger", () => {
+    it("calm entity may approach visible stranger", () => {
+        const w = createWorld();
+        const calm = makeEntity(w, { name: "Calm" });
+        const stranger = makeEntity(w, { name: "Stranger", position: 5 });
+        // stranger visible, not co-located, rng 0.05 < 0.2 = approach
+        const action = decideAction(w, calm, awareness([], [], [stranger]), stubRng([0.05]));
+        assert.strictEqual(action.action, "approach");
+    });
+
+    it("calm entity may invite co-located stranger", () => {
         const w = createWorld();
         const calm = makeEntity(w, { name: "Calm" });
         const stranger = makeEntity(w, { name: "Stranger" });
-
-        // No mad to flee, no bond, stranger branch: rng 0.05 < 0.1 = invite
-        const action = decideAction(w, calm, [stranger], stubRng([0.05]));
+        const action = decideAction(w, calm, awareness([stranger]), stubRng([0.05]));
         assert.strictEqual(action.action, "invite");
     });
 
     it("dead entity returns idle", () => {
         const w = createWorld();
         const dead = makeEntity(w, { name: "Dead", alive: false });
-
-        const action = decideAction(w, dead, [], stubRng([0.5]));
-        assert.strictEqual(action.action, "idle");
+        assert.strictEqual(decideAction(w, dead, empty, stubRng([0.5])).action, "idle");
     });
 
     it("entity with no psychology returns idle", () => {
         const w = createWorld();
         const e = spawn(w);
         addComponent(w, e, IDENTITY, { name: "X", alive: true });
-
-        const action = decideAction(w, e, [], stubRng([0.5]));
-        assert.strictEqual(action.action, "idle");
+        assert.strictEqual(decideAction(w, e, empty, stubRng([0.5])).action, "idle");
     });
 
     it("mad entity skips dead co-located entities as targets", () => {
         const w = createWorld();
         const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50 });
         const dead = makeEntity(w, { name: "Dead", alive: false });
-
-        const action = decideAction(w, mad, [dead], stubRng([0.1]));
-        assert.strictEqual(action.action, "idle");
+        assert.strictEqual(decideAction(w, mad, awareness([dead]), stubRng([0.1])).action, "idle");
     });
 
     it("calm entity skips catatonic for invites", () => {
         const w = createWorld();
         const calm = makeEntity(w, { name: "Calm" });
         const cat = makeEntity(w, { name: "Cat", lucidity: 80, hope: 5 });
-
-        // All rolls permissive, but catatonic should be skipped for invite
-        const action = decideAction(w, calm, [cat], stubRng([0.01, 0.01, 0.01, 0.3, 0.5]));
-        // Should skip invite and eventually wander or idle
+        const action = decideAction(w, calm, awareness([cat]), stubRng([0.01, 0.01, 0.01, 0.3, 0.5]));
         assert.notStrictEqual(action.action, "invite");
     });
 
     it("wander direction can be positive or negative", () => {
         const w = createWorld();
-        const calm1 = makeEntity(w, { name: "C1" });
-        const calm2 = makeEntity(w, { name: "C2", position: 99 });
-
-        // For calm1: skip flee (no mad), skip invite (no co-located viable),
-        // wander: 0.1 < 0.4, direction: 0.2 < 0.5 → -1
-        const a1 = decideAction(w, calm1, [], stubRng([0.1, 0.2]));
-        // direction: 0.8 >= 0.5 → +1
-        const a2 = decideAction(w, calm2, [], stubRng([0.1, 0.8]));
-
+        makeEntity(w, { name: "C1" });
+        makeEntity(w, { name: "C2", position: 99 });
+        const a1 = decideAction(w, 0, empty, stubRng([0.1, 0.2]));
+        const a2 = decideAction(w, 1, empty, stubRng([0.1, 0.8]));
         if (a1.action === "wander") assert.strictEqual(a1.direction, -1);
         if (a2.action === "wander") assert.strictEqual(a2.direction, 1);
+    });
+});
+
+// --- buildAwareness ---
+
+describe("buildAwareness", () => {
+    it("co-locates entities at same position", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A" });
+        const b = makeEntity(w, { name: "B" });
+        const result = buildAwareness(w, a, [a, b]);
+        assert.deepStrictEqual(result.coLocated, [b]);
+        assert.deepStrictEqual(result.nearby, [b]);
+        assert.deepStrictEqual(result.visible, [b]);
+    });
+
+    it("nearby but not co-located (within hearing range)", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A", position: 0 });
+        const b = makeEntity(w, { name: "B", position: 2 });
+        const result = buildAwareness(w, a, [a, b]);
+        assert.deepStrictEqual(result.coLocated, []);
+        assert.deepStrictEqual(result.nearby, [b]);
+        assert.deepStrictEqual(result.visible, [b]);
+    });
+
+    it("visible but not nearby (beyond hearing, within sight)", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A", position: 0 });
+        const b = makeEntity(w, { name: "B", position: 7 });
+        const result = buildAwareness(w, a, [a, b]);
+        assert.deepStrictEqual(result.coLocated, []);
+        assert.deepStrictEqual(result.nearby, []);
+        assert.deepStrictEqual(result.visible, [b]);
+    });
+
+    it("out of sight range — not in any set", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A", position: 0 });
+        const b = makeEntity(w, { name: "B", position: 20 });
+        const result = buildAwareness(w, a, [a, b]);
+        assert.deepStrictEqual(result.coLocated, []);
+        assert.deepStrictEqual(result.nearby, []);
+        assert.deepStrictEqual(result.visible, []);
+    });
+
+    it("different floor — not visible", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A", floor: 0 });
+        const b = makeEntity(w, { name: "B", floor: 1 });
+        const result = buildAwareness(w, a, [a, b]);
+        assert.deepStrictEqual(result.visible, []);
+    });
+
+    it("dead entities excluded", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A" });
+        const b = makeEntity(w, { name: "B", alive: false });
+        const result = buildAwareness(w, a, [a, b]);
+        assert.deepStrictEqual(result.visible, []);
+    });
+
+    it("excludes self", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A" });
+        const result = buildAwareness(w, a, [a]);
+        assert.deepStrictEqual(result.coLocated, []);
     });
 });
