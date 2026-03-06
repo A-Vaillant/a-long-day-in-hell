@@ -138,10 +138,10 @@ function renderCorridorDark(loc, moves) {
     html += '</div>';
 
     html += '<div id="actions">';
-    html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a>';
-    if (Surv.canSleep()) html += ' <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
+    html += '<a data-goto="Wait"><kbd>.</kbd> wait</a>';
+    if (Surv.canSleep()) html += ' <a data-goto="Sleep"><kbd>z</kbd> sleep</a>';
     if (seg.restArea && state.floor > 0) {
-        html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
+        html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
     }
     if (seg.restArea) {
         html += '<a data-goto="Bedroom">bedroom</a>';
@@ -236,10 +236,10 @@ Engine.register("Corridor", {
         html += '</div>';
 
         html += '<div id="actions">';
-        html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a>';
-        if (Surv.canSleep()) html += ' <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
+        html += '<a data-goto="Wait"><kbd>.</kbd> wait</a>';
+        if (Surv.canSleep()) html += ' <a data-goto="Sleep"><kbd>z</kbd> sleep</a>';
         if (seg.restArea && state.floor > 0) {
-            html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
+            html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
         }
         if (seg.restArea) {
             html += '<a data-goto="Kiosk"><kbd>K</kbd> kiosk</a> <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a> <a data-goto="Submission Slot"><kbd>s</kbd> submit</a>';
@@ -466,7 +466,7 @@ Engine.register("Bedroom", {
         return '<div id="bedroom-view">' +
             '<p class="location-header">Bedroom</p>' +
             '<p>' + esc(T(TEXT.screens.bedroom_intro, "bedroom_intro:" + state.tick)) + '</p>' +
-            (Surv.canSleep() ? '<a data-goto="Sleep Stub"><kbd>z</kbd> Sleep</a><br>' : '<p><em>You aren\'t tired enough to sleep.</em></p>') +
+            (Surv.canSleep() ? '<a data-goto="Sleep"><kbd>z</kbd> Sleep</a><br>' : '<p><em>You aren\'t tired enough to sleep.</em></p>') +
             '<a data-goto="Corridor"><kbd>q</kbd> Leave</a>' +
             '</div>';
     },
@@ -618,7 +618,7 @@ Engine.register("Menu", {
 
 /* ---------- Stubs ---------- */
 
-Engine.register("Wait Stub", {
+Engine.register("Wait", {
     enter() { Tick.onMove(); },
     render() {
         setTimeout(function () { Engine.goto("Corridor"); }, 0);
@@ -626,7 +626,7 @@ Engine.register("Wait Stub", {
     },
 });
 
-Engine.register("Sleep Stub", {
+Engine.register("Sleep", {
     enter() { Tick.onSleep(); },
     render() {
         return '<p>' + esc(T(TEXT.screens.sleep, "sleep:" + state.day)) + '</p>' +
@@ -634,7 +634,7 @@ Engine.register("Sleep Stub", {
     },
 });
 
-Engine.register("Chasm Stub", {
+Engine.register("Chasm", {
     render() {
         let html = '<div id="chasm-view">';
         const alt = Chasm.getAltitude();
