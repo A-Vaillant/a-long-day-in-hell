@@ -68,6 +68,12 @@ document.addEventListener("keydown", function (ev) {
                 }
                 return;
             }
+            case "n": {
+                ev.preventDefault();
+                const nameLink = document.getElementById("name-book-link");
+                if (nameLink) nameLink.click();
+                return;
+            }
             case "Escape": case "q":
                 ev.preventDefault();
                 Book.clearDwell();
