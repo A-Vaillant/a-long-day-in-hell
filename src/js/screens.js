@@ -240,7 +240,8 @@ Engine.register("Corridor", {
         html += '<a data-goto="Wait"><kbd>.</kbd> wait</a>';
         if (Surv.canSleep()) html += ' <a data-goto="Sleep"><kbd>z</kbd> sleep</a>';
         if (state.heldBook !== null && state.lightsOn) {
-            html += ' <a data-goto="Read Held Book"><kbd>r</kbd> read</a>';
+            var heldLabel = getBookName(state.heldBook);
+            html += ' <a data-goto="Read Held Book"><kbd>r</kbd> read' + (heldLabel ? ' ' + esc(heldLabel) : '') + '</a>';
         }
         if (state.floor > 0) {
             html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
@@ -308,6 +309,30 @@ Engine.register("Corridor", {
     },
 });
 
+/* ---------- Book naming ---------- */
+
+function bookKey(bk) {
+    return bk.side + ":" + bk.position + ":" + bk.floor + ":" + bk.bookIndex;
+}
+
+function getBookName(bk) {
+    if (!state.bookNames) return null;
+    return state.bookNames[bookKey(bk)] || null;
+}
+
+function setBookName(bk, name) {
+    if (!state.bookNames) state.bookNames = {};
+    if (name) {
+        state.bookNames[bookKey(bk)] = name;
+    } else {
+        delete state.bookNames[bookKey(bk)];
+    }
+}
+
+function bookLabel(bk) {
+    return getBookName(bk) || ("Book #" + (bk.bookIndex + 1));
+}
+
 /* ---------- Shelf Open Book ---------- */
 
 Engine.register("Shelf Open Book", {
@@ -325,12 +350,13 @@ Engine.register("Shelf Open Book", {
 
         let html = '<div id="book-view" class="mode-book">';
 
+        const bkLabel = esc(bookLabel(bk));
         if (pg === 0) {
-            html += '<p class="location-header">Book #' + (bk.bookIndex + 1) + ' — Cover</p>';
+            html += '<p class="location-header">' + bkLabel + ' — Cover</p>';
         } else if (pg === maxPage) {
-            html += '<p class="location-header">Book #' + (bk.bookIndex + 1) + ' — Back Cover</p>';
+            html += '<p class="location-header">' + bkLabel + ' — Back Cover</p>';
         } else {
-            html += '<p class="location-header">Book #' + (bk.bookIndex + 1) + ' — Page ' + pg + ' / ' + Book.PAGES_PER_BOOK + '</p>';
+            html += '<p class="location-header">' + bkLabel + ' — Page ' + pg + ' / ' + Book.PAGES_PER_BOOK + '</p>';
         }
 
         if (bk.side === state.targetBook.side && bk.position === state.targetBook.position &&
@@ -359,7 +385,12 @@ Engine.register("Shelf Open Book", {
         } else {
             html += '<a data-goto="Corridor" data-action="take-book"><kbd>t</kbd> take</a> ';
         }
+        html += '<a id="name-book-link"><kbd>n</kbd> name</a> ';
         html += '<a data-goto="Corridor"><kbd>q</kbd> close</a>';
+        html += '</div>';
+        html += '<div id="book-name-input" style="display:none; margin-top:0.4rem;">';
+        html += '<input id="book-name-field" type="text" maxlength="40" placeholder="name this book" style="font-family:var(--font-mono);font-size:0.8em;background:#2a2218;color:var(--text);border:1px solid var(--text-dim);padding:0.2em 0.4em;width:16em;">';
+        html += ' <a id="book-name-save"><kbd>⏎</kbd></a>';
         html += '</div>';
         html += '</div>';
 
@@ -414,6 +445,40 @@ Engine.register("Shelf Open Book", {
                 el.textContent = pageResult.text;
                 Book.startDwell(bk, pg - 1, pageResult);
             }
+        }
+
+        // Book naming UI
+        const nameLink = document.getElementById("name-book-link");
+        const nameBox = document.getElementById("book-name-input");
+        const nameField = document.getElementById("book-name-field");
+        const nameSave = document.getElementById("book-name-save");
+        if (nameLink && nameBox && nameField) {
+            const existing = getBookName(bk);
+            if (existing) nameField.value = existing;
+            function showNameInput() {
+                nameBox.style.display = "";
+                nameField.focus();
+            }
+            function saveName() {
+                const val = nameField.value.trim();
+                setBookName(bk, val || null);
+                Engine.goto("Shelf Open Book");
+            }
+            nameLink.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                showNameInput();
+            });
+            if (nameSave) {
+                nameSave.addEventListener("click", function (ev) {
+                    ev.preventDefault();
+                    saveName();
+                });
+            }
+            nameField.addEventListener("keydown", function (ev) {
+                if (ev.key === "Enter") { ev.preventDefault(); saveName(); }
+                if (ev.key === "Escape") { ev.preventDefault(); nameBox.style.display = "none"; }
+                ev.stopPropagation();  // don't let book keybindings fire
+            });
         }
     },
 });
