@@ -504,8 +504,6 @@ Engine.register("Submission Attempt", {
         if (hb && hb.side === tb.side && hb.position === tb.position &&
             hb.floor === tb.floor && hb.bookIndex === tb.bookIndex) {
             state._submissionWon = true;
-        } else {
-            state.heldBook = null;
         }
     },
     render() {
