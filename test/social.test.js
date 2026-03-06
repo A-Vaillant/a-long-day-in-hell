@@ -5,12 +5,18 @@ import {
 } from "../lib/ecs.core.js";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP, PLAYER, AI,
-    DEFAULT_THRESHOLDS, DEFAULT_DECAY, DEFAULT_BOND, DEFAULT_GROUP,
+    DEFAULT_THRESHOLDS, DEFAULT_DECAY, DEFAULT_BOND, DEFAULT_GROUP, DEFAULT_AWARENESS,
     deriveDisposition,
     decayPsychology,
     hasSocialContact,
     psychologyDecaySystem,
     coLocated,
+    segmentDistance,
+    canSeeAcrossChasm,
+    canHear,
+    canSee,
+    getVisibleEntities,
+    getNearbyEntities,
     getOrCreateBond,
     accumulateBond,
     decayBond,
@@ -197,10 +203,19 @@ describe("hasSocialContact", () => {
         assert.strictEqual(hasSocialContact(w, a), false);
     });
 
-    it("returns false when bond exists but not co-located", () => {
+    it("returns true when bond exists and within hearing range", () => {
         const w = createWorld();
         const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 5 });
+        const b = makeEntity(w, { name: "B", position: 2 }); // within default hear range (3)
+        const relsA = getComponent(w, a, RELATIONSHIPS);
+        relsA.bonds.set(b, { familiarity: 5, affinity: 3, lastContact: 0 });
+        assert.strictEqual(hasSocialContact(w, a), true);
+    });
+
+    it("returns false when bond exists but beyond hearing range", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A", position: 0 });
+        const b = makeEntity(w, { name: "B", position: 5 }); // beyond default hear range (3)
         const relsA = getComponent(w, a, RELATIONSHIPS);
         relsA.bonds.set(b, { familiarity: 5, affinity: 3, lastContact: 0 });
         assert.strictEqual(hasSocialContact(w, a), false);
@@ -303,6 +318,147 @@ describe("coLocated", () => {
             { side: 0, position: 5, floor: 3 },
             { side: 0, position: 5, floor: 4 },
         ), false);
+    });
+});
+
+// --- segmentDistance ---
+
+describe("segmentDistance", () => {
+    it("returns 0 for same position", () => {
+        assert.strictEqual(segmentDistance(
+            { side: 0, position: 5, floor: 3 },
+            { side: 0, position: 5, floor: 3 },
+        ), 0);
+    });
+
+    it("returns absolute difference on same side/floor", () => {
+        assert.strictEqual(segmentDistance(
+            { side: 0, position: 5, floor: 3 },
+            { side: 0, position: 8, floor: 3 },
+        ), 3);
+    });
+
+    it("returns Infinity for different floors", () => {
+        assert.strictEqual(segmentDistance(
+            { side: 0, position: 5, floor: 3 },
+            { side: 0, position: 5, floor: 4 },
+        ), Infinity);
+    });
+
+    it("returns Infinity for different sides", () => {
+        assert.strictEqual(segmentDistance(
+            { side: 0, position: 5, floor: 3 },
+            { side: 1, position: 5, floor: 3 },
+        ), Infinity);
+    });
+});
+
+// --- canSeeAcrossChasm ---
+
+describe("canSeeAcrossChasm", () => {
+    it("true for same floor different side", () => {
+        assert.strictEqual(canSeeAcrossChasm(
+            { side: 0, position: 5, floor: 3 },
+            { side: 1, position: 5, floor: 3 },
+        ), true);
+    });
+
+    it("false for same side", () => {
+        assert.strictEqual(canSeeAcrossChasm(
+            { side: 0, position: 5, floor: 3 },
+            { side: 0, position: 10, floor: 3 },
+        ), false);
+    });
+
+    it("false for different floor", () => {
+        assert.strictEqual(canSeeAcrossChasm(
+            { side: 0, position: 5, floor: 3 },
+            { side: 1, position: 5, floor: 4 },
+        ), false);
+    });
+});
+
+// --- canHear / canSee ---
+
+describe("canHear", () => {
+    it("true within hearing range", () => {
+        assert.strictEqual(canHear(
+            { side: 0, position: 0, floor: 0 },
+            { side: 0, position: 3, floor: 0 },
+        ), true);
+    });
+
+    it("false beyond hearing range", () => {
+        assert.strictEqual(canHear(
+            { side: 0, position: 0, floor: 0 },
+            { side: 0, position: 4, floor: 0 },
+        ), false);
+    });
+
+    it("false across chasm", () => {
+        assert.strictEqual(canHear(
+            { side: 0, position: 0, floor: 0 },
+            { side: 1, position: 0, floor: 0 },
+        ), false);
+    });
+});
+
+describe("canSee", () => {
+    it("true within sight range", () => {
+        assert.strictEqual(canSee(
+            { side: 0, position: 0, floor: 0 },
+            { side: 0, position: 10, floor: 0 },
+        ), true);
+    });
+
+    it("false beyond sight range", () => {
+        assert.strictEqual(canSee(
+            { side: 0, position: 0, floor: 0 },
+            { side: 0, position: 11, floor: 0 },
+        ), false);
+    });
+});
+
+// --- getVisibleEntities / getNearbyEntities ---
+
+describe("getVisibleEntities", () => {
+    it("returns entities within sight range with distance", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A", position: 0 });
+        const b = makeEntity(w, { name: "B", position: 5 });
+        const c = makeEntity(w, { name: "C", position: 20 }); // out of range
+        const result = getVisibleEntities(w, a);
+        assert.strictEqual(result.length, 1);
+        assert.strictEqual(result[0][0], b);
+        assert.strictEqual(result[0][1], 5);
+    });
+
+    it("includes cross-chasm entities with Infinity distance", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A", side: 0 });
+        const b = makeEntity(w, { name: "B", side: 1 });
+        const result = getVisibleEntities(w, a);
+        assert.strictEqual(result.length, 1);
+        assert.strictEqual(result[0][1], Infinity);
+    });
+
+    it("excludes dead entities", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A" });
+        makeEntity(w, { name: "B", alive: false });
+        assert.strictEqual(getVisibleEntities(w, a).length, 0);
+    });
+});
+
+describe("getNearbyEntities", () => {
+    it("returns entities within hearing range", () => {
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A", position: 0 });
+        const b = makeEntity(w, { name: "B", position: 2 });
+        const c = makeEntity(w, { name: "C", position: 5 }); // out of hear range
+        const result = getNearbyEntities(w, a);
+        assert.strictEqual(result.length, 1);
+        assert.strictEqual(result[0], b);
     });
 });
 

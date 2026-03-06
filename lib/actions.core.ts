@@ -16,9 +16,10 @@ import { getComponent } from "./ecs.core.js";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP,
     type Position, type Identity, type Psychology, type Relationships, type Bond,
-    type BondConfig, type DispositionThresholds,
-    DEFAULT_BOND, DEFAULT_THRESHOLDS,
+    type BondConfig, type DispositionThresholds, type AwarenessConfig,
+    DEFAULT_BOND, DEFAULT_THRESHOLDS, DEFAULT_AWARENESS,
     coLocated, getOrCreateBond, deriveDisposition, applyShock,
+    segmentDistance, canSee,
 } from "./social.core.js";
 
 export interface Rng {
@@ -274,15 +275,64 @@ export type AIAction =
     | { action: "attack"; target: Entity };
 
 /**
+ * Categorized awareness of nearby entities: who you can see, hear, and touch.
+ */
+export interface AwarenessSet {
+    /** Same position — can talk, fight, invite. */
+    coLocated: Entity[];
+    /** Within hearing range (includes co-located). */
+    nearby: Entity[];
+    /** Within sight range (includes nearby). */
+    visible: Entity[];
+}
+
+/**
+ * Build awareness sets for an entity based on position and awareness config.
+ */
+export function buildAwareness(
+    world: World,
+    entity: Entity,
+    allEntities: Entity[],
+    awareness: AwarenessConfig = DEFAULT_AWARENESS,
+): AwarenessSet {
+    const pos = getComponent<Position>(world, entity, POSITION);
+    if (!pos) return { coLocated: [], nearby: [], visible: [] };
+
+    const result: AwarenessSet = { coLocated: [], nearby: [], visible: [] };
+
+    for (const other of allEntities) {
+        if (other === entity) continue;
+        const otherIdent = getComponent<Identity>(world, other, IDENTITY);
+        if (!otherIdent?.alive) continue;
+        const otherPos = getComponent<Position>(world, other, POSITION);
+        if (!otherPos) continue;
+
+        const dist = segmentDistance(pos, otherPos);
+        if (dist === 0) {
+            result.coLocated.push(other);
+            result.nearby.push(other);
+            result.visible.push(other);
+        } else if (dist <= awareness.hearRange) {
+            result.nearby.push(other);
+            result.visible.push(other);
+        } else if (dist <= awareness.sightRange) {
+            result.visible.push(other);
+        }
+    }
+    return result;
+}
+
+/**
  * Decide what an AI entity should do this tick.
  *
- * Decision is based on psychology, bonds, and who's at the same location.
- * This is the NPC's "brain" — it produces an action, the caller executes it.
+ * Uses awareness ranges: entities see others at distance and decide to
+ * approach or flee before they're co-located. Invites and attacks require
+ * co-location. Flee and approach work on sight range.
  */
 export function decideAction(
     world: World,
     entity: Entity,
-    coLocatedEntities: Entity[],
+    awareness: AwarenessSet,
     rng: Rng,
     thresholds: DispositionThresholds = DEFAULT_THRESHOLDS,
 ): AIAction {
@@ -293,49 +343,55 @@ export function decideAction(
     const disp = deriveDisposition(psych, true, thresholds);
     const rels = getComponent<Relationships>(world, entity, RELATIONSHIPS);
     const group = getComponent(world, entity, GROUP);
+    const pos = getComponent<Position>(world, entity, POSITION);
 
     switch (disp) {
         case "catatonic":
-            // Catatonic entities do nothing
             return { action: "idle" };
 
         case "mad": {
-            // Mad entities: attack if co-located with non-mad, otherwise idle (anchor)
-            if (coLocatedEntities.length > 0) {
-                // Find a non-mad, alive target
-                for (const other of coLocatedEntities) {
-                    const otherPsych = getComponent<Psychology>(world, other, PSYCHOLOGY);
-                    const otherIdent = getComponent<Identity>(world, other, IDENTITY);
-                    if (!otherPsych || !otherIdent?.alive) continue;
-                    const otherDisp = deriveDisposition(otherPsych, true, thresholds);
-                    if (otherDisp !== "mad" && otherDisp !== "catatonic") {
-                        // Only attack with some probability — not every tick
-                        if (rng.next() < 0.3) {
-                            return { action: "attack", target: other };
-                        }
-                    }
-                }
-            }
-            // Mad NPCs anchor — they don't wander
-            return { action: "idle" };
-        }
-
-        case "anxious": {
-            // Anxious: seek companionship or flee from mad
-            // Check for mad entities — flee if present
-            for (const other of coLocatedEntities) {
+            // Mad: attack co-located non-mad, otherwise anchor
+            for (const other of awareness.coLocated) {
                 const otherPsych = getComponent<Psychology>(world, other, PSYCHOLOGY);
                 const otherIdent = getComponent<Identity>(world, other, IDENTITY);
                 if (!otherPsych || !otherIdent?.alive) continue;
                 const otherDisp = deriveDisposition(otherPsych, true, thresholds);
-                if (otherDisp === "mad") {
+                if (otherDisp !== "mad" && otherDisp !== "catatonic") {
+                    if (rng.next() < 0.3) {
+                        return { action: "attack", target: other };
+                    }
+                }
+            }
+            return { action: "idle" };
+        }
+
+        case "anxious": {
+            // Flee from visible mad entities
+            for (const other of awareness.visible) {
+                const otherPsych = getComponent<Psychology>(world, other, PSYCHOLOGY);
+                const otherIdent = getComponent<Identity>(world, other, IDENTITY);
+                if (!otherPsych || !otherIdent?.alive) continue;
+                if (deriveDisposition(otherPsych, true, thresholds) === "mad") {
                     return { action: "flee", from: other };
                 }
             }
 
-            // If not in a group, try to invite someone co-located with positive bond
+            // Approach visible entities with positive bond (seek companionship)
+            if (!group && rels && pos) {
+                for (const other of awareness.visible) {
+                    if (awareness.coLocated.includes(other)) continue; // already here
+                    const bond = rels.bonds.get(other);
+                    if (bond && bond.affinity > 3 && bond.familiarity > 2) {
+                        if (rng.next() < 0.4) {
+                            return { action: "approach", target: other };
+                        }
+                    }
+                }
+            }
+
+            // Invite co-located bonded entities
             if (!group && rels) {
-                for (const other of coLocatedEntities) {
+                for (const other of awareness.coLocated) {
                     const bond = rels.bonds.get(other);
                     if (bond && bond.affinity > 5 && bond.familiarity > 3) {
                         if (rng.next() < 0.2) {
@@ -345,7 +401,6 @@ export function decideAction(
                 }
             }
 
-            // Wander with some probability
             if (rng.next() < 0.3) {
                 return { action: "wander", direction: rng.next() < 0.5 ? -1 : 1 };
             }
@@ -353,36 +408,57 @@ export function decideAction(
         }
 
         case "calm": {
-            // Calm: social, exploratory
-            // Flee from mad
-            for (const other of coLocatedEntities) {
+            // Flee from visible mad (with some courage)
+            for (const other of awareness.visible) {
                 const otherPsych = getComponent<Psychology>(world, other, PSYCHOLOGY);
                 const otherIdent = getComponent<Identity>(world, other, IDENTITY);
                 if (!otherPsych || !otherIdent?.alive) continue;
-                const otherDisp = deriveDisposition(otherPsych, true, thresholds);
-                if (otherDisp === "mad") {
+                if (deriveDisposition(otherPsych, true, thresholds) === "mad") {
                     if (rng.next() < 0.5) {
                         return { action: "flee", from: other };
                     }
                 }
             }
 
-            // If not in a group, try to invite co-located entities
-            if (!group && rels) {
-                for (const other of coLocatedEntities) {
-                    const bond = rels.bonds.get(other);
+            // Approach visible entities (social, curious)
+            if (!group && rels && pos) {
+                for (const other of awareness.visible) {
+                    if (awareness.coLocated.includes(other)) continue;
                     const otherPsych = getComponent<Psychology>(world, other, PSYCHOLOGY);
                     const otherIdent = getComponent<Identity>(world, other, IDENTITY);
                     if (!otherPsych || !otherIdent?.alive) continue;
                     const otherDisp = deriveDisposition(otherPsych, true, thresholds);
                     if (otherDisp === "mad" || otherDisp === "catatonic") continue;
 
+                    const bond = rels.bonds.get(other);
+                    // Approach people you know, or strangers (curiosity)
+                    if (bond && bond.affinity > 3) {
+                        if (rng.next() < 0.5) {
+                            return { action: "approach", target: other };
+                        }
+                    } else if (!bond || bond.familiarity < 1) {
+                        if (rng.next() < 0.2) {
+                            return { action: "approach", target: other };
+                        }
+                    }
+                }
+            }
+
+            // Invite co-located entities
+            if (!group && rels) {
+                for (const other of awareness.coLocated) {
+                    const otherPsych = getComponent<Psychology>(world, other, PSYCHOLOGY);
+                    const otherIdent = getComponent<Identity>(world, other, IDENTITY);
+                    if (!otherPsych || !otherIdent?.alive) continue;
+                    const otherDisp = deriveDisposition(otherPsych, true, thresholds);
+                    if (otherDisp === "mad" || otherDisp === "catatonic") continue;
+
+                    const bond = rels.bonds.get(other);
                     if (bond && bond.affinity > 3) {
                         if (rng.next() < 0.3) {
                             return { action: "invite", target: other };
                         }
                     } else if (!bond || bond.familiarity < 1) {
-                        // Strangers: small chance to invite
                         if (rng.next() < 0.1) {
                             return { action: "invite", target: other };
                         }
@@ -390,7 +466,6 @@ export function decideAction(
                 }
             }
 
-            // Wander
             if (rng.next() < 0.4) {
                 return { action: "wander", direction: rng.next() < 0.5 ? -1 : 1 };
             }
