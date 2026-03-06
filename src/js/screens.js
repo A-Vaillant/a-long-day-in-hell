@@ -240,7 +240,7 @@ Engine.register("Corridor", {
             html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
         }
         if (seg.restArea) {
-            html += '<a data-goto="Kiosk">kiosk</a> <a data-goto="Bedroom">bedroom</a> <a data-goto="Submission Slot">submit</a>';
+            html += '<a data-goto="Kiosk"><kbd>K</kbd> kiosk</a> <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a> <a data-goto="Submission Slot"><kbd>s</kbd> submit</a>';
         }
         html += '</div>';
 
@@ -419,16 +419,16 @@ Engine.register("Kiosk", {
             return '<div id="kiosk-view">' +
                 '<p class="location-header">Kiosk</p>' +
                 '<p>' + esc(T(TEXT.screens.kiosk_dark, "kiosk_dark:" + state.tick)) + '</p>' +
-                '<a data-goto="Corridor">Leave</a>' +
+                '<a data-goto="Corridor"><kbd>q</kbd> Leave</a>' +
                 '</div>';
         }
         return '<div id="kiosk-view">' +
             '<p class="location-header">Kiosk</p>' +
             '<p>' + esc(T(TEXT.screens.kiosk_intro, "kiosk_intro:" + state.tick)) + '</p>' +
-            '<a data-goto="Kiosk Get Drink">Ask for water</a><br>' +
-            '<a data-goto="Kiosk Get Food">Ask for food</a><br>' +
-            '<a data-goto="Kiosk Get Alcohol">Ask for a drink</a><br>' +
-            '<a data-goto="Corridor">Leave</a>' +
+            '<a data-goto="Kiosk Get Drink"><kbd>1</kbd> Ask for water</a><br>' +
+            '<a data-goto="Kiosk Get Food"><kbd>2</kbd> Ask for food</a><br>' +
+            '<a data-goto="Kiosk Get Alcohol"><kbd>3</kbd> Ask for a drink</a><br>' +
+            '<a data-goto="Corridor"><kbd>q</kbd> Leave</a>' +
             '</div>';
     },
 });
@@ -437,7 +437,7 @@ Engine.register("Kiosk Get Drink", {
     enter() { Tick.advance(1); Surv.onDrink(); },
     render() {
         return '<p>' + esc(T(TEXT.screens.kiosk_drink, "kiosk_drink:" + state.tick)) + '</p>' +
-            '<a data-goto="Kiosk">Continue</a>';
+            '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
     },
 });
 
@@ -445,7 +445,7 @@ Engine.register("Kiosk Get Food", {
     enter() { Tick.advance(1); Surv.onEat(); },
     render() {
         return '<p>' + esc(T(TEXT.screens.kiosk_food, "kiosk_food:" + state.tick)) + '</p>' +
-            '<a data-goto="Kiosk">Continue</a>';
+            '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
     },
 });
 
@@ -453,7 +453,7 @@ Engine.register("Kiosk Get Alcohol", {
     enter() { Tick.advance(1); Surv.onAlcohol(); },
     render() {
         return '<p>' + esc(T(TEXT.screens.kiosk_alcohol, "kiosk_alcohol:" + state.tick)) + '</p>' +
-            '<a data-goto="Kiosk">Continue</a>';
+            '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
     },
 });
 
@@ -464,8 +464,8 @@ Engine.register("Bedroom", {
         return '<div id="bedroom-view">' +
             '<p class="location-header">Bedroom</p>' +
             '<p>' + esc(T(TEXT.screens.bedroom_intro, "bedroom_intro:" + state.tick)) + '</p>' +
-            '<a data-goto="Sleep Stub">Sleep</a><br>' +
-            '<a data-goto="Corridor">Leave</a>' +
+            '<a data-goto="Sleep Stub"><kbd>z</kbd> Sleep</a><br>' +
+            '<a data-goto="Corridor"><kbd>q</kbd> Leave</a>' +
             '</div>';
     },
 });
@@ -481,12 +481,12 @@ Engine.register("Submission Slot", {
             '<p>You have submitted ' + attempts + ' book' + (attempts !== 1 ? 's' : '') + ' so far.</p>';
 
         if (state.heldBook !== null) {
-            html += '<a data-goto="Submission Attempt">Submit held book</a><br>';
+            html += '<a data-goto="Submission Attempt"><kbd>s</kbd> Submit held book</a><br>';
         } else {
             html += '<p><em>You are not holding a book.</em></p>';
         }
 
-        html += '<a data-goto="Corridor">Leave</a></div>';
+        html += '<a data-goto="Corridor"><kbd>q</kbd> Leave</a></div>';
         return html;
     },
 });
@@ -510,7 +510,7 @@ Engine.register("Submission Attempt", {
             return "";
         }
         return '<p>' + esc(T(TEXT.screens.submission_fail, "submission_fail:" + state.tick)) + '</p>' +
-            '<a data-goto="Corridor">Continue</a>';
+            '<a data-goto="Corridor"><kbd>⏎</kbd> Continue</a>';
     },
 });
 
@@ -628,7 +628,7 @@ Engine.register("Sleep Stub", {
     enter() { Tick.onSleep(); },
     render() {
         return '<p>' + esc(T(TEXT.screens.sleep, "sleep:" + state.day)) + '</p>' +
-            '<a data-goto="Corridor">Get up</a>';
+            '<a data-goto="Corridor"><kbd>⏎</kbd> Get up</a>';
     },
 });
 

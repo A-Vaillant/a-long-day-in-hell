@@ -83,6 +83,83 @@ document.addEventListener("keydown", function (ev) {
             Engine.goto(screen);
         }
         return;
+    } else if (screen === "Kiosk") {
+        switch (key) {
+            case "1":
+                ev.preventDefault();
+                Engine.goto("Kiosk Get Drink");
+                return;
+            case "2":
+                ev.preventDefault();
+                Engine.goto("Kiosk Get Food");
+                return;
+            case "3":
+                ev.preventDefault();
+                Engine.goto("Kiosk Get Alcohol");
+                return;
+            case "q": case "Escape":
+                ev.preventDefault();
+                Engine.goto("Corridor");
+                return;
+        }
+        return;
+    } else if (screen === "Kiosk Get Drink" || screen === "Kiosk Get Food" || screen === "Kiosk Get Alcohol") {
+        if (key === "Enter" || key === " " || key === "e") {
+            ev.preventDefault();
+            Engine.goto("Kiosk");
+            return;
+        }
+        if (key === "Escape") {
+            ev.preventDefault();
+            state._menuReturn = "Kiosk";
+            Engine.goto("Menu");
+            return;
+        }
+        return;
+    } else if (screen === "Bedroom") {
+        switch (key) {
+            case "z":
+                ev.preventDefault();
+                Engine.goto("Sleep Stub");
+                return;
+            case "q": case "Escape":
+                ev.preventDefault();
+                Engine.goto("Corridor");
+                return;
+        }
+        return;
+    } else if (screen === "Sleep Stub") {
+        if (key === "Enter" || key === " " || key === "e") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
+        if (key === "Escape") {
+            ev.preventDefault();
+            state._menuReturn = "Corridor";
+            Engine.goto("Menu");
+            return;
+        }
+        return;
+    } else if (screen === "Submission Slot") {
+        if (key === "s" && state.heldBook !== null) {
+            ev.preventDefault();
+            Engine.goto("Submission Attempt");
+            return;
+        }
+        if (key === "q" || key === "Escape") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
+        return;
+    } else if (screen === "Submission Attempt") {
+        if (key === "Enter" || key === " " || key === "e") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
+        return;
     } else if (screen === "Chasm Stub") {
         if (key === "y" || key === "Y") {
             ev.preventDefault();
@@ -150,6 +227,24 @@ document.addEventListener("keydown", function (ev) {
                     Engine.goto("Chasm Stub");
                 }
             }
+            break;
+        }
+        case "K": {
+            ev.preventDefault();
+            const kseg = Lib.getSegment(state.side, state.position, state.floor);
+            if (kseg.restArea && state.lightsOn) Engine.goto("Kiosk");
+            break;
+        }
+        case "b": {
+            ev.preventDefault();
+            const bseg = Lib.getSegment(state.side, state.position, state.floor);
+            if (bseg.restArea) Engine.goto("Bedroom");
+            break;
+        }
+        case "s": {
+            ev.preventDefault();
+            const sseg = Lib.getSegment(state.side, state.position, state.floor);
+            if (sseg.restArea && state.lightsOn) Engine.goto("Submission Slot");
             break;
         }
         case "~":
