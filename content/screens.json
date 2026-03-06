@@ -1,34 +1,8 @@
 {
-  "corridor": [
-    "Shelves line both walls, floor to ceiling. Identical spines, identical gilding. The corridor stretches ahead.",
-    "Books in endless rows. The carpet muffles your steps. Another gallery, same as the last.",
-    "Calfskin spines packed tight on every shelf. The corridor continues in both directions without variation."
-  ],
-  "corridor_dim": [
-    "The lights here are dim. Shadows pool between the shelves.",
-    "A faint flicker overhead. This section is darker than most.",
-    "The light barely reaches the lower shelves. Everything feels closer."
-  ],
-  "corridor_rest": "A rest area. Clock on the wall, kiosk humming faintly, a row of seven beds behind a partition. A submission slot set into the stone.",
   "corridor_bridge": "The chasm opens before you. At this level there is a floor — you can walk across to the other side. The railing runs along the edge.",
 
   "kiosk_intro": "The kiosk glows softly. A panel, a slot. It gives anything you ask for — any food, any drink, any specificity. A vanilla shake from a shop you remember. A diet Coke. It appears likewise.",
   "kiosk_dark": "The kiosk is dark. It doesn't work when the lights are out.",
-  "kiosk_drink": [
-    "Water. Cold and clean. The only thing here that feels real.",
-    "You drink. The thirst recedes.",
-    "Cool water. You'd forgotten how bad it had gotten."
-  ],
-  "kiosk_food": [
-    "You eat. It tastes exactly like what you asked for. That's almost worse.",
-    "Food. Warm, specific, perfect. The memory of the meal will outlast the satisfaction.",
-    "You eat. The hunger fades. Everything else remains."
-  ],
-  "kiosk_alcohol": [
-    "It burns going down. The warmth spreads. For a moment, the shelves seem less oppressive.",
-    "You drink until the edges soften. Addiction doesn't stick here — just the temporary mercy of it.",
-    "The alcohol works. It always works. And it never lasts."
-  ],
 
   "bedroom_intro": "Seven beds in a row, thin mattresses on metal frames. A bathroom through the far door. The room is identical to every other bedroom you've seen.",
 
@@ -38,13 +12,6 @@
   "win_release": "The slot accepts the book. It does not come back.",
   "win_through": "Something shifts. The shelves, the corridor, the endless carpet — all of it thins, like a page held up to light.",
   "win_light": "You step through. The library is behind you. Whatever comes next, you are no longer there.",
-
-  "sleep": [
-    "You lie down. The mattress is thin. Sleep takes you anyway.",
-    "You close your eyes. The silence is absolute — not even the whisper of air movement.",
-    "Sleep comes. Dreamless, as always. The strange mercy of unconsciousness in a place with no mercy.",
-    "You sleep. In the dark, there is nothing to distinguish this bed from any other, this night from any other."
-  ],
 
   "chasm_abyss": "You stand at the railing. The two sides of the library converge below you into parallel lines, then a single line, then nothing. The bottom is not visible. The bottom may not exist.",
   "chasm_deep": "You stand at the railing. The floors below dwindle to threads. The far side mirrors yours, shrinking to a seam of light. You cannot see the bottom.",

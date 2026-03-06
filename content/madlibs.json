@@ -1,0 +1,314 @@
+{
+  "corridor": {
+    "templates": [
+      "{shelves}. {floor}. {ahead}.",
+      "{books}. {floor}. {sameness}.",
+      "{shelves}. {ahead}.",
+      "{books}. {silence}. {ahead}.",
+      "{observation}. {sameness}.",
+      "{shelves}. {silence}.",
+      "{observation}. {ahead}.",
+      "{books}. {sameness}."
+    ],
+    "pools": {
+      "shelves": [
+        "Shelves line both walls, floor to ceiling",
+        "Shelves on every surface, packed tight",
+        "The shelves rise above you on both sides",
+        "Rows and rows of identical shelves",
+        "Shelves from floor to ceiling, unbroken",
+        "The walls are shelves, the shelves are walls",
+        "Dark wood shelves, every inch filled",
+        "Shelf after shelf, each one the same height",
+        "The shelves press in from both sides",
+        "Calfskin spines fill every shelf",
+        "Books packed into shelves that reach the ceiling",
+        "The shelves are deep and full"
+      ],
+      "books": [
+        "Identical spines, identical gilding",
+        "Books in endless rows",
+        "Calfskin spines packed tight on every shelf",
+        "Every book the same size, the same binding",
+        "Thousands of books, none distinguishable from the next",
+        "The spines are uniform, gold-edged, unmarked",
+        "Books. More books. The same books",
+        "Gold leaf on calfskin, repeated without end",
+        "Each spine the same muted brown",
+        "The books are indifferent to your attention",
+        "Row after row of gilded spines",
+        "Nothing on the spines. No titles, no authors"
+      ],
+      "floor": [
+        "The carpet muffles your steps",
+        "Your footsteps vanish into the carpet",
+        "The carpet is the same deep red it always is",
+        "Soft carpet underfoot, absorbing everything",
+        "The floor gives slightly with each step",
+        "Red carpet, worn but not threadbare",
+        "The carpet has no stains, no wear marks",
+        "Your feet make no sound on the carpet",
+        "The pile of the carpet is uniform and deep",
+        "Carpet the color of dried blood, immaculate"
+      ],
+      "ahead": [
+        "The corridor stretches ahead",
+        "The corridor continues in both directions without variation",
+        "More of the same in every direction",
+        "Another gallery, same as the last",
+        "The corridor extends beyond sight",
+        "The next section is indistinguishable from this one",
+        "It goes on",
+        "You can see a long way. Nothing changes",
+        "The vanishing point is the same in both directions",
+        "The corridor does not end"
+      ],
+      "silence": [
+        "The silence is total",
+        "No sound but your own breathing",
+        "The stillness presses against your ears",
+        "Quiet. The kind that has weight",
+        "Nothing moves but you",
+        "The air is still and has been still forever",
+        "Even the dust hangs motionless",
+        "The quiet is a physical thing here",
+        "Silence like a held breath",
+        "You could hear a page turn from three galleries away"
+      ],
+      "observation": [
+        "You've been here before. Or somewhere exactly like here",
+        "There is no way to tell this gallery from the last",
+        "If you turned around, you would not know the difference",
+        "The monotony is structural, not incidental",
+        "Nothing distinguishes this stretch from any other",
+        "You check the shelf nearest you. Calfskin. Gold edges. Of course",
+        "Every surface is maintained. By what, you cannot say",
+        "The light comes from everywhere and nowhere",
+        "No markers. No signs. No graffiti that lasts",
+        "This could be any gallery on any floor on any side"
+      ],
+      "sameness": [
+        "The same as the last. The same as the next",
+        "Everything here is the same as everything else",
+        "You have been walking for a long time and nothing has changed",
+        "The repetition is the point",
+        "Variation is not a feature of this place",
+        "If you looked at this gallery a thousand years from now it would be identical",
+        "The library does not change. You do",
+        "Sameness without end",
+        "There is no landmark. There is no need for one",
+        "The uniformity goes beyond architecture"
+      ]
+    }
+  },
+
+  "corridor_dim": {
+    "templates": [
+      "{light}. {effect}.",
+      "{light}. {shadows}.",
+      "{shadows}. {effect}."
+    ],
+    "pools": {
+      "light": [
+        "The lights here are dim",
+        "A faint flicker overhead",
+        "The light barely reaches the lower shelves",
+        "Something wrong with the lights in this section",
+        "The overhead light stutters and holds at half",
+        "Dimmer here. Not dark, but diminished",
+        "The light is thin and reluctant"
+      ],
+      "shadows": [
+        "Shadows pool between the shelves",
+        "The shelf-shadows are deep enough to lose things in",
+        "Darkness gathers in the corners",
+        "The gaps between shelves are black",
+        "Your shadow stretches long and vague",
+        "The lower shelves disappear into murk"
+      ],
+      "effect": [
+        "Everything feels closer",
+        "The spines are harder to make out",
+        "You squint without meaning to",
+        "The corridor feels narrower",
+        "Reading would be difficult here",
+        "The sameness is harder to perceive, which is almost a relief"
+      ]
+    }
+  },
+
+  "corridor_rest": {
+    "templates": [
+      "A rest area. {clock}. {kiosk}. {beds}. {slot}.",
+      "{rest}. {clock}. {beds}. {slot}.",
+      "A rest area. {kiosk}. {beds}. {slot}.",
+      "{rest}. {kiosk}. {clock}. {slot}."
+    ],
+    "pools": {
+      "rest": [
+        "A rest area, same as all the others",
+        "The rest area opens up around you",
+        "A break in the shelves — the rest area",
+        "Rest area. You recognize the layout without looking"
+      ],
+      "clock": [
+        "Clock on the wall",
+        "The clock ticks steadily",
+        "A clock, showing the same time as every other clock",
+        "The clock face is readable from here"
+      ],
+      "kiosk": [
+        "Kiosk humming faintly",
+        "The kiosk glows in its alcove",
+        "A kiosk, lit and waiting",
+        "The soft hum of the kiosk"
+      ],
+      "beds": [
+        "A row of seven beds behind a partition",
+        "Seven beds, thin mattresses, metal frames",
+        "The bedroom partition is open. Seven beds, as always",
+        "Beds visible through the partition"
+      ],
+      "slot": [
+        "A submission slot set into the stone",
+        "The submission slot gleams in the wall",
+        "The brass submission slot, slightly worn",
+        "A slot in the wall. Brass edges"
+      ]
+    }
+  },
+
+  "sleep": {
+    "templates": [
+      "{liedown}. {mattress}. {unconscious}.",
+      "{liedown}. {unconscious}.",
+      "{mattress}. {unconscious}.",
+      "{liedown}. {silence}."
+    ],
+    "pools": {
+      "liedown": [
+        "You lie down",
+        "You close your eyes",
+        "You pick a bed. It doesn't matter which",
+        "You collapse onto the nearest mattress",
+        "You stretch out on the thin bed",
+        "You choose a bed and lie still"
+      ],
+      "mattress": [
+        "The mattress is thin",
+        "The mattress is the same as every other mattress",
+        "The sheets are clean. They are always clean",
+        "The pillow is flat and cool",
+        "Metal frame, thin pad, white sheet",
+        "The bed is not comfortable. It is sufficient"
+      ],
+      "unconscious": [
+        "Sleep takes you anyway",
+        "Sleep comes. Dreamless, as always",
+        "The darkness behind your eyelids is no different from the darkness of the library",
+        "You dream of nothing. You always dream of nothing",
+        "Unconsciousness arrives like a door closing",
+        "You are asleep before you finish the thought",
+        "The strange mercy of unconsciousness in a place with no mercy"
+      ],
+      "silence": [
+        "The silence is absolute — not even the whisper of air movement",
+        "In the dark, there is nothing to distinguish this bed from any other",
+        "The other beds are empty. Or occupied. You can't tell and don't check",
+        "The quiet takes you down"
+      ]
+    }
+  },
+
+  "kiosk_drink": {
+    "templates": [
+      "{water}. {relief}.",
+      "{water}. {aftermath}.",
+      "{relief}."
+    ],
+    "pools": {
+      "water": [
+        "Water. Cold and clean",
+        "You drink. It's water",
+        "Cool water from the slot",
+        "Clear water, no glass, no ceremony",
+        "The water is perfect. It is always perfect"
+      ],
+      "relief": [
+        "The thirst recedes",
+        "You'd forgotten how bad it had gotten",
+        "Your body remembers what it needs even when you forget",
+        "Better. For now",
+        "The relief is immediate and temporary"
+      ],
+      "aftermath": [
+        "The only thing here that feels real",
+        "It tastes like nothing. That's fine",
+        "You drink until you stop wanting to",
+        "The cup disappears when you set it down"
+      ]
+    }
+  },
+
+  "kiosk_food": {
+    "templates": [
+      "{eat}. {taste}. {aftermath}.",
+      "{eat}. {aftermath}.",
+      "{taste}. {aftermath}."
+    ],
+    "pools": {
+      "eat": [
+        "You eat",
+        "Food appears. You eat it",
+        "You eat without tasting",
+        "The food is warm",
+        "You asked for something specific. It arrives exactly right"
+      ],
+      "taste": [
+        "It tastes exactly like what you asked for. That's almost worse",
+        "The taste is precise, mechanical",
+        "Perfect. Uncanny. Like a memory made solid",
+        "It tastes the way food tasted when you were alive",
+        "The specificity is unsettling"
+      ],
+      "aftermath": [
+        "The hunger fades. Everything else remains",
+        "The memory of the meal will outlast the satisfaction",
+        "Full now. It won't last",
+        "You feel better. That's all it does",
+        "Satiation without pleasure"
+      ]
+    }
+  },
+
+  "kiosk_alcohol": {
+    "templates": [
+      "{drink}. {effect}. {fade}.",
+      "{drink}. {fade}.",
+      "{drink}. {effect}."
+    ],
+    "pools": {
+      "drink": [
+        "It burns going down",
+        "You drink",
+        "The alcohol is exact — whatever you imagined, delivered",
+        "Something strong. It doesn't matter what",
+        "You asked for something you used to like"
+      ],
+      "effect": [
+        "The warmth spreads",
+        "The edges soften",
+        "For a moment, the shelves seem less oppressive",
+        "Your shoulders drop. Your jaw unclenches",
+        "The library blurs at the margins"
+      ],
+      "fade": [
+        "It never lasts",
+        "Addiction doesn't stick here — just the temporary mercy of it",
+        "Tomorrow you won't even remember what you ordered",
+        "The clarity will return. It always does",
+        "The warmth is already fading"
+      ]
+    }
+  }
+}
