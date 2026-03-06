@@ -7,7 +7,8 @@ import {
 } from "../lib/tick.core.js";
 import {
     defaultStats, applyMoveTick, applySleep, applyEat, applyDrink, applyAlcohol,
-    applyResurrection, showMortality, getWarnings, STAT_MIN, STAT_MAX,
+    applyResurrection, showMortality, getWarnings, canSleep,
+    STAT_MIN, STAT_MAX, SLEEP_EXHAUSTION_THRESHOLD,
 } from "../lib/survival.core.js";
 
 // --- tick.core ---
@@ -209,13 +210,34 @@ describe("mortality", () => {
 });
 
 describe("applyResurrection", () => {
-    it("restores all stats to defaults", () => {
-        const dead = { ...defaultStats(), hunger: 100, thirst: 100, mortality: 0, dead: true };
+    it("restores physical stats but preserves morale", () => {
+        const dead = { ...defaultStats(), hunger: 100, thirst: 100, morale: 30, despairing: false, mortality: 0, dead: true };
         const s = applyResurrection(dead);
         assert.strictEqual(s.hunger, 0);
         assert.strictEqual(s.thirst, 0);
         assert.strictEqual(s.mortality, 100);
         assert.strictEqual(s.dead, false);
+        assert.strictEqual(s.morale, 30, "morale preserved through death");
+        assert.strictEqual(s.despairing, false);
+    });
+    it("preserves despairing through death", () => {
+        const dead = { ...defaultStats(), morale: 0, despairing: true, mortality: 0, dead: true };
+        const s = applyResurrection(dead);
+        assert.strictEqual(s.morale, 0);
+        assert.strictEqual(s.despairing, true, "despairing carries through resurrection");
+    });
+});
+
+describe("canSleep", () => {
+    it("blocks sleep when not exhausted", () => {
+        assert.strictEqual(canSleep(0), false);
+        assert.strictEqual(canSleep(SLEEP_EXHAUSTION_THRESHOLD - 1), false);
+    });
+    it("allows sleep at threshold", () => {
+        assert.strictEqual(canSleep(SLEEP_EXHAUSTION_THRESHOLD), true);
+    });
+    it("allows sleep above threshold", () => {
+        assert.strictEqual(canSleep(100), true);
     });
 });
 

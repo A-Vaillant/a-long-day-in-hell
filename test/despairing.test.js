@@ -276,19 +276,17 @@ describe("simulation: despairing recovery is sticky", () => {
     beforeEach(resetConfig);
 
     it("despairing player recovers morale slower than healthy player", () => {
-        // Force both to low morale, one despairing one not
+        // A player who eats/drinks but reads nonsense will eventually despair
+        // from ambient drain + nonsense morale hits. Sleep recovery is slower
+        // while despairing (0.3x multiplier), so morale stays suppressed.
         const despairingRun = simulate(
-            { days: 10, behavior: { eats: false, drinks: false, sleeps: true } },
+            { days: 30, behavior: { eats: true, drinks: true, sleeps: true, nonsensePerDay: 20 } },
             survFns, tickFns, bookFns
         );
-        // Find day when despairing kicks in
         const despairStart = despairingRun.dayStats.find(d => d.despairing);
         if (despairStart) {
-            // Morale should recover slowly — after despairing, subsequent days with
-            // sleep should still show low morale due to the recovery multiplier
             const afterDespair = despairingRun.dayStats.filter(d => d.day > despairStart.day && !d.dead);
             for (const d of afterDespair) {
-                // If still despairing, morale should be below exit threshold
                 if (d.despairing) {
                     assert.ok(d.morale < CONFIG.exitThreshold,
                         `day ${d.day}: morale ${d.morale} should be below exit threshold ${CONFIG.exitThreshold}`);
