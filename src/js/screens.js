@@ -140,7 +140,7 @@ function renderCorridorDark(loc, moves) {
     html += '<div id="actions">';
     html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
     if (seg.restArea && state.floor > 0) {
-        html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> jump</a>';
+        html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
     }
     if (seg.restArea) {
         html += '<a data-goto="Bedroom">bedroom</a>';
@@ -237,7 +237,7 @@ Engine.register("Corridor", {
         html += '<div id="actions">';
         html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
         if (seg.restArea && state.floor > 0) {
-            html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> jump</a>';
+            html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
         }
         if (seg.restArea) {
             html += '<a data-goto="Kiosk">kiosk</a> <a data-goto="Bedroom">bedroom</a> <a data-goto="Submission Slot">submit</a>';
@@ -645,9 +645,9 @@ Engine.register("Chasm Stub", {
             html += '<p><em>' + esc(T(TEXT.screens.chasm_jump_confirm, "chasm_confirm:" + state.tick)) + '</em></p>';
         } else {
             html += '<p>' + esc(T(TEXT.screens.chasm_jump_confirm, "chasm_confirm:" + state.tick)) + '</p>';
-            html += '<a id="chasm-jump-yes">Yes</a> | ';
+            html += '<a id="chasm-jump-yes"><kbd>y</kbd> Yes</a> | ';
         }
-        html += '<a data-goto="Corridor">Back</a>';
+        html += '<a data-goto="Corridor"><kbd>n</kbd> Back</a>';
         html += '</div>';
         return html;
     },
@@ -697,6 +697,17 @@ Engine.register("Falling", {
             }
         }
 
+        // Grab failure feedback
+        if (state._grabFailed) {
+            const gf = state._grabFailed;
+            if (gf.mortalityHit > 0) {
+                html += '<p class="grab-fail">Your hand catches the railing and tears free. Pain shoots up your arm.</p>';
+            } else {
+                html += '<p class="grab-fail">You reach out — your fingers brush metal, then nothing.</p>';
+            }
+            state._grabFailed = null;
+        }
+
         // Grab — described as perception, not a number
         if (chance <= 0) {
             html += '<p class="grab-desc">' + esc(T(TEXT.screens.falling_grab_hopeless, "grab_hopeless:" + state.tick)) + '</p>';
@@ -718,12 +729,12 @@ Engine.register("Falling", {
 
         // Actions
         html += '<div id="actions">';
-        html += '<a id="fall-wait">[w] Fall</a>';
+        html += '<a id="fall-wait"><kbd>w</kbd> fall</a>';
         if (chance > 0) {
-            html += ' | <a id="fall-grab">[g] Grab railing</a>';
+            html += ' <a id="fall-grab"><kbd>g</kbd> grab railing</a>';
         }
         if (state.heldBook !== null) {
-            html += ' | <a id="fall-throw">[t] Throw book</a>';
+            html += ' <a id="fall-throw"><kbd>t</kbd> throw book</a>';
         }
         html += '</div>';
 
@@ -765,7 +776,7 @@ Engine.register("Falling", {
                 if (result.success) {
                     Engine.goto("Corridor");
                 } else {
-                    // Continue falling — advance one tick too
+                    state._grabFailed = { mortalityHit: result.mortalityHit };
                     doFallTick();
                 }
             });

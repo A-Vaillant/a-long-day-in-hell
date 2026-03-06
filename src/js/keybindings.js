@@ -4,6 +4,7 @@ import { state } from "./state.js";
 import { Engine } from "./engine.js";
 import { Book } from "./book.js";
 import { Chasm } from "./chasm.js";
+import { Despair } from "./despairing.js";
 import { Lib } from "./library.js";
 import { doMove } from "./screens.js";
 
@@ -142,7 +143,12 @@ document.addEventListener("keydown", function (ev) {
             ev.preventDefault();
             const seg = Lib.getSegment(state.side, state.position, state.floor);
             if (seg.restArea && state.floor > 0) {
-                Engine.goto("Chasm Stub");
+                if (Despair.chasmSkipsConfirm()) {
+                    Chasm.jump(state.side);
+                    Engine.goto("Falling");
+                } else {
+                    Engine.goto("Chasm Stub");
+                }
             }
             break;
         }

@@ -227,6 +227,16 @@ button:disabled {
     font-style: italic;
 }
 
+.grab-fail {
+    color: #a05030;
+    font-style: italic;
+}
+
+.grab-desc {
+    color: var(--text-dim);
+    font-style: italic;
+}
+
 /* === MOVES & ACTIONS === */
 
 #moves, #actions {

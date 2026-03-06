@@ -516,6 +516,73 @@ describe("DOM: chasm and freefall", () => {
         assert.ok(game.state.falling || game.state.floor === 0, "fall advanced");
     });
 
+    it("corridor shows 'chasm' label when not despairing", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 100;
+        game.state.despairing = false;
+        game.Engine.goto("Corridor");
+
+        const actions = game.document.getElementById("actions");
+        assert.ok(actions, "actions div exists");
+        assert.ok(actions.innerHTML.includes("chasm"), "shows 'chasm' label");
+        assert.ok(!actions.innerHTML.includes("jump"), "does not show 'jump'");
+    });
+
+    it("corridor shows 'jump' label when despairing", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 100;
+        game.state.despairing = true;
+        game.Engine.goto("Corridor");
+
+        const actions = game.document.getElementById("actions");
+        assert.ok(actions, "actions div exists");
+        assert.ok(actions.innerHTML.includes("jump"), "shows 'jump' when despairing");
+    });
+
+    it("despairing J key skips confirmation, enters freefall directly", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 500;
+        game.state.morale = 0;
+        game.state.despairing = true;
+
+        game.Engine.goto("Corridor");
+        pressKey(game, "J");
+
+        assert.strictEqual(game.state.screen, "Falling", "went straight to Falling");
+        assert.ok(game.state.falling !== null, "falling state set");
+        // Never visited Chasm Stub
+    });
+
+    it("failed grab shows feedback text on next render", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 100000;
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        // Accelerate to high speed so grab will likely fail
+        for (let i = 0; i < 55; i++) {
+            clickElement(game, "fall-wait");
+        }
+
+        // Try grabs until one fails
+        let gotFeedback = false;
+        for (let attempt = 0; attempt < 20 && !gotFeedback; attempt++) {
+            if (!game.state.falling) break;
+            clickElement(game, "fall-grab");
+            if (game.state.falling && game.state.screen === "Falling") {
+                const text = getPassageText(game);
+                if (text.includes("railing") && (text.includes("tears free") || text.includes("brush metal"))) {
+                    gotFeedback = true;
+                }
+            }
+        }
+        assert.ok(gotFeedback, "grab failure feedback text was shown");
+    });
+
     it("grab button present at terminal velocity (5% chance)", () => {
         const game = bootGame();
         game.state.position = 0;
