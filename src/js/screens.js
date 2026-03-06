@@ -97,6 +97,10 @@ function debugPanelHTML() {
         '</pre></details>';
 }
 
+function locKey(loc) {
+    return loc.side + ":" + loc.position + ":" + loc.floor;
+}
+
 /* ---------- Corridor ---------- */
 
 function renderCorridorDark(loc, moves) {
@@ -105,9 +109,9 @@ function renderCorridorDark(loc, moves) {
     html += '<p class="location-header">' + esc(Tick.getTimeString()) + '</p>';
 
     if (seg.restArea) {
-        html += '<p>' + esc(T(TEXT.screens.darkness_rest_area, "darkness_rest_area:" + state.tick)) + '</p>';
+        html += '<p>' + esc(T(TEXT.screens.darkness_rest_area, "darkness_rest_area:" + locKey(loc))) + '</p>';
     } else {
-        html += '<p>' + esc(T(TEXT.screens.darkness_corridor, "darkness_corridor:" + state.tick)) + '</p>';
+        html += '<p>' + esc(T(TEXT.screens.darkness_corridor, "darkness_corridor:" + locKey(loc))) + '</p>';
     }
 
     const warnings = Surv.warnings();
@@ -161,7 +165,7 @@ Engine.register("Corridor", {
         html += '<p class="location-header">' + esc(Lib.describeLocation(loc)) + '</p>';
 
         if (seg.lightLevel === "dim") {
-            html += '<p class="dim-notice">' + esc(T(TEXT.screens.corridor_dim, "corridor_dim:" + state.tick)) + '</p>';
+            html += '<p class="dim-notice">' + esc(T(TEXT.screens.corridor_dim, "corridor_dim:" + locKey(loc))) + '</p>';
         }
         if (warnings.length > 0) {
             html += '<p class="warnings">';
@@ -174,7 +178,7 @@ Engine.register("Corridor", {
             state._readBlocked = false;
         }
 
-        html += '<p>' + esc(T(TEXT.screens.corridor, "corridor:" + state.tick)) + '</p>';
+        html += '<p>' + esc(T(TEXT.screens.corridor, "corridor:" + locKey(loc))) + '</p>';
 
         if (state.lastEvent) {
             html += '<p class="event-text">' + esc(T(state.lastEvent.text, "event:" + state.lastEvent.id + ":" + state.tick)) + '</p>';
@@ -199,7 +203,7 @@ Engine.register("Corridor", {
         }
 
         if (seg.restArea) {
-            html += '<p class="feature">' + esc(T(TEXT.screens.corridor_rest, "corridor_rest:" + state.tick));
+            html += '<p class="feature">' + esc(T(TEXT.screens.corridor_rest, "corridor_rest:" + locKey(loc)));
             html += (state.floor > 0) ? ' Stairs lead up and down.' : ' Stairs lead up.';
             html += '</p>';
         } else {
@@ -208,7 +212,7 @@ Engine.register("Corridor", {
         }
 
         if (seg.hasBridge) {
-            html += '<p class="feature">' + esc(T(TEXT.screens.corridor_bridge, "corridor_bridge:" + state.tick)) + '</p>';
+            html += '<p class="feature">' + esc(T(TEXT.screens.corridor_bridge, "corridor_bridge:" + locKey(loc))) + '</p>';
         }
 
         html += '<div id="moves"><strong>Move:</strong> ';

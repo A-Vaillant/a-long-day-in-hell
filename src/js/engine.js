@@ -1,6 +1,7 @@
 /* Engine — state store, screen router, sidebar, save/load, event delegation. */
 
 import { PRNG } from "./prng.js";
+import { seedFromString } from "../../lib/prng.core.js";
 import { state } from "./state.js";
 import { Lib } from "./library.js";
 import { Book } from "./book.js";
@@ -19,7 +20,7 @@ export function T(value, contextKey) {
     if (!Array.isArray(value)) return value;
     if (value.length === 0) return "";
     if (value.length === 1) return value[0];
-    const rng = PRNG.fork("text:" + (contextKey || ""));
+    const rng = seedFromString("text:" + (contextKey || ""));
     return value[rng.nextInt(value.length)];
 }
 
