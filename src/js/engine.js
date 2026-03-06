@@ -25,6 +25,26 @@ export function T(value, contextKey) {
     return value[rng.nextInt(value.length)];
 }
 
+/**
+ * Combinatorial text generation — mad-libs style.
+ * Picks a template, then fills {slot} placeholders from pools.
+ * Deterministic: same contextKey always produces the same result.
+ *
+ * @param {object} def - { templates: string[], pools: { [slot]: string[] } }
+ * @param {string} contextKey - seed for deterministic selection
+ * @returns {string}
+ */
+export function Madlib(def, contextKey) {
+    if (!def || !def.templates || !def.templates.length) return "";
+    const rng = seedFromString("madlib:" + (contextKey || ""));
+    const template = def.templates[rng.nextInt(def.templates.length)];
+    return template.replace(/\{(\w+)\}/g, function (_match, slot) {
+        const pool = def.pools && def.pools[slot];
+        if (!pool || !pool.length) return "{" + slot + "}";
+        return pool[rng.nextInt(pool.length)];
+    });
+}
+
 export const Engine = {
     _screens: {},
     _actions: {},

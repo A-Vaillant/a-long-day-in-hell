@@ -1,7 +1,7 @@
 /* Screens — all passage templates as JS render functions. */
 
 import { state } from "./state.js";
-import { Engine, T } from "./engine.js";
+import { Engine, T, Madlib } from "./engine.js";
 import { PRNG } from "./prng.js";
 import { seedFromString } from "../../lib/prng.core.js";
 import { Lib } from "./library.js";
@@ -182,7 +182,7 @@ Engine.register("Corridor", {
             state._lastMove = null;
         }
         if (seg.lightLevel === "dim") {
-            html += '<p class="dim-notice">' + esc(T(TEXT.screens.corridor_dim, "corridor_dim:" + locKey(loc))) + '</p>';
+            html += '<p class="dim-notice">' + esc(Madlib(TEXT.madlibs.corridor_dim, "corridor_dim:" + locKey(loc))) + '</p>';
         }
         if (warnings.length > 0) {
             html += '<p class="warnings">';
@@ -195,7 +195,7 @@ Engine.register("Corridor", {
             state._readBlocked = false;
         }
 
-        html += '<p>' + esc(T(TEXT.screens.corridor, "corridor:" + locKey(loc))) + '</p>';
+        html += '<p>' + esc(Madlib(TEXT.madlibs.corridor, "corridor:" + locKey(loc))) + '</p>';
 
         if (state.lastEvent) {
             html += '<p class="event-text">' + esc(T(state.lastEvent.text, "event:" + state.lastEvent.id + ":" + state.tick)) + '</p>';
@@ -220,7 +220,7 @@ Engine.register("Corridor", {
         }
 
         if (seg.restArea) {
-            html += '<p class="feature">' + esc(T(TEXT.screens.corridor_rest, "corridor_rest:" + locKey(loc)));
+            html += '<p class="feature">' + esc(Madlib(TEXT.madlibs.corridor_rest, "corridor_rest:" + locKey(loc)));
             html += (state.floor > 0) ? ' Stairs lead up and down.' : ' Stairs lead up.';
             html += '</p>';
         } else {
@@ -563,7 +563,7 @@ Engine.register("Kiosk Get Drink", {
     kind: "transition",
     enter() { Tick.advance(1); Surv.onDrink(); },
     render() {
-        return '<p>' + esc(T(TEXT.screens.kiosk_drink, "kiosk_drink:" + state.tick)) + '</p>' +
+        return '<p>' + esc(Madlib(TEXT.madlibs.kiosk_drink, "kiosk_drink:" + state.tick)) + '</p>' +
             '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
     },
 });
@@ -572,7 +572,7 @@ Engine.register("Kiosk Get Food", {
     kind: "transition",
     enter() { Tick.advance(1); Surv.onEat(); },
     render() {
-        return '<p>' + esc(T(TEXT.screens.kiosk_food, "kiosk_food:" + state.tick)) + '</p>' +
+        return '<p>' + esc(Madlib(TEXT.madlibs.kiosk_food, "kiosk_food:" + state.tick)) + '</p>' +
             '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
     },
 });
@@ -581,7 +581,7 @@ Engine.register("Kiosk Get Alcohol", {
     kind: "transition",
     enter() { Tick.advance(1); Surv.onAlcohol(); },
     render() {
-        return '<p>' + esc(T(TEXT.screens.kiosk_alcohol, "kiosk_alcohol:" + state.tick)) + '</p>' +
+        return '<p>' + esc(Madlib(TEXT.madlibs.kiosk_alcohol, "kiosk_alcohol:" + state.tick)) + '</p>' +
             '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
     },
 });
@@ -761,7 +761,7 @@ Engine.register("Sleep", {
     kind: "transition",
     enter() { Tick.onSleep(); },
     render() {
-        return '<p>' + esc(T(TEXT.screens.sleep, "sleep:" + state.day)) + '</p>' +
+        return '<p>' + esc(Madlib(TEXT.madlibs.sleep, "sleep:" + state.day)) + '</p>' +
             '<a data-goto="Corridor"><kbd>⏎</kbd> Get up</a>';
     },
 });
