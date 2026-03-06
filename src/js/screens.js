@@ -10,6 +10,7 @@ import { Surv } from "./survival.js";
 import { Tick } from "./tick.js";
 import { Npc } from "./npc.js";
 import { Despair } from "./despairing.js";
+import { Chasm } from "./chasm.js";
 
 function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -137,7 +138,10 @@ function renderCorridorDark(loc, moves) {
     html += '</div>';
 
     html += '<div id="actions">';
-    html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a> <a data-goto="Chasm Stub"><kbd>J</kbd> jump</a>';
+    html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
+    if (seg.restArea && state.floor > 0) {
+        html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> jump</a>';
+    }
     if (seg.restArea) {
         html += '<a data-goto="Bedroom">bedroom</a>';
     }
@@ -231,7 +235,10 @@ Engine.register("Corridor", {
         html += '</div>';
 
         html += '<div id="actions">';
-        html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a> <a data-goto="Chasm Stub"><kbd>J</kbd> jump</a>';
+        html += '<a data-goto="Wait Stub"><kbd>.</kbd> wait</a> <a data-goto="Sleep Stub"><kbd>z</kbd> sleep</a>';
+        if (seg.restArea && state.floor > 0) {
+            html += ' <a data-goto="Chasm Stub"><kbd>J</kbd> jump</a>';
+        }
         if (seg.restArea) {
             html += '<a data-goto="Kiosk">kiosk</a> <a data-goto="Bedroom">bedroom</a> <a data-goto="Submission Slot">submit</a>';
         }
@@ -627,19 +634,162 @@ Engine.register("Sleep Stub", {
 
 Engine.register("Chasm Stub", {
     render() {
-        return '<p>' + esc(T(TEXT.screens.chasm, "chasm:" + state.tick)) + '</p>' +
-            '<a data-goto="Corridor">Back</a>';
+        let html = '<div id="chasm-view">';
+        const alt = Chasm.getAltitude();
+        const chasmKey = "chasm_" + alt;
+        const chasmText = TEXT.screens[chasmKey] || TEXT.screens.chasm_abyss;
+        html += '<p>' + esc(T(chasmText, chasmKey + ":" + state.tick)) + '</p>';
+        if (state.floor === 0) {
+            html += '<p><em>You are at the bottom. There is nowhere to fall.</em></p>';
+        } else if (Despair.chasmSkipsConfirm()) {
+            html += '<p><em>' + esc(T(TEXT.screens.chasm_jump_confirm, "chasm_confirm:" + state.tick)) + '</em></p>';
+        } else {
+            html += '<p>' + esc(T(TEXT.screens.chasm_jump_confirm, "chasm_confirm:" + state.tick)) + '</p>';
+            html += '<a id="chasm-jump-yes">Yes</a> | ';
+        }
+        html += '<a data-goto="Corridor">Back</a>';
+        html += '</div>';
+        return html;
+    },
+    afterRender() {
+        if (state.floor === 0) return;
+        if (Despair.chasmSkipsConfirm()) {
+            Chasm.jump(state.side);
+            setTimeout(function () { Engine.goto("Falling"); }, 0);
+            return;
+        }
+        const btn = document.getElementById("chasm-jump-yes");
+        if (btn) {
+            btn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                Chasm.jump(state.side);
+                Engine.goto("Falling");
+            });
+        }
+    },
+});
+
+/* ---------- Falling ---------- */
+
+Engine.register("Falling", {
+    enter() {},
+    render() {
+        const f = state.falling;
+        if (!f) {
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
+            return "";
+        }
+
+        const alt = Chasm.getAltitude();
+        const chance = Chasm.getGrabChance();
+        let html = '<div id="falling-view">';
+        html += '<p class="location-header">Falling</p>';
+
+        // Altitude × speed prose (or darkness)
+        if (!state.lightsOn) {
+            html += '<p>' + esc(T(TEXT.screens.falling_dark, "falling_dark:" + state.tick)) + '</p>';
+        } else {
+            const speedKey = f.speed < 10 ? "slow" : "fast";
+            const textKey = "falling_" + alt + "_" + speedKey;
+            const fallText = TEXT.screens[textKey];
+            if (fallText) {
+                html += '<p>' + esc(T(fallText, textKey + ":" + state.tick)) + '</p>';
+            }
+        }
+
+        // Grab — described as perception, not a number
+        if (chance <= 0) {
+            html += '<p class="grab-desc">' + esc(T(TEXT.screens.falling_grab_hopeless, "grab_hopeless:" + state.tick)) + '</p>';
+        } else if (chance < 0.2) {
+            html += '<p class="grab-desc">The railings flash past. Maybe — just barely — you could catch one.</p>';
+        } else if (chance < 0.5) {
+            html += '<p class="grab-desc">The railings are moving fast, but you can track them.</p>';
+        } else {
+            html += '<p class="grab-desc">The railings pass within reach.</p>';
+        }
+
+        // Survival warnings
+        const warnings = Surv.warnings();
+        if (warnings.length > 0) {
+            html += '<p class="warnings">';
+            for (let w = 0; w < warnings.length; w++) html += esc(warnings[w]) + " ";
+            html += '</p>';
+        }
+
+        // Actions
+        html += '<div id="actions">';
+        html += '<a id="fall-wait">[w] Fall</a>';
+        if (chance > 0) {
+            html += ' | <a id="fall-grab">[g] Grab railing</a>';
+        }
+        if (state.heldBook !== null) {
+            html += ' | <a id="fall-throw">[t] Throw book</a>';
+        }
+        html += '</div>';
+
+        html += debugPanelHTML();
+        html += '</div>';
+        return html;
+    },
+    afterRender() {
+        const waitBtn = document.getElementById("fall-wait");
+        const grabBtn = document.getElementById("fall-grab");
+        const throwBtn = document.getElementById("fall-throw");
+
+        function doFallTick() {
+            // Preserve trauma damage — applyMortality resets to 100 when healthy
+            const mortalityBefore = state.mortality;
+            Tick.onMove();
+            state.mortality = Math.min(state.mortality, mortalityBefore);
+
+            if (state.dead) {
+                Engine.goto("Death");
+            } else if (!state.falling) {
+                // Landed (fatal landing goes through state.dead above)
+                Engine.goto("Corridor");
+            } else {
+                Engine.goto("Falling");
+            }
+        }
+
+        if (waitBtn) {
+            waitBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                doFallTick();
+            });
+        }
+        if (grabBtn) {
+            grabBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                const result = Chasm.grab();
+                if (result.success) {
+                    Engine.goto("Corridor");
+                } else {
+                    // Continue falling — advance one tick too
+                    doFallTick();
+                }
+            });
+        }
+        if (throwBtn) {
+            throwBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                Chasm.throwBook();
+                Engine.goto("Falling");
+            });
+        }
     },
 });
 
 /* ---------- Death ---------- */
 
 Engine.register("Death", {
+    _cause: null,
     enter() {
-        Tick.onForcedSleep();
+        this._cause = state.deathCause || "mortality";
+        Tick.advanceToDawn();
     },
     render() {
-        const causeKey = "death_" + (state.deathCause || "mortality");
+        const causeKey = "death_" + this._cause;
         const causeText = TEXT.screens[causeKey] || TEXT.screens.death_mortality;
         return '<div id="death-view">' +
             '<p>' + esc(T(causeText, causeKey + ":" + state.day)) + '</p>' +

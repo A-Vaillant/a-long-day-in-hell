@@ -46,9 +46,15 @@
     "You sleep. In the dark, there is nothing to distinguish this bed from any other, this night from any other."
   ],
 
-  "chasm": "You stand at the railing. The chasm drops away beneath you — deeper than anything you've seen. Not even the Grand Canyon seemed so vast. The other side is visible, identical shelves mirroring yours. Below, nothing. Above, floors rising until they vanish.",
+  "chasm_abyss": "You stand at the railing. The two sides of the library converge below you into parallel lines, then a single line, then nothing. The bottom is not visible. The bottom may not exist.",
+  "chasm_deep": "You stand at the railing. The floors below dwindle to threads. The far side mirrors yours, shrinking to a seam of light. You cannot see the bottom.",
+  "chasm_mid": "You stand at the railing. Hundreds of floors are visible below, each one a thin bright line. Far down, the detail dissolves into haze. The bottom is somewhere beneath that.",
+  "chasm_low": "You stand at the railing. You can see individual floors below — shelves, railings, the carpet edge. The bottom is visible, a long way down. The bridge crosses at the base.",
+  "chasm_near": "You stand at the railing. The bottom is close. You can see the stone floor of the chasm, the bridge, people moving. A fall from here would hurt but you'd walk away.",
 
   "death_mortality": "Your body gives out. Thirst or hunger or both — in the end it doesn't matter which. You fall where you stand. The carpet is the last thing you feel.",
+  "death_gravity": "You hit the bottom of the chasm. The impact is absolute. For a moment you are aware of every bone in your body, and then you are not aware of anything at all.",
+  "death_trauma": "You reach for the railing. At this speed, reaching means colliding. Metal meets bone. The library spins. Then it stops.",
   "resurrection": "That strange hour before dawn. Sleep that can't be helped. All things repaired, made right and new. You wake. Your body is whole. The library is unchanged.",
 
   "dead_npc_at_location": [
@@ -74,6 +80,24 @@
     "What's the point. They're all nonsense. Every one of them.",
     "Your hand won't move. The books are there. You are not."
   ],
+
+  "falling_abyss_slow": "You fall. The two corridors stretch above and below in perfect parallels. Nothing changes. No sense of motion except the air beginning to move.",
+  "falling_abyss_fast": "Wind. The corridors are lines now, converging above and below into vanishing points. No reference. No scale. Just falling between two infinities.",
+  "falling_deep_slow": "Floors pass. You can make out the shape of each level — railing, shelves, railing — but they're small, distant. The bottom is not visible.",
+  "falling_deep_fast": "The floors streak past in bands of light and dark. The wind pulls at your clothes. Above you the levels compress into a bright line. Below, the same.",
+  "falling_mid_slow": "Floors drift past. Individual shelves are visible on each level. The structure of the library is clear from here — shelf, gap, shelf, gap, endlessly.",
+  "falling_mid_fast": "The shelves blur into bands of brown and gold. Wind roars. The floors above compress into a narrowing column of light. Below, the detail starts to resolve.",
+  "falling_low_slow": "The bottom is visible now. Stone floor, the bridge crossing. Floors pass slowly. You can read the spines on shelves as they go by.",
+  "falling_low_fast": "The bottom rushes up. Shelves streak past. The stone floor of the chasm is visible below, growing fast.",
+  "falling_near_slow": "Almost down. The bottom is right there. You can see the texture of the stone, the bridge supports, the railings on the lowest floors.",
+  "falling_near_fast": "The ground. It's coming up fast.",
+  "falling_dark": "Darkness. Falling. No way to know how fast, how far, how long. Just the wind and the absence of everything.",
+  "falling_grab_success": "Your hands close on a railing. The impact wrenches your shoulders. You hold on.",
+  "falling_grab_fail": "You reach for a railing. The impact tears through your arm. Your grip fails. The floor falls away again.",
+  "falling_grab_hopeless": "The railings are a blur. You couldn't grab one if you tried.",
+  "falling_landed": "You hit the bottom. The floor is solid stone. You lie still. Everything hurts, but everything works.",
+  "falling_landed_fatal": "You hit the bottom. The impact is absolute.",
+  "chasm_jump_confirm": "The chasm yawns below. Jump?",
 
   "menu_save_confirm": "Saved.",
   "menu_new_game_confirm": "Are you sure? All progress will be lost."

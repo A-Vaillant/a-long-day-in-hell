@@ -11,6 +11,7 @@ import { Tick } from "./tick.js";
 import { Events } from "./events.js";
 import { Npc } from "./npc.js";
 import { Engine, T } from "./engine.js";
+import { Chasm } from "./chasm.js";
 import { Debug } from "./debug.js";
 import { doMove } from "./screens.js";
 import "./keybindings.js";
@@ -28,6 +29,7 @@ window.Events   = Events;
 window.Npc      = Npc;
 window.Engine   = Engine;
 window.T        = T;
+window.Chasm    = Chasm;
 window.Debug    = Debug;
 window.doMove   = doMove;
 

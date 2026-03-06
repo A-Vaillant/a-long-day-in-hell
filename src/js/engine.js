@@ -120,7 +120,7 @@ export const Engine = {
                 ev.preventDefault();
                 var scr = state.screen;
                 var KIOSK_SUBS = ["Kiosk Get Drink", "Kiosk Get Food", "Kiosk Get Alcohol"];
-                var TRANSIENT = ["Wait Stub", "Sleep Stub", "Submission Attempt"].concat(KIOSK_SUBS);
+                var TRANSIENT = ["Wait Stub", "Sleep Stub", "Submission Attempt", "Chasm Stub", "Falling"].concat(KIOSK_SUBS);
                 if (KIOSK_SUBS.indexOf(scr) !== -1) state._menuReturn = "Kiosk";
                 else if (TRANSIENT.indexOf(scr) !== -1) state._menuReturn = "Corridor";
                 else state._menuReturn = scr;
@@ -132,7 +132,7 @@ export const Engine = {
     save() {
         try {
             var KIOSK_SUBS = ["Kiosk Get Drink", "Kiosk Get Food", "Kiosk Get Alcohol"];
-            var TRANSIENT = ["Wait Stub", "Sleep Stub", "Submission Attempt"].concat(KIOSK_SUBS);
+            var TRANSIENT = ["Wait Stub", "Sleep Stub", "Submission Attempt", "Chasm Stub", "Falling"].concat(KIOSK_SUBS);
             var savedScreen = state.screen;
             if (KIOSK_SUBS.indexOf(state.screen) !== -1) state.screen = "Kiosk";
             else if (TRANSIENT.indexOf(state.screen) !== -1) state.screen = "Corridor";
@@ -176,7 +176,7 @@ export const Engine = {
             state.seed     = seed;
             state.side     = 0;
             state.position = 0;
-            state.floor    = 10;
+            state.floor    = PRNG.fork("startFloor").nextInt(100000) + 50000;
             state.move     = "";
             state.heldBook    = null;
             state.shelfOffset = 0;
