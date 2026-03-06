@@ -158,6 +158,7 @@ function renderCorridorDark(loc, moves) {
 }
 
 Engine.register("Corridor", {
+    kind: "state",
     enter() {
         Book.clearDwell();
     },
@@ -346,6 +347,7 @@ function bookLabel(bk) {
 /* ---------- Shelf Open Book ---------- */
 
 Engine.register("Shelf Open Book", {
+    kind: "state",
     render() {
         if (state.openBook === null || !state.lightsOn) {
             setTimeout(function () { Engine.goto("Corridor"); }, 0);
@@ -496,6 +498,7 @@ Engine.register("Shelf Open Book", {
 /* ---------- Read Held Book (redirect) ---------- */
 
 Engine.register("Read Held Book", {
+    kind: "transition",
     enter() {
         if (state.heldBook && state.lightsOn) {
             state.openBook = {
@@ -520,6 +523,7 @@ Engine.register("Read Held Book", {
 /* ---------- Life Story ---------- */
 
 Engine.register("Life Story", {
+    kind: "state",
     render() {
         return '<div id="lifestory-view">' +
             LifeStory.format(state.lifeStory) +
@@ -534,6 +538,7 @@ Engine.register("Life Story", {
 /* ---------- Kiosk ---------- */
 
 Engine.register("Kiosk", {
+    kind: "state",
     render() {
         if (!state.lightsOn) {
             return '<div id="kiosk-view">' +
@@ -555,6 +560,7 @@ Engine.register("Kiosk", {
 });
 
 Engine.register("Kiosk Get Drink", {
+    kind: "transition",
     enter() { Tick.advance(1); Surv.onDrink(); },
     render() {
         return '<p>' + esc(T(TEXT.screens.kiosk_drink, "kiosk_drink:" + state.tick)) + '</p>' +
@@ -563,6 +569,7 @@ Engine.register("Kiosk Get Drink", {
 });
 
 Engine.register("Kiosk Get Food", {
+    kind: "transition",
     enter() { Tick.advance(1); Surv.onEat(); },
     render() {
         return '<p>' + esc(T(TEXT.screens.kiosk_food, "kiosk_food:" + state.tick)) + '</p>' +
@@ -571,6 +578,7 @@ Engine.register("Kiosk Get Food", {
 });
 
 Engine.register("Kiosk Get Alcohol", {
+    kind: "transition",
     enter() { Tick.advance(1); Surv.onAlcohol(); },
     render() {
         return '<p>' + esc(T(TEXT.screens.kiosk_alcohol, "kiosk_alcohol:" + state.tick)) + '</p>' +
@@ -581,6 +589,7 @@ Engine.register("Kiosk Get Alcohol", {
 /* ---------- Bedroom ---------- */
 
 Engine.register("Bedroom", {
+    kind: "state",
     render() {
         return '<div id="bedroom-view">' +
             '<p class="location-header">Bedroom</p>' +
@@ -594,6 +603,7 @@ Engine.register("Bedroom", {
 /* ---------- Submission Slot ---------- */
 
 Engine.register("Submission Slot", {
+    kind: "state",
     render() {
         const attempts = state.submissionsAttempted || 0;
         let html = '<div id="submission-view">' +
@@ -613,6 +623,7 @@ Engine.register("Submission Slot", {
 });
 
 Engine.register("Submission Attempt", {
+    kind: "transition",
     enter() {
         state.submissionsAttempted = (state.submissionsAttempted || 0) + 1;
         state._submissionWon = false;
@@ -636,6 +647,7 @@ Engine.register("Submission Attempt", {
 /* ---------- Win ---------- */
 
 Engine.register("Win", {
+    kind: "state",
     enter() {
         state.won = true;
         Engine.save();
@@ -675,6 +687,7 @@ Engine.register("Win", {
 /* ---------- Menu ---------- */
 
 Engine.register("Menu", {
+    kind: "state",
     enter() {
         if (!state._menuReturn) state._menuReturn = "Corridor";
         if (state._menuSaved === undefined) state._menuSaved = false;
@@ -736,6 +749,7 @@ Engine.register("Menu", {
 /* ---------- Stubs ---------- */
 
 Engine.register("Wait", {
+    kind: "transition",
     enter() { Tick.onMove(); },
     render() {
         setTimeout(function () { Engine.goto("Corridor"); }, 0);
@@ -744,6 +758,7 @@ Engine.register("Wait", {
 });
 
 Engine.register("Sleep", {
+    kind: "transition",
     enter() { Tick.onSleep(); },
     render() {
         return '<p>' + esc(T(TEXT.screens.sleep, "sleep:" + state.day)) + '</p>' +
@@ -752,6 +767,7 @@ Engine.register("Sleep", {
 });
 
 Engine.register("Chasm", {
+    kind: "transition",
     render() {
         let html = '<div id="chasm-view">';
         const alt = Chasm.getAltitude();
@@ -791,6 +807,7 @@ Engine.register("Chasm", {
 /* ---------- Falling ---------- */
 
 Engine.register("Falling", {
+    kind: "state",
     enter() {},
     render() {
         const f = state.falling;
@@ -913,6 +930,7 @@ Engine.register("Falling", {
 /* ---------- Death ---------- */
 
 Engine.register("Death", {
+    kind: "state",
     _cause: null,
     enter() {
         this._cause = state.deathCause || "mortality";

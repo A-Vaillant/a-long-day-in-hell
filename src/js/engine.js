@@ -1,4 +1,5 @@
-/* Engine — state store, screen router, sidebar, save/load, event delegation. */
+/* Engine — state store, screen router, sidebar, save/load, event delegation,
+   boundary registry, batch tick processing. */
 
 import { PRNG } from "./prng.js";
 import { seedFromString } from "../../lib/prng.core.js";
@@ -10,7 +11,7 @@ import { Surv } from "./survival.js";
 import { Tick } from "./tick.js";
 import { Events } from "./events.js";
 import { Npc } from "./npc.js";
-
+import { createBoundaryRegistry, processTime } from "../../lib/engine.core.js";
 
 export { state };
 
@@ -27,6 +28,11 @@ export function T(value, contextKey) {
 export const Engine = {
     _screens: {},
     _actions: {},
+    _currentScreen: null,
+    _batchMode: false,
+    _pendingGoto: null,
+    _screenBeforeBatch: null,
+    _boundary: createBoundaryRegistry(),
 
     register(name, fn) {
         this._screens[name] = fn;
@@ -35,14 +41,32 @@ export const Engine = {
         this._actions[name] = fn;
     },
 
+    /** Register a boundary event handler (lightsOut, resetHour, dawn). */
+    onBoundary(event, handler) {
+        this._boundary.on(event, handler);
+    },
+
     _inGoto: false,
 
     goto(name) {
+        if (this._batchMode) {
+            this._pendingGoto = name;
+            return;
+        }
+
         const screen = this._screens[name];
         if (!screen) {
             console.error("Unknown screen:", name);
             return;
         }
+
+        // exit() on old screen
+        const oldScreen = this._currentScreen ? this._screens[this._currentScreen] : null;
+        if (oldScreen && oldScreen.exit) {
+            try { oldScreen.exit(); } catch (e) { console.error("exit() error:", e); }
+        }
+
+        this._currentScreen = name;
         state.screen = name;
         if (screen.enter) screen.enter();
         if (state.dead && name !== "Death" && !this._inGoto) {
@@ -56,11 +80,53 @@ export const Engine = {
             el.innerHTML = screen.render();
             if (screen.afterRender) screen.afterRender();
             this.updateSidebar();
-            if (name !== "Menu") this.save();
+            if (screen.kind === "state" && name !== "Menu") this.save();
         } catch (err) {
             console.error("Screen render error:", err);
             el.innerHTML = '<p style="color:#9a2a2a">Render error: ' + err.message + '</p>';
         }
+    },
+
+    /**
+     * Advance time by n ticks, firing boundary handlers.
+     * Updates state.tick, state.day, state.lightsOn.
+     * Returns the TickResult.
+     */
+    advanceTime(n) {
+        this._batchMode = true;
+        this._screenBeforeBatch = this._currentScreen;
+        this._pendingGoto = null;
+
+        let result;
+        try {
+            result = processTime(
+                { tick: state.tick, day: state.day },
+                n,
+                this._boundary,
+            );
+        } finally {
+            this._batchMode = false;
+        }
+
+        state.tick = result.finalTick;
+        state.day = result.finalDay;
+        state.lightsOn = result.finalTick < 160; // LIGHTS_ON_TICKS
+
+        if (this._pendingGoto) {
+            const target = this._pendingGoto;
+            this._pendingGoto = null;
+            // Run exit() on the screen that was active before the batch
+            const oldScreen = this._screenBeforeBatch ? this._screens[this._screenBeforeBatch] : null;
+            if (oldScreen && oldScreen.exit) {
+                try { oldScreen.exit(); } catch (e) { console.error("exit() error:", e); }
+            }
+            this._screenBeforeBatch = null;
+            this.goto(target);
+        } else {
+            this._screenBeforeBatch = null;
+        }
+
+        return result;
     },
 
     updateSidebar() {
@@ -114,11 +180,12 @@ export const Engine = {
             menuBtn.addEventListener("click", function (ev) {
                 ev.preventDefault();
                 var scr = state.screen;
-                var KIOSK_SUBS = ["Kiosk Get Drink", "Kiosk Get Food", "Kiosk Get Alcohol"];
-                var TRANSIENT = ["Wait", "Sleep", "Submission Attempt", "Chasm", "Falling"].concat(KIOSK_SUBS);
-                if (KIOSK_SUBS.indexOf(scr) !== -1) state._menuReturn = "Kiosk";
-                else if (TRANSIENT.indexOf(scr) !== -1) state._menuReturn = "Corridor";
-                else state._menuReturn = scr;
+                var cur = Engine._screens[scr];
+                if (cur && cur.kind === "transition") {
+                    state._menuReturn = "Corridor";
+                } else {
+                    state._menuReturn = scr;
+                }
                 Engine.goto("Menu");
             });
         }
@@ -126,13 +193,9 @@ export const Engine = {
 
     save() {
         try {
-            var KIOSK_SUBS = ["Kiosk Get Drink", "Kiosk Get Food", "Kiosk Get Alcohol"];
-            var TRANSIENT = ["Wait", "Sleep", "Submission Attempt", "Chasm", "Falling"].concat(KIOSK_SUBS);
-            var savedScreen = state.screen;
-            if (KIOSK_SUBS.indexOf(state.screen) !== -1) state.screen = "Kiosk";
-            else if (TRANSIENT.indexOf(state.screen) !== -1) state.screen = "Corridor";
+            var cur = this._screens[state.screen];
+            if (cur && cur.kind === "transition") return; // never save on a transition
             localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-            state.screen = savedScreen;
         } catch (e) { /* ignore quota errors */ }
     },
     load() {
