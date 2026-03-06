@@ -239,6 +239,9 @@ Engine.register("Corridor", {
         html += '<div id="actions">';
         html += '<a data-goto="Wait"><kbd>.</kbd> wait</a>';
         if (Surv.canSleep()) html += ' <a data-goto="Sleep"><kbd>z</kbd> sleep</a>';
+        if (state.heldBook !== null && state.lightsOn) {
+            html += ' <a data-goto="Read Held Book"><kbd>r</kbd> read</a>';
+        }
         if (state.floor > 0) {
             html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
         }
@@ -273,7 +276,12 @@ Engine.register("Corridor", {
             const s = 15 + Math.floor(rng.next() * 20);
             const l = 12 + Math.floor(rng.next() * 14);
             const spine = document.createElement("div");
-            spine.className = "book-spine" + (isHeld ? " held" : "") + (isTarget ? " target-nearby" : "");
+            if (isHeld) {
+                spine.className = "book-spine book-gap";
+                grid.appendChild(spine);
+                continue;
+            }
+            spine.className = "book-spine" + (isTarget ? " target-nearby" : "");
             spine.style.background = "hsl(" + h + "," + s + "%," + l + "%)";
             spine.addEventListener("click", (function (idx) {
                 return function () {
@@ -368,27 +376,37 @@ Engine.register("Shelf Open Book", {
 
         if (pg === 0) {
             el.className = "book-single book-page-cover";
-            el.textContent = "Book " + (bk.bookIndex + 1);
             Book.clearDwell();
         } else if (pg === Book.PAGES_PER_BOOK + 1) {
             el.className = "book-single book-page-cover book-page-back";
             Book.clearDwell();
         } else {
             const pageResult = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
-            // Check if dwell already fired (re-render after morale update)
-            const dwellFired = state._dwellFired &&
+            // Check if dwell fired (current or from persistent history)
+            const dwellKey = bk.side + ":" + bk.position + ":" + bk.floor + ":" + bk.bookIndex + ":" + (pg - 1);
+            const dwellFired = (state._dwellFired &&
                 state._dwellFired.bookIndex === bk.bookIndex &&
-                state._dwellFired.pageIndex === (pg - 1);
+                state._dwellFired.pageIndex === (pg - 1)) ||
+                (state.dwellHistory && state.dwellHistory[dwellKey]);
             if (dwellFired && pageResult.storyId >= 0) {
                 // Render with fragment highlighting
                 const fragments = Book.findFragments(pageResult.storyId, pageResult.text);
                 if (fragments.length > 0) {
                     el.innerHTML = highlightFragments(pageResult.text, fragments);
-                    // Trigger reveal animation
-                    setTimeout(function () {
-                        const marks = el.querySelectorAll(".fragment");
-                        for (let i = 0; i < marks.length; i++) marks[i].classList.add("revealed");
-                    }, 50);
+                    const fromHistory = !(state._dwellFired &&
+                        state._dwellFired.bookIndex === bk.bookIndex &&
+                        state._dwellFired.pageIndex === (pg - 1));
+                    if (fromHistory) {
+                        // Revisited page — show highlights immediately
+                        var marks = el.querySelectorAll(".fragment");
+                        for (var i = 0; i < marks.length; i++) marks[i].classList.add("revealed");
+                    } else {
+                        // Fresh dwell — animate reveal
+                        setTimeout(function () {
+                            var marks = el.querySelectorAll(".fragment");
+                            for (var i = 0; i < marks.length; i++) marks[i].classList.add("revealed");
+                        }, 50);
+                    }
                 } else {
                     el.textContent = pageResult.text;
                 }
@@ -397,6 +415,30 @@ Engine.register("Shelf Open Book", {
                 Book.startDwell(bk, pg - 1, pageResult);
             }
         }
+    },
+});
+
+/* ---------- Read Held Book (redirect) ---------- */
+
+Engine.register("Read Held Book", {
+    enter() {
+        if (state.heldBook && state.lightsOn) {
+            state.openBook = {
+                side: state.heldBook.side,
+                position: state.heldBook.position,
+                floor: state.heldBook.floor,
+                bookIndex: state.heldBook.bookIndex,
+            };
+            state.openPage = 0;
+        }
+    },
+    render() {
+        if (state.openBook) {
+            setTimeout(function () { Engine.goto("Shelf Open Book"); }, 0);
+        } else {
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
+        }
+        return "";
     },
 });
 

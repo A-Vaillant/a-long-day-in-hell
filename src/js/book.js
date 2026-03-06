@@ -41,6 +41,9 @@ function startDwell(bk, pageIndex, pageResult) {
             state.nonsensePagesRead = (state.nonsensePagesRead || 0) + 1;
         }
         state._dwellFired = { bookIndex: bk.bookIndex, pageIndex: pageIndex };
+        if (!state.dwellHistory) state.dwellHistory = {};
+        var hkey = bk.side + ":" + bk.position + ":" + bk.floor + ":" + bk.bookIndex + ":" + pageIndex;
+        state.dwellHistory[hkey] = true;
         if (state.screen === "Shelf Open Book") Engine.goto("Shelf Open Book");
     }, DWELL_MS);
 }

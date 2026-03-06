@@ -70,14 +70,14 @@ describe("DOM: book rendering", () => {
         assert.ok(result.text.length > 50, "has substantial text");
     });
 
-    it("cover page shows book number", () => {
+    it("cover page is blank calfskin (no text)", () => {
         const game = bootGame();
         game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 5 };
         game.state.openPage = 0;
         game.Engine.goto("Shelf Open Book");
 
         const el = game.document.getElementById("book-single");
-        assert.ok(el.textContent.includes("Book 6"), "cover shows book number");
+        assert.strictEqual(el.textContent.trim(), "", "cover has no text");
         assert.ok(el.classList.contains("book-page-cover"), "has cover class");
     });
 
