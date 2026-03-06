@@ -248,8 +248,7 @@ document.addEventListener("keydown", function (ev) {
             break;
         case "J": {
             ev.preventDefault();
-            const seg = Lib.getSegment(state.side, state.position, state.floor);
-            if (seg.restArea && state.floor > 0) {
+            if (state.floor > 0) {
                 if (Despair.chasmSkipsConfirm()) {
                     Chasm.jump(state.side);
                     Engine.goto("Falling");
