@@ -113,7 +113,7 @@ document.addEventListener("keydown", function (ev) {
                 Engine.goto("Menu");
                 return;
         }
-        if (key === "`" || key === "~") {
+        if ((key === "`" || key === "~") && state._debugAllowed) {
             ev.preventDefault();
             state.debug = !state.debug;
             Engine.goto(screen);
@@ -215,7 +215,7 @@ document.addEventListener("keydown", function (ev) {
             Engine.goto("Corridor");
             return;
         }
-        if (key === "`" || key === "~") {
+        if ((key === "`" || key === "~") && state._debugAllowed) {
             ev.preventDefault();
             state.debug = !state.debug;
             Engine.goto(screen);
@@ -289,9 +289,11 @@ document.addEventListener("keydown", function (ev) {
         }
         case "~":
         case "`":
-            ev.preventDefault();
-            state.debug = !state.debug;
-            Engine.goto(screen);
+            if (state._debugAllowed) {
+                ev.preventDefault();
+                state.debug = !state.debug;
+                Engine.goto(screen);
+            }
             break;
     }
 });

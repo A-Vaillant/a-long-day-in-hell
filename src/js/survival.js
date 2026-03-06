@@ -58,6 +58,9 @@ export const Surv = {
         Object.assign(state, applyAlcohol(statsFromState()));
         Despair.checkExit();
     },
+    exhaust(amount) {
+        state.exhaustion = Math.min(100, state.exhaustion + amount);
+    },
     severity(val) { return severity(val); },
     showMortality() { return showMortality(statsFromState()); },
     warnings() { return getWarnings(statsFromState()); },

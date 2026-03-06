@@ -242,10 +242,20 @@ describe("Keybindings: Corridor", () => {
 
     it("backtick toggles debug", () => {
         const game = bootGame();
+        game.state._debugAllowed = true;
         goTo(game, "Corridor");
         const before = game.state.debug;
         pressKey(game, "`");
         assert.strictEqual(game.state.debug, !before);
+    });
+
+    it("backtick does nothing without _debugAllowed", () => {
+        const game = bootGame();
+        game.state._debugAllowed = false;
+        goTo(game, "Corridor");
+        const before = game.state.debug;
+        pressKey(game, "`");
+        assert.strictEqual(game.state.debug, before);
     });
 
     it("Escape opens Menu", () => {
@@ -708,6 +718,7 @@ describe("Keybindings: Death", () => {
 
     it("backtick toggles debug on death screen", () => {
         const game = bootGame();
+        game.state._debugAllowed = true;
         setupDeath(game);
         const before = game.state.debug;
         pressKey(game, "`");
@@ -738,6 +749,7 @@ describe("Keybindings: Falling", () => {
 
     it("backtick toggles debug while falling", () => {
         const game = bootGame();
+        game.state._debugAllowed = true;
         setupFalling(game);
         const before = game.state.debug;
         pressKey(game, "`");

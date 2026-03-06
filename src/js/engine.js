@@ -99,7 +99,9 @@ export const Engine = {
 
         if (state.heldBook !== null) {
             html += '<div class="sb-divider"></div>';
-            html += '<div class="sb-held">book #' + (state.heldBook.bookIndex + 1) + '</div>';
+            var bkKey = state.heldBook.side + ":" + state.heldBook.position + ":" + state.heldBook.floor + ":" + state.heldBook.bookIndex;
+            var bkName = (state.bookNames && state.bookNames[bkKey]) || "a book";
+            html += '<div class="sb-held">' + bkName.replace(/&/g,"&amp;").replace(/</g,"&lt;") + '</div>';
         }
 
         html += '<div class="sb-divider"></div>';
@@ -162,6 +164,8 @@ export const Engine = {
             if (state.won === undefined) state.won = false;
             if (!state.eventDeck) Events.init();
             if (!state.npcs) Npc.init();
+            state._debugAllowed = false;
+            state.debug = false;
         } else {
             const seed = params.get("seed") || String(Math.floor(Math.random() * 0xFFFFFFFF));
             PRNG.seed(seed);
@@ -176,6 +180,7 @@ export const Engine = {
             state.openBook    = null;
             state.openPage    = 0;
             state.debug       = isDebugGoto;
+            state._debugAllowed = isDebugGoto;
             state.deaths      = 0;
             state.deathCause  = null;
 

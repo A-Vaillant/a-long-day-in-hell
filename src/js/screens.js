@@ -58,10 +58,13 @@ export function doMove(dir) {
     const available = Lib.availableMoves(loc);
     if (available.indexOf(dir) === -1) return false;
     const dest = Lib.applyMove(loc, dir);
+    state._lastMove = dir;
     state.side     = dest.side;
     state.position = dest.position;
     state.floor    = dest.floor;
     Tick.onMove();
+    if (dir === "up") Surv.exhaust(1.5);
+    else if (dir === "down") Surv.exhaust(0.75);
     return true;
 }
 
@@ -170,6 +173,13 @@ Engine.register("Corridor", {
         let html = '<div id="corridor-view" class="mode-explore">';
         html += '<p class="location-header">' + (state.side === 0 ? 'The Corridor' : 'The Other Corridor') + '</p>';
 
+        if (state._lastMove === "up") {
+            html += '<p class="stair-notice">You ascend to floor ' + state.floor + '.</p>';
+            state._lastMove = null;
+        } else if (state._lastMove === "down") {
+            html += '<p class="stair-notice">You descend to floor ' + state.floor + '.</p>';
+            state._lastMove = null;
+        }
         if (seg.lightLevel === "dim") {
             html += '<p class="dim-notice">' + esc(T(TEXT.screens.corridor_dim, "corridor_dim:" + locKey(loc))) + '</p>';
         }
@@ -241,7 +251,7 @@ Engine.register("Corridor", {
         if (Surv.canSleep()) html += ' <a data-goto="Sleep"><kbd>z</kbd> sleep</a>';
         if (state.heldBook !== null && state.lightsOn) {
             var heldLabel = getBookName(state.heldBook);
-            html += ' <a data-goto="Read Held Book"><kbd>r</kbd> read' + (heldLabel ? ' ' + esc(heldLabel) : '') + '</a>';
+            html += ' <a data-goto="Read Held Book"><kbd>r</kbd> read' + (heldLabel ? ' \u2018' + esc(heldLabel) + '\u2019' : '') + '</a>';
         }
         if (state.floor > 0) {
             html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
@@ -330,7 +340,7 @@ function setBookName(bk, name) {
 }
 
 function bookLabel(bk) {
-    return getBookName(bk) || ("Book #" + (bk.bookIndex + 1));
+    return getBookName(bk) || "a book";
 }
 
 /* ---------- Shelf Open Book ---------- */

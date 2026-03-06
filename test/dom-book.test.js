@@ -102,9 +102,9 @@ describe("DOM: book rendering", () => {
         game.state.openPage = 1;
         game.Engine.goto("Shelf Open Book");
 
-        // Default header uses Book #N
+        // Default header uses "a book"
         let header = game.document.querySelector(".location-header").textContent;
-        assert.ok(header.includes("Book #6"), "default label is Book #6, got: " + header);
+        assert.ok(header.includes("a book"), "default label is 'a book', got: " + header);
 
         // Set a name
         if (!game.state.bookNames) game.state.bookNames = {};
@@ -113,7 +113,7 @@ describe("DOM: book rendering", () => {
 
         header = game.document.querySelector(".location-header").textContent;
         assert.ok(header.includes("Gibberish Vol. III"), "named label shown, got: " + header);
-        assert.ok(!header.includes("Book #6"), "no longer shows Book #6");
+        assert.ok(!header.includes("a book"), "no longer shows default label");
     });
 
     it("book name shows in corridor read action", () => {
@@ -125,7 +125,7 @@ describe("DOM: book rendering", () => {
         game.Engine.goto("Corridor");
 
         const html = game.document.getElementById("passage").innerHTML;
-        assert.ok(html.includes("read My Book"), "corridor shows named book in read action");
+        assert.ok(html.includes("read \u2018My Book\u2019"), "corridor shows named book in read action with quotes");
     });
 
     it("page navigation works", () => {
