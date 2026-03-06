@@ -1,4 +1,5 @@
-/* Tick wrapper — time advancement, light cycle, dawn/reset events. */
+/* Tick wrapper — time advancement, light cycle, dawn/reset events.
+   Uses Engine's boundary registry for event handlers. */
 
 import {
     TICKS_PER_HOUR, defaultTickState, advanceTick, isLightsOn,
@@ -9,6 +10,7 @@ import { Npc } from "./npc.js";
 import { Events } from "./events.js";
 import { Chasm } from "./chasm.js";
 import { state } from "./state.js";
+import { Engine } from "./engine.js";
 
 export const Tick = {
     init() {
@@ -17,11 +19,37 @@ export const Tick = {
         state.day      = d.day;
         state.lightsOn = true;
     },
+
+    /** Register boundary handlers on the Engine registry. Called once at boot. */
+    registerBoundaryHandlers() {
+        Engine.onBoundary("resetHour", function () {
+            state.openBook = null;
+            state.openPage = 0;
+        });
+        Engine.onBoundary("dawn", function () {
+            if (state.dead) Surv.onResurrection();
+            Npc.onDawn();
+            if (state.nonsensePagesRead) {
+                state.nonsensePagesRead = Math.floor(state.nonsensePagesRead / 2);
+            }
+        });
+    },
+
+    /**
+     * Advance time by n ticks. Updates state, fires boundary handlers
+     * through the registry. Does NOT use batch mode — safe to call
+     * from within goto() / enter() / loops.
+     */
     advance(n) {
         const result = advanceTick({ tick: state.tick, day: state.day }, n);
         state.tick = result.state.tick;
         state.day  = result.state.day;
         state.lightsOn = isLightsOn(state.tick);
+
+        // Fire boundary handlers through the registry
+        for (const event of result.events) {
+            Engine._boundary.fire(event);
+        }
 
         // Freefall advances with time — n ticks of fall per n ticks of time
         if (state.falling) {
@@ -31,17 +59,6 @@ export const Tick = {
             }
         }
 
-        if (result.events.includes("resetHour")) {
-            state.openBook = null;
-            state.openPage = 0;
-        }
-        if (result.events.includes("dawn")) {
-            if (state.dead) Surv.onResurrection();
-            Npc.onDawn();
-            if (state.nonsensePagesRead) {
-                state.nonsensePagesRead = Math.floor(state.nonsensePagesRead / 2);
-            }
-        }
         return result.events;
     },
     onMove() {

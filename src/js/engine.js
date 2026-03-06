@@ -259,6 +259,9 @@ export const Engine = {
             Npc.init();
         }
 
+        // Register boundary handlers (must happen after subsystem init, before first goto)
+        Tick.registerBoundaryHandlers();
+
         if (state.debug) {
             const ob = params.get("openBook");
             if (ob) {

@@ -130,6 +130,7 @@ export function bootGame(seed = "test-seed-42") {
     game.Tick.init();
     game.Events.init();
     game.Npc.init();
+    game.Tick.registerBoundaryHandlers();
 
     // Set up event delegation (mirrors Engine.init)
     game.document.getElementById("passage").addEventListener("click", function (ev) {
