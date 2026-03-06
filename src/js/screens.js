@@ -726,15 +726,16 @@ Engine.register("Falling", {
         const throwBtn = document.getElementById("fall-throw");
 
         function doFallTick() {
-            const result = Chasm.tick();
+            // Preserve trauma damage — applyMortality resets to 100 when healthy
+            const mortalityBefore = state.mortality;
+            Tick.onMove();
+            state.mortality = Math.min(state.mortality, mortalityBefore);
+
             if (state.dead) {
                 Engine.goto("Death");
-            } else if (result.landed) {
-                if (result.fatal) {
-                    Engine.goto("Death");
-                } else {
-                    Engine.goto("Corridor");
-                }
+            } else if (!state.falling) {
+                // Landed (fatal landing goes through state.dead above)
+                Engine.goto("Corridor");
             } else {
                 Engine.goto("Falling");
             }
@@ -771,11 +772,13 @@ Engine.register("Falling", {
 /* ---------- Death ---------- */
 
 Engine.register("Death", {
+    _cause: null,
     enter() {
-        Tick.onForcedSleep();
+        this._cause = state.deathCause || "mortality";
+        Tick.advanceToDawn();
     },
     render() {
-        const causeKey = "death_" + (state.deathCause || "mortality");
+        const causeKey = "death_" + this._cause;
         const causeText = TEXT.screens[causeKey] || TEXT.screens.death_mortality;
         return '<div id="death-view">' +
             '<p>' + esc(T(causeText, causeKey + ":" + state.day)) + '</p>' +

@@ -2,10 +2,10 @@
 
 import {
     fallTick, attemptGrab, defaultFallingState, grabChance, altitudeBand,
+    LANDING_KILL_SPEED,
 } from "../../lib/chasm.core.js";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
-import { Tick } from "./tick.js";
 import { Surv } from "./survival.js";
 
 export const Chasm = {
@@ -13,32 +13,25 @@ export const Chasm = {
         state.falling = defaultFallingState(side);
     },
 
-    tick() {
+    /** Advance one tick of freefall. Called by Tick.advance when state.falling is set. */
+    onTick() {
         const f = state.falling;
+        if (!f) return null;
         const prevFloor = state.floor;
         const result = fallTick(f, state.floor);
 
         state.floor = result.newFloor;
         f.speed = result.newSpeed;
 
-        // Time/survival pass while falling, but preserve trauma damage
-        // (applyMortality resets mortality to 100 when not starving/parched)
-        const mortalityBefore = state.mortality;
-        Tick.onMove();
-        state.mortality = Math.min(state.mortality, mortalityBefore);
-
-        const floorsDescended = prevFloor - state.floor;
-
-        if (result.landed && result.fatal) {
-            state.falling = null;
-            Surv.kill("gravity");
-            return { landed: true, fatal: true, floorsDescended };
-        }
         if (result.landed) {
             state.falling = null;
-            return { landed: true, fatal: false, floorsDescended };
+            if (result.fatal) Surv.kill("gravity");
         }
-        return { landed: false, fatal: false, floorsDescended };
+        return {
+            landed: result.landed,
+            fatal: result.fatal,
+            floorsDescended: prevFloor - state.floor,
+        };
     },
 
     grab() {

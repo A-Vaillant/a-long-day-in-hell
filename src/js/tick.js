@@ -7,6 +7,7 @@ import {
 import { Surv } from "./survival.js";
 import { Npc } from "./npc.js";
 import { Events } from "./events.js";
+import { Chasm } from "./chasm.js";
 import { state } from "./state.js";
 
 export const Tick = {
@@ -21,6 +22,14 @@ export const Tick = {
         state.tick = result.state.tick;
         state.day  = result.state.day;
         state.lightsOn = isLightsOn(state.tick);
+
+        // Freefall advances with time — n ticks of fall per n ticks of time
+        if (state.falling) {
+            for (let i = 0; i < n; i++) {
+                if (!state.falling) break;
+                Chasm.onTick();
+            }
+        }
 
         if (result.events.includes("resetHour")) {
             state.openBook = null;
@@ -58,6 +67,15 @@ export const Tick = {
         while (!state.lightsOn || isResetHour(state.tick)) {
             const events = this.advance(TICKS_PER_HOUR);
             Surv.onSleep();
+            if (events.includes("dawn")) break;
+        }
+    },
+    /** Advance to next dawn — used for death. Time passes, fall continues. */
+    advanceToDawn() {
+        let safety = 0;
+        while (safety < 300) {
+            const events = this.advance(TICKS_PER_HOUR);
+            safety++;
             if (events.includes("dawn")) break;
         }
     },

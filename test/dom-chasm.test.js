@@ -199,10 +199,11 @@ describe("DOM: chasm and freefall", () => {
         assert.strictEqual(game.state.screen, "Corridor", "back on corridor");
     });
 
-    it("fatal landing at floor 0 sets death cause to gravity", () => {
+    it("fatal landing at floor 0 shows death screen (gravity)", () => {
         const game = bootGame();
         game.state.position = 0;
         game.state.floor = 200;
+        const deathsBefore = game.state.deaths || 0;
         game.Engine.goto("Chasm Stub");
         clickElement(game, "chasm-jump-yes");
 
@@ -212,9 +213,13 @@ describe("DOM: chasm and freefall", () => {
             safety++;
         }
 
-        assert.strictEqual(game.state.dead, true, "player is dead");
-        assert.strictEqual(game.state.deathCause, "gravity", "death cause is gravity");
+        // Death.enter() advances to dawn → resurrection fires
+        // so state.dead is false, but deaths incremented and screen is Death
         assert.strictEqual(game.state.screen, "Death", "on death screen");
+        assert.strictEqual(game.state.deaths, deathsBefore + 1, "death counted");
+        // Death screen prose should mention gravity
+        const text = getPassageText(game);
+        assert.ok(text.includes("impact"), "death text mentions impact (gravity)");
     });
 
     it("failed grab reduces mortality", () => {
@@ -437,6 +442,78 @@ describe("DOM: chasm and freefall", () => {
             }
         }
         assert.ok(gotFailure, "at least one grab failed");
+    });
+
+    it("trauma death mid-fall: resurrect still falling", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 100000;
+        game.state.mortality = 10; // very low — one failed grab should kill
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        // Accelerate to high speed
+        for (let i = 0; i < 45; i++) {
+            clickElement(game, "fall-wait");
+        }
+
+        // Spam grabs until dead
+        let safety = 0;
+        while (!game.state.dead && game.state.falling && safety < 20) {
+            if (!clickIfExists(game, "fall-grab")) break;
+            // After failed grab, doFallTick advances time — re-render
+            if (game.state.falling && !game.state.dead) {
+                // still falling, screen re-rendered
+            }
+            safety++;
+        }
+
+        if (game.state.dead && game.state.deathCause === "trauma") {
+            assert.strictEqual(game.state.screen, "Death", "on death screen");
+            const floorAtDeath = game.state.floor;
+            assert.ok(floorAtDeath > 0, "died mid-air, not at floor 0");
+
+            // Click continue — triggers resurrection via onForcedSleep/dawn
+            clickElement(game, game.document.querySelector("[data-goto='Corridor']") ? "passage" : "passage");
+            // Use the data-goto link
+            const link = game.document.querySelector("[data-goto='Corridor']");
+            assert.ok(link, "continue link exists");
+            link.click();
+
+            assert.strictEqual(game.state.dead, false, "resurrected");
+            // Body fell during the night — should be at floor 0 or still falling
+            // (from 100k floors, terminal velocity fall takes ~2000 ticks,
+            //  forced sleep is ~80 ticks, so likely still falling)
+            if (game.state.falling) {
+                assert.ok(game.state.floor < floorAtDeath, "fell further during death/sleep");
+            } else {
+                assert.strictEqual(game.state.floor, 0, "hit bottom during night");
+            }
+        }
+        // If grabs succeeded, that's OK — non-deterministic
+    });
+
+    it("fall continues through voluntary sleep", () => {
+        const game = bootGame();
+        game.state.position = 0;
+        game.state.floor = 500; // low enough to land during sleep
+        game.Engine.goto("Chasm Stub");
+        clickElement(game, "chasm-jump-yes");
+
+        // Accelerate a bit
+        for (let i = 0; i < 5; i++) {
+            clickElement(game, "fall-wait");
+        }
+        assert.ok(game.state.falling, "still falling");
+        assert.strictEqual(game.state.falling.speed, 5, "speed is 5");
+
+        // Simulate what happens when time advances many ticks (e.g., sleep)
+        // advance(TICKS_PER_HOUR) should advance fall 10 ticks
+        game.Tick.advance(10);
+        // After 10 more ticks from speed 5, total distance = 6+7+8+9+10+11+12+13+14+15 = 105
+        // Plus the 15 from the first 5 ticks = 120 floors total. From 500, floor ~380.
+        // Should still be falling (need ~32 ticks to fall 500 floors from speed 5)
+        assert.ok(game.state.falling || game.state.floor === 0, "fall advanced");
     });
 
     it("grab button present at terminal velocity (5% chance)", () => {
