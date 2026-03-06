@@ -22,6 +22,7 @@ import {
     DEFAULT_DECAY, DEFAULT_BOND, DEFAULT_GROUP, DEFAULT_THRESHOLDS,
 } from "../lib/social.core.js";
 import { HABITUATION } from "../lib/psych.core.js";
+import { PERSONALITY, generatePersonality } from "../lib/personality.core.js";
 import {
     decideAction, buildAwareness, invite, dismiss, attack,
 } from "../lib/actions.core.js";
@@ -70,6 +71,7 @@ function createSocialWorld(seed, entityCount) {
     addComponent(world, player, POSITION, { side: 0, position: 0, floor: 0 });
     addComponent(world, player, RELATIONSHIPS, { bonds: new Map() });
     addComponent(world, player, HABITUATION, { exposures: new Map() });
+    addComponent(world, player, PERSONALITY, generatePersonality(seedFromString(seed + ":personality:player")));
     addComponent(world, player, PLAYER, {});
 
     // NPCs
@@ -86,6 +88,7 @@ function createSocialWorld(seed, entityCount) {
         });
         addComponent(world, e, RELATIONSHIPS, { bonds: new Map() });
         addComponent(world, e, HABITUATION, { exposures: new Map() });
+        addComponent(world, e, PERSONALITY, generatePersonality(seedFromString(seed + ":personality:" + NAMES[nameIdx])));
         addComponent(world, e, AI, {});
     }
 

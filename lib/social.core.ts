@@ -19,6 +19,7 @@
 
 import type { Entity, World } from "./ecs.core.js";
 import { getComponent, query, entitiesWith, addComponent } from "./ecs.core.js";
+import { PERSONALITY, type Personality, decayBias, entityCompatibility } from "./personality.core.js";
 
 // --- Component keys ---
 
@@ -167,21 +168,27 @@ export function hasSocialContact(
  * Apply psychological decay to a single entity.
  * Mutates the psychology component in place.
  * Returns the new psychology values (same reference).
+ *
+ * If decayBias is provided ({ lucidityMul, hopeMul }), it skews
+ * which axis decays faster based on personality traits.
  */
 export function decayPsychology(
     psych: Psychology,
     hasSocial: boolean,
     config: DecayConfig = DEFAULT_DECAY,
+    bias?: { lucidityMul: number; hopeMul: number },
 ): Psychology {
     const multiplier = hasSocial ? config.companionDamper : config.isolationMultiplier;
+    const lucMul = bias ? bias.lucidityMul : 1.0;
+    const hopeMul = bias ? bias.hopeMul : 1.0;
 
     psych.lucidity = Math.max(
         config.lucidityFloor,
-        psych.lucidity - config.lucidityBase * multiplier,
+        psych.lucidity - config.lucidityBase * multiplier * lucMul,
     );
     psych.hope = Math.max(
         config.hopeFloor,
-        psych.hope - config.hopeBase * multiplier,
+        psych.hope - config.hopeBase * multiplier * hopeMul,
     );
 
     return psych;
@@ -189,7 +196,8 @@ export function decayPsychology(
 
 /**
  * System: apply psychological decay to all entities with Psychology + Identity.
- * Dead entities are skipped.
+ * Dead entities are skipped. If the entity has a Personality component,
+ * trait-based decay bias is applied.
  */
 export function psychologyDecaySystem(
     world: World,
@@ -202,7 +210,9 @@ export function psychologyDecaySystem(
         if (!identity.alive) continue;
 
         const social = hasSocialContact(world, entity as Entity);
-        decayPsychology(psychology, social, config);
+        const personality = getComponent<Personality>(world, entity as Entity, PERSONALITY);
+        const bias = personality ? decayBias(personality) : undefined;
+        decayPsychology(psychology, social, config, bias);
     }
 }
 
@@ -250,16 +260,34 @@ export function getOrCreateBond(rels: Relationships, target: Entity, currentTick
 /**
  * Accumulate bond from proximity. Called when two entities are co-located.
  * Mutates bond in place.
+ *
+ * If compatibility is provided (0–1), familiarity fatigue applies:
+ * past the fatigue threshold, affinity gain slows and eventually reverses.
  */
 export function accumulateBond(
     bond: Bond,
     currentTick: number,
     config: BondConfig = DEFAULT_BOND,
+    compat?: number,
 ): void {
     bond.familiarity = Math.min(config.maxFamiliarity,
         bond.familiarity + config.familiarityPerTick);
-    bond.affinity = Math.min(config.maxAffinity,
-        bond.affinity + config.affinityPerTick);
+
+    let affinityDelta = config.affinityPerTick;
+
+    // Familiarity fatigue: compatibility determines how long affinity keeps growing
+    if (compat !== undefined) {
+        const threshold = compat * config.maxFamiliarity;
+        if (bond.familiarity > threshold) {
+            const range = config.maxFamiliarity - threshold;
+            const overshoot = range > 0 ? (bond.familiarity - threshold) / range : 1;
+            // Friction scales with overshoot: at max overshoot, net gain can go negative
+            affinityDelta -= 0.03 * overshoot;
+        }
+    }
+
+    bond.affinity = Math.max(config.minAffinity,
+        Math.min(config.maxAffinity, bond.affinity + affinityDelta));
     bond.lastContact = currentTick;
 }
 
@@ -449,7 +477,8 @@ export function relationshipSystem(
         // Accumulate bonds with co-located entities
         for (const other of coLocatedEntities) {
             const bond = getOrCreateBond(relationships, other, currentTick);
-            accumulateBond(bond, currentTick, config);
+            const compat = entityCompatibility(world, entity as Entity, other);
+            accumulateBond(bond, currentTick, config, compat);
         }
 
         // Decay bonds with absent entities

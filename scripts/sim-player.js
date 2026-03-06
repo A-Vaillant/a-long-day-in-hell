@@ -24,6 +24,7 @@ import {
     DEFAULT_AWARENESS,
 } from "../lib/social.core.js";
 import { HABITUATION } from "../lib/psych.core.js";
+import { PERSONALITY, generatePersonality } from "../lib/personality.core.js";
 import {
     decideAction, buildAwareness, invite, dismiss, attack,
 } from "../lib/actions.core.js";
@@ -73,6 +74,7 @@ function createSocialWorld(seed, entityCount) {
     addComponent(world, player, POSITION, { side: 0, position: 0, floor: 0 });
     addComponent(world, player, RELATIONSHIPS, { bonds: new Map() });
     addComponent(world, player, HABITUATION, { exposures: new Map() });
+    addComponent(world, player, PERSONALITY, generatePersonality(seedFromString(seed + ":personality:player")));
     addComponent(world, player, PLAYER, {});
 
     const usedNames = new Set(["You"]);
@@ -86,6 +88,7 @@ function createSocialWorld(seed, entityCount) {
         addComponent(world, e, POSITION, { side: 0, position: posDelta, floor: 0 });
         addComponent(world, e, RELATIONSHIPS, { bonds: new Map() });
         addComponent(world, e, HABITUATION, { exposures: new Map() });
+        addComponent(world, e, PERSONALITY, generatePersonality(seedFromString(seed + ":personality:" + name)));
         addComponent(world, e, AI, {});
     }
     return world;
