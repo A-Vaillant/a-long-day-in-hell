@@ -270,6 +270,11 @@ document.addEventListener("keydown", function (ev) {
             if (bseg.restArea) Engine.goto("Bedroom");
             break;
         }
+        case "r": {
+            ev.preventDefault();
+            if (state.heldBook !== null && state.lightsOn) Engine.goto("Read Held Book");
+            break;
+        }
         case "s": {
             ev.preventDefault();
             const sseg = Lib.getSegment(state.side, state.position, state.floor);
