@@ -18,8 +18,8 @@ export const Npc = {
     onDawn() {
         const moveRng = PRNG.fork("npc:move:" + state.day);
         state.npcs = moveNPCs(state.npcs, moveRng);
-        const detRng = PRNG.fork("npc:det:" + state.day);
-        state.npcs = state.npcs.map(npc => deteriorate(npc, state.day, detRng));
+        // Disposition now derived from ECS psychology (Social.onTick),
+        // old deteriorate() removed — decay is continuous, not daily dice.
     },
     here() {
         if (!state.npcs) return [];

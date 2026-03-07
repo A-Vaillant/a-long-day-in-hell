@@ -1,0 +1,164 @@
+/* Social physics bridge — wires ECS social simulation into the game.
+ *
+ * Owns the ECS World. Creates entities for player + NPCs at init.
+ * Runs per-tick systems (psychology decay, relationships, groups, social pressure).
+ * Writes derived disposition back to state.npcs[] so rendering doesn't change.
+ * Syncs positions from state.npcs → ECS components.
+ */
+
+import {
+    createWorld, spawn, addComponent, getComponent, entitiesWith,
+} from "../../lib/ecs.core.js";
+import {
+    POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, PLAYER, AI,
+    deriveDisposition, psychologyDecaySystem, relationshipSystem,
+    groupFormationSystem, socialPressureSystem,
+} from "../../lib/social.core.js";
+import { HABITUATION } from "../../lib/psych.core.js";
+import { PERSONALITY, generatePersonality } from "../../lib/personality.core.js";
+import { seedFromString } from "../../lib/prng.core.js";
+import { state } from "./state.js";
+
+let world = null;
+let playerEntity = null;
+// Map NPC id → ECS entity
+const npcEntities = new Map();
+
+export const Social = {
+    /** Initialize ECS world, spawn player + NPC entities. Call after Npc.init(). */
+    init() {
+        world = createWorld();
+        npcEntities.clear();
+
+        // Spawn player entity
+        playerEntity = spawn(world);
+        addComponent(world, playerEntity, POSITION, {
+            side: state.side, position: state.position, floor: state.floor,
+        });
+        addComponent(world, playerEntity, IDENTITY, { name: "You", alive: true });
+        addComponent(world, playerEntity, PSYCHOLOGY, { lucidity: 100, hope: 100 });
+        addComponent(world, playerEntity, RELATIONSHIPS, { bonds: new Map() });
+        addComponent(world, playerEntity, HABITUATION, { exposures: new Map() });
+        addComponent(world, playerEntity, PLAYER, {});
+
+        // Generate player personality from seed (use seedFromString, not PRNG.fork,
+        // to avoid shifting the main PRNG sequence)
+        const playerPersRng = seedFromString(state.seed + ":player:personality");
+        addComponent(world, playerEntity, PERSONALITY, generatePersonality(playerPersRng));
+
+        // Spawn NPC entities
+        if (state.npcs) {
+            for (const npc of state.npcs) {
+                const ent = spawn(world);
+                npcEntities.set(npc.id, ent);
+
+                addComponent(world, ent, POSITION, {
+                    side: npc.side, position: npc.position, floor: npc.floor,
+                });
+                addComponent(world, ent, IDENTITY, { name: npc.name, alive: npc.alive });
+                addComponent(world, ent, PSYCHOLOGY, { lucidity: 100, hope: 100 });
+                addComponent(world, ent, RELATIONSHIPS, { bonds: new Map() });
+                addComponent(world, ent, HABITUATION, { exposures: new Map() });
+                addComponent(world, ent, AI, {});
+
+                // NPC personality seeded from their name + game seed
+                const npcPersRng = seedFromString(state.seed + ":npc:pers:" + npc.id);
+                addComponent(world, ent, PERSONALITY, generatePersonality(npcPersRng));
+            }
+        }
+    },
+
+    /** Sync player position from game state into ECS. Call before tick systems. */
+    syncPlayerPosition() {
+        if (!world || playerEntity === null) return;
+        const pos = getComponent(world, playerEntity, POSITION);
+        if (pos) {
+            pos.side = state.side;
+            pos.position = state.position;
+            pos.floor = state.floor;
+        }
+        // Keep player alive status in sync
+        const ident = getComponent(world, playerEntity, IDENTITY);
+        if (ident) ident.alive = !state.dead;
+    },
+
+    /** Sync NPC positions from state.npcs into ECS. Call after NPC movement. */
+    syncNpcPositions() {
+        if (!world || !state.npcs) return;
+        for (const npc of state.npcs) {
+            const ent = npcEntities.get(npc.id);
+            if (ent === undefined) continue;
+            const pos = getComponent(world, ent, POSITION);
+            if (pos) {
+                pos.side = npc.side;
+                pos.position = npc.position;
+                pos.floor = npc.floor;
+            }
+            const ident = getComponent(world, ent, IDENTITY);
+            if (ident) ident.alive = npc.alive;
+        }
+    },
+
+    /**
+     * Run one tick of social simulation. Call from Tick on every game tick.
+     * Updates ECS psychology, bonds, groups, then writes disposition back
+     * to state.npcs[].
+     */
+    onTick() {
+        if (!world || !state.npcs) return;
+
+        this.syncPlayerPosition();
+
+        const currentTick = (state.day - 1) * 240 + state.tick;
+
+        // Core systems — order matters
+        relationshipSystem(world, currentTick);
+        psychologyDecaySystem(world);
+        groupFormationSystem(world);
+        socialPressureSystem(world);
+
+        // Write derived disposition back to state.npcs
+        for (const npc of state.npcs) {
+            const ent = npcEntities.get(npc.id);
+            if (ent === undefined) continue;
+            const psych = getComponent(world, ent, PSYCHOLOGY);
+            const ident = getComponent(world, ent, IDENTITY);
+            if (!psych || !ident) continue;
+
+            npc.disposition = deriveDisposition(psych, ident.alive);
+            // Sync alive status back (social pressure can't kill, but
+            // the old system's catatonic→dead transition still applies)
+            if (!ident.alive) npc.alive = false;
+        }
+    },
+
+    /** Dawn hook — sync positions after NPC movement, resurrect dead NPCs' identity. */
+    onDawn() {
+        this.syncNpcPositions();
+    },
+
+    /** Expose world for debug. */
+    getWorld() { return world; },
+    getPlayerEntity() { return playerEntity; },
+    getNpcEntity(npcId) { return npcEntities.get(npcId); },
+
+    /** Get player psychology (for sidebar/UI). */
+    getPlayerPsych() {
+        if (!world || playerEntity === null) return null;
+        return getComponent(world, playerEntity, PSYCHOLOGY);
+    },
+
+    /** Get player disposition. */
+    getPlayerDisposition() {
+        const psych = this.getPlayerPsych();
+        if (!psych) return "calm";
+        return deriveDisposition(psych, !state.dead);
+    },
+
+    /** Get NPC psychology for debug/UI. */
+    getNpcPsych(npcId) {
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined || !world) return null;
+        return getComponent(world, ent, PSYCHOLOGY);
+    },
+};

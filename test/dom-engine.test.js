@@ -24,16 +24,18 @@ describe("DOM: Engine boundary registry", () => {
         assert.ok(moved, "NPCs moved on dawn");
     });
 
-    it("dawn handler deteriorates NPCs", () => {
+    it("social physics decays NPC psychology over time", () => {
         const game = bootGame();
-        // Force high day count so deterioration is likely
-        game.state.day = 200;
-        const dispsBefore = game.state.npcs.map(n => n.disposition);
-        // Run many dawns
+        // Get initial psychology via Social bridge
+        const npc0 = game.state.npcs[0];
+        const psychBefore = game.Social.getNpcPsych(npc0.id);
+        const lucBefore = psychBefore.lucidity;
+        const hopeBefore = psychBefore.hope;
+        // Run several dawns — each advance fires Social.onTick per tick
         for (let i = 0; i < 10; i++) game.Tick.advanceToDawn();
-        const dispsAfter = game.state.npcs.map(n => n.disposition);
-        const changed = dispsBefore.some((d, i) => d !== dispsAfter[i]);
-        assert.ok(changed, "at least one NPC disposition changed");
+        const psychAfter = game.Social.getNpcPsych(npc0.id);
+        assert.ok(psychAfter.lucidity < lucBefore, "lucidity decayed");
+        assert.ok(psychAfter.hope < hopeBefore, "hope decayed");
     });
 
     it("resetHour handler closes open book", () => {
