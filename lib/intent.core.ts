@@ -20,9 +20,9 @@
  */
 
 import type { Entity, World } from "./ecs.core.ts";
-import { getComponent, query } from "./ecs.core.ts";
+import { getComponent, hasComponent, query } from "./ecs.core.ts";
 import {
-    IDENTITY, PSYCHOLOGY,
+    IDENTITY, PSYCHOLOGY, PLAYER,
     deriveDisposition,
     type Identity, type Psychology,
 } from "./social.core.ts";
@@ -236,6 +236,58 @@ export function evaluateIntent(
     return { behavior: bestBehavior, cooldown };
 }
 
+// --- Available actions query ---
+
+/** A scored behavior option for UI display. */
+export interface ScoredBehavior {
+    behavior: Behavior;
+    score: number;
+}
+
+/**
+ * Score all behaviors for a single entity and return them ranked.
+ *
+ * Used by the UI to show available social actions to the player.
+ * Same scorers as the AI arbiter — when new behaviors are added,
+ * they automatically appear here.
+ *
+ * Returns all behaviors with score > -Infinity, sorted by score descending.
+ */
+export function getAvailableBehaviors(
+    world: World,
+    entity: Entity,
+    rng: Rng,
+    config: IntentConfig = DEFAULT_INTENT,
+    behaviorScorers: Record<string, BehaviorScorer> = scorers,
+): ScoredBehavior[] {
+    const psych = getComponent<Psychology>(world, entity, PSYCHOLOGY);
+    const ident = getComponent<Identity>(world, entity, IDENTITY);
+    const intent = getComponent<Intent>(world, entity, INTENT);
+    if (!psych || !ident || !intent) return [];
+
+    const needs = getComponent<Needs>(world, entity, NEEDS);
+    const personality = getComponent<Personality>(world, entity, PERSONALITY);
+    const disposition = deriveDisposition(psych, ident.alive);
+
+    const ctx: ScorerContext = {
+        psych, alive: ident.alive, disposition,
+        needs: needs ?? null, personality: personality ?? null,
+        intent, rng,
+    };
+
+    const results: ScoredBehavior[] = [];
+    for (const key in behaviorScorers) {
+        const behavior = key as Behavior;
+        const score = behaviorScorers[key](ctx, config);
+        if (score > -Infinity) {
+            results.push({ behavior, score });
+        }
+    }
+
+    results.sort((a, b) => b.score - a.score);
+    return results;
+}
+
 // --- System ---
 
 /**
@@ -256,6 +308,9 @@ export function intentSystem(
         const intent = tuple[1] as Intent;
         const ident = tuple[2] as Identity;
         const psych = tuple[3] as Psychology;
+
+        // Player intent is manual — don't auto-resolve
+        if (hasComponent(world, entity, PLAYER)) continue;
 
         // Tick counters
         intent.elapsed++;

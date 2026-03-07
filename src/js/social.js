@@ -21,7 +21,7 @@ import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
 import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, searchSystem } from "../../lib/search.core.ts";
-import { INTENT, intentSystem } from "../../lib/intent.core.ts";
+import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.js";
@@ -48,6 +48,7 @@ export const Social = {
         addComponent(world, playerEntity, RELATIONSHIPS, { bonds: new Map() });
         addComponent(world, playerEntity, HABITUATION, { exposures: new Map() });
         addComponent(world, playerEntity, PLAYER, {});
+        addComponent(world, playerEntity, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
 
         // Generate player personality from seed (use seedFromString, not PRNG.fork,
         // to avoid shifting the main PRNG sequence)
@@ -468,6 +469,19 @@ export const Social = {
     /** Get the ID of the possessed NPC. */
     getPossessedId() {
         return state._possessedNpcId || null;
+    },
+
+    /**
+     * Get available behaviors for the current entity (player or possessed NPC).
+     * Returns scored behaviors from the intent system, sorted by score.
+     * UI can use this to show social action options.
+     */
+    getAvailableActions() {
+        if (!world) return [];
+        const entity = playerEntity;
+        if (entity === null) return [];
+        const rng = seedFromString(state.seed + ":actions:" + state.tick);
+        return getAvailableBehaviors(world, entity, rng);
     },
 
     /**

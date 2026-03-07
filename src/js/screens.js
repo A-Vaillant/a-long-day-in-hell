@@ -13,6 +13,7 @@ import { Npc } from "./npc.js";
 import { Despair } from "./despairing.js";
 import { Chasm } from "./chasm.js";
 import { Social } from "./social.js";
+import { Actions } from "./actions.js";
 
 function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -21,18 +22,8 @@ function esc(s) {
 /* ---------- helpers ---------- */
 
 export function doMove(dir) {
-    const loc = { side: state.side, position: state.position, floor: state.floor };
-    const available = Lib.availableMoves(loc);
-    if (available.indexOf(dir) === -1) return false;
-    const dest = Lib.applyMove(loc, dir);
-    state._lastMove = dir;
-    state.side     = dest.side;
-    state.position = dest.position;
-    state.floor    = dest.floor;
-    Tick.onMove();
-    if (dir === "up") Surv.exhaust(1.5);
-    else if (dir === "down") Surv.exhaust(0.75);
-    return true;
+    const result = Actions.resolve({ type: "move", dir });
+    return result.resolved;
 }
 
 Engine.action("move-left",  function () { doMove("left"); });
@@ -42,7 +33,7 @@ Engine.action("move-down",  function () { doMove("down"); });
 Engine.action("move-cross", function () { doMove("cross"); });
 Engine.action("page-prev",  function () { state.openPage -= 1; });
 Engine.action("page-next",  function () { state.openPage += 1; });
-Engine.action("drop-book",  function () { state.heldBook = null; });
+Engine.action("drop-book",  function () { Actions.resolve({ type: "drop_book" }); });
 
 function debugPanelHTML() {
     if (!state.debug) return "";
@@ -278,19 +269,8 @@ Engine.register("Corridor", {
             spine.style.background = "hsl(" + h + "," + s + "%," + l + "%)";
             spine.addEventListener("click", (function (idx) {
                 return function () {
-                    if (Despair.isReadingBlocked()) {
-                        state._readBlocked = true;
-                        Engine.goto("Corridor");
-                        return;
-                    }
-                    state.openBook = { side: state.side, position: state.position, floor: state.floor, bookIndex: idx };
-                    if (state.morale >= 80) {
-                        state.openPage = 0;  // cover
-                    } else {
-                        var pageRng = PRNG.fork("pageopen:" + state.tick);
-                        state.openPage = pageRng.nextInt(Book.PAGES_PER_BOOK) + 1;  // random content page
-                    }
-                    Engine.goto("Shelf Open Book");
+                    const result = Actions.resolve({ type: "read_book", bookIndex: idx });
+                    if (result.resolved && result.screen) Engine.goto(result.screen);
                 };
             })(bi));
             grid.appendChild(spine);
@@ -389,7 +369,7 @@ Engine.register("Shelf Open Book", {
         html += '</div>';
 
         Engine.action("take-book", function () {
-            state.heldBook = { side: bk.side, position: bk.position, floor: bk.floor, bookIndex: bk.bookIndex };
+            Actions.resolve({ type: "take_book", bookIndex: bk.bookIndex });
         });
 
         html += '<div id="book-actions">';
@@ -531,7 +511,7 @@ Engine.register("Kiosk", {
 
 Engine.register("Kiosk Get Drink", {
     kind: "transition",
-    enter() { Tick.advance(1); Surv.onDrink(); },
+    enter() { Actions.resolve({ type: "drink" }); },
     render() {
         return '<p>' + esc(Madlib(TEXT.madlibs.kiosk_drink, "kiosk_drink:" + state.tick)) + '</p>' +
             '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
@@ -540,7 +520,7 @@ Engine.register("Kiosk Get Drink", {
 
 Engine.register("Kiosk Get Food", {
     kind: "transition",
-    enter() { Tick.advance(1); Surv.onEat(); },
+    enter() { Actions.resolve({ type: "eat" }); },
     render() {
         return '<p>' + esc(Madlib(TEXT.madlibs.kiosk_food, "kiosk_food:" + state.tick)) + '</p>' +
             '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
@@ -549,7 +529,7 @@ Engine.register("Kiosk Get Food", {
 
 Engine.register("Kiosk Get Alcohol", {
     kind: "transition",
-    enter() { Tick.advance(1); Surv.onAlcohol(); },
+    enter() { Actions.resolve({ type: "alcohol" }); },
     render() {
         return '<p>' + esc(Madlib(TEXT.madlibs.kiosk_alcohol, "kiosk_alcohol:" + state.tick)) + '</p>' +
             '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
@@ -620,14 +600,7 @@ Engine.register("Submission Slot", {
 Engine.register("Submission Attempt", {
     kind: "transition",
     enter() {
-        state.submissionsAttempted = (state.submissionsAttempted || 0) + 1;
-        state._submissionWon = false;
-        const hb = state.heldBook;
-        const tb = state.targetBook;
-        if (hb && hb.side === tb.side && hb.position === tb.position &&
-            hb.floor === tb.floor && hb.bookIndex === tb.bookIndex) {
-            state._submissionWon = true;
-        }
+        Actions.resolve({ type: "submit" });
     },
     render() {
         if (state._submissionWon) {
@@ -745,7 +718,7 @@ Engine.register("Menu", {
 
 Engine.register("Wait", {
     kind: "transition",
-    enter() { Tick.onMove(); },
+    enter() { Actions.resolve({ type: "wait" }); },
     render() {
         setTimeout(function () { Engine.goto("Corridor"); }, 0);
         return "";
@@ -754,7 +727,7 @@ Engine.register("Wait", {
 
 Engine.register("Sleep", {
     kind: "transition",
-    enter() { Tick.onSleep(); },
+    enter() { Actions.resolve({ type: "sleep" }); },
     render() {
         return '<p>' + esc(Madlib(TEXT.madlibs.sleep, "sleep:" + state.day)) + '</p>' +
             '<a data-goto="Corridor"><kbd>⏎</kbd> Get up</a>';
@@ -784,7 +757,7 @@ Engine.register("Chasm", {
     afterRender() {
         if (state.floor === 0) return;
         if (Despair.chasmSkipsConfirm()) {
-            Chasm.jump(state.side);
+            Actions.resolve({ type: "chasm_jump" });
             setTimeout(function () { Engine.goto("Falling"); }, 0);
             return;
         }
@@ -792,7 +765,7 @@ Engine.register("Chasm", {
         if (btn) {
             btn.addEventListener("click", function (ev) {
                 ev.preventDefault();
-                Chasm.jump(state.side);
+                Actions.resolve({ type: "chasm_jump" });
                 Engine.goto("Falling");
             });
         }
@@ -878,44 +851,29 @@ Engine.register("Falling", {
         const grabBtn = document.getElementById("fall-grab");
         const throwBtn = document.getElementById("fall-throw");
 
-        function doFallTick() {
-            // Preserve trauma damage — applyMortality resets to 100 when healthy
-            const mortalityBefore = state.mortality;
-            Tick.onMove();
-            state.mortality = Math.min(state.mortality, mortalityBefore);
-
-            if (state.dead) {
-                Engine.goto("Death");
-            } else if (!state.falling) {
-                // Landed (fatal landing goes through state.dead above)
-                Engine.goto("Corridor");
-            } else {
-                Engine.goto("Falling");
-            }
-        }
-
         if (waitBtn) {
             waitBtn.addEventListener("click", function (ev) {
                 ev.preventDefault();
-                doFallTick();
+                const r = Actions.resolve({ type: "fall_wait" });
+                if (r.screen) Engine.goto(r.screen);
             });
         }
         if (grabBtn) {
             grabBtn.addEventListener("click", function (ev) {
                 ev.preventDefault();
-                const result = Chasm.grab();
-                if (result.success) {
+                const r = Actions.resolve({ type: "grab_railing" });
+                if (r.data && r.data.success) {
                     Engine.goto("Corridor");
                 } else {
-                    state._grabFailed = { mortalityHit: result.mortalityHit };
-                    doFallTick();
+                    const r2 = Actions.resolve({ type: "fall_wait" });
+                    if (r2.screen) Engine.goto(r2.screen);
                 }
             });
         }
         if (throwBtn) {
             throwBtn.addEventListener("click", function (ev) {
                 ev.preventDefault();
-                Chasm.throwBook();
+                Actions.resolve({ type: "throw_book" });
                 Engine.goto("Falling");
             });
         }
