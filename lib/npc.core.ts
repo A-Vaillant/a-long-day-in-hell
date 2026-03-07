@@ -10,7 +10,7 @@ export interface Location {
     floor: number;
 }
 
-export type Disposition = "calm" | "anxious" | "mad" | "catatonic";
+export type Disposition = "calm" | "anxious" | "mad" | "catatonic" | "inspired";
 
 export const DISPOSITIONS: Disposition[] = ["calm", "anxious", "mad", "catatonic"];
 

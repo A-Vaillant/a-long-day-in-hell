@@ -214,7 +214,9 @@ export const Social = {
             const ident = getComponent(world, ent, IDENTITY);
             if (!psych || !ident) continue;
 
-            npc.disposition = deriveDisposition(psych, ident.alive);
+            const knowledge = getComponent(world, ent, KNOWLEDGE);
+            const onPilgrimage = !!(knowledge && knowledge.bookVision && !knowledge.escaped);
+            npc.disposition = deriveDisposition(psych, ident.alive, undefined, onPilgrimage);
             // Sync alive status back
             if (!ident.alive && npc.alive) {
                 const needs = getComponent(world, ent, NEEDS);
@@ -297,6 +299,11 @@ export const Social = {
         const knowledge = getComponent(world, ent, KNOWLEDGE);
         if (!knowledge || knowledge.escaped) return false;
         applyVision(knowledge, accurate);
+        // Divine inspiration: immediate hope boost
+        const psych = getComponent(world, ent, PSYCHOLOGY);
+        if (psych) {
+            psych.hope = Math.min(100, psych.hope + 40);
+        }
         return true;
     },
 
