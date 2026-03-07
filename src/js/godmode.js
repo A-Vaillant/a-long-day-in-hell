@@ -42,6 +42,9 @@ function tickOnce() {
     prevSnap = after;
 }
 
+// Components to skip in auto-discovery (redundant with flat fields or empty tags)
+const SKIP_COMPONENTS = new Set(["identity", "position", "player", "ai"]);
+
 function snapshot() {
     const npcs = [];
     if (!state.npcs) return { npcs, day: state.day, tick: state.tick, lightsOn: state.lightsOn };
@@ -52,39 +55,53 @@ function snapshot() {
         const psych = Social.getNpcPsych(npc.id);
         const ent = Social.getNpcEntity(npc.id);
 
-        let personality = null;
-        let belief = null;
+        // Auto-collect all ECS components for this entity
+        const components = {};
         let bonds = [];
         let groupId = null;
 
         if (world && ent !== undefined) {
-            const persComp = getComponent(world, ent, "personality");
-            if (persComp) {
-                personality = { ...persComp };
-            }
-            const beliefComp = getComponent(world, ent, "belief");
-            if (beliefComp) {
-                belief = { ...beliefComp };
-            }
-            const groupComp = getComponent(world, ent, "group");
-            if (groupComp) groupId = groupComp.groupId;
+            for (const key of world.components.keys()) {
+                if (SKIP_COMPONENTS.has(key)) continue;
+                const comp = getComponent(world, ent, key);
+                if (comp === undefined) continue;
 
-            const relsComp = getComponent(world, ent, "relationships");
-            if (relsComp && relsComp.bonds) {
-                for (const [otherEnt, bond] of relsComp.bonds) {
-                    const otherIdent = getComponent(world, otherEnt, "identity");
-                    if (otherIdent) {
-                        bonds.push({
-                            name: otherIdent.name,
-                            familiarity: bond.familiarity,
-                            affinity: bond.affinity,
-                        });
+                if (key === "relationships") {
+                    // Serialize bonds Map → array with resolved names
+                    if (comp.bonds) {
+                        for (const [otherEnt, bond] of comp.bonds) {
+                            const otherIdent = getComponent(world, otherEnt, "identity");
+                            if (otherIdent) {
+                                bonds.push({
+                                    name: otherIdent.name,
+                                    familiarity: bond.familiarity,
+                                    affinity: bond.affinity,
+                                });
+                            }
+                        }
                     }
+                    components[key] = { bonds };
+                } else if (key === "habituation") {
+                    // Serialize exposures Map → object
+                    const exposures = {};
+                    if (comp.exposures) {
+                        for (const [k, v] of comp.exposures) {
+                            const ident = getComponent(world, k, "identity");
+                            exposures[ident ? ident.name : k] = v;
+                        }
+                    }
+                    components[key] = { exposures };
+                } else {
+                    // Shallow copy plain data components
+                    components[key] = { ...comp };
                 }
             }
+
+            if (components.group) groupId = components.group.groupId;
         }
 
         npcs.push({
+            // Flat fields for backwards compat (detection, map, list view)
             id: npc.id,
             name: npc.name,
             side: npc.side,
@@ -94,10 +111,10 @@ function snapshot() {
             alive: npc.alive,
             lucidity: psych ? psych.lucidity : 100,
             hope: psych ? psych.hope : 100,
-            personality,
-            belief,
             bonds,
             groupId,
+            // All ECS components for auto-populating detail view
+            components,
         });
     }
 
