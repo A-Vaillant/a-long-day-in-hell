@@ -143,7 +143,7 @@ function snapshot() {
 }
 
 function renderLog() {
-    GodmodeLog.renderTo(document.getElementById("gm-log-pane"));
+    GodmodeLog.renderTo(document.getElementById("gm-log-pane"), state.npcs);
 }
 
 function switchTab(tab) {
@@ -703,15 +703,16 @@ export const Godmode = {
 
     /** Called by Engine.init() after shared world setup. Replaces DOM and starts observation loop. */
     start() {
-        GodmodeLog.init();
-        GodmodeTrends.init(function (id) {
+        function onSelect(id) {
             selectedNpcId = id;
             followMode = false;
             const npc = state.npcs && state.npcs.find(n => n.id === id);
             if (npc) GodmodeMap.setSide(npc.side);
             switchTab("npc");
             render(true);
-        });
+        }
+        GodmodeLog.init(onSelect);
+        GodmodeTrends.init(onSelect);
         const canvas = setupDOM();
         GodmodeMap.init(canvas, state);
         GodmodePanel.init({

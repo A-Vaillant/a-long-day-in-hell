@@ -577,6 +577,17 @@ body.godmode {
     letter-spacing: 0.3px;
 }
 
+.gm-log-name {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: #3a3428;
+    text-underline-offset: 2px;
+}
+
+.gm-log-name:hover {
+    text-decoration-color: currentColor;
+}
+
 .gm-log-filters {
     display: flex;
     gap: 3px;

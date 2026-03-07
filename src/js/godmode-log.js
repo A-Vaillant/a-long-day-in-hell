@@ -1,7 +1,13 @@
 /* Godmode event log — ring buffer, filters, and log rendering. */
 
+function esc(s) {
+    if (!s) return "";
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 const MAX_EVENTS = 200;
 let events = [];
+let onSelectNpc = null;  // callback(id) when NPC name clicked
 
 // Filter state: which event types to show. Search off by default.
 const filters = {
@@ -38,8 +44,9 @@ export const LOG_FILTER_LABELS = {
 };
 
 export const GodmodeLog = {
-    init() {
+    init(selectCallback) {
         events = [];
+        onSelectNpc = selectCallback || null;
         filters.death = true;
         filters.resurrection = true;
         filters.disposition = true;
@@ -119,9 +126,17 @@ export const GodmodeLog = {
     /**
      * Render full log pane HTML (filters + entries).
      * Writes directly to the element with id "gm-log-pane".
+     * @param {HTMLElement} el
+     * @param {Array} [npcs] — current NPC list for name→id mapping
      */
-    renderTo(el) {
+    renderTo(el, npcs) {
         if (!el) return;
+        // Build name→id map for clickable names
+        const nameToId = new Map();
+        if (npcs) {
+            for (const n of npcs) nameToId.set(n.name, n.id);
+        }
+
         const recent = this.getFiltered(100);
         let html = this.renderFilters();
         let count = 0;
@@ -131,10 +146,26 @@ export const GodmodeLog = {
             const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
             const mm = String(Math.floor(mins % 60)).padStart(2, "0");
             const tag = LOG_FILTER_LABELS[ev.type] || ev.type;
+            let text = esc(ev.text);
+            // Wrap NPC names in clickable spans
+            if (ev.npcIds && ev.npcIds.length > 0) {
+                for (const id of ev.npcIds) {
+                    // Find name: check nameToId reverse, or scan npcs
+                    let name = null;
+                    for (const [n, nid] of nameToId) {
+                        if (nid === id) { name = n; break; }
+                    }
+                    if (name) {
+                        const escaped = esc(name);
+                        text = text.replace(escaped,
+                            '<span class="gm-log-name" data-npc-id="' + id + '">' + escaped + '</span>');
+                    }
+                }
+            }
             html += '<div class="gm-log-entry" style="color:' + color + '">' +
                 '<span class="gm-log-time">d' + (ev.day - 1) + ' ' + hh + ':' + mm + '</span>' +
                 '<span class="gm-log-tag">[' + tag + ']</span> ' +
-                ev.text + '</div>';
+                text + '</div>';
             count++;
         }
         if (count === 0) {
@@ -153,10 +184,20 @@ export const GodmodeLog = {
         el.addEventListener("mousedown", function (ev) {
             const btn = ev.target.closest("[data-filter]");
             if (!btn) return;
-            ev.preventDefault(); // prevent focus/selection side effects
+            ev.preventDefault();
             const type = btn.getAttribute("data-filter");
             GodmodeLog.toggleFilter(type);
             GodmodeLog.renderTo(el);
+        });
+        // NPC name clicks in log entries
+        el.addEventListener("mousedown", function (ev) {
+            const nameEl = ev.target.closest("[data-npc-id]");
+            if (!nameEl || nameEl.closest("[data-filter]")) return;
+            const id = parseInt(nameEl.getAttribute("data-npc-id"), 10);
+            if (!isNaN(id) && onSelectNpc) {
+                ev.preventDefault();
+                onSelectNpc(id);
+            }
         });
     },
 };
