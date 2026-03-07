@@ -18,6 +18,8 @@ import {
 import { HABITUATION } from "../../lib/psych.core.ts";
 import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts";
 import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
+import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
+import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { state } from "./state.js";
 
@@ -68,6 +70,8 @@ export const Social = {
                 addComponent(world, ent, PSYCHOLOGY, initPsych);
                 addComponent(world, ent, RELATIONSHIPS, { bonds: new Map() });
                 addComponent(world, ent, HABITUATION, { exposures: new Map() });
+                addComponent(world, ent, NEEDS, { hunger: 0, thirst: 0, exhaustion: 0 });
+                addComponent(world, ent, MOVEMENT, { intent: "idle", targetPosition: null, moveAccum: 0 });
                 addComponent(world, ent, AI, {});
 
                 // NPC personality seeded from their name + game seed
@@ -136,6 +140,23 @@ export const Social = {
         groupFormationSystem(world, undefined, prebuilt);
         socialPressureSystem(world, undefined, undefined, undefined, n);
 
+        // Needs + movement (after social systems)
+        needsSystem(world, state.lightsOn, undefined, n);
+        const moveRng = seedFromString(state.seed + ":npc:move:" + currentTick);
+        movementSystem(world, moveRng, undefined, n);
+
+        // Sync ECS positions back to state.npcs (every tick now, not just dawn)
+        for (const npc of state.npcs) {
+            const ent = npcEntities.get(npc.id);
+            if (ent === undefined) continue;
+            const pos = getComponent(world, ent, POSITION);
+            if (pos) {
+                npc.side = pos.side;
+                npc.position = pos.position;
+                npc.floor = pos.floor;
+            }
+        }
+
         // Write derived disposition back to state.npcs
         for (const npc of state.npcs) {
             const ent = npcEntities.get(npc.id);
@@ -151,9 +172,9 @@ export const Social = {
         }
     },
 
-    /** Dawn hook — sync positions after NPC movement, resurrect dead NPCs' identity. */
+    /** Dawn hook — resurrect dead NPCs, reset needs. Position sync is per-tick now. */
     onDawn() {
-        this.syncNpcPositions();
+        if (world) resetNeedsAtDawn(world);
     },
 
     /** Expose world for debug. */
