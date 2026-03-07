@@ -8,7 +8,8 @@
  */
 
 import type { Entity, World } from "./ecs.core.ts";
-import { getComponent } from "./ecs.core.ts";
+import { getComponent, query } from "./ecs.core.ts";
+import { INTENT, type Intent } from "./intent.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP,
     coLocated, getOrCreateBond, accumulateBond, modifyAffinity,
@@ -364,4 +365,46 @@ export function recruit(
     npcBond.affinity = Math.max(npcBond.affinity, groupConfig.affinityThreshold + 1);
 
     return { success: true, joined: true };
+}
+
+// --- NPC socialize system ---
+
+/**
+ * Run NPC-to-NPC socialization. Pairs up co-located entities with
+ * socialize intent and runs talkTo between them (neutral approach).
+ * Each entity socializes with at most one partner per tick.
+ */
+export function socializeSystem(
+    world: World,
+    currentTick: number,
+    config: TalkConfig = DEFAULT_TALK,
+): void {
+    // Gather all socializing entities grouped by position
+    const byPos = new Map<string, Entity[]>();
+    const entities = query(world, [INTENT, POSITION, IDENTITY]);
+    for (const tuple of entities) {
+        const entity = tuple[0] as Entity;
+        const intent = tuple[1] as Intent;
+        const pos = tuple[2] as Position;
+        const ident = tuple[3] as Identity;
+        if (intent.behavior !== "socialize" || !ident.alive) continue;
+        const key = `${pos.side}:${pos.position}:${pos.floor}`;
+        if (!byPos.has(key)) byPos.set(key, []);
+        byPos.get(key)!.push(entity);
+    }
+
+    // Pair up and talk
+    const talked = new Set<Entity>();
+    for (const group of byPos.values()) {
+        for (let i = 0; i < group.length; i++) {
+            if (talked.has(group[i])) continue;
+            for (let j = i + 1; j < group.length; j++) {
+                if (talked.has(group[j])) continue;
+                talkTo(world, group[i], group[j], "neutral", currentTick, config);
+                talked.add(group[i]);
+                talked.add(group[j]);
+                break;
+            }
+        }
+    }
 }

@@ -26,7 +26,7 @@ import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.co
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
 import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment } from "../../lib/knowledge.core.ts";
 import {
-    talkTo, spendTime as spendTimeCore, recruit as recruitCore,
+    talkTo, spendTime as spendTimeCore, recruit as recruitCore, socializeSystem,
 } from "../../lib/interaction.core.ts";
 import { isRestArea } from "../../lib/library.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
@@ -231,6 +231,9 @@ export const Social = {
         const fastScorer = (side, position, floor, bookIndex, pageIndex) =>
             scoreFromSeed(state.seed, side, position, floor, bookIndex, pageIndex);
         searchSystem(world, searchRng, pageSampler, undefined, fastScorer);
+
+        // NPC-to-NPC socialization (share knowledge, build bonds)
+        socializeSystem(world, currentTick);
 
         // Sync ECS positions back to state.npcs (every tick now, not just dawn)
         for (const npc of state.npcs) {
