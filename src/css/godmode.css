@@ -507,7 +507,9 @@ body.godmode {
 .gm-tip {
     position: relative;
     cursor: help;
-    border-bottom: 1px dotted #4a4030;
+    text-decoration: underline dotted #4a4030;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
 }
 
 .gm-tip:hover::after {
@@ -526,7 +528,7 @@ body.godmode {
     line-height: 1.4;
     white-space: normal;
     width: max-content;
-    max-width: 240px;
+    max-width: min(240px, calc(100vw - 40px));
     pointer-events: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
