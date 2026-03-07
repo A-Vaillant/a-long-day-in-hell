@@ -47,6 +47,18 @@ const DISP_COLORS = {
     dead:      "#2a2a2a",
 };
 
+// Muted distinct colors for group enclosures (hex without alpha — alpha appended in draw)
+const GROUP_COLORS = [
+    "#b8a878", // gold
+    "#7a9a6a", // sage
+    "#6a7a9a", // slate blue
+    "#9a6a7a", // dusty rose
+    "#8a8a6a", // olive
+    "#6a8a8a", // teal
+    "#9a7a5a", // bronze
+    "#7a6a9a", // muted purple
+];
+
 export const GodmodeMap = {
     init(canvasEl, state) {
         canvas = canvasEl;
@@ -206,7 +218,10 @@ export const GodmodeMap = {
             }
         }
 
-        // Draw NPCs
+        // Collect NPC screen positions and group memberships
+        const npcScreenPos = []; // { npc, cx, cy, r }
+        const groups = new Map(); // groupId → [{ cx, cy }]
+
         for (const npc of snap.npcs) {
             const col = npc.position - Math.floor(vpX);
             const row = vpRows - 1 - (npc.floor - Math.floor(vpY));
@@ -218,6 +233,52 @@ export const GodmodeMap = {
             const cy = row * CELL_H + CELL_H / 2;
             const r = Math.max(2, Math.round(3 * zoom));
 
+            npcScreenPos.push({ npc, cx, cy, r });
+
+            if (npc.groupId !== null && npc.groupId !== undefined) {
+                let list = groups.get(npc.groupId);
+                if (!list) { list = []; groups.set(npc.groupId, list); }
+                list.push({ cx, cy });
+            }
+        }
+
+        // Draw group enclosures (behind NPCs)
+        for (const [groupId, members] of groups) {
+            if (members.length < 2) continue;
+            const color = GROUP_COLORS[groupId % GROUP_COLORS.length];
+            const pad = Math.max(6, Math.round(8 * zoom));
+
+            // Bounding box of members
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const m of members) {
+                if (m.cx < minX) minX = m.cx;
+                if (m.cy < minY) minY = m.cy;
+                if (m.cx > maxX) maxX = m.cx;
+                if (m.cy > maxY) maxY = m.cy;
+            }
+
+            const rx = minX - pad;
+            const ry = minY - pad;
+            const rw = maxX - minX + pad * 2;
+            const rh = maxY - minY + pad * 2;
+            const corner = Math.min(pad, 6);
+
+            // Filled enclosure
+            ctx.fillStyle = color + "15"; // ~8% opacity
+            ctx.beginPath();
+            ctx.roundRect(rx, ry, rw, rh, corner);
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = color + "40"; // ~25% opacity
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(rx, ry, rw, rh, corner);
+            ctx.stroke();
+        }
+
+        // Draw NPCs
+        for (const { npc, cx, cy, r } of npcScreenPos) {
             // Dot
             ctx.fillStyle = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
             ctx.beginPath();
@@ -230,15 +291,6 @@ export const GodmodeMap = {
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.arc(cx, cy, r + 2, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-
-            // Group indicator — subtle glow for grouped NPCs
-            if (npc.groupId !== null && npc.groupId !== undefined) {
-                ctx.strokeStyle = "rgba(184, 168, 120, 0.3)";
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
                 ctx.stroke();
             }
 
