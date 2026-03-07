@@ -5,7 +5,7 @@ import {
     SLEEP, DEFAULT_SLEEP,
 } from "../lib/sleep.core.ts";
 import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
-import { POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS } from "../lib/social.core.ts";
+import { POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP } from "../lib/social.core.ts";
 import { HABITUATION } from "../lib/psych.core.ts";
 
 function spawnSleeper(world, overrides = {}) {
@@ -342,5 +342,157 @@ describe("sleepWakeSystem", () => {
         sleepWakeSystem(world, 100);
         const psych = getComponent(world, ent, PSYCHOLOGY);
         assert.ok(psych.hope >= 0, "hope should not go below 0");
+    });
+});
+
+// --- Group home alignment ---
+
+describe("sleepWakeSystem group home alignment", () => {
+    it("grouped NPC adopts rest area as home when sleeping with groupmate", () => {
+        const world = createWorld();
+        const a = spawnSleeper(world, {
+            position: { position: 20 },
+            identity: { name: "A" },
+            sleep: {
+                home: { side: 0, position: 10, floor: 0 }, // home is elsewhere
+                bedIndex: null, asleep: false, coSleepers: [],
+                awayStreak: 0, nomadic: false,
+            },
+        });
+        const b = spawnSleeper(world, {
+            position: { position: 20 },
+            identity: { name: "B" },
+            sleep: {
+                home: { side: 0, position: 20, floor: 0 },
+                bedIndex: null, asleep: false, coSleepers: [],
+                awayStreak: 0, nomadic: false,
+            },
+        });
+
+        // Put both in same group
+        addComponent(world, a, GROUP, { groupId: 42, separatedTicks: 0 });
+        addComponent(world, b, GROUP, { groupId: 42, separatedTicks: 0 });
+
+        // Set up sleeping together
+        const sleepA = getComponent(world, a, SLEEP);
+        sleepA.asleep = true;
+        sleepA.bedIndex = 0;
+        sleepA.coSleepers = [b];
+        const sleepB = getComponent(world, b, SLEEP);
+        sleepB.asleep = true;
+        sleepB.bedIndex = 1;
+        sleepB.coSleepers = [a];
+
+        sleepWakeSystem(world, 100);
+
+        // A's home should shift to position 20 (where they slept with groupmate B)
+        assert.strictEqual(sleepA.home.position, 20,
+            "grouped NPC should adopt rest area as home when sleeping with groupmate");
+        assert.strictEqual(sleepA.awayStreak, 0, "away streak should reset");
+    });
+
+    it("ungrouped NPC does not get instant home shift from co-sleeping", () => {
+        const world = createWorld();
+        const a = spawnSleeper(world, {
+            position: { position: 20 },
+            identity: { name: "A" },
+            sleep: {
+                home: { side: 0, position: 10, floor: 0 },
+                bedIndex: null, asleep: false, coSleepers: [],
+                awayStreak: 0, nomadic: false,
+            },
+        });
+        const b = spawnSleeper(world, {
+            position: { position: 20 },
+            identity: { name: "B" },
+        });
+
+        // No group component — just co-sleeping strangers
+        const sleepA = getComponent(world, a, SLEEP);
+        sleepA.asleep = true;
+        sleepA.bedIndex = 0;
+        sleepA.coSleepers = [b];
+        const sleepB = getComponent(world, b, SLEEP);
+        sleepB.asleep = true;
+        sleepB.bedIndex = 1;
+        sleepB.coSleepers = [a];
+
+        sleepWakeSystem(world, 100);
+
+        // A's home should NOT shift (no group, only 1 away night)
+        assert.strictEqual(sleepA.home.position, 10,
+            "ungrouped NPC should not get instant home shift");
+        assert.strictEqual(sleepA.awayStreak, 1, "away streak should increment");
+    });
+
+    it("grouped NPC sleeping with non-groupmate does not shift home", () => {
+        const world = createWorld();
+        const a = spawnSleeper(world, {
+            position: { position: 20 },
+            identity: { name: "A" },
+            sleep: {
+                home: { side: 0, position: 10, floor: 0 },
+                bedIndex: null, asleep: false, coSleepers: [],
+                awayStreak: 0, nomadic: false,
+            },
+        });
+        const b = spawnSleeper(world, {
+            position: { position: 20 },
+            identity: { name: "B" },
+        });
+
+        // A is in group 42, B is in group 99 (different group)
+        addComponent(world, a, GROUP, { groupId: 42, separatedTicks: 0 });
+        addComponent(world, b, GROUP, { groupId: 99, separatedTicks: 0 });
+
+        const sleepA = getComponent(world, a, SLEEP);
+        sleepA.asleep = true;
+        sleepA.bedIndex = 0;
+        sleepA.coSleepers = [b];
+        const sleepB = getComponent(world, b, SLEEP);
+        sleepB.asleep = true;
+        sleepB.bedIndex = 1;
+        sleepB.coSleepers = [a];
+
+        sleepWakeSystem(world, 100);
+
+        // A's home should NOT shift — B is in a different group
+        assert.strictEqual(sleepA.home.position, 10,
+            "sleeping with non-groupmate should not shift home");
+    });
+
+    it("nomadic grouped NPC does not shift home", () => {
+        const world = createWorld();
+        const a = spawnSleeper(world, {
+            position: { position: 20 },
+            identity: { name: "A" },
+            sleep: {
+                home: { side: 0, position: 10, floor: 0 },
+                bedIndex: null, asleep: false, coSleepers: [],
+                awayStreak: 0, nomadic: true,
+            },
+        });
+        const b = spawnSleeper(world, {
+            position: { position: 20 },
+            identity: { name: "B" },
+        });
+
+        addComponent(world, a, GROUP, { groupId: 42, separatedTicks: 0 });
+        addComponent(world, b, GROUP, { groupId: 42, separatedTicks: 0 });
+
+        const sleepA = getComponent(world, a, SLEEP);
+        sleepA.asleep = true;
+        sleepA.bedIndex = 0;
+        sleepA.coSleepers = [b];
+        const sleepB = getComponent(world, b, SLEEP);
+        sleepB.asleep = true;
+        sleepB.bedIndex = 1;
+        sleepB.coSleepers = [a];
+
+        sleepWakeSystem(world, 100);
+
+        // Nomadic NPCs don't have a meaningful home
+        assert.strictEqual(sleepA.home.position, 10,
+            "nomadic NPC should not shift home");
     });
 });

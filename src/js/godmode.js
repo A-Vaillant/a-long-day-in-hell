@@ -77,11 +77,12 @@ function snapshot() {
                 if (key === "relationships") {
                     // Serialize bonds Map → array with resolved names
                     if (comp.bonds) {
+                        const pName = (state.lifeStory && state.lifeStory.name) || "Player";
                         for (const [otherEnt, bond] of comp.bonds) {
                             const otherIdent = getComponent(world, otherEnt, "identity");
                             if (otherIdent) {
                                 bonds.push({
-                                    name: otherEnt === playerEnt ? "Player" : otherIdent.name,
+                                    name: otherEnt === playerEnt ? pName : otherIdent.name,
                                     familiarity: bond.familiarity,
                                     affinity: bond.affinity,
                                     isPlayer: otherEnt === playerEnt,
@@ -142,9 +143,48 @@ function snapshot() {
         const pPsych = getComponent(world, playerEnt, "psychology");
         const pIdent = getComponent(world, playerEnt, "identity");
         if (pPos && pPsych && pIdent) {
+            // Collect player ECS components + bonds like NPCs
+            const pComponents = {};
+            let pBonds = [];
+            let pGroupId = null;
+            for (const key of world.components.keys()) {
+                if (SKIP_COMPONENTS.has(key)) continue;
+                const comp = getComponent(world, playerEnt, key);
+                if (comp === undefined) continue;
+                if (key === "relationships") {
+                    if (comp.bonds) {
+                        for (const [otherEnt, bond] of comp.bonds) {
+                            const otherIdent = getComponent(world, otherEnt, "identity");
+                            if (otherIdent) {
+                                pBonds.push({
+                                    name: otherIdent.name,
+                                    familiarity: bond.familiarity,
+                                    affinity: bond.affinity,
+                                    isPlayer: false,
+                                });
+                            }
+                        }
+                    }
+                    pComponents[key] = { bonds: pBonds };
+                } else if (key === "habituation") {
+                    const exposures = {};
+                    if (comp.exposures) {
+                        for (const [k, v] of comp.exposures) {
+                            const ident = getComponent(world, k, "identity");
+                            exposures[ident ? ident.name : k] = v;
+                        }
+                    }
+                    pComponents[key] = { exposures };
+                } else {
+                    pComponents[key] = { ...comp };
+                }
+            }
+            if (pComponents.group) pGroupId = pComponents.group.groupId;
+
+            const playerName = (state.lifeStory && state.lifeStory.name) || "Player";
             npcs.push({
-                id: "__player__",
-                name: "Player",
+                id: -1,
+                name: playerName,
                 side: pPos.side,
                 position: pPos.position,
                 floor: pPos.floor,
@@ -153,9 +193,9 @@ function snapshot() {
                 free: false,
                 lucidity: pPsych.lucidity,
                 hope: pPsych.hope,
-                bonds: [],
-                groupId: null,
-                components: {},
+                bonds: pBonds,
+                groupId: pGroupId,
+                components: pComponents,
                 falling: null,
                 isPlayer: true,
             });

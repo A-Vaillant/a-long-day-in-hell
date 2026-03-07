@@ -171,27 +171,22 @@ describe("accumulateBond with compatibility", () => {
             "high compat should gain more affinity");
     });
 
-    it("very low compat at max familiarity: affinity can erode", () => {
+    it("very low compat at max familiarity: affinity erodes", () => {
         const bond = { familiarity: 100, affinity: 50, lastContact: 0 };
-        // Run many ticks to see if affinity drops
+        // Run many ticks to see affinity drop
         for (let i = 0; i < 100; i++) {
             accumulateBond(bond, i, DEFAULT_BOND, 0.1);
         }
         // With compat 0.1: threshold at 10, overshoot ≈ 1.0
-        // affinityDelta = 0.08 - 0.03 = 0.05, still positive
-        // So affinity grows but slowly
-        assert.ok(bond.affinity > 50, "even low compat still gains slowly at these rates");
+        // affinityDelta = 0.08 - 0.12 = -0.04/tick → erodes
+        assert.ok(bond.affinity < 50, "low compat should erode affinity at max familiarity");
     });
 
-    it("zero compat at max familiarity: friction strongest", () => {
+    it("zero compat at max familiarity: friction overwhelms gain", () => {
         const bond = { familiarity: 100, affinity: 50, lastContact: 0 };
         accumulateBond(bond, 1, DEFAULT_BOND, 0.0);
-        // affinityDelta = 0.08 - 0.03 * 1.0 = 0.05
-        // Still positive! The friction rate needs to be higher to actually erode.
-        // This is the tuning question — at frictionRate 0.03, base gain 0.08,
-        // zero compat still net-gains 0.05/tick. That's by design:
-        // even incompatible people grow fond, just slower.
-        assert.ok(bond.affinity >= 50);
+        // affinityDelta = 0.08 - 0.12 * 1.0 = -0.04 → net loss
+        assert.ok(bond.affinity < 50, "zero compat should lose affinity");
     });
 });
 

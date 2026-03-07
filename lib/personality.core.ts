@@ -149,7 +149,7 @@ export interface FatigueConfig {
 
 export const DEFAULT_FATIGUE: FatigueConfig = {
     thresholdScale: 1.0,
-    frictionRate: 0.03,
+    frictionRate: 0.12,
 };
 
 /**
@@ -160,14 +160,16 @@ export const DEFAULT_FATIGUE: FatigueConfig = {
  * Above threshold: returns a negative value (friction) that scales
  * with how far past the threshold you are.
  *
- * At max familiarity with compatibility 0.3:
- *   overshoot = (100 - 30) / (100 - 30) = 1.0
- *   friction = -frictionRate * 1.0 = -0.03/tick
- *   Normal gain is 0.08, so net = 0.08 - 0.03 = 0.05 (slowing)
+ * At max familiarity with compatibility 0.5:
+ *   threshold = 50, overshoot = (100 - 50) / (100 - 50) = 1.0
+ *   friction = -0.12 * 1.0 = -0.12/tick
+ *   Normal gain is 0.08, so net = 0.08 - 0.12 = -0.04 (eroding)
  *
- * At max familiarity with compatibility 0.1:
- *   threshold = 10, overshoot at fam 100 = 1.0
- *   But you've been past threshold since fam 10, so erosion dominates.
+ * At fam 75 with compatibility 0.5:
+ *   overshoot = (75 - 50) / 50 = 0.5
+ *   friction = -0.12 * 0.5 = -0.06, net = +0.02 (slowing)
+ *
+ * Effect: affinity rises initially, peaks, then erodes for incompatible pairs.
  */
 export function familiarityFatigue(
     familiarity: number,
