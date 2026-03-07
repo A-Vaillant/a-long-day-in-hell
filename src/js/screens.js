@@ -528,8 +528,6 @@ Engine.register("Life Story", {
         return '<div id="lifestory-view">' +
             LifeStory.format(state.lifeStory) +
             '<hr>' +
-            '<p><em>Your book is somewhere on the ' + (state.targetBook.side === 0 ? "west" : "east") +
-            ' side, floor ' + state.targetBook.floor + '.</em></p>' +
             '<p class="key-hint"><a data-goto="Corridor">Continue <kbd>E</kbd></a></p>' +
             '</div>';
     },

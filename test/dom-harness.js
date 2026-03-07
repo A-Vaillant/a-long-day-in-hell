@@ -94,6 +94,7 @@ export function createGame() {
         get Tick() { return win.Tick; },
         get Events() { return win.Events; },
         get Npc() { return win.Npc; },
+        get Social() { return win.Social; },
         get Despair() { return win.Despair; },
         dom,
     };
@@ -131,6 +132,7 @@ export function bootGame(seed = "test-seed-42") {
     game.Tick.init();
     game.Events.init();
     game.Npc.init();
+    game.Social.init();
     game.Tick.registerBoundaryHandlers();
 
     // Set up event delegation (mirrors Engine.init)

@@ -11,6 +11,7 @@ import { Surv } from "./survival.js";
 import { Tick } from "./tick.js";
 import { Events } from "./events.js";
 import { Npc } from "./npc.js";
+import { Social } from "./social.js";
 import { createBoundaryRegistry, processTime } from "../../lib/engine.core.js";
 
 export { state };
@@ -250,6 +251,7 @@ export const Engine = {
             if (state.won === undefined) state.won = false;
             if (!state.eventDeck) Events.init();
             if (!state.npcs) Npc.init();
+            Social.init();
             state._debugAllowed = false;
             state.debug = false;
         } else {
@@ -280,6 +282,7 @@ export const Engine = {
             Tick.init();
             Events.init();
             Npc.init();
+            Social.init();
         }
 
         // Register boundary handlers (must happen after subsystem init, before first goto)

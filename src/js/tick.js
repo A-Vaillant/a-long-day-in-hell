@@ -9,6 +9,7 @@ import { Surv } from "./survival.js";
 import { Npc } from "./npc.js";
 import { Events } from "./events.js";
 import { Chasm } from "./chasm.js";
+import { Social } from "./social.js";
 import { state } from "./state.js";
 import { Engine } from "./engine.js";
 
@@ -29,6 +30,7 @@ export const Tick = {
         Engine.onBoundary("dawn", function () {
             if (state.dead) Surv.onResurrection();
             Npc.onDawn();
+            Social.onDawn();
             if (state.nonsensePagesRead) {
                 state.nonsensePagesRead = Math.floor(state.nonsensePagesRead / 2);
             }
@@ -50,6 +52,9 @@ export const Tick = {
         for (const event of result.events) {
             Engine._boundary.fire(event);
         }
+
+        // Social physics tick
+        Social.onTick();
 
         // Freefall advances with time — n ticks of fall per n ticks of time
         if (state.falling) {
