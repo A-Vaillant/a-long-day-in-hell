@@ -165,7 +165,7 @@ describe("pilgrimage movement", () => {
         addComponent(world, entity, IDENTITY, { name: "Pilgrim", alive: true });
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
         addComponent(world, entity, INTENT, { behavior: "pilgrimage", cooldown: 20, elapsed: 0 });
-        addComponent(world, entity, MOVEMENT, { targetPosition: null, moveAccum: 0 });
+        addComponent(world, entity, MOVEMENT, { targetPosition: null, heading: 1 });
         const k = createKnowledge("seed", 0, npcPos);
         k.bookVision = { ...visionCoords };
         k.visionAccurate = true;
@@ -266,7 +266,7 @@ describe("escape resolution", () => {
         addComponent(world, entity, IDENTITY, { name: "Pilgrim", alive: true, free: false });
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
         addComponent(world, entity, INTENT, { behavior: "pilgrimage", cooldown: 20, elapsed: 0 });
-        addComponent(world, entity, MOVEMENT, { targetPosition: null, moveAccum: 0 });
+        addComponent(world, entity, MOVEMENT, { targetPosition: null, heading: 1 });
         const k = createKnowledge("seed", 0, { side: 0, position: 5, floor: 10 });
         grantVision(k, true);
         k.hasBook = true;

@@ -1,10 +1,13 @@
 /**
  * NPC per-tick movement — reads intent from the INTENT component.
  *
- * Only acts when intent.behavior is explore, seek_rest, or wander_mad.
- * Other intents (search, idle) → no movement.
+ * Movement model: if your intent is a movement intent, you move
+ * 1 segment per tick. No probability rolls.
  *
- * Movement parameters (speed, floor change chance) vary by disposition.
+ * - Directed (seek_rest, return_home, pilgrimage): step toward target.
+ * - Explore: walk in current heading. At rest areas, chance to change
+ *   floor. Heading flips at rest areas occasionally.
+ * - Wander_mad: random direction each tick (erratic).
  *
  * @module movement.core
  */
@@ -29,23 +32,25 @@ export const MOVEMENT = "movement";
 export interface Movement {
     /** Target position when seeking rest. Set by movement system. */
     targetPosition: number | null;
-    moveAccum: number; // fractional move accumulator for batch mode
+    /** Current heading for exploration: 1 (right) or -1 (left). */
+    heading: number;
 }
 
 // --- Config ---
 
 export interface MovementConfig {
-    madMoveProbability: number;     // per-tick chance of moving (mad)
-    calmMoveProbability: number;    // per-tick chance of moving (calm/anxious)
-    madFloorChangeChance: number;   // chance of floor change when moving (mad)
-    calmFloorChangeChance: number;  // chance of floor change when moving (calm)
+    /** Chance of reversing heading at a rest area (explore). */
+    exploreReverseChance: number;
+    /** Chance of changing floor at a rest area (explore). */
+    exploreFloorChance: number;
+    /** Chance of changing floor at a rest area (wander_mad). */
+    madFloorChance: number;
 }
 
 export const DEFAULT_MOVEMENT: MovementConfig = {
-    madMoveProbability: 0.3,
-    calmMoveProbability: 0.15,
-    madFloorChangeChance: 0.15,
-    calmFloorChangeChance: 0.05,
+    exploreReverseChance: 0.3,
+    exploreFloorChance: 0.05,
+    madFloorChance: 0.15,
 };
 
 // --- Helpers ---
@@ -75,8 +80,9 @@ const MOVE_INTENTS = new Set(["explore", "seek_rest", "return_home", "wander_mad
 /**
  * Move NPCs based on their intent (from INTENT component).
  *
- * Only acts on explore, seek_rest, wander_mad. All other intents → skip.
- * Batch mode (n>1): expected moves = probability * n, applied as steps.
+ * Only acts on movement intents. All other intents → skip.
+ * Every moving NPC moves 1 segment per tick (no probability roll).
+ * Batch mode (n>1): directed = n steps toward target. Random = n coin flips.
  */
 export function movementSystem(
     world: World,
@@ -98,10 +104,6 @@ export function movementSystem(
         if (!intent || !MOVE_INTENTS.has(intent.behavior)) continue;
 
         const behavior = intent.behavior;
-        const isPilgrimage = behavior === "pilgrimage";
-        const isMad = behavior === "wander_mad";
-        const moveProb = isPilgrimage ? 1.0 : isMad ? config.madMoveProbability : config.calmMoveProbability;
-        const floorChance = isMad ? config.madFloorChangeChance : config.calmFloorChangeChance;
 
         // Set target for directed movement behaviors
         if (behavior === "seek_rest") {
@@ -113,22 +115,13 @@ export function movementSystem(
             const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
             const vision = knowledge?.bookVision;
             if (knowledge?.hasBook) {
-                // Has book: walk to nearest rest area for submission
                 mov.targetPosition = nearestRestArea(pos.position);
             } else if (vision) {
-                // Pilgrimage pathfinding: prioritize side → floor → position
                 if (pos.side !== vision.side) {
-                    // Wrong side: need to get to floor 0, then a rest area to cross
-                    if (pos.floor > 0) {
-                        mov.targetPosition = nearestRestArea(pos.position); // get to stairs
-                    } else {
-                        mov.targetPosition = nearestRestArea(pos.position); // get to crossing point
-                    }
+                    mov.targetPosition = nearestRestArea(pos.position);
                 } else if (pos.floor !== vision.floor) {
-                    // Wrong floor: need a rest area for stairs
                     mov.targetPosition = nearestRestArea(pos.position);
                 } else {
-                    // Right side and floor: walk to target position
                     mov.targetPosition = vision.position;
                 }
             } else {
@@ -141,11 +134,9 @@ export function movementSystem(
         const isDirected = (behavior === "seek_rest" || behavior === "return_home" || behavior === "pilgrimage") && mov.targetPosition !== null;
 
         if (n <= 1) {
-            // Single tick
-            if (rng.next() >= moveProb) continue;
-
+            // --- Single tick ---
             if (isDirected) {
-                const step = stepToward(pos.position, mov.targetPosition);
+                const step = stepToward(pos.position, mov.targetPosition!);
                 if (step !== 0) {
                     pos.position += step;
                 } else if (behavior === "pilgrimage" && isRestArea(pos.position)) {
@@ -154,43 +145,49 @@ export function movementSystem(
                     const vision = knowledge?.bookVision;
                     if (vision) {
                         if (pos.side !== vision.side && pos.floor === 0) {
-                            // Cross chasm at floor 0
                             pos.side = vision.side;
                         } else if (pos.side !== vision.side && pos.floor > 0) {
-                            // Go down toward floor 0 to cross
                             pos.floor--;
                         } else if (pos.floor !== vision.floor) {
-                            // Take stairs
                             pos.floor += pos.floor < vision.floor ? 1 : -1;
                             pos.floor = Math.max(0, pos.floor);
                         }
                     }
                 }
-            } else {
-                // Random walk (explore or wander_mad)
+            } else if (behavior === "wander_mad") {
+                // Erratic: random direction each tick
                 pos.position += rng.next() < 0.5 ? 1 : -1;
-
-                // Floor change (only at rest areas)
-                if (isRestArea(pos.position) && rng.next() < floorChance) {
+                if (isRestArea(pos.position) && rng.next() < config.madFloorChance) {
                     pos.floor += rng.next() < 0.5 ? 1 : -1;
                     pos.floor = Math.max(0, pos.floor);
                 }
+            } else {
+                // Explore: walk in current heading
+                pos.position += mov.heading;
+                if (isRestArea(pos.position)) {
+                    // Chance to reverse
+                    if (rng.next() < config.exploreReverseChance) {
+                        mov.heading = -mov.heading;
+                    }
+                    // Chance to change floor
+                    if (rng.next() < config.exploreFloorChance) {
+                        pos.floor += rng.next() < 0.5 ? 1 : -1;
+                        pos.floor = Math.max(0, pos.floor);
+                    }
+                }
             }
         } else {
-            // Batch mode: expected moves
-            const expectedMoves = Math.round(moveProb * n);
-
+            // --- Batch mode ---
             if (isDirected) {
-                const dist = Math.abs(pos.position - mov.targetPosition);
-                if (expectedMoves >= dist) {
-                    pos.position = mov.targetPosition;
+                const dist = Math.abs(pos.position - mov.targetPosition!);
+                if (n >= dist) {
+                    pos.position = mov.targetPosition!;
                     // Pilgrimage batch: use remaining moves for floor/side transitions
                     if (behavior === "pilgrimage" && isRestArea(pos.position)) {
                         const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
                         const vision = knowledge?.bookVision;
                         if (vision) {
-                            let remaining = expectedMoves - dist;
-                            // Cross chasm if needed
+                            let remaining = n - dist;
                             if (pos.side !== vision.side) {
                                 const floorsDown = pos.floor;
                                 if (remaining >= floorsDown) {
@@ -205,14 +202,12 @@ export function movementSystem(
                                     remaining = 0;
                                 }
                             }
-                            // Climb/descend to target floor
                             if (pos.side === vision.side && pos.floor !== vision.floor && remaining > 0) {
                                 const floorDist = Math.abs(pos.floor - vision.floor);
                                 const floorMoves = Math.min(remaining, floorDist);
                                 pos.floor += (pos.floor < vision.floor ? 1 : -1) * floorMoves;
                                 remaining -= floorMoves;
                             }
-                            // Walk to target position with remaining moves
                             if (pos.side === vision.side && pos.floor === vision.floor && remaining > 0) {
                                 const posDist = Math.abs(pos.position - vision.position);
                                 const posMoves = Math.min(remaining, posDist);
@@ -221,18 +216,35 @@ export function movementSystem(
                         }
                     }
                 } else {
-                    pos.position += stepToward(pos.position, mov.targetPosition) * expectedMoves;
+                    pos.position += stepToward(pos.position, mov.targetPosition!) * n;
                 }
-            } else {
+            } else if (behavior === "wander_mad") {
+                // Erratic batch: n random steps
                 let netMove = 0;
-                for (let i = 0; i < expectedMoves; i++) {
+                for (let i = 0; i < n; i++) {
                     netMove += rng.next() < 0.5 ? 1 : -1;
                 }
                 pos.position += netMove;
-
                 if (isRestArea(pos.position)) {
-                    const floorMoves = Math.round(floorChance * expectedMoves);
+                    const floorMoves = Math.round(config.madFloorChance * n);
                     for (let i = 0; i < floorMoves; i++) {
+                        pos.floor += rng.next() < 0.5 ? 1 : -1;
+                        pos.floor = Math.max(0, pos.floor);
+                    }
+                }
+            } else {
+                // Explore batch: walk n steps in heading, reversing at rest areas
+                // Simplified: net displacement is n in heading direction,
+                // minus reversals. Approximate with heading * n, then apply
+                // floor changes at landing position.
+                pos.position += mov.heading * n;
+                // Check if we crossed any rest areas — approximate floor changes
+                const restsCrossed = Math.floor(Math.abs(n) / 10);
+                for (let i = 0; i < restsCrossed; i++) {
+                    if (rng.next() < config.exploreReverseChance) {
+                        mov.heading = -mov.heading;
+                    }
+                    if (rng.next() < config.exploreFloorChance) {
                         pos.floor += rng.next() < 0.5 ? 1 : -1;
                         pos.floor = Math.max(0, pos.floor);
                     }

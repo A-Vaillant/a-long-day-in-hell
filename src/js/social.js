@@ -79,7 +79,8 @@ export const Social = {
                 addComponent(world, ent, RELATIONSHIPS, { bonds: new Map() });
                 addComponent(world, ent, HABITUATION, { exposures: new Map() });
                 addComponent(world, ent, NEEDS, { hunger: 0, thirst: 0, exhaustion: 0 });
-                addComponent(world, ent, MOVEMENT, { targetPosition: null, moveAccum: 0 });
+                const headingRng = seedFromString(state.seed + ":npc:heading:" + npc.id);
+                addComponent(world, ent, MOVEMENT, { targetPosition: null, heading: headingRng.next() < 0.5 ? 1 : -1 });
                 addComponent(world, ent, SEARCHING, { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0 });
                 addComponent(world, ent, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
                 addComponent(world, ent, SLEEP, {
