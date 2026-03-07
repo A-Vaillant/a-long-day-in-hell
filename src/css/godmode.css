@@ -501,3 +501,32 @@ body.godmode {
     margin-top: 40px;
     text-align: center;
 }
+
+/* --- Tooltips --- */
+
+.gm-tip {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted #4a4030;
+}
+
+.gm-tip:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 6px);
+    z-index: 100;
+    background: #1a1810;
+    color: #c8b888;
+    border: 1px solid #3a3428;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1.4;
+    white-space: normal;
+    width: max-content;
+    max-width: 240px;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
