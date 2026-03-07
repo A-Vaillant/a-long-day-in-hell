@@ -8,6 +8,7 @@ function esc(s) {
 const MAX_EVENTS = 200;
 let events = [];
 let onSelectNpc = null;  // callback(id) when NPC name clicked
+let lastHtml = "";
 
 // Filter state: which event types to show. Search off by default.
 const filters = {
@@ -47,6 +48,7 @@ export const GodmodeLog = {
     init(selectCallback) {
         events = [];
         onSelectNpc = selectCallback || null;
+        lastHtml = "";
         filters.death = true;
         filters.resurrection = true;
         filters.disposition = true;
@@ -171,6 +173,8 @@ export const GodmodeLog = {
         if (count === 0) {
             html += '<div class="gm-log-empty">No events yet.</div>';
         }
+        if (html === lastHtml) return;
+        lastHtml = html;
         el.innerHTML = html;
     },
 
