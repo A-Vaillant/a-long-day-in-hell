@@ -189,10 +189,14 @@ function cancelFF() {
 }
 
 function tickBatch(n) {
-    // Advance n ticks without per-tick snapshots (no event detection).
-    // Much faster than tickOnce() in a loop.
+    // Advance n ticks — take before/after snapshots so events aren't lost.
+    // Won't have exact tick timing, but catches deaths, disposition changes, etc.
+    const before = prevSnap || snapshot();
     Tick.advance(n);
-    prevSnap = null; // invalidate — next tickOnce will snapshot fresh
+    const after = snapshot();
+    const events = detectEvents(before, after);
+    for (const ev of events) GodmodeLog.push(ev);
+    prevSnap = after;
 }
 
 function fastForward(n) {
