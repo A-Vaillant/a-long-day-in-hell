@@ -23,6 +23,7 @@ import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, searchSystem, scoreFromSeed } from "../../lib/search.core.ts";
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
+import { KNOWLEDGE, createKnowledge, grantVision as applyVision } from "../../lib/knowledge.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.js";
@@ -92,6 +93,12 @@ export const Social = {
                 addComponent(world, ent, PERSONALITY, generatePersonality(npcPersRng));
                 const npcBeliefRng = seedFromString(state.seed + ":npc:belief:" + npc.id);
                 addComponent(world, ent, BELIEF, generateBelief(npcBeliefRng));
+
+                // Knowledge: each NPC has their own life story + target book
+                addComponent(world, ent, KNOWLEDGE, createKnowledge(
+                    state.seed, npc.id,
+                    { side: npc.side, position: npc.position, floor: npc.floor },
+                ));
             }
         }
     },
@@ -271,6 +278,26 @@ export const Social = {
         const ent = npcEntities.get(npcId);
         if (ent === undefined || !world) return null;
         return getComponent(world, ent, BELIEF);
+    },
+
+    /** Get NPC knowledge for debug/UI. */
+    getNpcKnowledge(npcId) {
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined || !world) return null;
+        return getComponent(world, ent, KNOWLEDGE);
+    },
+
+    /**
+     * Grant a divine vision to an NPC, revealing their book location.
+     * Returns true if vision was granted, false if NPC not found or already escaped.
+     */
+    grantVision(npcId, accurate = true) {
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined || !world) return false;
+        const knowledge = getComponent(world, ent, KNOWLEDGE);
+        if (!knowledge || knowledge.escaped) return false;
+        applyVision(knowledge, accurate);
+        return true;
     },
 
     /**
