@@ -46,7 +46,7 @@ function tickOnce() {
 }
 
 // Components to skip in auto-discovery (redundant with flat fields or empty tags)
-const SKIP_COMPONENTS = new Set(["identity", "position", "player", "ai"]);
+const SKIP_COMPONENTS = new Set(["identity", "position", "player", "ai", "movement"]);
 
 function snapshot() {
     const npcs = [];
