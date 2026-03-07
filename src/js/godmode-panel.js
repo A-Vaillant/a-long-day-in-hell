@@ -48,6 +48,9 @@ const DISP_SHORT = {
 const TIPS = {
     lucidity: "Mental clarity. Low lucidity → madness, violence.",
     hope: "Will to continue. Low hope → catatonia, shutdown.",
+    hunger: "Food need. Accumulates over time. Death at 100.",
+    thirst: "Water need. Accumulates faster than hunger. Death at 100.",
+    exhaustion: "Fatigue. Auto-sleeps at rest areas when high.",
     "prior faith": "Religion in life. Determines how hard the Zoroastrian revelation hits.",
     devotion: "How devout they were in life. Higher = harder the faith crisis.",
     "faith crisis": "How far their prior faith has crumbled. Grows over time.",
@@ -101,7 +104,7 @@ function bar(value, max, color) {
 // Each renderer: (comp, npc, snap) => html string (a gm-section)
 // Order array controls display order; unlisted components render last via fallback.
 
-const COMPONENT_ORDER = ["psychology", "belief", "personality", "relationships", "group", "habituation"];
+const COMPONENT_ORDER = ["psychology", "needs", "belief", "personality", "relationships", "group", "habituation"];
 
 const componentRenderers = {
     psychology(comp) {
@@ -111,6 +114,19 @@ const componentRenderers = {
             html += '<div class="gm-stat">' + tip("lucidity") + bar(comp.lucidity, 100, "#b8a878") + '</div>';
         if (comp.hope !== undefined)
             html += '<div class="gm-stat">' + tip("hope") + bar(comp.hope, 100, "#6a8a5a") + '</div>';
+        html += '</div>';
+        return html;
+    },
+
+    needs(comp) {
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">needs</div>';
+        if (comp.hunger !== undefined)
+            html += '<div class="gm-stat">' + tip("hunger") + bar(comp.hunger, 100, "#c49530") + '</div>';
+        if (comp.thirst !== undefined)
+            html += '<div class="gm-stat">' + tip("thirst") + bar(comp.thirst, 100, "#4a8ab0") + '</div>';
+        if (comp.exhaustion !== undefined)
+            html += '<div class="gm-stat">' + tip("exhaustion") + bar(comp.exhaustion, 100, "#7a6050") + '</div>';
         html += '</div>';
         return html;
     },
