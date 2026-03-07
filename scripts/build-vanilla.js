@@ -12,8 +12,9 @@ const ROOT  = resolve(__dir, "..");
 // Read template
 let html = readFileSync(resolve(ROOT, "src/html/index.html"), "utf8");
 
-// Inline CSS
-const css = readFileSync(resolve(ROOT, "src/css/style.css"), "utf8");
+// Inline CSS (main + godmode)
+const css = readFileSync(resolve(ROOT, "src/css/style.css"), "utf8") +
+    "\n" + readFileSync(resolve(ROOT, "src/css/godmode.css"), "utf8");
 html = html.replace("/* INJECT:CSS */", css);
 
 // Bundle JS via esbuild

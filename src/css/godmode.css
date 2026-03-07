@@ -1,0 +1,213 @@
+/* Godmode — observation mode styles */
+
+body.godmode {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #0a0906;
+    color: #b8a878;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+}
+
+#godmode-container {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* --- Map --- */
+
+#godmode-map-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+#godmode-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+}
+
+/* --- Controls bar --- */
+
+#godmode-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(10, 9, 6, 0.9);
+    border-top: 1px solid #1a1810;
+    font-size: 12px;
+}
+
+#godmode-controls button {
+    background: #1a1810;
+    border: 1px solid #2a2520;
+    color: #b8a878;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+}
+
+#godmode-controls button:hover {
+    background: #2a2520;
+}
+
+#gm-day {
+    color: #8a7a60;
+}
+
+#gm-tick {
+    color: #6a6050;
+}
+
+#gm-status {
+    margin-left: auto;
+    color: #6a6050;
+}
+
+/* --- Panel --- */
+
+#godmode-panel {
+    width: 280px;
+    min-width: 280px;
+    overflow-y: auto;
+    border-left: 1px solid #1a1810;
+    padding: 12px;
+    background: #0d0b08;
+}
+
+.gm-panel-empty {
+    color: #4a4030;
+    font-style: italic;
+    margin-top: 40px;
+    text-align: center;
+}
+
+/* --- Interior sections --- */
+
+.gm-section {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1a1810;
+}
+
+.gm-section:last-child {
+    border-bottom: none;
+}
+
+.gm-section-title {
+    color: #6a6050;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+/* Identity */
+
+.gm-name {
+    font-size: 16px;
+    color: #d4c8a0;
+    margin-bottom: 2px;
+}
+
+.gm-disp {
+    font-size: 11px;
+}
+.gm-disp-calm      { color: #b8a878; }
+.gm-disp-anxious   { color: #c49530; }
+.gm-disp-mad       { color: #9a2a2a; }
+.gm-disp-catatonic { color: #555555; }
+.gm-dead-tag       { color: #333; font-style: italic; }
+
+/* Psychology bars */
+
+.gm-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 3px 0;
+}
+
+.gm-stat > span:first-child {
+    width: 80px;
+    color: #8a7a60;
+    font-size: 11px;
+}
+
+.gm-bar {
+    flex: 1;
+    height: 8px;
+    background: #1a1810;
+    position: relative;
+    border-radius: 1px;
+}
+
+.gm-bar-fill {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.3s;
+}
+
+.gm-bar-num {
+    font-size: 10px;
+    color: #6a6050;
+    min-width: 32px;
+    text-align: right;
+}
+
+/* Bonds */
+
+.gm-bond {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    margin: 2px 0;
+}
+
+.gm-bond-name {
+    flex: 1;
+    color: #b8a878;
+}
+
+.gm-bond-fam {
+    color: #6a6050;
+}
+
+.gm-aff-pos { color: #6a8a5a; }
+.gm-aff-neg { color: #9a2a2a; }
+
+/* Group */
+
+.gm-group-member {
+    font-size: 11px;
+    margin: 1px 0;
+}
+
+/* Monologue */
+
+.gm-monologue .gm-thought {
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    color: #8a7a60;
+    line-height: 1.5;
+    margin-top: 4px;
+}
+
+/* Location */
+
+.gm-location {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #4a4030;
+}

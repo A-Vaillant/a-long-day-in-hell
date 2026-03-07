@@ -13,6 +13,7 @@ import { Events } from "./events.js";
 import { Npc } from "./npc.js";
 import { Social } from "./social.js";
 import { createBoundaryRegistry, processTime } from "../../lib/engine.core.js";
+import { Godmode } from "./godmode.js";
 
 export { state };
 
@@ -297,6 +298,12 @@ export const Engine = {
 
         // Register boundary handlers (must happen after subsystem init, before first goto)
         Tick.registerBoundaryHandlers();
+
+        // Godmode: observation mode — skip normal game UI entirely
+        if (params.get("godmode") === "1") {
+            Godmode.start();
+            return;
+        }
 
         if (state.debug) {
             const ob = params.get("openBook");
