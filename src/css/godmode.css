@@ -685,6 +685,60 @@ body.godmode {
     color: #d4c8a0;
 }
 
+/* --- Powers dropdown --- */
+
+.gm-powers-wrap {
+    position: relative;
+    display: inline-block;
+}
+
+.gm-powers-toggle {
+    min-width: 80px;
+}
+
+.gm-powers-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 50;
+    min-width: 160px;
+    margin-top: 2px;
+    background: #12100c;
+    border: 1px solid #2a2418;
+    border-radius: 2px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.gm-powers-open {
+    display: flex;
+    flex-direction: column;
+}
+
+.gm-power-item {
+    background: none;
+    border: none;
+    border-bottom: 1px solid #1a1610;
+    color: #9a8a68;
+    font-family: inherit;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    text-align: left;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+}
+
+.gm-power-item:last-child {
+    border-bottom: none;
+}
+
+.gm-power-item:hover {
+    background: #1a1810;
+    color: #d4c8a0;
+}
+
 /* --- Possession banner --- */
 
 #possess-banner {

@@ -9,11 +9,13 @@ import { getNpcNarrative } from "./godmode-narrative.js";
 let callbacks = {};
 let lastHtml = "";
 let lastGrpHtml = "";
-let possessCallback = null;
-let jumpCallback = null;
-let visionCallback = null;
 let lastRenderTime = 0;
 const RENDER_THROTTLE_MS = 400;
+let powersOpen = false;
+
+// Powers registry: { key, label, available(npc), action(npcId) }
+// Populated in init() from callbacks.
+const powers = [];
 
 // NPC list disposition filters — all on by default
 const npcFilters = { calm: true, anxious: true, mad: true, catatonic: true, inspired: true, dead: true };
@@ -561,16 +563,22 @@ function renderDetail(npc, snap, pane) {
         (npc.side === 0 ? 'west' : 'east') + ' \u00B7 seg ' + npc.position + ' \u00B7 floor ' + npc.floor + '</span></div>';
     html += '</div>';
 
-    // Possess / Jump / Vision buttons
+    // Possess + powers dropdown
     html += '<div class="gm-section gm-actions">';
     if (npc.alive) {
         html += '<button class="gm-btn" id="gm-possess" data-npc-id="' + npc.id + '">possess</button>';
-        if (npc.floor > 0 && !npc.falling) {
-            html += '<button class="gm-btn" id="gm-npc-jump" data-npc-id="' + npc.id + '">push into chasm</button>';
-        }
-        const k = npc.components && npc.components.knowledge;
-        if (k && !k.bookVision && !npc.free) {
-            html += '<button class="gm-btn" id="gm-grant-vision" data-npc-id="' + npc.id + '">grant vision</button>';
+        // Powers dropdown
+        const available = powers.filter(p => p.available(npc));
+        if (available.length > 0) {
+            html += '<div class="gm-powers-wrap">';
+            html += '<button class="gm-btn gm-powers-toggle" id="gm-powers-btn">' +
+                'powers \u25BE</button>';
+            html += '<div class="gm-powers-menu' + (powersOpen ? ' gm-powers-open' : '') + '">';
+            for (const p of available) {
+                html += '<button class="gm-power-item" data-power="' + p.key +
+                    '" data-npc-id="' + npc.id + '">' + esc(p.label) + '</button>';
+            }
+            html += '</div></div>';
         }
     }
     html += '</div>';
@@ -637,9 +645,29 @@ export const GodmodePanel = {
     init(cbs) {
         callbacks = cbs || {};
         lastHtml = "";
-        possessCallback = cbs.onPossess || null;
-        jumpCallback = cbs.onJump || null;
-        visionCallback = cbs.onVision || null;
+        powersOpen = false;
+
+        // Build powers registry from callbacks
+        powers.length = 0;
+        if (cbs.onJump) {
+            powers.push({
+                key: "jump",
+                label: "push into chasm",
+                available(npc) { return npc.alive && npc.floor > 0 && !npc.falling; },
+                action: cbs.onJump,
+            });
+        }
+        if (cbs.onVision) {
+            powers.push({
+                key: "vision",
+                label: "grant vision",
+                available(npc) {
+                    const k = npc.components && npc.components.knowledge;
+                    return npc.alive && k && !k.bookVision && !npc.free;
+                },
+                action: cbs.onVision,
+            });
+        }
 
         // NPC filter delegation (mousedown for same innerHTML-replacement reason as log)
         const pane = document.getElementById("gm-npc-pane");
@@ -650,7 +678,6 @@ export const GodmodePanel = {
                 ev.preventDefault();
                 const key = btn.getAttribute("data-npc-filter");
                 if (key in npcFilters) npcFilters[key] = !npcFilters[key];
-                // Force re-render the list
                 lastHtml = "";
             });
         }
@@ -684,21 +711,25 @@ export const GodmodePanel = {
                 // Possess button
                 if (ev.target.closest("#gm-possess")) {
                     const id = parseInt(ev.target.closest("#gm-possess").dataset.npcId, 10);
-                    if (possessCallback) possessCallback(id);
+                    if (cbs.onPossess) cbs.onPossess(id);
                     return;
                 }
 
-                // Jump button
-                if (ev.target.closest("#gm-npc-jump")) {
-                    const id = parseInt(ev.target.closest("#gm-npc-jump").dataset.npcId, 10);
-                    if (jumpCallback) jumpCallback(id);
+                // Powers dropdown toggle
+                if (ev.target.closest("#gm-powers-btn")) {
+                    powersOpen = !powersOpen;
+                    lastHtml = ""; // force re-render to show/hide menu
                     return;
                 }
 
-                // Grant vision button
-                if (ev.target.closest("#gm-grant-vision")) {
-                    const id = parseInt(ev.target.closest("#gm-grant-vision").dataset.npcId, 10);
-                    if (visionCallback) visionCallback(id);
+                // Power item
+                const powerBtn = ev.target.closest("[data-power]");
+                if (powerBtn) {
+                    const key = powerBtn.getAttribute("data-power");
+                    const id = parseInt(powerBtn.dataset.npcId, 10);
+                    const power = powers.find(p => p.key === key);
+                    if (power) power.action(id);
+                    powersOpen = false;
                     return;
                 }
 
@@ -718,6 +749,11 @@ export const GodmodePanel = {
                 }
             });
         }
+    },
+
+    /** Register an additional god power. { key, label, available(npc), action(npcId) } */
+    registerPower(power) {
+        powers.push(power);
     },
 
     update(snap, selectedId, force) {
