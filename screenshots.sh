@@ -61,6 +61,21 @@ snap "06_kiosk"            "Kiosk"           "#kiosk-view"
 snap "07_bedroom"          "Bedroom"         "#bedroom-view"
 snap "08_submission"       "Submission Slot" "#submission-view"
 
+# --- Sign ---
+snap "06a_sign"              "Sign"            "#sign-view"
+
+# --- Muttering (nearby NPC not co-located) ---
+snap "06b_corridor_muttering" "Corridor"       "#corridor-view" \
+    "state.position=3;
+     state.npcs[0].side = state.side;
+     state.npcs[0].position = state.position + 1;
+     state.npcs[0].floor = state.floor;
+     state.npcs[1].side = state.side;
+     state.npcs[1].position = state.position + 2;
+     state.npcs[1].floor = state.floor;
+     Social.syncNpcPositions();
+     Engine.goto('Corridor');"
+
 # --- Event visible in corridor (force an event) ---
 snap "09_corridor_event"   "Corridor"        "#corridor-view" \
     "state.position=1;
