@@ -191,6 +191,16 @@ export const Engine = {
             html += '<div class="sb-held">' + bkName.replace(/&/g,"&amp;").replace(/</g,"&lt;") + '</div>';
         }
 
+        var group = Social.getGroupMembers();
+        if (group.length > 0) {
+            html += '<div class="sb-divider"></div>';
+            for (var gi = 0; gi < group.length; gi++) {
+                var m = group[gi];
+                html += '<div class="sb-companion sb-disp-' + m.disposition + '">' +
+                    m.name.replace(/&/g,"&amp;").replace(/</g,"&lt;") + '</div>';
+            }
+        }
+
         html += '<div class="sb-divider"></div>';
         html += '<div class="sb-menu"><a id="sidebar-menu">menu <kbd>esc</kbd></a></div>';
         html += '</div>';

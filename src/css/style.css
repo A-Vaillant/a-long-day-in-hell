@@ -360,6 +360,16 @@ button:disabled {
     padding: 0.1rem 0;
 }
 
+.sb-companion {
+    font-size: 0.9em;
+    padding: 0.1rem 0;
+}
+.sb-companion::before { content: "\b7 "; }
+.sb-disp-calm { color: var(--text-dim); }
+.sb-disp-anxious { color: #8b6914; }
+.sb-disp-mad { color: #9a2a2a; }
+.sb-disp-catatonic { color: #555; font-style: italic; }
+
 .sb-menu a {
     color: var(--text-dim);
     text-transform: uppercase;
