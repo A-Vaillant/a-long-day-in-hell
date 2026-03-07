@@ -10,9 +10,11 @@ function makeDOM() {
             <div id="gm-tab-bar">
                 <button id="gm-tab-log" class="gm-tab gm-tab-active">log</button>
                 <button id="gm-tab-npc" class="gm-tab">npc</button>
+                <button id="gm-tab-grp" class="gm-tab">grp</button>
             </div>
             <div id="gm-log-pane" class="gm-pane gm-pane-active"></div>
             <div id="gm-npc-pane" class="gm-pane"></div>
+            <div id="gm-grp-pane" class="gm-pane"></div>
         </div>
     </body></html>`);
     global.document = dom.window.document;
@@ -188,5 +190,101 @@ describe("GodmodePanel — NPC detail", () => {
         assert.ok(loc);
         loc.click();
         assert.strictEqual(centered, 0);
+    });
+});
+
+describe("GodmodePanel — Groups tab", () => {
+    beforeEach(() => {
+        makeDOM();
+        GodmodePanel.init({});
+    });
+
+    it("shows empty message when no groups exist", () => {
+        GodmodePanel.updateGroups(makeSnap([
+            makeNpc({ id: 0, name: "Soren", groupId: null }),
+        ]));
+        const pane = document.getElementById("gm-grp-pane");
+        assert.ok(pane.innerHTML.includes("No groups yet"));
+    });
+
+    it("shows group card when NPCs share a groupId", () => {
+        GodmodePanel.updateGroups(makeSnap([
+            makeNpc({ id: 0, name: "Soren", groupId: 1 }),
+            makeNpc({ id: 1, name: "Rachel", groupId: 1 }),
+        ]));
+        const pane = document.getElementById("gm-grp-pane");
+        assert.ok(pane.querySelector(".gm-grp-card"), "has group card");
+        assert.ok(pane.innerHTML.includes("Soren"));
+        assert.ok(pane.innerHTML.includes("Rachel"));
+        assert.ok(pane.innerHTML.includes("2 members"));
+    });
+
+    it("shows multiple groups separately", () => {
+        GodmodePanel.updateGroups(makeSnap([
+            makeNpc({ id: 0, name: "Soren", groupId: 1 }),
+            makeNpc({ id: 1, name: "Rachel", groupId: 1 }),
+            makeNpc({ id: 2, name: "Omar", groupId: 2 }),
+            makeNpc({ id: 3, name: "Leila", groupId: 2 }),
+        ]));
+        const cards = document.querySelectorAll(".gm-grp-card");
+        assert.strictEqual(cards.length, 2);
+    });
+
+    it("excludes NPCs with null groupId", () => {
+        GodmodePanel.updateGroups(makeSnap([
+            makeNpc({ id: 0, name: "Soren", groupId: 1 }),
+            makeNpc({ id: 1, name: "Rachel", groupId: 1 }),
+            makeNpc({ id: 2, name: "Loner", groupId: null }),
+        ]));
+        const pane = document.getElementById("gm-grp-pane");
+        assert.ok(!pane.innerHTML.includes("Loner"));
+    });
+
+    it("shows location for group", () => {
+        GodmodePanel.updateGroups(makeSnap([
+            makeNpc({ id: 0, name: "Soren", groupId: 1, side: 0, floor: 50, position: 10 }),
+            makeNpc({ id: 1, name: "Rachel", groupId: 1, side: 0, floor: 50, position: 10 }),
+        ]));
+        const loc = document.querySelector(".gm-grp-loc");
+        assert.ok(loc);
+        assert.ok(loc.textContent.includes("W"));
+        assert.ok(loc.textContent.includes("f50"));
+    });
+
+    it("marks dead members", () => {
+        GodmodePanel.updateGroups(makeSnap([
+            makeNpc({ id: 0, name: "Soren", groupId: 1, alive: true }),
+            makeNpc({ id: 1, name: "Rachel", groupId: 1, alive: false }),
+        ]));
+        const pane = document.getElementById("gm-grp-pane");
+        assert.ok(pane.innerHTML.includes("dead"));
+    });
+
+    it("members have data-npc-id for click targeting", () => {
+        GodmodePanel.updateGroups(makeSnap([
+            makeNpc({ id: 7, name: "Soren", groupId: 1 }),
+            makeNpc({ id: 8, name: "Rachel", groupId: 1 }),
+        ]));
+        const members = document.querySelectorAll(".gm-grp-member");
+        assert.strictEqual(members.length, 2);
+        const ids = [...members].map(m => m.getAttribute("data-npc-id"));
+        assert.ok(ids.includes("7"));
+        assert.ok(ids.includes("8"));
+    });
+
+    it("returns to empty when groups dissolve", () => {
+        GodmodePanel.updateGroups(makeSnap([
+            makeNpc({ id: 0, name: "Soren", groupId: 1 }),
+            makeNpc({ id: 1, name: "Rachel", groupId: 1 }),
+        ]));
+        assert.ok(document.querySelector(".gm-grp-card"));
+
+        GodmodePanel.updateGroups(makeSnap([
+            makeNpc({ id: 0, name: "Soren", groupId: null }),
+            makeNpc({ id: 1, name: "Rachel", groupId: null }),
+        ]));
+        const pane = document.getElementById("gm-grp-pane");
+        assert.ok(pane.innerHTML.includes("No groups yet"));
+        assert.ok(!pane.querySelector(".gm-grp-card"));
     });
 });

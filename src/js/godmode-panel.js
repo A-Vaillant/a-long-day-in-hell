@@ -648,6 +648,7 @@ export const GodmodePanel = {
     init(cbs) {
         callbacks = cbs || {};
         lastHtml = "";
+        lastGrpHtml = "";
         powersOpen = false;
 
         // Build powers registry from callbacks

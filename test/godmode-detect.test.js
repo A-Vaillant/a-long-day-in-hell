@@ -227,6 +227,98 @@ describe("detectEvents", () => {
         assert.strictEqual(groupEvents.length, 1, "new member combo should fire");
     });
 
+    // --- Group dissolution ---
+
+    it("detects group dissolution", () => {
+        const prev = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: 5 }),
+            makeNpc({ id: 1, name: "Bob", groupId: 5 }),
+        ]);
+        const curr = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: null }),
+            makeNpc({ id: 1, name: "Bob", groupId: null }),
+        ]);
+        const events = detectEvents(prev, curr);
+        const groupEvents = events.filter(e => e.type === "group");
+        assert.strictEqual(groupEvents.length, 1);
+        assert.ok(groupEvents[0].text.includes("broke apart"));
+        assert.ok(groupEvents[0].text.includes("Alice"));
+        assert.ok(groupEvents[0].text.includes("Bob"));
+    });
+
+    it("does not duplicate dissolution (only lowest id emits)", () => {
+        const prev = makeSnap([
+            makeNpc({ id: 3, name: "Charlie", groupId: 2 }),
+            makeNpc({ id: 1, name: "Alice", groupId: 2 }),
+        ]);
+        const curr = makeSnap([
+            makeNpc({ id: 3, name: "Charlie", groupId: null }),
+            makeNpc({ id: 1, name: "Alice", groupId: null }),
+        ]);
+        const events = detectEvents(prev, curr);
+        const groupEvents = events.filter(e => e.type === "group");
+        assert.strictEqual(groupEvents.length, 1, "only one dissolution event");
+    });
+
+    it("does not emit dissolution when only one member leaves", () => {
+        const prev = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: 5 }),
+            makeNpc({ id: 1, name: "Bob", groupId: 5 }),
+        ]);
+        // Alice leaves but Bob stays in a group (maybe with others)
+        const curr = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: null }),
+            makeNpc({ id: 1, name: "Bob", groupId: 5 }),
+        ]);
+        const events = detectEvents(prev, curr);
+        // Alice left but Bob didn't — not a full breakup from Alice's perspective
+        // She was the only one who left, and she has the lower id, but Bob's group is intact
+        const groupEvents = events.filter(e => e.type === "group" && e.text.includes("broke apart"));
+        assert.strictEqual(groupEvents.length, 0);
+    });
+
+    // --- npcIds field ---
+
+    it("events include npcIds array", () => {
+        const prev = makeSnap([makeNpc({ id: 7, name: "Alice", alive: true })]);
+        const curr = makeSnap([makeNpc({ id: 7, name: "Alice", alive: false })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.length, 1);
+        assert.deepStrictEqual(events[0].npcIds, [7]);
+    });
+
+    it("group formation includes all member ids", () => {
+        const prev = makeSnap([
+            makeNpc({ id: 2, name: "Alice", groupId: null }),
+            makeNpc({ id: 5, name: "Bob", groupId: null }),
+        ]);
+        const curr = makeSnap([
+            makeNpc({ id: 2, name: "Alice", groupId: 1 }),
+            makeNpc({ id: 5, name: "Bob", groupId: 1 }),
+        ]);
+        const events = detectEvents(prev, curr);
+        const groupEv = events.find(e => e.type === "group");
+        assert.ok(groupEv);
+        assert.ok(groupEv.npcIds.includes(2));
+        assert.ok(groupEv.npcIds.includes(5));
+    });
+
+    it("bond event includes both NPC ids", () => {
+        const prev = makeSnap([
+            makeNpc({ id: 0, name: "Alice", bonds: [] }),
+            makeNpc({ id: 1, name: "Bob", bonds: [] }),
+        ]);
+        const curr = makeSnap([
+            makeNpc({ id: 0, name: "Alice", bonds: [{ name: "Bob", familiarity: 1.5, affinity: 0.5 }] }),
+            makeNpc({ id: 1, name: "Bob", bonds: [{ name: "Alice", familiarity: 1.5, affinity: 0.5 }] }),
+        ]);
+        const events = detectEvents(prev, curr);
+        const bondEv = events.find(e => e.type === "bond");
+        assert.ok(bondEv);
+        assert.ok(bondEv.npcIds.includes(0));
+        assert.ok(bondEv.npcIds.includes(1));
+    });
+
     it("resetDetectState clears dedup history", () => {
         const prev = makeSnap([makeNpc({ id: 0, name: "Alice", bonds: [] })]);
         const curr = makeSnap([makeNpc({ id: 0, name: "Alice",
