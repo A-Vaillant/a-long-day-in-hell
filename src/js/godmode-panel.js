@@ -1,19 +1,11 @@
 /* Godmode panel — NPC list + detail view.
  * List: all NPCs with compact stat summary, clickable to select.
- * Detail: psychology, personality, relationships, narration.
+ * Detail: auto-populated from ECS components via renderer registry.
  * Callbacks: onSelect(id), onCenter(id), onDeselect()
  */
 
 let callbacks = {};
 let lastHtml = "";
-
-const TRAIT_LABELS = {
-    openness: "openness",
-    agreeableness: "agreeableness",
-    resilience: "resilience",
-    sociability: "sociability",
-    curiosity: "curiosity",
-};
 
 const FAITH_LABELS = {
     mormon: "Mormon",
@@ -65,6 +57,144 @@ function bar(value, max, color) {
         '<span class="gm-bar-num">' + rounded + '</span>';
 }
 
+// --- Component renderer registry ---
+// Each renderer: (comp, npc, snap) => html string (a gm-section)
+// Order array controls display order; unlisted components render last via fallback.
+
+const COMPONENT_ORDER = ["psychology", "belief", "personality", "relationships", "group", "habituation"];
+
+const componentRenderers = {
+    psychology(comp) {
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">psychology</div>';
+        if (comp.lucidity !== undefined)
+            html += '<div class="gm-stat"><span>lucidity</span>' + bar(comp.lucidity, 100, "#b8a878") + '</div>';
+        if (comp.hope !== undefined)
+            html += '<div class="gm-stat"><span>hope</span>' + bar(comp.hope, 100, "#6a8a5a") + '</div>';
+        html += '</div>';
+        return html;
+    },
+
+    personality(comp) {
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">personality</div>';
+        for (const key in comp) {
+            if (typeof comp[key] === "number") {
+                html += '<div class="gm-stat"><span>' + esc(key) + '</span>' +
+                    bar(comp[key], 1, "#7a7060") + '</div>';
+            }
+        }
+        html += '</div>';
+        return html;
+    },
+
+    belief(comp) {
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">belief</div>';
+        if (comp.faith !== undefined) {
+            const label = FAITH_LABELS[comp.faith] || comp.faith;
+            html += '<div class="gm-stat"><span>prior faith</span><span class="gm-bar-num">' + esc(label) + '</span></div>';
+        }
+        if (comp.devotion !== undefined)
+            html += '<div class="gm-stat"><span>devotion</span>' + bar(comp.devotion, 1, "#b8a878") + '</div>';
+        if (comp.faithCrisis !== undefined)
+            html += '<div class="gm-stat"><span>faith crisis</span>' + bar(comp.faithCrisis, 1, "#c49530") + '</div>';
+        if (comp.acceptance !== undefined)
+            html += '<div class="gm-stat"><span>acceptance</span>' + bar(comp.acceptance, 1, "#6a8a5a") + '</div>';
+        if (comp.stance !== undefined) {
+            const label = STANCE_LABELS[comp.stance] || comp.stance;
+            const color = STANCE_COLORS[comp.stance] || "#888";
+            html += '<div class="gm-stat"><span>stance</span><span class="gm-bar-num" style="color:' + color + '">' + esc(label) + '</span></div>';
+        }
+        // Render any other belief fields generically
+        for (const key in comp) {
+            if (["faith", "devotion", "faithCrisis", "acceptance", "stance"].includes(key)) continue;
+            const val = comp[key];
+            if (typeof val === "number") {
+                html += '<div class="gm-stat"><span>' + esc(key) + '</span>' + bar(val, 1, "#c49530") + '</div>';
+            } else if (typeof val === "string") {
+                html += '<div class="gm-stat"><span>' + esc(key) + '</span><span class="gm-bar-num">' + esc(val) + '</span></div>';
+            }
+        }
+        html += '</div>';
+        return html;
+    },
+
+    relationships(comp, npc) {
+        if (!npc.bonds || npc.bonds.length === 0) return "";
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">relationships</div>';
+        const sorted = npc.bonds.slice().sort((a, b) => b.familiarity - a.familiarity);
+        for (const bond of sorted) {
+            if (bond.familiarity < 0.5) continue;
+            html += '<div class="gm-bond">';
+            html += '<span class="gm-bond-name">' + esc(bond.name) + '</span>';
+            html += '<span class="gm-bond-fam">fam ' + Math.round(bond.familiarity) + '</span>';
+            html += '<span class="gm-bond-aff ' + (bond.affinity >= 0 ? 'gm-aff-pos' : 'gm-aff-neg') + '">' +
+                'aff ' + (bond.affinity >= 0 ? '+' : '') + Math.round(bond.affinity) + '</span>';
+            html += '</div>';
+        }
+        html += '</div>';
+        return html;
+    },
+
+    group(comp, npc, snap) {
+        if (comp.groupId === null || comp.groupId === undefined) return "";
+        const groupMates = snap.npcs.filter(n => n.groupId === comp.groupId && n.id !== npc.id);
+        if (groupMates.length === 0) return "";
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">group</div>';
+        for (const mate of groupMates) {
+            html += '<div class="gm-group-member gm-disp-' + mate.disposition + '">' +
+                esc(mate.name) + '</div>';
+        }
+        html += '</div>';
+        return html;
+    },
+
+    habituation(comp) {
+        if (!comp.exposures || Object.keys(comp.exposures).length === 0) return "";
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">habituation</div>';
+        for (const name in comp.exposures) {
+            const val = comp.exposures[name];
+            if (typeof val === "number") {
+                html += '<div class="gm-stat"><span>' + esc(name) + '</span>' +
+                    bar(val, 10, "#6a6050") + '</div>';
+            } else if (typeof val === "object" && val !== null) {
+                html += '<div class="gm-stat"><span>' + esc(name) + '</span>' +
+                    '<span class="gm-bar-num">' + esc(JSON.stringify(val)) + '</span></div>';
+            }
+        }
+        html += '</div>';
+        return html;
+    },
+};
+
+function renderComponentFallback(key, comp) {
+    let html = '<div class="gm-section">';
+    html += '<div class="gm-section-title">' + esc(key) + '</div>';
+    for (const field in comp) {
+        const val = comp[field];
+        if (typeof val === "number") {
+            const max = val > 1 ? 100 : 1;
+            html += '<div class="gm-stat"><span>' + esc(field) + '</span>' +
+                bar(val, max, "#6a6050") + '</div>';
+        } else if (typeof val === "string") {
+            html += '<div class="gm-stat"><span>' + esc(field) + '</span>' +
+                '<span class="gm-bar-num">' + esc(val) + '</span></div>';
+        } else if (typeof val === "boolean") {
+            html += '<div class="gm-stat"><span>' + esc(field) + '</span>' +
+                '<span class="gm-bar-num">' + (val ? "yes" : "no") + '</span></div>';
+        } else if (val !== null && val !== undefined) {
+            html += '<div class="gm-stat"><span>' + esc(field) + '</span>' +
+                '<span class="gm-bar-num gm-bar-num-wrap">' + esc(JSON.stringify(val)) + '</span></div>';
+        }
+    }
+    html += '</div>';
+    return html;
+}
+
 function narrate(npc) {
     if (!npc.alive) return "They are dead. They will return at dawn.";
 
@@ -87,8 +217,9 @@ function narrate(npc) {
     }
 
     // Belief
-    if (npc.belief) {
-        const b = npc.belief;
+    const belief = npc.components && npc.components.belief;
+    if (belief) {
+        const b = belief;
         if (b.stance === "holdout") {
             parts.push("They still believe this is a test from God.");
         } else if (b.stance === "seeker") {
@@ -155,77 +286,37 @@ function renderDetail(npc, snap, pane) {
     // Back button
     html += '<button class="gm-back" id="gm-npc-back">\u2190 all npcs</button>';
 
-    // Identity
+    // Identity (always present, from flat fields)
     html += '<div class="gm-section gm-identity">';
     html += '<div class="gm-name">' + esc(npc.name) + '</div>';
     html += '<div class="gm-disp gm-disp-' + npc.disposition + '">' + npc.disposition + '</div>';
     if (!npc.alive) html += '<div class="gm-dead-tag">dead</div>';
     html += '</div>';
 
-    // Psychology
-    html += '<div class="gm-section">';
-    html += '<div class="gm-section-title">psychology</div>';
-    html += '<div class="gm-stat"><span>lucidity</span>' + bar(npc.lucidity, 100, "#b8a878") + '</div>';
-    html += '<div class="gm-stat"><span>hope</span>' + bar(npc.hope, 100, "#6a8a5a") + '</div>';
-    html += '</div>';
+    // Auto-render ECS components
+    const comps = npc.components || {};
+    const rendered = new Set();
 
-    // Belief
-    if (npc.belief) {
-        html += '<div class="gm-section">';
-        html += '<div class="gm-section-title">belief</div>';
-        const b = npc.belief;
-        const faithLabel = FAITH_LABELS[b.faith] || b.faith;
-        const stanceLabel = STANCE_LABELS[b.stance] || b.stance;
-        const stanceColor = STANCE_COLORS[b.stance] || "#888";
-        html += '<div class="gm-stat"><span>prior faith</span><span class="gm-bar-num">' + esc(faithLabel) + '</span></div>';
-        html += '<div class="gm-stat"><span>devotion</span>' + bar(b.devotion, 1, "#b8a878") + '</div>';
-        html += '<div class="gm-stat"><span>faith crisis</span>' + bar(b.faithCrisis, 1, "#c49530") + '</div>';
-        html += '<div class="gm-stat"><span>acceptance</span>' + bar(b.acceptance, 1, "#6a8a5a") + '</div>';
-        html += '<div class="gm-stat"><span>stance</span><span class="gm-bar-num" style="color:' + stanceColor + '">' + esc(stanceLabel) + '</span></div>';
-        html += '</div>';
-    }
-
-    // Personality
-    if (npc.personality) {
-        html += '<div class="gm-section">';
-        html += '<div class="gm-section-title">personality</div>';
-        for (const key in TRAIT_LABELS) {
-            if (npc.personality[key] !== undefined) {
-                html += '<div class="gm-stat"><span>' + TRAIT_LABELS[key] + '</span>' +
-                    bar(npc.personality[key], 1, "#7a7060") + '</div>';
-            }
+    // Render in preferred order first
+    for (const key of COMPONENT_ORDER) {
+        if (!comps[key]) continue;
+        rendered.add(key);
+        const renderer = componentRenderers[key];
+        if (renderer) {
+            html += renderer(comps[key], npc, snap);
+        } else {
+            html += renderComponentFallback(key, comps[key]);
         }
-        html += '</div>';
     }
 
-    // Relationships
-    if (npc.bonds.length > 0) {
-        html += '<div class="gm-section">';
-        html += '<div class="gm-section-title">relationships</div>';
-        const sorted = npc.bonds.slice().sort((a, b) => b.familiarity - a.familiarity);
-        for (const bond of sorted) {
-            if (bond.familiarity < 0.5) continue;
-            html += '<div class="gm-bond">';
-            html += '<span class="gm-bond-name">' + esc(bond.name) + '</span>';
-            html += '<span class="gm-bond-fam">fam ' + Math.round(bond.familiarity) + '</span>';
-            html += '<span class="gm-bond-aff ' + (bond.affinity >= 0 ? 'gm-aff-pos' : 'gm-aff-neg') + '">' +
-                'aff ' + (bond.affinity >= 0 ? '+' : '') + Math.round(bond.affinity) + '</span>';
-            html += '</div>';
-        }
-        html += '</div>';
-    }
-
-    // Group
-    if (npc.groupId !== null && npc.groupId !== undefined) {
-        const groupMates = snap.npcs.filter(n => n.groupId === npc.groupId && n.id !== npc.id);
-        if (groupMates.length > 0) {
-            html += '<div class="gm-section">';
-            html += '<div class="gm-section-title">group</div>';
-            for (const mate of groupMates) {
-                html += '<div class="gm-group-member gm-disp-' + mate.disposition + '">' +
-                    esc(mate.name) + '</div>';
-            }
-            html += '</div>';
+    // Render any remaining components not in the order list
+    for (const key in comps) {
+        if (rendered.has(key)) continue;
+        const renderer = componentRenderers[key];
+        if (renderer) {
+            html += renderer(comps[key], npc, snap);
+        } else {
+            html += renderComponentFallback(key, comps[key]);
         }
     }
 
