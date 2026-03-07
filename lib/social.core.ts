@@ -69,6 +69,7 @@ export interface Relationships {
 
 export interface Group {
     groupId: number;
+    separatedTicks: number;  // ticks since last co-location with a groupmate
 }
 
 // --- RNG interface ---
@@ -633,11 +634,14 @@ export interface GroupConfig {
     familiarityThreshold: number;
     /** Minimum mutual affinity to consider for grouping. */
     affinityThreshold: number;
+    /** Ticks of separation before a member is removed from the group. */
+    separationTolerance: number;
 }
 
 export const DEFAULT_GROUP: GroupConfig = {
     familiarityThreshold: 10,
     affinityThreshold: 5,
+    separationTolerance: 30,  // ~3 hours game time
 };
 
 /**
@@ -664,11 +668,14 @@ export function hasMutualBond(
 }
 
 /**
- * System: form groups from co-located entities with mutual bonds.
- * Uses connected-component detection via union-find.
+ * System: form and maintain groups from co-located entities with mutual bonds.
  *
- * Groups are re-computed each tick (stateless — no persistent group IDs).
- * Entities not in any group have their group component removed.
+ * Groups are STATEFUL — they persist across ticks. Members tolerate brief
+ * separation (configurable via separationTolerance). Groups only dissolve
+ * when members have been apart long enough or bonds decay below threshold.
+ *
+ * Phase 1: Maintain existing groups (increment/reset separation counters).
+ * Phase 2: Form new groups from ungrouped co-located bonded entities.
  */
 export function groupFormationSystem(
     world: World,
@@ -677,12 +684,107 @@ export function groupFormationSystem(
 ): void {
     const { locationIndex } = prebuilt || buildLocationIndex(world);
 
-    // Union-find
+    // Build a fast position lookup: entity → position key
+    const entityPos = new Map<Entity, number>();
+    for (const [key, list] of locationIndex) {
+        for (const e of list) entityPos.set(e, key);
+    }
+
+    // --- Phase 1: Maintain existing groups ---
+
+    // Collect current group membership
+    const groupMembers = new Map<number, Entity[]>();
+    const groupMap = world.components.get(GROUP) as Map<Entity, Group> | undefined;
+    if (groupMap) {
+        for (const [entity, group] of groupMap) {
+            const ident = getComponent<Identity>(world, entity, IDENTITY);
+            if (!ident || !ident.alive) continue;
+            let members = groupMembers.get(group.groupId);
+            if (!members) { members = []; groupMembers.set(group.groupId, members); }
+            members.push(entity);
+        }
+    }
+
+    // For each existing group, check separation and bond health
+    const toRemove: Entity[] = [];
+    for (const [gid, members] of groupMembers) {
+        for (const entity of members) {
+            const group = getComponent<Group>(world, entity, GROUP)!;
+            const myPos = entityPos.get(entity);
+
+            // Check if co-located with ANY other group member
+            let nearMate = false;
+            for (const other of members) {
+                if (other === entity) continue;
+                if (myPos && entityPos.get(other) === myPos) {
+                    nearMate = true;
+                    break;
+                }
+            }
+
+            if (nearMate) {
+                group.separatedTicks = 0;
+            } else {
+                group.separatedTicks++;
+                if (group.separatedTicks > config.separationTolerance) {
+                    toRemove.push(entity);
+                    continue;
+                }
+            }
+
+            // Also check bond health — if bonds with ALL groupmates decayed,
+            // remove from group even if co-located
+            let hasValidBond = false;
+            for (const other of members) {
+                if (other === entity) continue;
+                if (hasMutualBond(world, entity, other, config)) {
+                    hasValidBond = true;
+                    break;
+                }
+            }
+            if (!hasValidBond) {
+                toRemove.push(entity);
+            }
+        }
+    }
+
+    // Remove separated/decayed members
+    for (const entity of toRemove) {
+        if (groupMap) groupMap.delete(entity);
+    }
+
+    // Clean up groups that dropped to 1 or 0 members
+    if (groupMap) {
+        const remaining = new Map<number, Entity[]>();
+        for (const [entity, group] of groupMap) {
+            let list = remaining.get(group.groupId);
+            if (!list) { list = []; remaining.set(group.groupId, list); }
+            list.push(entity);
+        }
+        for (const [, members] of remaining) {
+            if (members.length < 2) {
+                for (const e of members) groupMap.delete(e);
+            }
+        }
+    }
+
+    // --- Phase 2: Form new groups from ungrouped entities ---
+
+    // Union-find for ungrouped co-located bonded entities
+    const ungrouped = new Set<Entity>();
+    for (const list of locationIndex.values()) {
+        for (const e of list) {
+            if (!getComponent<Group>(world, e, GROUP)) {
+                ungrouped.add(e);
+            }
+        }
+    }
+
     const parent = new Map<Entity, Entity>();
     function find(x: Entity): Entity {
         while (parent.get(x) !== x) {
             const p = parent.get(x)!;
-            parent.set(x, parent.get(p)!); // path compression
+            parent.set(x, parent.get(p)!);
             x = p;
         }
         return x;
@@ -693,19 +795,13 @@ export function groupFormationSystem(
         if (ra !== rb) parent.set(ra, rb);
     }
 
-    // Initialize parent
-    const allAlive: Entity[] = [];
-    for (const list of locationIndex.values()) {
-        for (const e of list) {
-            parent.set(e, e);
-            allAlive.push(e);
-        }
-    }
+    for (const e of ungrouped) parent.set(e, e);
 
-    // Union co-located entities with mutual bonds
     for (const list of locationIndex.values()) {
         for (let i = 0; i < list.length; i++) {
+            if (!ungrouped.has(list[i])) continue;
             for (let j = i + 1; j < list.length; j++) {
+                if (!ungrouped.has(list[j])) continue;
                 if (hasMutualBond(world, list[i], list[j], config)) {
                     union(list[i], list[j]);
                 }
@@ -713,28 +809,37 @@ export function groupFormationSystem(
         }
     }
 
-    // Assign group IDs (root entity ID = group ID)
-    // Only assign groups of size >= 2
-    const groups = new Map<Entity, Entity[]>();
-    for (const e of allAlive) {
-        const root = find(e);
-        let list = groups.get(root);
-        if (!list) {
-            list = [];
-            groups.set(root, list);
+    // Also allow ungrouped entities to join existing groups if co-located + bonded
+    for (const list of locationIndex.values()) {
+        for (const e of list) {
+            if (!ungrouped.has(e)) continue;
+            for (const other of list) {
+                if (other === e) continue;
+                const otherGroup = getComponent<Group>(world, other, GROUP);
+                if (otherGroup && hasMutualBond(world, e, other, config)) {
+                    // Join the existing group
+                    addComponent<Group>(world, e, GROUP, { groupId: otherGroup.groupId, separatedTicks: 0 });
+                    ungrouped.delete(e);
+                    break;
+                }
+            }
         }
+    }
+
+    // Assign new groups from union-find (only ungrouped entities that formed clusters)
+    const newGroups = new Map<Entity, Entity[]>();
+    for (const e of ungrouped) {
+        const root = find(e);
+        let list = newGroups.get(root);
+        if (!list) { list = []; newGroups.set(root, list); }
         list.push(e);
     }
 
-    // Clear all existing group components (iterate map directly, no array alloc)
-    const groupMap = world.components.get(GROUP);
-    if (groupMap) groupMap.clear();
-
-    for (const [root, members] of groups) {
+    for (const [root, members] of newGroups) {
         if (members.length < 2) continue;
-        const groupId = root; // use root entity as group ID
+        const groupId = root as number;
         for (const e of members) {
-            addComponent<Group>(world, e, GROUP, { groupId });
+            addComponent<Group>(world, e, GROUP, { groupId, separatedTicks: 0 });
         }
     }
 }

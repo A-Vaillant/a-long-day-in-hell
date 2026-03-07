@@ -93,8 +93,16 @@ describe("DOM: Social sidebar — group display", () => {
         game.Social.syncNpcPositions();
         game.Social.onTick();
 
+        // Group persists briefly (separation tolerance)
+        assert.ok(game.Social.getGroupMembers().length > 0, "group persists after 1 tick");
+
+        // Tick past separation tolerance (default 30)
+        for (let i = 0; i < 35; i++) {
+            game.Social.onTick();
+        }
+
         const members = game.Social.getGroupMembers();
-        assert.strictEqual(members.length, 0, "no group after NPC moved away");
+        assert.strictEqual(members.length, 0, "no group after exceeding separation tolerance");
     });
 });
 
