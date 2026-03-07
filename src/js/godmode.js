@@ -16,18 +16,21 @@ import { GodmodePanel } from "./godmode-panel.js";
 import { GodmodeLog } from "./godmode-log.js";
 import { detectEvents } from "./godmode-detect.js";
 import { getComponent } from "../../lib/ecs.core.js";
+import { TICKS_PER_DAY, LIGHTS_ON_TICKS } from "../../lib/tick.core.js";
 
 let running = false;
-let speed = 1;
+let speed = 1;          // ticks per second (continuous via slider)
 let lastFrame = 0;
 let accumulator = 0;
 let selectedNpcId = null;
 let followMode = false;
 let logVisible = false;
 let prevSnap = null;
+let ffBusy = false;     // true during async fast-forward
 
-const SPEEDS = [1, 2, 5, 10, 20];
-let speedIndex = 0;
+// Slider: logarithmic 1x–200x
+const SPEED_MIN = 0;    // log2(1)
+const SPEED_MAX = Math.log2(200);
 
 function tickOnce() {
     const before = snapshot();
@@ -143,8 +146,81 @@ function render() {
     if (logVisible) renderLog();
 }
 
+function fastForward(n) {
+    if (ffBusy || n <= 0) return;
+    ffBusy = true;
+    const wasRunning = running;
+    running = false;
+    updatePlayButton();
+
+    const BATCH = 50;
+    let remaining = n;
+
+    function step() {
+        const chunk = Math.min(remaining, BATCH);
+        for (let i = 0; i < chunk; i++) tickOnce();
+        remaining -= chunk;
+        updateFFStatus(n - remaining, n);
+
+        if (remaining > 0) {
+            requestAnimationFrame(step);
+        } else {
+            ffBusy = false;
+            updateFFStatus(0, 0);
+            if (wasRunning) {
+                running = true;
+                updatePlayButton();
+            }
+            render();
+        }
+        render();
+    }
+    requestAnimationFrame(step);
+}
+
+function skipToDawn() {
+    const ticksLeft = TICKS_PER_DAY - state.tick;
+    if (ticksLeft > 0) fastForward(ticksLeft);
+}
+
+function skipToNight() {
+    if (state.tick < LIGHTS_ON_TICKS) {
+        fastForward(LIGHTS_ON_TICKS - state.tick);
+    } else {
+        // Already past lights-out; skip to next day's lights-out
+        fastForward(TICKS_PER_DAY - state.tick + LIGHTS_ON_TICKS);
+    }
+}
+
+function skipDays(n) {
+    fastForward(TICKS_PER_DAY * n);
+}
+
+function updatePlayButton() {
+    const btn = document.getElementById("gm-play");
+    if (btn) btn.textContent = running ? "\u23F8" : "\u25B6";
+}
+
+function updateFFStatus(done, total) {
+    const el = document.getElementById("gm-status");
+    if (!el) return;
+    if (total === 0) { el.textContent = ""; return; }
+    el.textContent = "FF " + done + "/" + total;
+}
+
+function updateSpeedLabel() {
+    const el = document.getElementById("gm-speed-label");
+    if (el) el.textContent = (speed < 10 ? speed.toFixed(1) : Math.round(speed)) + "x";
+}
+
+function setSpeedFromSlider(val) {
+    speed = Math.pow(2, val);
+    if (speed < 1.05) speed = 1;
+    updateSpeedLabel();
+}
+
 function loop(now) {
-    if (!running) {
+    if (!running || ffBusy) {
         lastFrame = now;
         requestAnimationFrame(loop);
         return;
@@ -156,11 +232,14 @@ function loop(now) {
     const tickInterval = 1000 / speed;
     accumulator += dt;
 
-    if (accumulator >= tickInterval) {
+    // Batch multiple ticks per frame at high speeds (cap at 10 per frame)
+    let ticked = 0;
+    while (accumulator >= tickInterval && ticked < 10) {
         accumulator -= tickInterval;
-        if (accumulator > tickInterval) accumulator = 0;
         tickOnce();
+        ticked++;
     }
+    if (accumulator > tickInterval * 2) accumulator = 0;
 
     render();
     requestAnimationFrame(loop);
@@ -189,9 +268,22 @@ function setupDOM() {
     controls.innerHTML =
         '<span id="gm-day">Day 0</span>' +
         '<span id="gm-tick">0:00</span>' +
-        '<button id="gm-play">\u25B6</button>' +
-        '<button id="gm-step">\u23ED</button>' +
-        '<button id="gm-speed">1x</button>' +
+        '<div class="gm-ctrl-sep"></div>' +
+        '<button id="gm-play"><kbd>\u2423</kbd>\u25B6</button>' +
+        '<button id="gm-step"><kbd>.</kbd>+1</button>' +
+        '<div class="gm-ctrl-sep"></div>' +
+        '<div class="gm-speed-wrap">' +
+            '<kbd>[</kbd>' +
+            '<input type="range" id="gm-speed-slider" min="' + SPEED_MIN + '" max="' + SPEED_MAX.toFixed(2) + '" step="0.01" value="0">' +
+            '<kbd>]</kbd>' +
+            '<span id="gm-speed-label">1x</span>' +
+        '</div>' +
+        '<div class="gm-ctrl-sep"></div>' +
+        '<button id="gm-skip-dawn"><kbd>d</kbd>\u263C</button>' +
+        '<button id="gm-skip-night"><kbd>n</kbd>\u263E</button>' +
+        '<button id="gm-skip-day"><kbd>D</kbd>+1d</button>' +
+        '<input type="number" id="gm-ff-input" min="1" placeholder="ticks" title="Type ticks, Enter to skip">' +
+        '<div class="gm-ctrl-sep"></div>' +
         '<span id="gm-zoom">1x</span>' +
         '<button id="gm-log-toggle">log</button>' +
         '<span id="gm-status"></span>';
@@ -211,7 +303,7 @@ function setupDOM() {
 function setupInput(canvas) {
     document.getElementById("gm-play").addEventListener("click", function () {
         running = !running;
-        this.textContent = running ? "\u23F8" : "\u25B6";
+        updatePlayButton();
     });
 
     document.getElementById("gm-step").addEventListener("click", function () {
@@ -219,10 +311,27 @@ function setupInput(canvas) {
         render();
     });
 
-    document.getElementById("gm-speed").addEventListener("click", function () {
-        speedIndex = (speedIndex + 1) % SPEEDS.length;
-        speed = SPEEDS[speedIndex];
-        this.textContent = speed + "x";
+    const slider = document.getElementById("gm-speed-slider");
+    slider.addEventListener("input", function () {
+        setSpeedFromSlider(parseFloat(this.value));
+    });
+
+    document.getElementById("gm-skip-dawn").addEventListener("click", skipToDawn);
+    document.getElementById("gm-skip-night").addEventListener("click", skipToNight);
+    document.getElementById("gm-skip-day").addEventListener("click", function () { skipDays(1); });
+
+    const ffInput = document.getElementById("gm-ff-input");
+    ffInput.addEventListener("keydown", function (ev) {
+        ev.stopPropagation(); // don't let godmode keys fire while typing
+        if (ev.key === "Enter") {
+            const n = parseInt(this.value, 10);
+            if (n > 0) fastForward(n);
+            this.value = "";
+            this.blur();
+        } else if (ev.key === "Escape") {
+            this.value = "";
+            this.blur();
+        }
     });
 
     document.getElementById("gm-log-toggle").addEventListener("click", toggleLog);
@@ -273,13 +382,34 @@ function setupInput(canvas) {
     }, { passive: false });
 
     document.addEventListener("keydown", function (ev) {
+        // Don't handle keys when typing in the FF input
+        if (document.activeElement === ffInput) return;
+
         if (ev.key === " ") {
             ev.preventDefault();
             running = !running;
-            document.getElementById("gm-play").textContent = running ? "\u23F8" : "\u25B6";
+            updatePlayButton();
         } else if (ev.key === ".") {
             tickOnce();
             render();
+        } else if (ev.key === "d" && !ev.shiftKey) {
+            skipToDawn();
+        } else if (ev.key === "D") {
+            skipDays(1);
+        } else if (ev.key === "n") {
+            skipToNight();
+        } else if (ev.key === "[") {
+            // Decrease speed
+            const cur = parseFloat(slider.value);
+            const next = Math.max(SPEED_MIN, cur - 0.25);
+            slider.value = next;
+            setSpeedFromSlider(next);
+        } else if (ev.key === "]") {
+            // Increase speed
+            const cur = parseFloat(slider.value);
+            const next = Math.min(SPEED_MAX, cur + 0.25);
+            slider.value = next;
+            setSpeedFromSlider(next);
         } else if (ev.key === "Escape") {
             selectedNpcId = null;
             followMode = false;

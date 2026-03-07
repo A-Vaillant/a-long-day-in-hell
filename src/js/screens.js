@@ -18,40 +18,6 @@ function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-/**
- * Wrap fragment runs in <mark class="fragment"> tags within page text.
- * fragments: array of { start, end, text } from Book.findFragments
- */
-function highlightFragments(text, fragments) {
-    if (!fragments.length) return esc(text);
-    // Build a set of character ranges to highlight
-    // Fragments refer to word indices; we need character positions
-    const words = text.split(/(\s+)/);  // split preserving whitespace
-    let html = "";
-    let wordIdx = 0;
-    let inFragment = false;
-    const fragStarts = new Set(fragments.map(f => f.start));
-    const fragEnds = new Set(fragments.map(f => f.end));
-    for (let i = 0; i < words.length; i++) {
-        if (i % 2 === 0) {  // word token (even indices)
-            if (fragStarts.has(wordIdx)) {
-                html += '<mark class="fragment">';
-                inFragment = true;
-            }
-            html += esc(words[i]);
-            wordIdx++;
-            if (fragEnds.has(wordIdx) && inFragment) {
-                html += '</mark>';
-                inFragment = false;
-            }
-        } else {  // whitespace
-            html += esc(words[i]);
-        }
-    }
-    if (inFragment) html += '</mark>';
-    return html;
-}
-
 /* ---------- helpers ---------- */
 
 export function doMove(dir) {
@@ -160,9 +126,7 @@ function renderCorridorDark(loc, moves) {
 
 Engine.register("Corridor", {
     kind: "state",
-    enter() {
-        Book.clearDwell();
-    },
+    enter() {},
     render() {
         const loc = { side: state.side, position: state.position, floor: state.floor };
         const moves = Lib.availableMoves(loc);
@@ -430,50 +394,17 @@ Engine.register("Shelf Open Book", {
     afterRender() {
         const pg = state.openPage;
         const bk = state.openBook;
-        if (!bk) { Book.clearDwell(); return; }
+        if (!bk) return;
         const el = document.getElementById("book-single");
         if (!el) return;
 
         if (pg === 0) {
             el.className = "book-single book-page-cover";
-            Book.clearDwell();
         } else if (pg === Book.PAGES_PER_BOOK + 1) {
             el.className = "book-single book-page-cover book-page-back";
-            Book.clearDwell();
         } else {
-            const pageResult = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
-            // Check if dwell fired (current or from persistent history)
-            const dwellKey = bk.side + ":" + bk.position + ":" + bk.floor + ":" + bk.bookIndex + ":" + (pg - 1);
-            const dwellFired = (state._dwellFired &&
-                state._dwellFired.bookIndex === bk.bookIndex &&
-                state._dwellFired.pageIndex === (pg - 1)) ||
-                (state.dwellHistory && state.dwellHistory[dwellKey]);
-            if (dwellFired && pageResult.storyId >= 0) {
-                // Render with fragment highlighting
-                const fragments = Book.findFragments(pageResult.storyId, pageResult.text);
-                if (fragments.length > 0) {
-                    el.innerHTML = highlightFragments(pageResult.text, fragments);
-                    const fromHistory = !(state._dwellFired &&
-                        state._dwellFired.bookIndex === bk.bookIndex &&
-                        state._dwellFired.pageIndex === (pg - 1));
-                    if (fromHistory) {
-                        // Revisited page — show highlights immediately
-                        var marks = el.querySelectorAll(".fragment");
-                        for (var i = 0; i < marks.length; i++) marks[i].classList.add("revealed");
-                    } else {
-                        // Fresh dwell — animate reveal
-                        setTimeout(function () {
-                            var marks = el.querySelectorAll(".fragment");
-                            for (var i = 0; i < marks.length; i++) marks[i].classList.add("revealed");
-                        }, 50);
-                    }
-                } else {
-                    el.textContent = pageResult.text;
-                }
-            } else {
-                el.textContent = pageResult.text;
-                Book.startDwell(bk, pg - 1, pageResult);
-            }
+            el.className = "book-single book-page-symbols";
+            el.textContent = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
         }
 
         // Book naming UI

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { bootGame } from "./dom-harness.js";
 
 describe("DOM: book rendering", () => {
-    it("book page displays degraded prose text", () => {
+    it("book page displays random ASCII text", () => {
         const game = bootGame();
         // Move to a gallery position
         game.state.position = 1;
@@ -18,27 +18,17 @@ describe("DOM: book rendering", () => {
         assert.ok(el, "book-single element exists");
         const text = el.textContent;
         assert.ok(text.length > 50, "page has substantial text: " + text.length + " chars");
-        // Should contain real words (not random ASCII)
-        assert.ok(/[a-z]{3,}/.test(text), "text contains real words");
+        // Symbol slop: 40 lines of 80 chars
+        const lines = text.split("\n");
+        assert.strictEqual(lines.length, 40, "page has 40 lines");
+        assert.strictEqual(lines[0].length, 80, "each line is 80 chars");
     });
 
-    it("TEXT.stories and TEXT.dictionary are loaded", () => {
-        const game = bootGame();
-        const TEXT = game.window.TEXT;
-        assert.ok(Array.isArray(TEXT.stories), "TEXT.stories is array");
-        assert.ok(Array.isArray(TEXT.dictionary), "TEXT.dictionary is array");
-        assert.strictEqual(TEXT.stories.length, 15);
-        assert.ok(TEXT.dictionary.length > 3000);
-    });
-
-    it("Book.getPage returns object with text, storyId, editDistance", () => {
+    it("Book.getPage returns a string", () => {
         const game = bootGame();
         const result = game.window.Book.getPage(0, 1, 10, 5, 0);
-        assert.ok(typeof result === "object", "returns object");
-        assert.ok(typeof result.text === "string", "has text");
-        assert.ok(typeof result.storyId === "number", "has storyId");
-        assert.ok(typeof result.editDistance === "number", "has editDistance");
-        assert.ok(result.text.length > 50, "text has content");
+        assert.ok(typeof result === "string", "returns string");
+        assert.ok(result.length > 50, "text has content");
     });
 
     it("target book page displays life story text", () => {
@@ -58,16 +48,16 @@ describe("DOM: book rendering", () => {
         assert.ok(text.includes(game.state.lifeStory.name), "contains player name");
     });
 
-    it("non-target pages of target book are normal degraded text", () => {
+    it("non-target pages of target book are random ASCII", () => {
         const game = bootGame();
         const tb = game.state.targetBook;
         const targetPage = game.state.lifeStory.targetPage;
         // Pick a content page that is NOT the target page
         let otherPage = targetPage === 0 ? 1 : 0;
         const result = game.window.Book.getPage(tb.side, tb.position, tb.floor, tb.bookIndex, otherPage);
-        assert.ok(result.storyId >= 0, "non-target page has a real storyId, got " + result.storyId);
-        assert.ok(result.editDistance >= 0, "has editDistance");
-        assert.ok(result.text.length > 50, "has substantial text");
+        assert.ok(typeof result === "string", "returns string");
+        const lines = result.split("\n");
+        assert.strictEqual(lines.length, 40, "page has 40 lines");
     });
 
     it("cover page is blank calfskin (no text)", () => {
@@ -88,7 +78,6 @@ describe("DOM: book rendering", () => {
         game.Engine.goto("Corridor");
 
         // Simulate spine click by setting openBook with morale-gated page
-        // The actual spine click handler runs in afterRender, so we test the logic directly
         const win = game.window;
         const pageRng = win.PRNG.fork("pageopen:" + game.state.tick);
         const expectedPage = pageRng.nextInt(win.Book.PAGES_PER_BOOK) + 1;
