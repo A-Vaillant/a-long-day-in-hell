@@ -342,10 +342,22 @@ export function evaluateIntent(
         return null;
     }
 
-    // Forced: mad → wander_mad, bypass scoring and cooldown
+    // Mad: normally forced to wander_mad, but survival panic
+    // can override when needs are critical enough to outscore 3.0.
     if (disposition === "mad") {
-        if (intent.behavior !== "wander_mad") return { behavior: "wander_mad", cooldown: 0 };
-        return null;
+        if (needs) {
+            const hungerUrg = Math.max(0, needs.hunger - 50) / 50;
+            const thirstUrg = Math.max(0, needs.thirst - 50) / 50;
+            if (Math.max(hungerUrg, thirstUrg) >= 0.7) {
+                // Fall through to normal scoring — seek_rest can compete
+            } else {
+                if (intent.behavior !== "wander_mad") return { behavior: "wander_mad", cooldown: 0 };
+                return null;
+            }
+        } else {
+            if (intent.behavior !== "wander_mad") return { behavior: "wander_mad", cooldown: 0 };
+            return null;
+        }
     }
 
     // Sticky: don't re-evaluate until cooldown expires
