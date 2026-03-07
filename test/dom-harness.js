@@ -56,7 +56,8 @@ for (const [file, key] of Object.entries(contentMap)) {
     if (key) {
         TEXT[key] = data;
     } else {
-        TEXT.npc_names = data.names;
+        TEXT.npc_first_names = data.first_names;
+        TEXT.npc_surnames = data.surnames;
         TEXT.npc_dialogue = data.dialogue;
     }
 }

@@ -1,7 +1,7 @@
 /* NPC wrapper — spawn, movement, deterioration, dialogue. */
 
 import {
-    DISPOSITIONS, spawnNPCs, getNPCsAt, interactText,
+    DISPOSITIONS, SPAWN_CONFIG, spawnNPCs, getNPCsAt, interactText,
 } from "../../lib/npc.core.ts";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
@@ -12,20 +12,51 @@ export const Npc = {
 
     init() {
         const loc = { side: state.side, position: state.position, floor: state.floor };
+        const otherSide = state.side === 0 ? 1 : 0;
+        const sc = SPAWN_CONFIG;
+        const WAVES = sc.wavesPerSide * 2;
 
-        // Wave 1: nearby group — everyone arrives together at the sign
-        const rng1 = PRNG.fork("npc:spawn:near");
-        const nearby = spawnNPCs(loc, 8, TEXT.npc_names, rng1, {
-            positionSpread: 3, floorSpread: 0, sameSide: true, idOffset: 0,
-        });
+        // Combine first + last names via PRNG for deterministic variety
+        const nameRng = PRNG.fork("npc:names");
+        const firsts = TEXT.npc_first_names;
+        const lasts = TEXT.npc_surnames;
+        const totalNeeded = sc.npcsPerWave * WAVES;
+        const names = [];
+        const usedPairs = new Set();
+        for (let i = 0; i < totalNeeded; i++) {
+            let fi, li, key;
+            do {
+                fi = Math.floor(nameRng.next() * firsts.length);
+                li = Math.floor(nameRng.next() * lasts.length);
+                key = fi + ":" + li;
+            } while (usedPairs.has(key));
+            usedPairs.add(key);
+            names.push(firsts[fi] + " " + lasts[li]);
+        }
 
-        // Wave 2: scattered loners — already wandered off
-        const rng2 = PRNG.fork("npc:spawn:scattered");
-        const scattered = spawnNPCs(loc, 4, TEXT.npc_names, rng2, {
-            positionSpread: 50, floorSpread: 15, sameSide: false, idOffset: 8,
-        });
+        const allNpcs = [];
+        let id = 0;
 
-        state.npcs = nearby.concat(scattered);
+        for (let w = 0; w < WAVES; w++) {
+            const isPlayerSide = w < sc.wavesPerSide;
+            const rng = PRNG.fork("npc:spawn:w" + w);
+            const spread = sc.baseSpread + w * sc.spreadPerWave;
+            const floorSpread = Math.min(sc.baseFloorSpread + w * sc.floorSpreadPerWave, sc.maxFloorSpread);
+            const waveNames = names.slice(w * sc.npcsPerWave, (w + 1) * sc.npcsPerWave);
+            const wave = spawnNPCs(loc, sc.npcsPerWave, waveNames, rng, {
+                positionSpread: spread,
+                floorSpread,
+                sameSide: true,
+                idOffset: id,
+            });
+            for (const npc of wave) {
+                npc.side = isPlayerSide ? state.side : otherSide;
+            }
+            allNpcs.push(...wave);
+            id += sc.npcsPerWave;
+        }
+
+        state.npcs = allNpcs;
     },
     onDawn() {
         // Movement is now per-tick via ECS (movementSystem in Social.onTick).

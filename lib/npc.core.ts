@@ -45,6 +45,17 @@ export interface SpawnConfig {
 
 const DEFAULT_SPAWN: SpawnConfig = { positionSpread: 20, floorSpread: 5, sameSide: false, idOffset: 0 };
 
+/** Top-level spawn configuration — tweak these to adjust NPC population. */
+export const SPAWN_CONFIG = {
+    wavesPerSide: 10,          // waves on each side (total waves = 2×)
+    npcsPerWave: 6,            // NPCs spawned per wave
+    baseSpread: 3,             // position spread for wave 0
+    spreadPerWave: 8,          // additional position spread per wave index
+    baseFloorSpread: 2,        // floor spread for wave 0
+    floorSpreadPerWave: 3,     // additional floor spread per wave index
+    maxFloorSpread: 40,        // cap on floor spread
+};
+
 /** Spawn NPCs near a player location. Names passed in from content. */
 export function spawnNPCs(playerLoc: Location, count: number, names: string[], rng: Rng, config: SpawnConfig = DEFAULT_SPAWN): NPC[] {
     const npcs: NPC[] = [];

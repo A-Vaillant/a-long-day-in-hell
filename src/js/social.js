@@ -16,7 +16,7 @@ import {
     buildLocationIndex,
 } from "../../lib/social.core.ts";
 import { HABITUATION } from "../../lib/psych.core.ts";
-import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts";
+import { PERSONALITY, generatePersonality, applySideBias } from "../../lib/personality.core.ts";
 import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
 import { STATS, generateStats, quicknessMod } from "../../lib/stats.core.ts";
 import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
@@ -121,9 +121,11 @@ export const Social = {
                 });
                 addComponent(world, ent, AI, {});
 
-                // NPC personality seeded from their name + game seed
+                // NPC personality — biased by corridor side
                 const npcPersRng = seedFromString(state.seed + ":npc:pers:" + npc.id);
-                addComponent(world, ent, PERSONALITY, generatePersonality(npcPersRng));
+                const pers = generatePersonality(npcPersRng);
+                applySideBias(pers, npc.side === state.side);
+                addComponent(world, ent, PERSONALITY, pers);
                 const npcBeliefRng = seedFromString(state.seed + ":npc:belief:" + npc.id);
                 addComponent(world, ent, BELIEF, generateBelief(npcBeliefRng));
                 const npcStatsRng = seedFromString(state.seed + ":npc:stats:" + npc.id);

@@ -1,5 +1,5 @@
 {
-  "names": [
+  "first_names": [
     "James", "Mary", "Robert", "Patricia", "John",
     "Jennifer", "Michael", "Linda", "David", "Elizabeth",
     "William", "Barbara", "Richard", "Susan", "Joseph",
@@ -20,6 +20,27 @@
     "Christine", "Alexander", "Debra", "Patrick", "Rachel",
     "Dennis", "Carolyn", "Jerry", "Janet", "Tyler",
     "Catherine", "Aaron", "Maria", "Jose", "Heather"
+  ],
+  "surnames": [
+    "Loom", "Shale", "Cairn", "Vow", "Dross",
+    "Thorn", "Wane", "Rue", "Brine", "Dusk",
+    "Char", "Knell", "Pith", "Dole", "Rend",
+    "Grist", "Nave", "Scree", "Flint", "Crux",
+    "Null", "Weft", "Sere", "Tithe", "Pyre",
+    "Cant", "Mote", "Shrift", "Kith", "Dirge",
+    "Mere", "Gilt", "Slag", "Pall", "Lode",
+    "Rime", "Gloam", "Nix", "Thrall", "Writ",
+    "Flux", "Toll", "Pang", "Vast", "Lorn",
+    "Husk", "Bane", "Sole", "Cull", "Wist",
+    "Shard", "Stave", "Gall", "Soot", "Qualm",
+    "Mire", "Forge", "Weld", "Pale", "Brume",
+    "Naught", "Dearth", "Fathom", "Quell", "Rune",
+    "Blight", "Void", "Sheer", "Vex", "Stark",
+    "Ash", "Still", "Fold", "Blunt", "Sift",
+    "Proof", "Trace", "Blank", "Verge", "Lapse",
+    "Dwell", "Veil", "Brink", "Haze", "Meld",
+    "Gaunt", "Drift", "Grim", "Ebb", "Fell",
+    "Thresh", "Quench", "Raze", "Fend", "Plinth"
   ],
 
   "dialogue": {

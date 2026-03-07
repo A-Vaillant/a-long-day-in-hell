@@ -51,6 +51,39 @@ export function generatePersonality(rng: Rng): Personality {
     };
 }
 
+// --- Side biasing ---
+
+/**
+ * Configuration for personality biasing by corridor side.
+ * Player side gets negative bias (calmer), other side gets positive (chaotic).
+ * Widen pushes values away from 0.5 toward extremes.
+ */
+export const SIDE_BIAS_CONFIG = {
+    bias: 0.15,                // base bias magnitude (negated for player side)
+    widen: 1.4,                // variance widening factor (1.0 = no change)
+    temperamentWeight: 1.0,    // how strongly bias affects temperament
+    paceWeight: 0.7,           // how strongly bias affects pace
+    opennessWeight: -0.5,      // negative = bias reduces openness (guarded under chaos)
+    outlookWeight: 1.0,        // how strongly bias affects outlook
+};
+
+/**
+ * Apply side-based personality biasing. Mutates the personality in place.
+ * `isPlayerSide` true → calmer (negative bias), false → more chaotic (positive bias).
+ */
+export function applySideBias(pers: Personality, isPlayerSide: boolean): void {
+    const cfg = SIDE_BIAS_CONFIG;
+    const sign = isPlayerSide ? -1 : 1;
+    const bias = cfg.bias * sign;
+    const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+    const widen = (v: number) => { const d = (v - 0.5) * cfg.widen; return clamp01(0.5 + d); };
+
+    pers.temperament = widen(clamp01(pers.temperament + bias * cfg.temperamentWeight));
+    pers.pace = widen(clamp01(pers.pace + bias * cfg.paceWeight));
+    pers.openness = widen(clamp01(pers.openness + bias * cfg.opennessWeight));
+    pers.outlook = widen(clamp01(pers.outlook + bias * cfg.outlookWeight));
+}
+
 // --- Compatibility ---
 
 /**
