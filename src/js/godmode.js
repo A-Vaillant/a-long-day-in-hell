@@ -173,10 +173,10 @@ function switchTab(tab) {
     npcTab.className = tab === "npc" ? "gm-tab gm-tab-active" : "gm-tab";
 }
 
-function render() {
+function render(forcePanel) {
     const snap = snapshot();
     GodmodeMap.draw(snap, selectedNpcId, followMode);
-    GodmodePanel.update(snap, selectedNpcId);
+    GodmodePanel.update(snap, selectedNpcId, forcePanel);
     if (activeTab === "log") renderLog();
 }
 
@@ -670,7 +670,7 @@ function unpossessNpc() {
 
 function npcJump(npcId) {
     Social.npcJump(npcId);
-    render();
+    render(true);
 }
 
 export const Godmode = {
@@ -695,7 +695,7 @@ export const Godmode = {
                 const npc = state.npcs && state.npcs.find(n => n.id === id);
                 if (npc) GodmodeMap.setSide(npc.side);
                 switchTab("npc");
-                render();
+                render(true);
             },
             onCenter(id) {
                 selectedNpcId = id;
@@ -705,12 +705,12 @@ export const Godmode = {
                     GodmodeMap.setSide(npc.side);
                     GodmodeMap.centerOn(npc.position, npc.floor);
                 }
-                render();
+                render(true);
             },
             onDeselect() {
                 selectedNpcId = null;
                 followMode = false;
-                render();
+                render(true);
             },
             onPossess(id) {
                 possessNpc(id);

@@ -8,6 +8,8 @@ let callbacks = {};
 let lastHtml = "";
 let possessCallback = null;
 let jumpCallback = null;
+let lastRenderTime = 0;
+const RENDER_THROTTLE_MS = 400;
 
 const FAITH_LABELS = {
     mormon: "Mormon",
@@ -451,9 +453,14 @@ export const GodmodePanel = {
         }
     },
 
-    update(snap, selectedId) {
+    update(snap, selectedId, force) {
         const pane = document.getElementById("gm-npc-pane");
         if (!pane) return;
+
+        // Throttle DOM updates so clicks aren't swallowed at high tick rates
+        const now = performance.now();
+        if (!force && now - lastRenderTime < RENDER_THROTTLE_MS) return;
+        lastRenderTime = now;
 
         if (selectedId === null) {
             renderList(snap, pane);
