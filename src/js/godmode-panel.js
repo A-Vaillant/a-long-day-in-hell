@@ -265,6 +265,12 @@ const componentRenderers = {
         if (comp.hasBook) {
             html += '<div class="gm-stat"><span>book</span><span class="gm-bar-num" style="color:#60d060">found!</span></div>';
         }
+        // Searched segments
+        const searched = comp.searchedSegments;
+        if (searched && searched.size > 0) {
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Number of library segments this NPC has finished searching. Shared via conversation.">searched</span>';
+            html += '<span class="gm-bar-num">' + searched.size + ' segment' + (searched.size !== 1 ? 's' : '') + '</span></div>';
+        }
         html += '</div>';
         return html;
     },

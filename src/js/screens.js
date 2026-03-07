@@ -895,6 +895,9 @@ Engine.register("Talk Result", {
         let html = '<div id="talk-result-view">';
         if (playerLine) html += '<p class="player-action">' + esc(playerLine) + '</p>';
         if (responseLine) html += '<p class="npc-response">' + esc(responseLine) + '</p>';
+        if (r.segmentsLearned > 0) {
+            html += '<p class="talk-knowledge">You compare notes on the shelves. ' + r.segmentsLearned + ' new section' + (r.segmentsLearned !== 1 ? 's' : '') + ' to avoid.</p>';
+        }
         html += '<p class="key-hint"><a data-goto="Talk"><kbd>\u23ce</kbd> Continue</a></p>';
         html += '</div>';
         state._talkResult = null;
