@@ -112,6 +112,20 @@ function sparkCanvas(id, w, h) {
         '" style="width:' + w + 'px;height:' + h + 'px;display:block"></canvas>';
 }
 
+function autoRange(data) {
+    let lo = Infinity, hi = -Infinity;
+    for (const v of data) {
+        if (v < 0) continue; // skip dead markers
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+    }
+    if (lo === Infinity) return { lo: 0, hi: 100 };
+    // Pad by 10% of range, minimum 0.5 units so flat lines don't collapse
+    const range = hi - lo;
+    const pad = Math.max(range * 0.1, 0.5);
+    return { lo: Math.max(0, lo - pad), hi: Math.min(100, hi + pad) };
+}
+
 function drawSparkline(canvasId, data, max, color, deadColor) {
     const el = document.getElementById(canvasId);
     if (!el) return;
@@ -122,7 +136,10 @@ function drawSparkline(canvasId, data, max, color, deadColor) {
 
     if (data.length < 2) return;
 
-    // Grid line at 50%
+    const { lo, hi } = autoRange(data);
+    const range = hi - lo || 1;
+
+    // Grid line at midpoint
     ctx.strokeStyle = "#1a1610";
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -149,7 +166,7 @@ function drawSparkline(canvasId, data, max, color, deadColor) {
             continue;
         }
         const x = i * step;
-        const y = h - (v / max) * h;
+        const y = h - ((v - lo) / range) * h;
         if (!started) {
             ctx.beginPath();
             ctx.strokeStyle = color;
@@ -217,6 +234,13 @@ function drawDualSparkline(canvasId, hope, luc) {
 
     if (hope.length < 2) return;
 
+    // Shared auto-range across both series
+    const rH = autoRange(hope);
+    const rL = autoRange(luc);
+    const lo = Math.min(rH.lo, rL.lo);
+    const hi = Math.max(rH.hi, rL.hi);
+    const range = hi - lo || 1;
+
     const step = w / (hope.length - 1);
 
     // Draw both lines
@@ -238,12 +262,17 @@ function drawDualSparkline(canvasId, hope, luc) {
                 continue;
             }
             const x = i * step;
-            const y = h - (v / 100) * h;
+            const y = h - ((v - lo) / range) * h;
             if (!started) { ctx.moveTo(x, y); started = true; }
             else ctx.lineTo(x, y);
         }
         if (started) ctx.stroke();
     }
+}
+
+function fmtStat(v) {
+    // Show 1 decimal when range is small, integer when large
+    return Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v).toString() : v.toFixed(1);
 }
 
 function esc(s) {
@@ -280,10 +309,10 @@ function renderTo(pane) {
 
     // Avg hope/lucidity sparklines
     html += '<div class="gm-trend-label"><span style="color:#6a8a5a">avg hope</span> ' +
-        '<span class="gm-trend-val">' + Math.round(latest.avgHope) + '</span></div>';
+        '<span class="gm-trend-val">' + fmtStat(latest.avgHope) + '</span></div>';
     html += sparkCanvas("gm-spark-hope", W, H_AGG);
     html += '<div class="gm-trend-label"><span style="color:#b8a878">avg lucidity</span> ' +
-        '<span class="gm-trend-val">' + Math.round(latest.avgLuc) + '</span></div>';
+        '<span class="gm-trend-val">' + fmtStat(latest.avgLuc) + '</span></div>';
     html += sparkCanvas("gm-spark-luc", W, H_AGG);
     html += '</div>';
 
@@ -299,10 +328,10 @@ function renderTo(pane) {
         html += '<div class="gm-trend-side">';
         html += '<div class="gm-trend-side-head">' + sideNames[s] + ' <span class="gm-trend-val">' + sd.alive + '</span></div>';
         html += '<div class="gm-trend-label"><span style="color:#6a8a5a">hope</span> ' +
-            '<span class="gm-trend-val">' + Math.round(sd.avgHope) + '</span></div>';
+            '<span class="gm-trend-val">' + fmtStat(sd.avgHope) + '</span></div>';
         html += sparkCanvas("gm-spark-side-hope-" + s, SIDE_W, H_SIDE);
         html += '<div class="gm-trend-label"><span style="color:#b8a878">luc</span> ' +
-            '<span class="gm-trend-val">' + Math.round(sd.avgLuc) + '</span></div>';
+            '<span class="gm-trend-val">' + fmtStat(sd.avgLuc) + '</span></div>';
         html += sparkCanvas("gm-spark-side-luc-" + s, SIDE_W, H_SIDE);
         // Mini stance bar
         html += '<div class="gm-trend-side-stances">';
