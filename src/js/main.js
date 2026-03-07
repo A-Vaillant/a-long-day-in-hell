@@ -12,8 +12,10 @@ import { Events } from "./events.js";
 import { Npc } from "./npc.js";
 import { Social } from "./social.js";
 import { Engine, T } from "./engine.js";
+import { Godmode } from "./godmode.js";
 import { Chasm } from "./chasm.js";
 import { Debug } from "./debug.js";
+import { GodmodeMap } from "./godmode-map.js";
 import { doMove } from "./screens.js";
 import "./keybindings.js";
 
@@ -33,6 +35,8 @@ window.Engine   = Engine;
 window.T        = T;
 window.Chasm    = Chasm;
 window.Debug    = Debug;
+window.GodmodeMap = GodmodeMap;
+window.Godmode  = Godmode;
 window.doMove   = doMove;
 
 // Boot when DOM is ready
