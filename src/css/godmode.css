@@ -530,3 +530,92 @@ body.godmode {
     pointer-events: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
+
+.gm-loc-inline {
+    color: #6a6050;
+    font-size: 11px;
+    margin-top: 2px;
+    cursor: pointer;
+}
+
+.gm-loc-inline:hover {
+    color: #b8a878;
+}
+
+/* --- Action buttons (possess, jump) --- */
+
+.gm-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.gm-btn {
+    background: #1a1810;
+    border: 1px solid #3a3020;
+    color: #b8a878;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 4px 10px;
+}
+
+.gm-btn:hover {
+    background: #2a2820;
+    border-color: #6a6050;
+}
+
+/* --- Possession banner --- */
+
+#possess-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: #1a1810;
+    border-bottom: 1px solid #3a3020;
+    color: #e0b040;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#possess-banner strong {
+    color: #b8a878;
+}
+
+#unpossess-btn {
+    background: #2a2820;
+    border: 1px solid #3a3020;
+    color: #b8a878;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 3px 10px;
+}
+
+#unpossess-btn:hover {
+    background: #3a3020;
+    border-color: #6a6050;
+}
+
+#godmode-game-wrap {
+    padding-top: 32px;
+}
+
+#godmode-game-wrap #passages {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+#godmode-game-wrap #story-right {
+    position: fixed;
+    top: 32px;
+    right: 0;
+    width: 180px;
+    padding: 10px;
+}

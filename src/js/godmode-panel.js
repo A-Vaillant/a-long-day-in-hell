@@ -6,6 +6,8 @@
 
 let callbacks = {};
 let lastHtml = "";
+let possessCallback = null;
+let jumpCallback = null;
 
 const FAITH_LABELS = {
     mormon: "Mormon",
@@ -329,6 +331,20 @@ function renderDetail(npc, snap, pane) {
     html += '<div class="gm-name">' + esc(npc.name) + '</div>';
     html += '<div class="gm-disp gm-disp-' + npc.disposition + ' gm-tip" data-tip="' + esc(TIPS[npc.disposition] || "") + '">' + npc.disposition + '</div>';
     if (!npc.alive) html += '<div class="gm-dead-tag">dead</div>';
+    if (npc.falling) html += '<div class="gm-dead-tag" style="color:#e0b040">falling (spd ' + Math.round(npc.falling.speed) + ')</div>';
+    // Location (right below name)
+    html += '<div class="gm-loc-inline"><span class="gm-loc-link" data-center-id="' + npc.id + '">' +
+        (npc.side === 0 ? 'west' : 'east') + ' \u00B7 seg ' + npc.position + ' \u00B7 floor ' + npc.floor + '</span></div>';
+    html += '</div>';
+
+    // Possess / Jump buttons
+    html += '<div class="gm-section gm-actions">';
+    if (npc.alive) {
+        html += '<button class="gm-btn" id="gm-possess" data-npc-id="' + npc.id + '">possess</button>';
+        if (npc.floor > 0 && !npc.falling) {
+            html += '<button class="gm-btn" id="gm-npc-jump" data-npc-id="' + npc.id + '">push into chasm</button>';
+        }
+    }
     html += '</div>';
 
     // Auto-render ECS components
@@ -363,13 +379,6 @@ function renderDetail(npc, snap, pane) {
     html += '<div class="gm-thought">' + esc(narrate(npc)) + '</div>';
     html += '</div>';
 
-    // Location (clickable to center)
-    html += '<div class="gm-section gm-location">';
-    html += '<span>floor ' + npc.floor + '</span>';
-    html += '<span class="gm-loc-link" data-center-id="' + npc.id + '">' +
-        (npc.side === 0 ? 'west' : 'east') + ' \u00B7 seg ' + npc.position + '</span>';
-    html += '</div>';
-
     html += '</div>';
     if (html !== lastHtml) {
         pane.innerHTML = html;
@@ -381,6 +390,8 @@ export const GodmodePanel = {
     init(cbs) {
         callbacks = cbs || {};
         lastHtml = "";
+        possessCallback = cbs.onPossess || null;
+        jumpCallback = cbs.onJump || null;
 
         // Event delegation — survives innerHTML rebuilds
         const pane = document.getElementById("gm-npc-pane");
@@ -389,6 +400,20 @@ export const GodmodePanel = {
                 // Back button
                 if (ev.target.closest("#gm-npc-back")) {
                     if (callbacks.onDeselect) callbacks.onDeselect();
+                    return;
+                }
+
+                // Possess button
+                if (ev.target.closest("#gm-possess")) {
+                    const id = parseInt(ev.target.closest("#gm-possess").dataset.npcId, 10);
+                    if (possessCallback) possessCallback(id);
+                    return;
+                }
+
+                // Jump button
+                if (ev.target.closest("#gm-npc-jump")) {
+                    const id = parseInt(ev.target.closest("#gm-npc-jump").dataset.npcId, 10);
+                    if (jumpCallback) jumpCallback(id);
                     return;
                 }
 
