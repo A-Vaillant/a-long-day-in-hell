@@ -9,7 +9,8 @@ const BASE_CELL_W = 18;
 const BASE_CELL_H = 14;
 const BASE_CHASM_W = 48;
 const REST_EVERY = 10;
-const LABEL_GUTTER = 38; // floor number labels on left
+const LABEL_GUTTER = 52; // floor number labels on left
+const POS_LABEL_H = 18;  // height reserved for position labels at top
 
 // Zoom
 const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
@@ -227,6 +228,9 @@ export const GodmodeMap = {
         ctx.font = floorFontSize + "px 'Share Tech Mono', monospace";
         ctx.textAlign = "right";
 
+        // Determine floor label interval based on zoom
+        const floorLabelEvery = zoom < 0.35 ? 20 : zoom < 0.6 ? 10 : zoom < 2 ? 5 : 1;
+
         // Draw grid lines, rest areas, and floor labels
         for (let row = 0; row < vpRows; row++) {
             const floor = Math.floor(vpY) + vpRows - 1 - row;
@@ -244,8 +248,8 @@ export const GodmodeMap = {
             }
             ctx.stroke();
 
-            // Floor number label in gutter — every 5th floor, or every floor at high zoom
-            if (floor >= 0 && (floor % 5 === 0 || zoom >= 2)) {
+            // Floor number label in gutter
+            if (floor >= 0 && floor % floorLabelEvery === 0) {
                 ctx.fillStyle = floor % 10 === 0 ? "#6a6050" : "#3a3428";
                 ctx.fillText(String(floor), LABEL_GUTTER - 6, y + CELL_H / 2 + floorFontSize / 3);
             }
@@ -275,6 +279,49 @@ export const GodmodeMap = {
                     ctx.moveTo(bx, y); ctx.lineTo(bx + 6, y + CELL_H);
                     ctx.stroke();
                 }
+            }
+        }
+
+        // Position labels along the top — rest area kiosk numbers (drawn after grid)
+        const posFontSize = Math.max(8, Math.round(10 * zoom));
+        const posLabelY = labelFontSize + 4 + posFontSize + 2;
+        ctx.font = posFontSize + "px 'Share Tech Mono', monospace";
+        ctx.textAlign = "center";
+        for (let col = 0; col < vpCols; col++) {
+            const pos = Math.floor(vpX + col);
+            if (pos < 0) continue;
+            if (pos % REST_EVERY !== 0) continue;
+            const px = corridorX + col * CELL_W + CELL_W / 2;
+            const label = String(pos);
+            const tw = ctx.measureText(label).width;
+            // Background pill for readability
+            ctx.fillStyle = snap.lightsOn ? "#0a0906" : "#050403";
+            ctx.fillRect(px - tw / 2 - 3, posLabelY - posFontSize, tw + 6, posFontSize + 4);
+            ctx.fillStyle = "#b8a878";
+            ctx.fillText(label, px, posLabelY);
+            // Dashed vertical guide line
+            ctx.strokeStyle = "#2a2418";
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 4]);
+            ctx.beginPath();
+            ctx.moveTo(px, posLabelY + 4);
+            ctx.lineTo(px, h);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (showBoth) {
+                const epx = eastX + col * CELL_W + CELL_W / 2;
+                ctx.fillStyle = snap.lightsOn ? "#0a0906" : "#050403";
+                ctx.fillRect(epx - tw / 2 - 3, posLabelY - posFontSize, tw + 6, posFontSize + 4);
+                ctx.fillStyle = "#b8a878";
+                ctx.fillText(label, epx, posLabelY);
+                ctx.strokeStyle = "#2a2418";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 4]);
+                ctx.beginPath();
+                ctx.moveTo(epx, posLabelY + 4);
+                ctx.lineTo(epx, h);
+                ctx.stroke();
+                ctx.setLineDash([]);
             }
         }
 
@@ -442,4 +489,27 @@ export const GodmodeMap = {
 
     /** Current zoom level for display. */
     getZoom() { return zoom; },
+
+    /** Set zoom to nearest available level. */
+    setZoom(level) {
+        let best = 0;
+        for (let i = 0; i < ZOOM_LEVELS.length; i++) {
+            if (Math.abs(ZOOM_LEVELS[i] - level) < Math.abs(ZOOM_LEVELS[best] - level)) best = i;
+        }
+        zoomIndex = best;
+        zoom = ZOOM_LEVELS[zoomIndex];
+        this._recalcCells();
+    },
+
+    /** Set viewport origin (position, floor). Undefined values keep current. */
+    setViewport(x, y) {
+        if (x !== undefined) vpX = x;
+        if (y !== undefined) vpY = y;
+    },
+
+    /** Set side view: 0=west, 1=east, null=both. */
+    setSide(s) {
+        viewSide = s;
+        this._recalcCells();
+    },
 };
