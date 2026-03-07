@@ -53,6 +53,7 @@ function snapshot() {
         const ent = Social.getNpcEntity(npc.id);
 
         let personality = null;
+        let belief = null;
         let bonds = [];
         let groupId = null;
 
@@ -60,6 +61,10 @@ function snapshot() {
             const persComp = getComponent(world, ent, "personality");
             if (persComp) {
                 personality = { ...persComp };
+            }
+            const beliefComp = getComponent(world, ent, "belief");
+            if (beliefComp) {
+                belief = { ...beliefComp };
             }
             const groupComp = getComponent(world, ent, "group");
             if (groupComp) groupId = groupComp.groupId;
@@ -90,6 +95,7 @@ function snapshot() {
             lucidity: psych ? psych.lucidity : 100,
             hope: psych ? psych.hope : 100,
             personality,
+            belief,
             bonds,
             groupId,
         });

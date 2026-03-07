@@ -18,6 +18,35 @@ function bar(value, max, color) {
         '<span class="gm-bar-num">' + rounded + '</span>';
 }
 
+const FAITH_LABELS = {
+    mormon: "Mormon",
+    catholic: "Catholic",
+    protestant: "Protestant",
+    evangelical: "Evangelical",
+    jewish: "Jewish",
+    muslim: "Muslim",
+    hindu: "Hindu",
+    buddhist: "Buddhist",
+    atheist: "atheist",
+    agnostic: "agnostic",
+};
+
+const STANCE_LABELS = {
+    undecided: "undecided",
+    seeker: "Seeker",
+    direite: "Direite",
+    nihilist: "nihilist",
+    holdout: "holdout",
+};
+
+const STANCE_COLORS = {
+    undecided: "#888",
+    seeker: "#6a8a5a",
+    direite: "#9a2a2a",
+    nihilist: "#666",
+    holdout: "#b8a878",
+};
+
 function narrate(npc) {
     if (!npc.alive) return "They are dead. They will return at dawn.";
 
@@ -28,6 +57,22 @@ function narrate(npc) {
     else if (npc.disposition === "anxious") parts.push("They are anxious.");
     else if (npc.disposition === "mad") parts.push("They have lost their mind.");
     else if (npc.disposition === "catatonic") parts.push("They have stopped moving.");
+
+    // Belief narration
+    if (npc.belief) {
+        const b = npc.belief;
+        if (b.stance === "holdout") {
+            parts.push("They still believe this is a test from God.");
+        } else if (b.stance === "seeker") {
+            parts.push("They have accepted the rules. They are looking for their book.");
+        } else if (b.stance === "direite") {
+            parts.push("They believe God demands scourging.");
+        } else if (b.stance === "nihilist") {
+            parts.push("They have stopped believing in anything.");
+        } else if (b.faithCrisis > 0.5 && b.acceptance < 0.3) {
+            parts.push("Their faith is crumbling.");
+        }
+    }
 
     // Social
     if (npc.bonds.length === 0) {
@@ -86,6 +131,22 @@ export const GodmodePanel = {
         html += '<div class="gm-stat"><span>lucidity</span>' + bar(npc.lucidity, 100, "#b8a878") + '</div>';
         html += '<div class="gm-stat"><span>hope</span>' + bar(npc.hope, 100, "#6a8a5a") + '</div>';
         html += '</div>';
+
+        // Belief
+        if (npc.belief) {
+            html += '<div class="gm-section">';
+            html += '<div class="gm-section-title">belief</div>';
+            const b = npc.belief;
+            const faithLabel = FAITH_LABELS[b.faith] || b.faith;
+            const stanceLabel = STANCE_LABELS[b.stance] || b.stance;
+            const stanceColor = STANCE_COLORS[b.stance] || "#888";
+            html += '<div class="gm-stat"><span>prior faith</span><span class="gm-bar-num">' + esc(faithLabel) + '</span></div>';
+            html += '<div class="gm-stat"><span>devotion</span>' + bar(b.devotion, 1, "#b8a878") + '</div>';
+            html += '<div class="gm-stat"><span>faith crisis</span>' + bar(b.faithCrisis, 1, "#c49530") + '</div>';
+            html += '<div class="gm-stat"><span>acceptance</span>' + bar(b.acceptance, 1, "#6a8a5a") + '</div>';
+            html += '<div class="gm-stat"><span>stance</span><span class="gm-bar-num" style="color:' + stanceColor + '">' + esc(stanceLabel) + '</span></div>';
+            html += '</div>';
+        }
 
         // Personality
         if (npc.personality) {
