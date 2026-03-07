@@ -4,6 +4,8 @@
  * Callbacks: onSelect(id), onCenter(id), onDeselect()
  */
 
+import { getNpcNarrative } from "./godmode-narrative.js";
+
 let callbacks = {};
 let lastHtml = "";
 let possessCallback = null;
@@ -547,10 +549,29 @@ function renderDetail(npc, snap, pane) {
         }
     }
 
-    // Narration
+    // Live state
     html += '<div class="gm-section gm-monologue">';
     html += '<div class="gm-thought">' + esc(narrate(npc)) + '</div>';
     html += '</div>';
+
+    // Narrative history
+    const narrative = getNpcNarrative(npc.id);
+    if (narrative.length > 0) {
+        html += '<div class="gm-section">';
+        html += '<div class="gm-section-title">story</div>';
+        html += '<div class="gm-narrative">';
+        // Show newest first
+        for (let i = narrative.length - 1; i >= 0; i--) {
+            const entry = narrative[i];
+            const mins = (entry.tick / 240) * 24 * 60 + 6 * 60;
+            const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
+            const mm = String(Math.floor(mins % 60)).padStart(2, "0");
+            html += '<div class="gm-narrative-entry">' +
+                '<span class="gm-log-time">d' + (entry.day - 1) + ' ' + hh + ':' + mm + '</span>' +
+                esc(entry.text) + '</div>';
+        }
+        html += '</div></div>';
+    }
 
     html += '</div>';
     if (html !== lastHtml) {

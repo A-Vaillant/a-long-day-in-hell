@@ -16,6 +16,7 @@ import { GodmodeMap } from "./godmode-map.js";
 import { GodmodePanel } from "./godmode-panel.js";
 import { GodmodeLog } from "./godmode-log.js";
 import { detectEvents } from "./godmode-detect.js";
+import { narrateEvents } from "./godmode-narrative.js";
 import { getComponent } from "../../lib/ecs.core.ts";
 import { TICKS_PER_DAY, LIGHTS_ON_TICKS } from "../../lib/tick.core.ts";
 
@@ -42,6 +43,7 @@ function tickOnce() {
     const after = snapshot();
     const events = detectEvents(before, after);
     for (const ev of events) GodmodeLog.push(ev);
+    if (events.length > 0) narrateEvents(events, after);
     prevSnap = after;
 }
 
@@ -248,6 +250,7 @@ function tickBatch(n) {
     const after = snapshot();
     const events = detectEvents(before, after);
     for (const ev of events) GodmodeLog.push(ev);
+    if (events.length > 0) narrateEvents(events, after);
     prevSnap = after;
 }
 

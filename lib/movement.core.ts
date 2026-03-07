@@ -98,8 +98,9 @@ export function movementSystem(
         if (!intent || !MOVE_INTENTS.has(intent.behavior)) continue;
 
         const behavior = intent.behavior;
+        const isPilgrimage = behavior === "pilgrimage";
         const isMad = behavior === "wander_mad";
-        const moveProb = isMad ? config.madMoveProbability : config.calmMoveProbability;
+        const moveProb = isPilgrimage ? 1.0 : isMad ? config.madMoveProbability : config.calmMoveProbability;
         const floorChance = isMad ? config.madFloorChangeChance : config.calmFloorChangeChance;
 
         // Set target for directed movement behaviors
