@@ -27,6 +27,9 @@ export const Tick = {
             state.openBook = null;
             state.openPage = 0;
         });
+        Engine.onBoundary("lightsOut", function () {
+            Social.onLightsOut();
+        });
         Engine.onBoundary("dawn", function () {
             if (state.dead) Surv.onResurrection();
             Npc.onDawn();

@@ -29,6 +29,9 @@ describe("DEFAULT_SCORERS", () => {
             personality: { temperament: 0.5, pace: 0.5, openness: 0.5, outlook: 0.5 },
             intent: makeIntent(),
             rng: makeRng(0.5),
+            position: { side: 0, position: 5, floor: 0 },
+            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            tick: 0,
             ...overrides,
         };
     }
@@ -90,6 +93,64 @@ describe("DEFAULT_SCORERS", () => {
         const restless = makeCtx({ personality: { temperament: 0.5, pace: 1.0, openness: 0.5, outlook: 0.5 }, rng });
         assert.ok(DEFAULT_SCORERS.search(patient, DEFAULT_INTENT) >
                   DEFAULT_SCORERS.search(restless, DEFAULT_INTENT));
+    });
+
+    it("return_home returns -Infinity before evening", () => {
+        const s = DEFAULT_SCORERS.return_home(makeCtx({ tick: 100 }), DEFAULT_INTENT);
+        assert.strictEqual(s, -Infinity);
+    });
+
+    it("return_home scores positively in the evening when away from home", () => {
+        const ctx = makeCtx({
+            position: { side: 0, position: 5, floor: 0 },
+            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            tick: 150, // near lights-out
+        });
+        const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
+        assert.ok(s > 0.5, `return_home score ${s} should be > 0.5 near lights-out`);
+    });
+
+    it("return_home returns -Infinity when already at home", () => {
+        const ctx = makeCtx({
+            position: { side: 0, position: 10, floor: 0 },
+            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            tick: 150,
+        });
+        const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
+        assert.strictEqual(s, -Infinity);
+    });
+
+    it("return_home returns -Infinity when too far from home", () => {
+        const ctx = makeCtx({
+            position: { side: 0, position: 100, floor: 0 },
+            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            tick: 150,
+        });
+        const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
+        assert.strictEqual(s, -Infinity);
+    });
+
+    it("return_home returns -Infinity without sleep component", () => {
+        const s = DEFAULT_SCORERS.return_home(makeCtx({ sleep: null, tick: 150 }), DEFAULT_INTENT);
+        assert.strictEqual(s, -Infinity);
+    });
+
+    it("return_home returns -Infinity for nomadic NPCs", () => {
+        const ctx = makeCtx({
+            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: true },
+            tick: 150,
+        });
+        const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
+        assert.strictEqual(s, -Infinity);
+    });
+
+    it("return_home urgency increases toward lights-out", () => {
+        const early = makeCtx({ tick: 125 });
+        const late = makeCtx({ tick: 155 });
+        assert.ok(
+            DEFAULT_SCORERS.return_home(late, DEFAULT_INTENT) >
+            DEFAULT_SCORERS.return_home(early, DEFAULT_INTENT),
+        );
     });
 
     it("wander_mad returns -Infinity for non-mad", () => {

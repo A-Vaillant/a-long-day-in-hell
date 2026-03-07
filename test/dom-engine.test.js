@@ -32,7 +32,8 @@ describe("DOM: Engine boundary registry", () => {
         const lucBefore = psychBefore.lucidity;
         const hopeBefore = psychBefore.hope;
         // Run several dawns — each advance fires Social.onTick per tick
-        for (let i = 0; i < 10; i++) game.Tick.advanceToDawn();
+        // NPCs now actively move/search so more dawns needed for reliable decay
+        for (let i = 0; i < 30; i++) game.Tick.advanceToDawn();
         const psychAfter = game.Social.getNpcPsych(npc0.id);
         assert.ok(psychAfter.lucidity < lucBefore, "lucidity decayed");
         assert.ok(psychAfter.hope < hopeBefore, "hope decayed");
