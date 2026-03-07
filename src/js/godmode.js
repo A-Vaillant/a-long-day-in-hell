@@ -13,6 +13,8 @@ import { Social } from "./social.js";
 import { Tick } from "./tick.js";
 import { GodmodeMap } from "./godmode-map.js";
 import { GodmodePanel } from "./godmode-panel.js";
+import { GodmodeLog } from "./godmode-log.js";
+import { detectEvents } from "./godmode-detect.js";
 import { getComponent } from "../../lib/ecs.core.js";
 
 let running = false;
@@ -21,13 +23,20 @@ let lastFrame = 0;
 let accumulator = 0;
 let selectedNpcId = null;
 let followMode = false;
+let logVisible = false;
+let prevSnap = null;
 
 const SPEEDS = [1, 2, 5, 10, 20];
 let speedIndex = 0;
 
 function tickOnce() {
+    const before = snapshot();
     Tick.advance(1);
     Social.onTick();
+    const after = snapshot();
+    const events = detectEvents(before, after);
+    for (const ev of events) GodmodeLog.push(ev);
+    prevSnap = after;
 }
 
 function snapshot() {
@@ -91,10 +100,44 @@ function snapshot() {
     };
 }
 
+const LOG_COLORS = {
+    bond: "#b8a878",
+    disposition: "#c49530",
+    death: "#9a2a2a",
+    resurrection: "#6a8a5a",
+    group: "#7a8ab8",
+};
+
+function renderLog() {
+    const el = document.getElementById("godmode-log");
+    if (!el) return;
+    el.className = logVisible ? "gm-log-visible" : "gm-log-hidden";
+    if (!logVisible) return;
+
+    const recent = GodmodeLog.getRecent(50);
+    let html = '';
+    for (const ev of recent) {
+        const color = LOG_COLORS[ev.type] || "#b8a878";
+        html += '<div class="gm-log-entry" style="color:' + color + '">' +
+            '<span class="gm-log-time">d' + ev.day + '</span>' +
+            ev.text + '</div>';
+    }
+    if (recent.length === 0) {
+        html = '<div class="gm-log-empty">No events yet.</div>';
+    }
+    el.innerHTML = html;
+}
+
+function toggleLog() {
+    logVisible = !logVisible;
+    renderLog();
+}
+
 function render() {
     const snap = snapshot();
     GodmodeMap.draw(snap, selectedNpcId, followMode);
     GodmodePanel.update(snap, selectedNpcId);
+    if (logVisible) renderLog();
 }
 
 function loop(now) {
@@ -133,6 +176,11 @@ function setupDOM() {
     canvas.id = "godmode-canvas";
     mapWrap.appendChild(canvas);
 
+    const logEl = document.createElement("div");
+    logEl.id = "godmode-log";
+    logEl.className = "gm-log-hidden";
+    mapWrap.appendChild(logEl);
+
     const controls = document.createElement("div");
     controls.id = "godmode-controls";
     controls.innerHTML =
@@ -141,6 +189,7 @@ function setupDOM() {
         '<button id="gm-play">\u25B6</button>' +
         '<button id="gm-step">\u23ED</button>' +
         '<button id="gm-speed">1x</button>' +
+        '<button id="gm-log-toggle">log</button>' +
         '<span id="gm-status"></span>';
     mapWrap.appendChild(controls);
 
@@ -172,6 +221,8 @@ function setupInput(canvas) {
         this.textContent = speed + "x";
     });
 
+    document.getElementById("gm-log-toggle").addEventListener("click", toggleLog);
+
     canvas.addEventListener("click", function (ev) {
         const rect = canvas.getBoundingClientRect();
         const x = ev.clientX - rect.left;
@@ -198,6 +249,8 @@ function setupInput(canvas) {
             selectedNpcId = null;
             followMode = false;
             render();
+        } else if (ev.key === "e") {
+            toggleLog();
         } else {
             GodmodeMap.handleKey(ev.key);
             render();
@@ -208,6 +261,7 @@ function setupInput(canvas) {
 export const Godmode = {
     /** Called by Engine.init() after shared world setup. Replaces DOM and starts observation loop. */
     start() {
+        GodmodeLog.init();
         const canvas = setupDOM();
         GodmodeMap.init(canvas, state);
         GodmodePanel.init();

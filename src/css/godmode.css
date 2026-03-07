@@ -211,3 +211,49 @@ body.godmode {
     font-size: 10px;
     color: #4a4030;
 }
+
+/* --- Event Log --- */
+
+#godmode-log {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 300px;
+    max-height: calc(100% - 40px);
+    overflow-y: auto;
+    background: rgba(10, 9, 6, 0.92);
+    border-right: 1px solid #1a1810;
+    border-bottom: 1px solid #1a1810;
+    padding: 8px;
+    font-size: 11px;
+    line-height: 1.4;
+    z-index: 10;
+}
+
+.gm-log-hidden {
+    display: none;
+}
+
+.gm-log-visible {
+    display: block;
+}
+
+.gm-log-entry {
+    margin: 2px 0;
+    padding: 1px 0;
+}
+
+.gm-log-time {
+    color: #4a4030;
+    margin-right: 6px;
+    font-size: 10px;
+}
+
+.gm-log-empty {
+    color: #4a4030;
+    font-style: italic;
+}
+
+#gm-log-toggle {
+    color: #6a6050;
+}
