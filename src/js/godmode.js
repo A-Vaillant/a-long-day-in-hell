@@ -457,7 +457,6 @@ function setupInput(canvas) {
                 if (npc) GodmodeMap.setSide(npc.side);
                 switchTab("npc");
             } else {
-                GodmodeMap.centerOnPixel(x, y);
                 selectedNpcId = null;
                 followMode = false;
             }

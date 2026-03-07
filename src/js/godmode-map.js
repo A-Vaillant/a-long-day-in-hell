@@ -551,13 +551,6 @@ export const GodmodeMap = {
         if (y !== undefined) vpY = y;
     },
 
-    /** Center viewport on a pixel coordinate (converts to world coords). */
-    centerOnPixel(px, py) {
-        const world = this._pixelToWorld(px, py);
-        vpX = world.pos - vpCols / 2;
-        vpY = world.floor - vpRows / 2;
-    },
-
     /** Set side view: 0=west, 1=east, null=both. */
     setSide(s) {
         viewSide = s;
