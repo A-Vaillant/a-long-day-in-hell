@@ -23,6 +23,8 @@ import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, searchSystem, scoreFromSeed } from "../../lib/search.core.ts";
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
+import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment } from "../../lib/knowledge.core.ts";
+import { isRestArea } from "../../lib/library.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.js";
@@ -44,7 +46,7 @@ export const Social = {
         addComponent(world, playerEntity, POSITION, {
             side: state.side, position: state.position, floor: state.floor,
         });
-        addComponent(world, playerEntity, IDENTITY, { name: "You", alive: true });
+        addComponent(world, playerEntity, IDENTITY, { name: "You", alive: true, free: false });
         addComponent(world, playerEntity, PSYCHOLOGY, { lucidity: 100, hope: 100 });
         addComponent(world, playerEntity, RELATIONSHIPS, { bonds: new Map() });
         addComponent(world, playerEntity, HABITUATION, { exposures: new Map() });
@@ -67,7 +69,7 @@ export const Social = {
                 addComponent(world, ent, POSITION, {
                     side: npc.side, position: npc.position, floor: npc.floor,
                 });
-                addComponent(world, ent, IDENTITY, { name: npc.name, alive: npc.alive });
+                addComponent(world, ent, IDENTITY, { name: npc.name, alive: npc.alive, free: false });
                 // Match initial psychology to spawn disposition
                 const initPsych = npc.disposition === "mad" ? { lucidity: 25, hope: 60 } :
                                   npc.disposition === "anxious" ? { lucidity: 55, hope: 50 } :
@@ -92,6 +94,12 @@ export const Social = {
                 addComponent(world, ent, PERSONALITY, generatePersonality(npcPersRng));
                 const npcBeliefRng = seedFromString(state.seed + ":npc:belief:" + npc.id);
                 addComponent(world, ent, BELIEF, generateBelief(npcBeliefRng));
+
+                // Knowledge: each NPC has their own life story + target book
+                addComponent(world, ent, KNOWLEDGE, createKnowledge(
+                    state.seed, npc.id,
+                    { side: npc.side, position: npc.position, floor: npc.floor },
+                ));
             }
         }
     },
@@ -195,6 +203,9 @@ export const Social = {
             }
         }
 
+        // Escape check: pilgrims who arrived at their book, or have book at rest area
+        this.checkEscapes();
+
         // NPC chasm AI: check for jumps, advance falling
         this.checkNpcChasmJump();
         this.tickNpcFalling();
@@ -207,7 +218,9 @@ export const Social = {
             const ident = getComponent(world, ent, IDENTITY);
             if (!psych || !ident) continue;
 
-            npc.disposition = deriveDisposition(psych, ident.alive);
+            const knowledge = getComponent(world, ent, KNOWLEDGE);
+            const onPilgrimage = !!(knowledge && knowledge.bookVision && ident.alive);
+            npc.disposition = deriveDisposition(psych, ident.alive, undefined, onPilgrimage);
             // Sync alive status back
             if (!ident.alive && npc.alive) {
                 const needs = getComponent(world, ent, NEEDS);
@@ -230,10 +243,13 @@ export const Social = {
         const currentTick = (state.day - 1) * 240 + state.tick;
         sleepWakeSystem(world, currentTick);
         resetNeedsAtDawn(world);
-        // Sync ECS resurrection back to state.npcs
+        // Sync ECS resurrection back to state.npcs (skip escaped NPCs)
         if (state.npcs) {
             for (const npc of state.npcs) {
                 if (!npc.alive) {
+                    const ent = npcEntities.get(npc.id);
+                    const ident = ent !== undefined ? getComponent(world, ent, IDENTITY) : null;
+                    if (ident && ident.free) continue; // FREE = gone forever
                     npc.alive = true;
                     npc.falling = null;
                 }
@@ -273,6 +289,32 @@ export const Social = {
         return getComponent(world, ent, BELIEF);
     },
 
+    /** Get NPC knowledge for debug/UI. */
+    getNpcKnowledge(npcId) {
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined || !world) return null;
+        return getComponent(world, ent, KNOWLEDGE);
+    },
+
+    /**
+     * Grant a divine vision to an NPC, revealing their book location.
+     * Returns true if vision was granted, false if NPC not found or already escaped.
+     */
+    grantVision(npcId, accurate = true) {
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined || !world) return false;
+        const knowledge = getComponent(world, ent, KNOWLEDGE);
+        const ident = getComponent(world, ent, IDENTITY);
+        if (!knowledge || (ident && ident.free)) return false;
+        applyVision(knowledge, accurate);
+        // Divine inspiration: immediate hope boost
+        const psych = getComponent(world, ent, PSYCHOLOGY);
+        if (psych) {
+            psych.hope = Math.min(100, psych.hope + 40);
+        }
+        return true;
+    },
+
     /**
      * Get the player's group members (NPCs in same ECS group, co-located).
      * Returns array of { name, disposition } for sidebar display.
@@ -298,6 +340,64 @@ export const Social = {
             });
         }
         return members;
+    },
+
+    // --- Escape resolution ---
+
+    /**
+     * Check if any NPC has found their book or can submit it.
+     *
+     * Two-phase:
+     * 1. Pilgrim at book segment → picks up book (hasBook = true)
+     * 2. NPC with book at rest area → submits and escapes
+     *
+     * Witness boost: nearby NPCs on same side/floor get +15 hope.
+     */
+    checkEscapes() {
+        if (!world || !state.npcs) return;
+        for (const npc of state.npcs) {
+            if (!npc.alive) continue;
+            const ent = npcEntities.get(npc.id);
+            if (ent === undefined) continue;
+            const knowledge = getComponent(world, ent, KNOWLEDGE);
+            const ident = getComponent(world, ent, IDENTITY);
+            if (!knowledge || !ident || ident.free) continue;
+
+            const pos = getComponent(world, ent, POSITION);
+            if (!pos) continue;
+
+            // Phase 1: at book segment → pick up book
+            if (!knowledge.hasBook && knowledge.bookVision && knowledge.visionAccurate) {
+                if (isAtBookSegment(knowledge, pos)) {
+                    knowledge.hasBook = true;
+                }
+            }
+
+            // Phase 2: has book at rest area → submit and escape
+            if (knowledge.hasBook && isRestArea(pos.position)) {
+                ident.free = true;
+                ident.alive = false;
+                npc.alive = false;
+                npc.disposition = "escaped";
+
+                // Witness hope boost: NPCs within 3 segments on same side+floor
+                for (const other of state.npcs) {
+                    if (other.id === npc.id || !other.alive) continue;
+                    if (other.side !== pos.side || other.floor !== pos.floor) continue;
+                    if (Math.abs(other.position - pos.position) > 3) continue;
+                    const otherEnt = npcEntities.get(other.id);
+                    if (otherEnt === undefined) continue;
+                    const otherPsych = getComponent(world, otherEnt, PSYCHOLOGY);
+                    if (otherPsych) {
+                        otherPsych.hope = Math.min(100, otherPsych.hope + 15);
+                    }
+                }
+
+                console.log("NPC ESCAPED:", npc.name, "id=" + npc.id,
+                    "at s" + pos.position + " f" + pos.floor,
+                    "day=" + state.day, "tick=" + state.tick);
+            }
+        }
     },
 
     // --- NPC chasm falling ---

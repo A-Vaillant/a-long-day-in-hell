@@ -103,6 +103,13 @@ function snapshot() {
             if (components.group) groupId = components.group.groupId;
         }
 
+        // Check identity.free from ECS
+        let free = false;
+        if (world && ent !== undefined) {
+            const identComp = getComponent(world, ent, "identity");
+            if (identComp) free = !!identComp.free;
+        }
+
         npcs.push({
             // Flat fields for backwards compat (detection, map, list view)
             id: npc.id,
@@ -112,6 +119,7 @@ function snapshot() {
             floor: npc.floor,
             disposition: npc.disposition,
             alive: npc.alive,
+            free,
             lucidity: psych ? psych.lucidity : 100,
             hope: psych ? psych.hope : 100,
             bonds,
@@ -136,6 +144,8 @@ const LOG_COLORS = {
     death: "#9a2a2a",
     resurrection: "#6a8a5a",
     group: "#7a8ab8",
+    pilgrimage: "#d4a0e0",
+    escape: "#60d060",
 };
 
 function renderLog() {
@@ -463,6 +473,8 @@ function setupInput(canvas) {
         const wasDrag = GodmodeMap.dragEnd(x, y);
         canvas.style.cursor = "crosshair";
 
+        if (wasDrag) followMode = false;
+
         // Only select NPC on click (not drag)
         if (!wasDrag && x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
             const hit = GodmodeMap.hitTest(x, y);
@@ -507,7 +519,6 @@ function setupInput(canvas) {
         const py = ev.clientY - rect.top;
         const delta = ev.deltaY < 0 ? 1 : -1;
         GodmodeMap.zoom(delta, px, py);
-        followMode = false;
         render();
     }, { passive: false });
 
@@ -565,8 +576,9 @@ function setupInput(canvas) {
             GodmodeMap.handleKey(ev.key);
             render();
         } else {
+            const navKeys = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "h", "j", "k", "l", "Home", "H"]);
+            if (navKeys.has(ev.key)) followMode = false;
             GodmodeMap.handleKey(ev.key);
-            if (ev.key !== " ") followMode = false;
             render();
         }
     });
@@ -724,6 +736,10 @@ export const Godmode = {
             },
             onJump(id) {
                 npcJump(id);
+            },
+            onVision(id) {
+                Social.grantVision(id);
+                render(true);
             },
         });
         setupInput(canvas);

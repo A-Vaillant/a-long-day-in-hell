@@ -19,6 +19,7 @@ import {
 import { NEEDS, type Needs } from "./needs.core.ts";
 import { INTENT, type Intent } from "./intent.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
+import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
 import { isRestArea } from "./library.core.ts";
 
 // --- Component ---
@@ -67,7 +68,7 @@ function stepToward(current: number, target: number): number {
 
 // --- Movement behaviors ---
 
-const MOVE_INTENTS = new Set(["explore", "seek_rest", "return_home", "wander_mad"]);
+const MOVE_INTENTS = new Set(["explore", "seek_rest", "return_home", "wander_mad", "pilgrimage"]);
 
 // --- System ---
 
@@ -107,11 +108,36 @@ export function movementSystem(
         } else if (behavior === "return_home") {
             const sleep = getComponent<Sleep>(world, entity, SLEEP);
             mov.targetPosition = sleep ? sleep.home.position : nearestRestArea(pos.position);
+        } else if (behavior === "pilgrimage") {
+            const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
+            const vision = knowledge?.bookVision;
+            if (knowledge?.hasBook) {
+                // Has book: walk to nearest rest area for submission
+                mov.targetPosition = nearestRestArea(pos.position);
+            } else if (vision) {
+                // Pilgrimage pathfinding: prioritize side → floor → position
+                if (pos.side !== vision.side) {
+                    // Wrong side: need to get to floor 0, then a rest area to cross
+                    if (pos.floor > 0) {
+                        mov.targetPosition = nearestRestArea(pos.position); // get to stairs
+                    } else {
+                        mov.targetPosition = nearestRestArea(pos.position); // get to crossing point
+                    }
+                } else if (pos.floor !== vision.floor) {
+                    // Wrong floor: need a rest area for stairs
+                    mov.targetPosition = nearestRestArea(pos.position);
+                } else {
+                    // Right side and floor: walk to target position
+                    mov.targetPosition = vision.position;
+                }
+            } else {
+                mov.targetPosition = null;
+            }
         } else {
             mov.targetPosition = null;
         }
 
-        const isDirected = (behavior === "seek_rest" || behavior === "return_home") && mov.targetPosition !== null;
+        const isDirected = (behavior === "seek_rest" || behavior === "return_home" || behavior === "pilgrimage") && mov.targetPosition !== null;
 
         if (n <= 1) {
             // Single tick
@@ -121,6 +147,23 @@ export function movementSystem(
                 const step = stepToward(pos.position, mov.targetPosition);
                 if (step !== 0) {
                     pos.position += step;
+                } else if (behavior === "pilgrimage" && isRestArea(pos.position)) {
+                    // At rest area target — handle floor/side transitions
+                    const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
+                    const vision = knowledge?.bookVision;
+                    if (vision) {
+                        if (pos.side !== vision.side && pos.floor === 0) {
+                            // Cross chasm at floor 0
+                            pos.side = vision.side;
+                        } else if (pos.side !== vision.side && pos.floor > 0) {
+                            // Go down toward floor 0 to cross
+                            pos.floor--;
+                        } else if (pos.floor !== vision.floor) {
+                            // Take stairs
+                            pos.floor += pos.floor < vision.floor ? 1 : -1;
+                            pos.floor = Math.max(0, pos.floor);
+                        }
+                    }
                 }
             } else {
                 // Random walk (explore or wander_mad)
@@ -140,6 +183,42 @@ export function movementSystem(
                 const dist = Math.abs(pos.position - mov.targetPosition);
                 if (expectedMoves >= dist) {
                     pos.position = mov.targetPosition;
+                    // Pilgrimage batch: use remaining moves for floor/side transitions
+                    if (behavior === "pilgrimage" && isRestArea(pos.position)) {
+                        const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
+                        const vision = knowledge?.bookVision;
+                        if (vision) {
+                            let remaining = expectedMoves - dist;
+                            // Cross chasm if needed
+                            if (pos.side !== vision.side) {
+                                const floorsDown = pos.floor;
+                                if (remaining >= floorsDown) {
+                                    pos.floor = 0;
+                                    remaining -= floorsDown;
+                                    if (remaining > 0) {
+                                        pos.side = vision.side;
+                                        remaining--;
+                                    }
+                                } else {
+                                    pos.floor -= remaining;
+                                    remaining = 0;
+                                }
+                            }
+                            // Climb/descend to target floor
+                            if (pos.side === vision.side && pos.floor !== vision.floor && remaining > 0) {
+                                const floorDist = Math.abs(pos.floor - vision.floor);
+                                const floorMoves = Math.min(remaining, floorDist);
+                                pos.floor += (pos.floor < vision.floor ? 1 : -1) * floorMoves;
+                                remaining -= floorMoves;
+                            }
+                            // Walk to target position with remaining moves
+                            if (pos.side === vision.side && pos.floor === vision.floor && remaining > 0) {
+                                const posDist = Math.abs(pos.position - vision.position);
+                                const posMoves = Math.min(remaining, posDist);
+                                pos.position += stepToward(pos.position, vision.position) * posMoves;
+                            }
+                        }
+                    }
                 } else {
                     pos.position += stepToward(pos.position, mov.targetPosition) * expectedMoves;
                 }

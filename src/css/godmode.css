@@ -296,6 +296,8 @@ body.godmode {
 .gm-disp-anxious   { color: #d4a540; }
 .gm-disp-mad       { color: #c44040; }
 .gm-disp-catatonic { color: #666666; }
+.gm-disp-inspired  { color: #c8a0e0; }
+.gm-disp-escaped   { color: #60d060; }
 .gm-dead-tag       { color: #444; font-style: italic; }
 
 /* Psychology bars */

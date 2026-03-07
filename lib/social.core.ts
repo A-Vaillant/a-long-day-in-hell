@@ -22,6 +22,7 @@ import { getComponent, query, addComponent } from "./ecs.core.ts";
 import { PERSONALITY, type Personality, decayBias, entityCompatibility, familiarityFatigue } from "./personality.core.ts";
 import { BELIEF, type BeliefComponent, beliefDecayMod, evolveBelief, updateStance } from "./belief.core.ts";
 import { NEEDS, type Needs, needsDecayMultiplier } from "./needs.core.ts";
+import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
 
 // --- Component keys ---
 
@@ -44,6 +45,8 @@ export interface Position {
 export interface Identity {
     name: string;
     alive: boolean;
+    /** Entity has submitted their book and left the library. */
+    free: boolean;
 }
 
 export interface Psychology {
@@ -75,7 +78,7 @@ export interface Rng {
 
 // --- Disposition derivation ---
 
-export type Disposition = "calm" | "anxious" | "mad" | "catatonic" | "dead";
+export type Disposition = "calm" | "anxious" | "mad" | "catatonic" | "dead" | "inspired" | "escaped";
 
 /**
  * Thresholds for disposition derivation from psychology.
@@ -105,6 +108,7 @@ export function deriveDisposition(
     psych: Psychology,
     alive: boolean,
     thresholds: DispositionThresholds = DEFAULT_THRESHOLDS,
+    hasPilgrimage: boolean = false,
 ): Disposition {
     if (!alive) return "dead";
     // Catatonic takes priority — no energy for madness
@@ -113,6 +117,8 @@ export function deriveDisposition(
     if (psych.lucidity <= thresholds.anxiousLucidity || psych.hope <= thresholds.anxiousHope) {
         return "anxious";
     }
+    // Inspired: has a divine vision and is on pilgrimage
+    if (hasPilgrimage) return "inspired";
     return "calm";
 }
 
@@ -270,6 +276,15 @@ export function psychologyDecaySystem(
         const bias = { lucidityMul, hopeMul };
         for (let t = 0; t < n; t++) {
             decayPsychology(psychology, social, config, bias);
+        }
+
+        // Pilgrims have purpose — hope can't drop below catatonic threshold
+        const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
+        if (knowledge && knowledge.bookVision && identity.alive) {
+            const pilgrimHopeFloor = 20; // above catatonic (15)
+            if (psychology.hope < pilgrimHopeFloor) {
+                psychology.hope = pilgrimHopeFloor;
+            }
         }
     }
 }

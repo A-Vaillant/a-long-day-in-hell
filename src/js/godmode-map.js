@@ -52,6 +52,8 @@ const DISP_COLORS = {
     mad:       "#d04040",
     catatonic: "#707070",
     dead:      "#3a3a3a",
+    inspired:  "#c8a0e0",
+    escaped:   "#60d060",
 };
 
 // Muted distinct colors for group enclosures (hex without alpha — alpha appended in draw)
@@ -198,6 +200,12 @@ export const GodmodeMap = {
         if (follow && selectedId !== null) {
             const npc = snap.npcs.find(n => n.id === selectedId);
             if (npc) {
+                // Auto-switch corridor when followed NPC crosses the chasm
+                if (viewSide !== null && npc.side !== viewSide) {
+                    viewSide = npc.side;
+                    this._recalcCells();
+                }
+
                 const marginX = vpCols * 0.25;
                 const marginY = vpRows * 0.25;
                 const left = vpX + marginX;
@@ -260,6 +268,17 @@ export const GodmodeMap = {
             const corNum = viewSide === startSide ? "1" : "2";
             ctx.fillStyle = "#8a7a60";
             ctx.fillText("CORRIDOR " + corNum + "  ·  " + sideName, w / 2, HEADER_H / 2 + titleSize / 3);
+        }
+
+        // Follow indicator (top-right of header)
+        if (follow && selectedId !== null) {
+            const npc = snap.npcs.find(n => n.id === selectedId);
+            if (npc) {
+                ctx.textAlign = "right";
+                ctx.font = "bold 11px 'Share Tech Mono', monospace";
+                ctx.fillStyle = "#c8a0e0";
+                ctx.fillText("\u25C9 FOLLOWING: " + npc.name, w - 12, HEADER_H / 2 + 4);
+            }
         }
 
         // Offset all grid drawing below header

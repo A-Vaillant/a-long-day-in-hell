@@ -138,9 +138,12 @@ export function needsDecayMultiplier(needs: Needs): number {
 export function resetNeedsAtDawn(world: World): void {
     const entities = query(world, [NEEDS, IDENTITY]);
     for (const tuple of entities) {
+        const entity = tuple[0] as Entity;
         const needs = tuple[1] as Needs;
         const ident = tuple[2] as Identity;
         if (!ident.alive) {
+            // FREE entities stay dead — they left the library
+            if (ident.free) continue;
             ident.alive = true;
             needs.hunger = 0;
             needs.thirst = 0;

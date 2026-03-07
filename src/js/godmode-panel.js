@@ -8,6 +8,7 @@ let callbacks = {};
 let lastHtml = "";
 let possessCallback = null;
 let jumpCallback = null;
+let visionCallback = null;
 let lastRenderTime = 0;
 const RENDER_THROTTLE_MS = 400;
 
@@ -45,6 +46,8 @@ const DISP_SHORT = {
     anxious: "anx",
     mad: "mad",
     catatonic: "cat",
+    inspired: "insp",
+    escaped: "FREE",
 };
 
 const TIPS = {
@@ -77,6 +80,7 @@ const TIPS = {
     anxious: "Strained. Lucidity or hope dropping.",
     mad: "Lucidity collapsed. Erratic, potentially violent.",
     catatonic: "Hope collapsed. Unresponsive. May not recover.",
+    inspired: "Divinely inspired. On a pilgrimage to find their book.",
     witnessChasm: "Saw someone jump into the chasm. Devastating at first.",
     beingKilled: "Died and came back. Terrifying, then routine.",
     companionMad: "A companion went mad. Personal. Slow to numb.",
@@ -109,7 +113,7 @@ function bar(value, max, color) {
 // Each renderer: (comp, npc, snap) => html string (a gm-section)
 // Order array controls display order; unlisted components render last via fallback.
 
-const COMPONENT_ORDER = ["psychology", "intent", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation"];
+const COMPONENT_ORDER = ["psychology", "intent", "knowledge", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation"];
 
 const componentRenderers = {
     psychology(comp) {
@@ -189,6 +193,7 @@ const componentRenderers = {
             search: "Searching books",
             return_home: "Heading home",
             wander_mad: "Wandering (mad)",
+            pilgrimage: "Pilgrimage",
         };
         const BEHAVIOR_COLORS = {
             idle: "#888",
@@ -197,6 +202,7 @@ const componentRenderers = {
             search: "#6a8a5a",
             return_home: "#c49530",
             wander_mad: "#9a2a2a",
+            pilgrimage: "#d4a0e0",
         };
         // Show "Asleep" when idle during lights-off
         const asleep = comp.behavior === "idle" && snap && !snap.lightsOn && npc && npc.alive;
@@ -209,6 +215,40 @@ const componentRenderers = {
         if (comp.cooldown > 0) {
             html += '<div class="gm-stat"><span class="gm-tip" data-tip="Ticks before the arbiter can switch behaviors.">cooldown</span>';
             html += '<span class="gm-bar-num">' + comp.cooldown + '</span></div>';
+        }
+        html += '</div>';
+        return html;
+    },
+
+    knowledge(comp, npc) {
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">knowledge</div>';
+        // Book location
+        const bc = comp.lifeStory && comp.lifeStory.bookCoords;
+        if (bc) {
+            const bookLoc = (bc.side === 0 ? 'W' : 'E') + ' f' + bc.floor + ' s' + bc.position + ' #' + bc.bookIndex;
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Where this NPC\'s book actually is.">book</span>';
+            html += '<span class="gm-bar-num">' + esc(bookLoc) + '</span></div>';
+            // Distance
+            const dFloor = Math.abs(npc.floor - bc.floor);
+            const dPos = Math.abs(npc.position - bc.position);
+            const sameSide = npc.side === bc.side;
+            const dist = dPos + dFloor + (sameSide ? 0 : dFloor + 1);
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Approximate travel distance in moves (position + floor + chasm crossing).">distance</span>';
+            html += '<span class="gm-bar-num">' + dist + ' moves</span></div>';
+        }
+        // Vision status
+        if (comp.bookVision) {
+            const vl = (comp.bookVision.side === 0 ? 'W' : 'E') + ' f' + comp.bookVision.floor + ' s' + comp.bookVision.position;
+            const color = comp.visionAccurate ? "#6a8a5a" : "#9a2a2a";
+            const label = comp.visionAccurate ? "divine vision" : "false vision";
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Revealed destination. Green = accurate, red = false.">' + label + '</span>';
+            html += '<span class="gm-bar-num" style="color:' + color + '">' + esc(vl) + '</span></div>';
+        } else {
+            html += '<div class="gm-stat"><span>vision</span><span class="gm-bar-num" style="color:#666">none</span></div>';
+        }
+        if (comp.hasBook) {
+            html += '<div class="gm-stat"><span>book</span><span class="gm-bar-num" style="color:#60d060">found!</span></div>';
         }
         html += '</div>';
         return html;
@@ -350,6 +390,7 @@ function narrate(npc) {
     else if (npc.disposition === "anxious") parts.push("They are anxious.");
     else if (npc.disposition === "mad") parts.push("They have lost their mind.");
     else if (npc.disposition === "catatonic") parts.push("They have stopped moving.");
+    else if (npc.disposition === "inspired") parts.push("They have seen where their book is.");
 
     if (npc.bonds.length === 0) {
         parts.push("They know no one.");
@@ -386,6 +427,7 @@ function narrate(npc) {
         else if (intent.behavior === "return_home") parts.push("They are heading home for the night.");
         else if (intent.behavior === "seek_rest") parts.push("They need to rest.");
         else if (intent.behavior === "wander_mad") parts.push("They are wandering erratically.");
+        else if (intent.behavior === "pilgrimage") parts.push("They are on a pilgrimage to find their book.");
     }
 
     // Sleep
@@ -426,7 +468,8 @@ function renderList(snap, pane) {
         html += '<div class="gm-npc-row-top">';
         html += '<span class="gm-npc-row-name">' + esc(npc.name) + '</span>';
         html += '<span class="gm-npc-row-disp ' + dispClass + '">' + (DISP_SHORT[npc.disposition] || npc.disposition) + '</span>';
-        if (!npc.alive) html += '<span class="gm-dead-tag">dead</span>';
+        const isEscaped = npc.free;
+        if (!npc.alive) html += '<span class="gm-dead-tag" style="' + (isEscaped ? 'color:#60d060;font-style:normal' : '') + '">' + (isEscaped ? 'FREE' : 'dead') + '</span>';
         html += '</div>';
         html += '<div class="gm-npc-row-bars">';
         html += '<span class="gm-npc-row-label">luc</span>' + miniBar(npc.lucidity, 100, "#b8a878");
@@ -455,19 +498,24 @@ function renderDetail(npc, snap, pane) {
     html += '<div class="gm-section gm-identity">';
     html += '<div class="gm-name">' + esc(npc.name) + '</div>';
     html += '<div class="gm-disp gm-disp-' + npc.disposition + ' gm-tip" data-tip="' + esc(TIPS[npc.disposition] || "") + '">' + npc.disposition + '</div>';
-    if (!npc.alive) html += '<div class="gm-dead-tag">dead</div>';
+    const isEscaped = npc.free;
+    if (!npc.alive) html += '<div class="gm-dead-tag" style="' + (isEscaped ? 'color:#60d060;font-style:normal' : '') + '">' + (isEscaped ? 'FREE' : 'dead') + '</div>';
     if (npc.falling) html += '<div class="gm-dead-tag" style="color:#e0b040">falling (spd ' + Math.round(npc.falling.speed) + ')</div>';
     // Location (right below name)
     html += '<div class="gm-loc-inline"><span class="gm-loc-link" data-center-id="' + npc.id + '">' +
         (npc.side === 0 ? 'west' : 'east') + ' \u00B7 seg ' + npc.position + ' \u00B7 floor ' + npc.floor + '</span></div>';
     html += '</div>';
 
-    // Possess / Jump buttons
+    // Possess / Jump / Vision buttons
     html += '<div class="gm-section gm-actions">';
     if (npc.alive) {
         html += '<button class="gm-btn" id="gm-possess" data-npc-id="' + npc.id + '">possess</button>';
         if (npc.floor > 0 && !npc.falling) {
             html += '<button class="gm-btn" id="gm-npc-jump" data-npc-id="' + npc.id + '">push into chasm</button>';
+        }
+        const k = npc.components && npc.components.knowledge;
+        if (k && !k.bookVision && !npc.free) {
+            html += '<button class="gm-btn" id="gm-grant-vision" data-npc-id="' + npc.id + '">grant vision</button>';
         }
     }
     html += '</div>';
@@ -517,6 +565,7 @@ export const GodmodePanel = {
         lastHtml = "";
         possessCallback = cbs.onPossess || null;
         jumpCallback = cbs.onJump || null;
+        visionCallback = cbs.onVision || null;
 
         // Event delegation — survives innerHTML rebuilds
         const pane = document.getElementById("gm-npc-pane");
@@ -539,6 +588,13 @@ export const GodmodePanel = {
                 if (ev.target.closest("#gm-npc-jump")) {
                     const id = parseInt(ev.target.closest("#gm-npc-jump").dataset.npcId, 10);
                     if (jumpCallback) jumpCallback(id);
+                    return;
+                }
+
+                // Grant vision button
+                if (ev.target.closest("#gm-grant-vision")) {
+                    const id = parseInt(ev.target.closest("#gm-grant-vision").dataset.npcId, 10);
+                    if (visionCallback) visionCallback(id);
                     return;
                 }
 
