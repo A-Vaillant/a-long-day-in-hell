@@ -17,10 +17,10 @@
  * @module social.core
  */
 
-import type { Entity, World } from "./ecs.core.js";
-import { getComponent, query, addComponent } from "./ecs.core.js";
-import { PERSONALITY, type Personality, decayBias, entityCompatibility, familiarityFatigue } from "./personality.core.js";
-import { BELIEF, type BeliefComponent, beliefDecayMod, evolveBelief, updateStance } from "./belief.core.js";
+import type { Entity, World } from "./ecs.core.ts";
+import { getComponent, query, addComponent } from "./ecs.core.ts";
+import { PERSONALITY, type Personality, decayBias, entityCompatibility, familiarityFatigue } from "./personality.core.ts";
+import { BELIEF, type BeliefComponent, beliefDecayMod, evolveBelief, updateStance } from "./belief.core.ts";
 
 // --- Component keys ---
 
@@ -205,16 +205,18 @@ export function decayPsychology(
 export function psychologyDecaySystem(
     world: World,
     config: DecayConfig = DEFAULT_DECAY,
+    n: number = 1,
 ): void {
     const entities = query(world, [PSYCHOLOGY, IDENTITY]);
-    for (const [entity, psych, ident] of entities) {
-        const identity = ident as Identity;
-        const psychology = psych as Psychology;
+    for (const tuple of entities) {
+        const entity = tuple[0] as Entity;
+        const psychology = tuple[1] as Psychology;
+        const identity = tuple[2] as Identity;
         if (!identity.alive) continue;
 
-        const social = hasSocialContact(world, entity as Entity);
-        const personality = getComponent<Personality>(world, entity as Entity, PERSONALITY);
-        const belief = getComponent<BeliefComponent>(world, entity as Entity, BELIEF);
+        const social = hasSocialContact(world, entity);
+        const personality = getComponent<Personality>(world, entity, PERSONALITY);
+        const belief = getComponent<BeliefComponent>(world, entity, BELIEF);
 
         // Combine personality bias and belief bias multiplicatively
         let lucidityMul = 1.0;
@@ -225,7 +227,7 @@ export function psychologyDecaySystem(
             hopeMul *= pb.hopeMul;
         }
         if (belief) {
-            evolveBelief(belief);
+            for (let t = 0; t < n; t++) evolveBelief(belief);
             const bb = beliefDecayMod(belief);
             lucidityMul *= bb.lucidityMul;
             hopeMul *= bb.hopeMul;
@@ -233,7 +235,9 @@ export function psychologyDecaySystem(
         }
 
         const bias = { lucidityMul, hopeMul };
-        decayPsychology(psychology, social, config, bias);
+        for (let t = 0; t < n; t++) {
+            decayPsychology(psychology, social, config, bias);
+        }
     }
 }
 
@@ -450,59 +454,84 @@ export function getNearbyEntities(
     return results;
 }
 
-/**
- * System: update relationships for all entities based on co-location.
- * For each entity with Position + Relationships + Identity (alive),
- * find all other such entities at the same location and accumulate bonds.
- * Decay bonds for absent entities.
- */
-export function relationshipSystem(
-    world: World,
-    currentTick: number,
-    config: BondConfig = DEFAULT_BOND,
-): void {
-    const entities = query(world, [POSITION, RELATIONSHIPS, IDENTITY]);
+export interface PrebuiltIndex {
+    locationIndex: Map<number, Entity[]>;
+    entities: [Entity, ...unknown[]][];
+}
 
-    // Build location index for efficient co-location lookup
-    const locationIndex = new Map<string, Entity[]>();
-    for (const [entity, pos, , ident] of entities) {
-        const identity = ident as Identity;
-        if (!identity.alive) continue;
-        const position = pos as Position;
-        const key = `${position.side}:${position.position}:${position.floor}`;
+/**
+ * Build a location index from entities with Position + Relationships + Identity.
+ * Shared between relationshipSystem and groupFormationSystem.
+ */
+export function buildLocationIndex(world: World): PrebuiltIndex {
+    const entities = query(world, [POSITION, RELATIONSHIPS, IDENTITY]);
+    const locationIndex = new Map<number, Entity[]>();
+    for (const tuple of entities) {
+        const entity = tuple[0] as Entity;
+        const pos = tuple[1] as Position;
+        const ident = tuple[3] as Identity;
+        if (!ident.alive) continue;
+        const key = pos.side * 1000000000 + pos.position * 10000 + pos.floor;
         let list = locationIndex.get(key);
         if (!list) {
             list = [];
             locationIndex.set(key, list);
         }
-        list.push(entity as Entity);
+        list.push(entity);
     }
+    return { locationIndex, entities };
+}
 
-    // For each alive entity, accumulate bonds with co-located entities,
-    // decay bonds with absent entities
-    for (const [entity, pos, rels, ident] of entities) {
-        const identity = ident as Identity;
-        if (!identity.alive) continue;
-        const position = pos as Position;
-        const relationships = rels as Relationships;
-        const key = `${position.side}:${position.position}:${position.floor}`;
-        const coLocatedEntities = new Set(locationIndex.get(key) || []);
-        coLocatedEntities.delete(entity as Entity);
+/**
+ * System: update relationships for all entities based on co-location.
+ * Accepts a pre-built location index to share work with groupFormationSystem.
+ * n = number of ticks to simulate (scales accumulation/decay linearly).
+ */
+export function relationshipSystem(
+    world: World,
+    currentTick: number,
+    config: BondConfig = DEFAULT_BOND,
+    prebuilt?: PrebuiltIndex,
+    n: number = 1,
+): void {
+    const { locationIndex, entities } = prebuilt || buildLocationIndex(world);
+
+    for (const tuple of entities) {
+        const entity = tuple[0] as Entity;
+        const pos = tuple[1] as Position;
+        const rels = tuple[2] as Relationships;
+        const ident = tuple[3] as Identity;
+        if (!ident.alive) continue;
+        const key = pos.side * 1000000000 + pos.position * 10000 + pos.floor;
+        const coLocated = locationIndex.get(key);
 
         // Accumulate bonds with co-located entities
-        for (const other of coLocatedEntities) {
-            const bond = getOrCreateBond(relationships, other, currentTick);
-            const compat = entityCompatibility(world, entity as Entity, other);
-            accumulateBond(bond, currentTick, config, compat);
+        if (coLocated) {
+            for (let ci = 0; ci < coLocated.length; ci++) {
+                const other = coLocated[ci];
+                if (other === entity) continue;
+                const bond = getOrCreateBond(rels, other, currentTick);
+                const compat = entityCompatibility(world, entity, other);
+                for (let t = 0; t < n; t++) {
+                    accumulateBond(bond, currentTick, config, compat);
+                }
+            }
         }
 
         // Decay bonds with absent entities
-        for (const [other, bond] of relationships.bonds) {
-            if (coLocatedEntities.has(other)) continue;
-            // Check if other is still alive
+        for (const [other, bond] of rels.bonds) {
+            if (coLocated) {
+                let isCoLocated = false;
+                for (let ci = 0; ci < coLocated.length; ci++) {
+                    if (coLocated[ci] === other) { isCoLocated = true; break; }
+                }
+                if (isCoLocated) continue;
+            }
             const otherIdent = getComponent<Identity>(world, other, IDENTITY);
-            if (otherIdent && !otherIdent.alive) continue; // don't decay bonds with dead
-            decayBond(bond, config);
+            if (otherIdent && !otherIdent.alive) continue;
+            for (let t = 0; t < n; t++) {
+                decayBond(bond, config);
+            }
         }
     }
 }
@@ -557,22 +586,9 @@ export function hasMutualBond(
 export function groupFormationSystem(
     world: World,
     config: GroupConfig = DEFAULT_GROUP,
+    prebuilt?: PrebuiltIndex,
 ): void {
-    const entities = query(world, [POSITION, RELATIONSHIPS, IDENTITY]);
-
-    // Build location index of alive entities
-    const locationIndex = new Map<string, Entity[]>();
-    for (const [entity, pos, , ident] of entities) {
-        if (!(ident as Identity).alive) continue;
-        const position = pos as Position;
-        const key = `${position.side}:${position.position}:${position.floor}`;
-        let list = locationIndex.get(key);
-        if (!list) {
-            list = [];
-            locationIndex.set(key, list);
-        }
-        list.push(entity as Entity);
-    }
+    const { locationIndex } = prebuilt || buildLocationIndex(world);
 
     // Union-find
     const parent = new Map<Entity, Entity>();
@@ -727,46 +743,45 @@ export function socialPressureSystem(
     thresholds: DispositionThresholds = DEFAULT_THRESHOLDS,
     pressureRate: number = 0.1,
     awareness: AwarenessConfig = DEFAULT_AWARENESS,
+    n: number = 1,
 ): void {
     const entities = query(world, [POSITION, PSYCHOLOGY, IDENTITY]);
 
-    // Partition alive entities into mad (sources) and targets, indexed spatially
     const targets: { pos: Position, psych: Psychology }[] = [];
-    // Index mad entities by (side, floor) for O(M) range checks per target
-    const madIndex = new Map<string, { position: number }[]>();
+    const madIndex = new Map<number, number[]>();
 
-    for (const [, pos, psych, ident] of entities) {
-        if (!(ident as Identity).alive) continue;
-        const psychology = psych as Psychology;
-        const position = pos as Position;
-        const disp = deriveDisposition(psychology, true, thresholds);
+    for (const tuple of entities) {
+        const pos = tuple[1] as Position;
+        const psych = tuple[2] as Psychology;
+        const ident = tuple[3] as Identity;
+        if (!ident.alive) continue;
+        const disp = deriveDisposition(psych, true, thresholds);
 
         if (disp === "mad") {
-            const key = `${position.side}:${position.floor}`;
+            const key = pos.side * 1000000 + pos.floor;
             let list = madIndex.get(key);
             if (!list) { list = []; madIndex.set(key, list); }
-            list.push({ position: position.position });
+            list.push(pos.position);
         } else if (disp !== "catatonic") {
-            targets.push({ pos: position, psych: psychology });
+            targets.push({ pos, psych });
         }
     }
 
-    // For each target, count mad entities within shout range (same side+floor only)
     for (const target of targets) {
-        const key = `${target.pos.side}:${target.pos.floor}`;
+        const key = target.pos.side * 1000000 + target.pos.floor;
         const madNearby = madIndex.get(key);
         if (!madNearby) continue;
 
         let nearbyMadCount = 0;
-        for (const mad of madNearby) {
-            if (Math.abs(target.pos.position - mad.position) <= awareness.shoutRange) {
+        for (let mi = 0; mi < madNearby.length; mi++) {
+            if (Math.abs(target.pos.position - madNearby[mi]) <= awareness.shoutRange) {
                 nearbyMadCount++;
             }
         }
 
         if (nearbyMadCount >= 2) {
             target.psych.lucidity = Math.max(0,
-                target.psych.lucidity - pressureRate * nearbyMadCount);
+                target.psych.lucidity - pressureRate * nearbyMadCount * n);
         }
     }
 }

@@ -3,7 +3,7 @@
 import {
     PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE,
     generateBookPage, bookMeta,
-} from "../../lib/book.core.js";
+} from "../../lib/book.core.ts";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
 

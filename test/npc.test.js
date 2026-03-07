@@ -7,7 +7,7 @@ import {
     interactText,
     deteriorate,
     DISPOSITIONS,
-} from "../lib/npc.core.js";
+} from "../lib/npc.core.ts";
 
 // --- helpers ---
 

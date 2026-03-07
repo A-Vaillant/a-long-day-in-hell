@@ -17,7 +17,7 @@
  * @module belief.core
  */
 
-import { getComponent } from "./ecs.core.js";
+import { getComponent } from "./ecs.core.ts";
 
 // --- Types ---
 

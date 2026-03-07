@@ -4,12 +4,12 @@ import {
     TICKS_PER_DAY, LIGHTS_ON_TICKS, TICKS_PER_HOUR,
     defaultTickState, advanceTick, isLightsOn,
     tickToTimeString, ticksUntilDawn, hoursUntilDawn,
-} from "../lib/tick.core.js";
+} from "../lib/tick.core.ts";
 import {
     defaultStats, applyMoveTick, applySleep, applyEat, applyDrink, applyAlcohol,
     applyResurrection, showMortality, getWarnings, canSleep,
     STAT_MIN, STAT_MAX, SLEEP_EXHAUSTION_THRESHOLD,
-} from "../lib/survival.core.js";
+} from "../lib/survival.core.ts";
 
 // --- tick.core ---
 

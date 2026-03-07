@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createSimulation, strategies, runScenario } from "../lib/simulator.core.js";
+import { createSimulation, strategies, runScenario } from "../lib/simulator.core.ts";
 
 /* ---- Core simulation engine (#66) ---- */
 

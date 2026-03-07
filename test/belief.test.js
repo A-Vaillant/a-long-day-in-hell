@@ -7,15 +7,15 @@ import {
     deriveStance, updateStance, DEFAULT_STANCE,
     beliefDecayMod,
     entityBeliefDecayMod,
-} from "../lib/belief.core.js";
-import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.js";
+} from "../lib/belief.core.ts";
+import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
 import {
     PSYCHOLOGY, IDENTITY, POSITION, RELATIONSHIPS,
     decayPsychology, psychologyDecaySystem, deriveDisposition,
     DEFAULT_DECAY,
-} from "../lib/social.core.js";
-import { PERSONALITY, generatePersonality, decayBias } from "../lib/personality.core.js";
-import { HABITUATION } from "../lib/psych.core.js";
+} from "../lib/social.core.ts";
+import { PERSONALITY, generatePersonality, decayBias } from "../lib/personality.core.ts";
+import { HABITUATION } from "../lib/psych.core.ts";
 
 // --- Helpers ---
 

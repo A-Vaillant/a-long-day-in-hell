@@ -15,8 +15,8 @@ import { GodmodeMap } from "./godmode-map.js";
 import { GodmodePanel } from "./godmode-panel.js";
 import { GodmodeLog } from "./godmode-log.js";
 import { detectEvents } from "./godmode-detect.js";
-import { getComponent } from "../../lib/ecs.core.js";
-import { TICKS_PER_DAY, LIGHTS_ON_TICKS } from "../../lib/tick.core.js";
+import { getComponent } from "../../lib/ecs.core.ts";
+import { TICKS_PER_DAY, LIGHTS_ON_TICKS } from "../../lib/tick.core.ts";
 
 let running = true;
 let speed = 1;          // ticks per second (continuous via slider)
@@ -28,14 +28,14 @@ let activeTab = "log"; // "log" | "npc"
 let prevSnap = null;
 let ffBusy = false;     // true during async fast-forward
 
-// Slider: logarithmic 1x–200x
+// Slider: logarithmic 1x–10000x
 const SPEED_MIN = 0;    // log2(1)
-const SPEED_MAX = Math.log2(200);
+const SPEED_MAX = Math.log2(10000);
 
 function tickOnce() {
-    const before = snapshot();
+    const before = prevSnap || snapshot();
     Tick.advance(1);
-    Social.onTick();
+    // Social.onTick() is already called by Tick.advance — do NOT double-call
     const after = snapshot();
     const events = detectEvents(before, after);
     for (const ev of events) GodmodeLog.push(ev);
@@ -167,6 +167,13 @@ function cancelFF() {
     render();
 }
 
+function tickBatch(n) {
+    // Advance n ticks without per-tick snapshots (no event detection).
+    // Much faster than tickOnce() in a loop.
+    Tick.advance(n);
+    prevSnap = null; // invalidate — next tickOnce will snapshot fresh
+}
+
 function fastForward(n) {
     if (ffBusy || n <= 0) return;
     ffBusy = true;
@@ -174,15 +181,25 @@ function fastForward(n) {
     running = false;
     updatePlayButton();
 
-    const BATCH = 50;
+    // Use batch ticking for large skips, per-tick for small ones (event detection)
+    const useBatch = n > 500;
+    const BATCH = useBatch ? 240 : 50; // 1 day per batch when batching
     let remaining = n;
 
     function step() {
         if (!ffBusy) return; // cancelled
+        const frameStart = performance.now();
         try {
-            const chunk = Math.min(remaining, BATCH);
-            for (let i = 0; i < chunk; i++) tickOnce();
-            remaining -= chunk;
+            // Spend up to 12ms per frame on simulation
+            while (remaining > 0 && (performance.now() - frameStart) < 12) {
+                const chunk = Math.min(remaining, BATCH);
+                if (useBatch) {
+                    tickBatch(chunk);
+                } else {
+                    for (let i = 0; i < chunk; i++) tickOnce();
+                }
+                remaining -= chunk;
+            }
             updateFFStatus(n - remaining, n);
         } catch (err) {
             console.error("FF error:", err);
@@ -190,6 +207,7 @@ function fastForward(n) {
         }
 
         if (remaining > 0) {
+            render();
             requestAnimationFrame(step);
         } else {
             ffBusy = false;
@@ -200,7 +218,6 @@ function fastForward(n) {
             }
             render();
         }
-        render();
     }
     requestAnimationFrame(step);
 }
@@ -259,12 +276,24 @@ function loop(now) {
     const tickInterval = 1000 / speed;
     accumulator += dt;
 
-    // Batch multiple ticks per frame at high speeds (cap at 10 per frame)
+    // Batch multiple ticks per frame at high speeds
+    // At very high speeds, use batch ticking (no event detection)
     let ticked = 0;
-    while (accumulator >= tickInterval && ticked < 10) {
-        accumulator -= tickInterval;
-        tickOnce();
-        ticked++;
+    const maxPerFrame = speed > 500 ? 240 : 50;
+    if (speed > 500) {
+        // Batch mode: advance in chunks, skip per-tick event detection
+        while (accumulator >= tickInterval && ticked < maxPerFrame) {
+            const chunk = Math.min(Math.floor(accumulator / tickInterval), maxPerFrame - ticked);
+            accumulator -= tickInterval * chunk;
+            tickBatch(chunk);
+            ticked += chunk;
+        }
+    } else {
+        while (accumulator >= tickInterval && ticked < maxPerFrame) {
+            accumulator -= tickInterval;
+            tickOnce();
+            ticked++;
+        }
     }
     if (accumulator > tickInterval * 2) accumulator = 0;
 
@@ -304,6 +333,8 @@ function setupDOM() {
         '<button id="gm-skip-dawn" title="Skip to dawn (d)"><kbd>d</kbd>\u263C</button>' +
         '<button id="gm-skip-night" title="Skip to nightfall (n)"><kbd>n</kbd>\u263E</button>' +
         '<button id="gm-skip-day" title="Skip 1 full day (D)"><kbd>D</kbd>+1d</button>' +
+        '<button id="gm-skip-week" title="Skip 7 days (W)"><kbd>W</kbd>+7d</button>' +
+        '<button id="gm-skip-year" title="Skip 365 days (Y)"><kbd>Y</kbd>+1y</button>' +
         '<input type="number" id="gm-ff-input" min="1" placeholder="ticks" title="Type ticks, Enter to fast-forward">' +
         '<div class="gm-ctrl-sep"></div>' +
         '<span id="gm-zoom" title="Zoom level (scroll wheel, +/-)">1x</span>' +
@@ -359,6 +390,8 @@ function setupInput(canvas) {
     document.getElementById("gm-skip-dawn").addEventListener("click", skipToDawn);
     document.getElementById("gm-skip-night").addEventListener("click", skipToNight);
     document.getElementById("gm-skip-day").addEventListener("click", function () { skipDays(1); });
+    document.getElementById("gm-skip-week").addEventListener("click", function () { skipDays(7); });
+    document.getElementById("gm-skip-year").addEventListener("click", function () { skipDays(365); });
 
     const ffInput = document.getElementById("gm-ff-input");
     ffInput.addEventListener("keydown", function (ev) {
@@ -446,6 +479,10 @@ function setupInput(canvas) {
             skipToDawn();
         } else if (ev.key === "D") {
             skipDays(1);
+        } else if (ev.key === "W") {
+            skipDays(7);
+        } else if (ev.key === "Y") {
+            skipDays(365);
         } else if (ev.key === "n") {
             skipToNight();
         } else if (ev.key === "[") {

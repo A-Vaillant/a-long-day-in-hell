@@ -3,7 +3,7 @@
 import {
     fallTick, attemptGrab, defaultFallingState, grabChance, altitudeBand,
     LANDING_KILL_SPEED,
-} from "../../lib/chasm.core.js";
+} from "../../lib/chasm.core.ts";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
 import { Surv } from "./survival.js";

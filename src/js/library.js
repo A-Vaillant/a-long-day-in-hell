@@ -4,7 +4,7 @@ import {
     DIRS, BOTTOM_FLOOR, BOOKS_PER_GALLERY, GALLERIES_PER_SEGMENT,
     isRestArea, locationKey, generateSegment, availableMoves, applyMove,
     describeLocation,
-} from "../../lib/library.core.js";
+} from "../../lib/library.core.ts";
 import { PRNG } from "./prng.js";
 
 const _cache = {};

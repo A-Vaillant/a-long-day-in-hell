@@ -41,21 +41,48 @@
  * @module survival.core
  */
 
-export const STAT_MAX = 100;
-export const STAT_MIN = 0;
+/** The shape of survival stats tracked for an entity. */
+export interface SurvivalStats {
+    hunger: number;
+    thirst: number;
+    exhaustion: number;
+    morale: number;
+    mortality: number;
+    despairing: boolean;
+    dead: boolean;
+}
+
+/** A severity level for a stat value. */
+export type Severity = "critical" | "low" | "ok";
+
+/** A single entry in a threshold table for {@link describeFromTable}. */
+export interface ThresholdEntry {
+    min: number;
+    word: string;
+    level: string;
+}
+
+/** Result of {@link describeFromTable}. */
+export interface ThresholdResult {
+    word: string;
+    level: string;
+}
+
+export const STAT_MAX: number = 100;
+export const STAT_MIN: number = 0;
 
 // Growth rates per tick (hunger/thirst/exhaustion go UP)
-const THIRST_RATE     = 0.11;
-const HUNGER_RATE     = 0.05;
-const EXHAUSTION_RATE = 0.25;
+const THIRST_RATE: number     = 0.11;
+const HUNGER_RATE: number     = 0.05;
+const EXHAUSTION_RATE: number = 0.25;
 
 // Mortality drain rates per tick
-const MORTALITY_PARCHED_ONLY  = 0.83;
-const MORTALITY_STARVING_ONLY = 0.42;
-const MORTALITY_BOTH          = 1.67;
+const MORTALITY_PARCHED_ONLY: number  = 0.83;
+const MORTALITY_STARVING_ONLY: number = 0.42;
+const MORTALITY_BOTH: number          = 1.67;
 
 /** Default starting state — hunger/thirst/exhaustion start at 0 (no suffering). */
-export function defaultStats() {
+export function defaultStats(): SurvivalStats {
     return {
         hunger:     0,
         thirst:     0,
@@ -67,19 +94,19 @@ export function defaultStats() {
     };
 }
 
-function clamp(v) {
+function clamp(v: number): number {
     return Math.max(STAT_MIN, Math.min(STAT_MAX, v));
 }
 
-function applyMortality(stats) {
+function applyMortality(stats: SurvivalStats): SurvivalStats {
     let { thirst, hunger, mortality, dead } = stats;
-    const isParched  = thirst  >= STAT_MAX;
-    const isStarving = hunger  >= STAT_MAX;
+    const isParched: boolean  = thirst  >= STAT_MAX;
+    const isStarving: boolean = hunger  >= STAT_MAX;
 
     if (!isParched && !isStarving) {
         mortality = STAT_MAX;
     } else {
-        const rate = (isParched && isStarving) ? MORTALITY_BOTH
+        const rate: number = (isParched && isStarving) ? MORTALITY_BOTH
                    : isParched                 ? MORTALITY_PARCHED_ONLY
                                                : MORTALITY_STARVING_ONLY;
         mortality = clamp(mortality - rate);
@@ -92,10 +119,10 @@ function applyMortality(stats) {
  * Apply depletion for a move or wait action.
  * Returns a new stats object (does not mutate).
  *
- * @param {object} stats
- * @returns {object}
+ * @param {SurvivalStats} stats
+ * @returns {SurvivalStats}
  */
-export function applyMoveTick(stats) {
+export function applyMoveTick(stats: SurvivalStats): SurvivalStats {
     let { hunger, thirst, exhaustion, morale, despairing } = stats;
 
     hunger     = clamp(hunger     + HUNGER_RATE);
@@ -115,10 +142,10 @@ export function applyMoveTick(stats) {
  * Apply effects of one sleep-hour.
  * Called once per TICKS_PER_HOUR ticks of sleep.
  *
- * @param {object} stats
- * @returns {object}
+ * @param {SurvivalStats} stats
+ * @returns {SurvivalStats}
  */
-export function applySleep(stats) {
+export function applySleep(stats: SurvivalStats): SurvivalStats {
     let { hunger, thirst, morale, despairing } = stats;
 
     hunger = clamp(hunger + 0.5);
@@ -133,10 +160,10 @@ export function applySleep(stats) {
  * Restore physical stats at resurrection; morale is preserved.
  * Death is not an escape from despair.
  *
- * @param {object} stats — pre-death stats (morale, despairing carried over)
- * @returns {object}
+ * @param {SurvivalStats} stats — pre-death stats (morale, despairing carried over)
+ * @returns {SurvivalStats}
  */
-export function applyResurrection(stats) {
+export function applyResurrection(stats: SurvivalStats): SurvivalStats {
     return {
         ...defaultStats(),
         morale: stats.morale,
@@ -148,35 +175,35 @@ export function applyResurrection(stats) {
 /**
  * Apply eating (consuming one food item).
  *
- * @param {object} stats
- * @returns {object}
+ * @param {SurvivalStats} stats
+ * @returns {SurvivalStats}
  */
-export function applyEat(stats) {
+export function applyEat(stats: SurvivalStats): SurvivalStats {
     return applyMortality({ ...stats, hunger: clamp(stats.hunger - 40) });
 }
 
 /**
  * Apply drinking (consuming one drink item).
  *
- * @param {object} stats
- * @returns {object}
+ * @param {SurvivalStats} stats
+ * @returns {SurvivalStats}
  */
-export function applyDrink(stats) {
+export function applyDrink(stats: SurvivalStats): SurvivalStats {
     return applyMortality({ ...stats, thirst: clamp(stats.thirst - 40) });
 }
 
 /** Base morale boost from alcohol. */
-const ALCOHOL_MORALE_BOOST = 20;
+const ALCOHOL_MORALE_BOOST: number = 20;
 
 /**
  * Apply drinking alcohol. Boosts morale, also quenches some thirst.
  *
- * @param {object} stats
- * @returns {object}
+ * @param {SurvivalStats} stats
+ * @returns {SurvivalStats}
  */
-export function applyAlcohol(stats) {
-    let morale = Math.min(STAT_MAX, stats.morale + ALCOHOL_MORALE_BOOST);
-    let thirst = clamp(stats.thirst - 20);
+export function applyAlcohol(stats: SurvivalStats): SurvivalStats {
+    let morale: number = Math.min(STAT_MAX, stats.morale + ALCOHOL_MORALE_BOOST);
+    let thirst: number = clamp(stats.thirst - 20);
     return applyMortality({ ...stats, morale, thirst });
 }
 
@@ -184,10 +211,10 @@ export function applyAlcohol(stats) {
  * Get a severity label for a hunger/thirst/exhaustion value (higher = worse).
  *
  * @param {number} value
- * @returns {"critical"|"low"|"ok"}
+ * @returns {Severity}
  */
 /** Minimum exhaustion required to voluntarily sleep. */
-export const SLEEP_EXHAUSTION_THRESHOLD = 50;
+export const SLEEP_EXHAUSTION_THRESHOLD: number = 50;
 
 /**
  * Whether the player is tired enough to sleep voluntarily.
@@ -195,11 +222,11 @@ export const SLEEP_EXHAUSTION_THRESHOLD = 50;
  * @param {number} exhaustion
  * @returns {boolean}
  */
-export function canSleep(exhaustion) {
+export function canSleep(exhaustion: number): boolean {
     return exhaustion >= SLEEP_EXHAUSTION_THRESHOLD;
 }
 
-export function severity(value) {
+export function severity(value: number): Severity {
     if (value >= 90) return "critical";
     if (value >= 70) return "low";
     return "ok";
@@ -208,11 +235,11 @@ export function severity(value) {
 /**
  * Get all active warning/condition messages for a stats object.
  *
- * @param {object} stats
+ * @param {SurvivalStats} stats
  * @returns {string[]}
  */
-export function getWarnings(stats) {
-    const w = [];
+export function getWarnings(stats: SurvivalStats): string[] {
+    const w: string[] = [];
     if (stats.thirst >= STAT_MAX)                    w.push("Your mouth is dust. You need water.");
     else if (severity(stats.thirst) === "critical") w.push("You are desperately thirsty.");
     else if (severity(stats.thirst) === "low")      w.push("You are thirsty.");
@@ -228,10 +255,10 @@ export function getWarnings(stats) {
 /**
  * Whether the mortality bar should be shown.
  *
- * @param {object} stats
+ * @param {SurvivalStats} stats
  * @returns {boolean}
  */
-export function showMortality(stats) {
+export function showMortality(stats: SurvivalStats): boolean {
     return stats.thirst >= STAT_MAX || stats.hunger >= STAT_MAX;
 }
 
@@ -242,15 +269,15 @@ export function showMortality(stats) {
  * For falling stats (morale), caller inverts before calling.
  *
  * @param {number} value
- * @param {{ min: number, word: string, level: string }[]} table
- * @returns {{ word: string, level: string }}
+ * @param {ThresholdEntry[]} table
+ * @returns {ThresholdResult}
  */
-export function describeFromTable(value, table) {
+export function describeFromTable(value: number, table: ThresholdEntry[]): ThresholdResult {
     if (!table || table.length === 0) return { word: "???", level: "ok" };
     for (let i = 0; i < table.length; i++) {
         if (value >= table[i].min) return { word: table[i].word, level: table[i].level };
     }
     // fallback: last entry
-    const last = table[table.length - 1];
+    const last: ThresholdEntry = table[table.length - 1];
     return { word: last.word, level: last.level };
 }

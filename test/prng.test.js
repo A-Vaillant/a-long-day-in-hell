@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { hash, seedFromString, makeXoshiro128ss } from "../lib/prng.core.js";
+import { hash, seedFromString, makeXoshiro128ss } from "../lib/prng.core.ts";
 
 describe("hash", () => {
     it("returns a uint32", () => {

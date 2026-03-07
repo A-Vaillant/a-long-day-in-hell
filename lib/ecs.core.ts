@@ -92,19 +92,21 @@ export function query<T extends unknown[]>(
     }
 
     const results: [Entity, ...unknown[]][] = [];
+    const kLen = keys.length;
     for (const [entity] of maps[smallest]!) {
         let hasAll = true;
-        const values: unknown[] = [];
-        for (let i = 0; i < maps.length; i++) {
+        const tuple: [Entity, ...unknown[]] = new Array(kLen + 1) as any;
+        tuple[0] = entity;
+        for (let i = 0; i < kLen; i++) {
             const val = maps[i]!.get(entity);
             if (val === undefined) {
                 hasAll = false;
                 break;
             }
-            values.push(val);
+            tuple[i + 1] = val;
         }
         if (hasAll) {
-            results.push([entity, ...values]);
+            results.push(tuple);
         }
     }
     return results;

@@ -19,17 +19,33 @@
  * @module invertible.core
  */
 
-import { hash } from "./prng.core.js";
+import { hash } from "./prng.core.ts";
 
 /* ---- Constants ---- */
 
-const CHARSET_LEN = 95;
-const CHARS_PER_LINE = 80;
-const LINES_PER_PAGE = 40;
+const CHARSET_LEN: number = 95;
+const CHARS_PER_LINE: number = 80;
+const LINES_PER_PAGE: number = 40;
 
 /** LCG parameters (mod 2^32). Multiplier from Numerical Recipes. */
-const LCG_A = 1664525;
-const LCG_C = 1013904223;
+const LCG_A: number = 1664525;
+const LCG_C: number = 1013904223;
+
+/* ---- Exported interfaces ---- */
+
+/** Unpacked book coordinates. */
+export interface BookCoords {
+    side: number;
+    position: number;
+    floor: number;
+    bookIndex: number;
+}
+
+/** LCG stream with alternating even/odd chains. */
+export interface LCGStream {
+    nextInt(n: number): number;
+    state(): [number, number];
+}
 
 /* ---- Invertible coordinate encoding ---- */
 
@@ -39,13 +55,13 @@ const LCG_C = 1013904223;
  *   word0: (side << 31) | ((floor & 0x7FFF) << 16) | (bookIndex & 0xFFFF)
  *   word1: position as signed int32 (reinterpreted as uint32)
  */
-function packCoords(side, position, floor, bookIndex) {
+function packCoords(side: number, position: number, floor: number, bookIndex: number): [number, number] {
     const w0 = ((side & 1) << 31) | ((floor & 0x7FFF) << 16) | (bookIndex & 0xFFFF);
     const w1 = position | 0; // signed → int32 bits
     return [w0 >>> 0, w1 >>> 0];
 }
 
-function unpackCoords(w0, w1) {
+function unpackCoords(w0: number, w1: number): BookCoords {
     const side = (w0 >>> 31) & 1;
     const floor = (w0 >>> 16) & 0x7FFF;
     const bookIndex = w0 & 0xFFFF;
@@ -57,7 +73,7 @@ function unpackCoords(w0, w1) {
  * Invertible 32-bit mix (based on splitmix32 finalizer).
  * Each step is reversible.
  */
-function mix32(x) {
+function mix32(x: number): number {
     x = x >>> 0;
     x ^= x >>> 16;
     x = Math.imul(x, 0x45d9f3b);
@@ -68,7 +84,7 @@ function mix32(x) {
 }
 
 /** Inverse of mix32. */
-function unmix32(x) {
+function unmix32(x: number): number {
     x = x >>> 0;
     x ^= x >>> 16;
     x = Math.imul(x, 0x119de1f3); // modular inverse of 0x45d9f3b mod 2^32
@@ -82,7 +98,7 @@ function unmix32(x) {
  * Derive a 2-word key from the global seed string.
  * This is what the player needs to know (it's just hash(seed + suffix)).
  */
-function seedKey(globalSeed) {
+function seedKey(globalSeed: string): [number, number] {
     return [hash(globalSeed + ":inv0"), hash(globalSeed + ":inv1")];
 }
 
@@ -98,7 +114,7 @@ function seedKey(globalSeed) {
  * @param {string} globalSeed
  * @returns {[number, number]} two uint32 state words
  */
-export function encodeCoords(side, position, floor, bookIndex, globalSeed) {
+export function encodeCoords(side: number, position: number, floor: number, bookIndex: number, globalSeed: string): [number, number] {
     const [w0, w1] = packCoords(side, position, floor, bookIndex);
     const [k0, k1] = seedKey(globalSeed);
     return [(mix32(w0) ^ k0) >>> 0, (mix32(w1) ^ k1) >>> 0];
@@ -114,7 +130,7 @@ export function encodeCoords(side, position, floor, bookIndex, globalSeed) {
  * @param {string} globalSeed
  * @returns {{ side, position, floor, bookIndex }}
  */
-export function decodeCoords(s0, s1, globalSeed) {
+export function decodeCoords(s0: number, s1: number, globalSeed: string): BookCoords {
     const [k0, k1] = seedKey(globalSeed);
     const w0 = unmix32((s0 ^ k0) >>> 0);
     const w1 = unmix32((s1 ^ k1) >>> 0);
@@ -124,14 +140,14 @@ export function decodeCoords(s0, s1, globalSeed) {
 /* ---- LCG ---- */
 
 /** Advance LCG state by one step. */
-function lcgNext(s) {
+function lcgNext(s: number): number {
     return (Math.imul(LCG_A, s) + LCG_C) >>> 0;
 }
 
 /** Reverse LCG state by one step. */
 // LCG_A_INV is the modular inverse of LCG_A mod 2^32.
-const LCG_A_INV = 4276115653; // computed: LCG_A * LCG_A_INV ≡ 1 (mod 2^32)
-export function lcgPrev(s) {
+const LCG_A_INV: number = 4276115653; // computed: LCG_A * LCG_A_INV ≡ 1 (mod 2^32)
+export function lcgPrev(s: number): number {
     return Math.imul((s - LCG_C) >>> 0, LCG_A_INV) >>> 0;
 }
 
@@ -143,11 +159,11 @@ export function lcgPrev(s) {
  *
  * Two independent LCGs read in alternation: even chars from s0, odd from s1.
  */
-function makeLCG(s0, s1) {
+function makeLCG(s0: number, s1: number): LCGStream {
     let a = s0 >>> 0, b = s1 >>> 0;
     let even = true;
     return {
-        nextInt(n) {
+        nextInt(n: number): number {
             if (even) {
                 a = lcgNext(a);
                 even = false;
@@ -158,7 +174,7 @@ function makeLCG(s0, s1) {
                 return b % n;
             }
         },
-        state() { return [a, b]; }
+        state(): [number, number] { return [a, b]; }
     };
 }
 
@@ -176,7 +192,7 @@ function makeLCG(s0, s1) {
  * @param {string} globalSeed
  * @returns {string}
  */
-export function generateTargetPage(side, position, floor, bookIndex, pageIndex, globalSeed) {
+export function generateTargetPage(side: number, position: number, floor: number, bookIndex: number, pageIndex: number, globalSeed: string): string {
     const [s0, s1] = encodeCoords(side, position, floor, bookIndex, globalSeed);
 
     // Advance LCG past prior pages to maintain determinism.
@@ -190,7 +206,7 @@ export function generateTargetPage(side, position, floor, bookIndex, pageIndex, 
     for (let i = 0; i < skipPerChain; i++) b = lcgNext(b);
 
     const lcg = makeLCG(a, b);
-    const lines = [];
+    const lines: string[] = [];
     for (let l = 0; l < LINES_PER_PAGE; l++) {
         let line = "";
         for (let c = 0; c < CHARS_PER_LINE; c++) {
@@ -211,18 +227,18 @@ export function generateTargetPage(side, position, floor, bookIndex, pageIndex, 
  * @param {string} globalSeed
  * @returns {{ side, position, floor, bookIndex } | null}
  */
-export function recoverCoords(chars, globalSeed) {
+export function recoverCoords(chars: string, globalSeed: string): BookCoords | null {
     if (chars.length < 10) return null;
 
-    const v = [];
+    const v: number[] = [];
     for (let i = 0; i < chars.length && i < 12; i++) {
         v.push(chars.charCodeAt(i) - 32);
     }
 
-    const evenTargets = [];
+    const evenTargets: number[] = [];
     for (let i = 0; i < v.length; i += 2) evenTargets.push(v[i]);
 
-    const oddTargets = [];
+    const oddTargets: number[] = [];
     for (let i = 1; i < v.length; i += 2) oddTargets.push(v[i]);
 
     const foundS0 = recoverOneChain(evenTargets);
@@ -239,7 +255,7 @@ export function recoverCoords(chars, globalSeed) {
  * targets[0] = lcgNext(s) % 95, targets[1] = lcgNext^2(s) % 95, etc.
  * Returns s, or null if no match.
  */
-function recoverOneChain(targets) {
+function recoverOneChain(targets: number[]): number | null {
     if (targets.length < 2) return null;
 
     for (let a = targets[0]; a < 0x100000000; a += CHARSET_LEN) {

@@ -3,6 +3,7 @@ tweego/
 
 # Build output
 dist/
+.build/
 
 # Generated
 CHANGELOG.md

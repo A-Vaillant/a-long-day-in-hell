@@ -4,7 +4,7 @@ import {
     applyAmbientDrain, modifySleepRecovery, shouldClearDespairing,
     corruptStatValue as _corruptStatValue, shouldCorruptDescriptor as _shouldCorruptDescriptor,
     isReadingBlocked as _isReadingBlocked, chasmSkipsConfirm as _chasmSkipsConfirm,
-} from "../../lib/despairing.core.js";
+} from "../../lib/despairing.core.ts";
 import { state } from "./state.js";
 
 export const Despair = {

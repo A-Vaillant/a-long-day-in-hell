@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import {
     generateSegment, availableMoves, applyMove, locationKey, describeLocation,
     isRestArea, DIRS, BOTTOM_FLOOR, SEGMENT_BOOK_COUNT, BOOKS_PER_GALLERY, GALLERIES_PER_SEGMENT,
-} from "../lib/library.core.js";
-import { seedFromString } from "../lib/prng.core.js";
+} from "../lib/library.core.ts";
+import { seedFromString } from "../lib/prng.core.ts";
 
 function makeFork(seed) {
     const rng = seedFromString(seed);

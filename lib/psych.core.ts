@@ -11,10 +11,10 @@
  * @module psych.core
  */
 
-import type { Entity, World } from "./ecs.core.js";
-import { getComponent } from "./ecs.core.js";
-import type { Psychology } from "./social.core.js";
-import { PSYCHOLOGY } from "./social.core.js";
+import type { Entity, World } from "./ecs.core.ts";
+import { getComponent } from "./ecs.core.ts";
+import type { Psychology } from "./social.core.ts";
+import { PSYCHOLOGY } from "./social.core.ts";
 
 // --- Component key ---
 

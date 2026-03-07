@@ -1,6 +1,6 @@
 /* PRNG wrapper — seeded xoshiro128** with fork support. */
 
-import { seedFromString } from "../../lib/prng.core.js";
+import { seedFromString } from "../../lib/prng.core.ts";
 
 let _rng = null;
 let _seed = null;

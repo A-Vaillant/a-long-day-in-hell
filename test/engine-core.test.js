@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { createBoundaryRegistry, processTime } from "../lib/engine.core.js";
+import { createBoundaryRegistry, processTime } from "../lib/engine.core.ts";
 
 describe("createBoundaryRegistry", () => {
     it("fires registered handler", () => {

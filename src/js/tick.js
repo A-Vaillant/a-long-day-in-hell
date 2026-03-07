@@ -4,7 +4,7 @@
 import {
     TICKS_PER_HOUR, defaultTickState, advanceTick, isLightsOn,
     isResetHour, tickToTimeString, hoursUntilDawn,
-} from "../../lib/tick.core.js";
+} from "../../lib/tick.core.ts";
 import { Surv } from "./survival.js";
 import { Npc } from "./npc.js";
 import { Events } from "./events.js";
@@ -53,8 +53,8 @@ export const Tick = {
             Engine._boundary.fire(event);
         }
 
-        // Social physics tick
-        Social.onTick();
+        // Social physics tick — batch: run systems once with n-scaled effects
+        Social.onTick(n);
 
         // Freefall advances with time — n ticks of fall per n ticks of time
         if (state.falling) {

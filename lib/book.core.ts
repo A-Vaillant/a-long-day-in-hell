@@ -16,20 +16,29 @@
  * @module book.core
  */
 
-import { seedFromString } from "./prng.core.js";
+import { seedFromString } from "./prng.core.ts";
+import type { Xoshiro128ss } from "./prng.core.ts";
 
-export const PAGES_PER_BOOK  = 11;
-export const LINES_PER_PAGE  = 40;
-export const CHARS_PER_LINE  = 80;
-export const CHARS_PER_PAGE  = LINES_PER_PAGE * CHARS_PER_LINE; // 3200
-export const CHARS_PER_BOOK  = PAGES_PER_BOOK * CHARS_PER_PAGE; // 35,200
+/** Metadata for a single book identified by its coordinates. */
+export interface BookMeta {
+    side: number;
+    position: number;
+    floor: number;
+    bookIndex: number;
+}
+
+export const PAGES_PER_BOOK: number  = 11;
+export const LINES_PER_PAGE: number  = 40;
+export const CHARS_PER_LINE: number  = 80;
+export const CHARS_PER_PAGE: number  = LINES_PER_PAGE * CHARS_PER_LINE; // 3200
+export const CHARS_PER_BOOK: number  = PAGES_PER_BOOK * CHARS_PER_PAGE; // 35,200
 
 /**
  * The 95-character printable ASCII set (codepoints 32–126).
  * This matches what the book describes as "about 95 possible characters
  * on a standard keyboard."
  */
-export const CHARSET = Array.from({ length: 95 }, (_, i) => String.fromCharCode(i + 32)).join("");
+export const CHARSET: string = Array.from({ length: 95 }, (_, i) => String.fromCharCode(i + 32)).join("");
 
 /**
  * Generate a single page of a book as a string of CHARS_PER_PAGE characters.
@@ -43,10 +52,17 @@ export const CHARSET = Array.from({ length: 95 }, (_, i) => String.fromCharCode(
  * @param {string} globalSeed - the game's root seed string
  * @returns {string}
  */
-export function generateBookPage(side, position, floor, bookIndex, pageIndex, globalSeed) {
+export function generateBookPage(
+    side: number,
+    position: number,
+    floor: number,
+    bookIndex: number,
+    pageIndex: number,
+    globalSeed: string
+): string {
     const rng = seedFromString(`${globalSeed}:book:${side}:${position}:${floor}:${bookIndex}:p${pageIndex}`);
-    const n = CHARSET.length;
-    const lines = [];
+    const n: number = CHARSET.length;
+    const lines: string[] = [];
     for (let l = 0; l < LINES_PER_PAGE; l++) {
         let line = "";
         for (let c = 0; c < CHARS_PER_LINE; c++) {
@@ -66,6 +82,6 @@ export function generateBookPage(side, position, floor, bookIndex, pageIndex, gl
  * @param {number} bookIndex
  * @returns {{ side, position, floor, bookIndex }}
  */
-export function bookMeta(side, position, floor, bookIndex) {
+export function bookMeta(side: number, position: number, floor: number, bookIndex: number): BookMeta {
     return { side, position, floor, bookIndex };
 }

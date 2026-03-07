@@ -7,9 +7,9 @@
  * @module engine.core
  */
 
-import { advanceTick } from "./tick.core.js";
-import type { NPC, Disposition } from "./npc.core.js";
-import type { EventCard } from "./events.core.js";
+import { advanceTick } from "./tick.core.ts";
+import type { NPC, Disposition } from "./npc.core.ts";
+import type { EventCard } from "./events.core.ts";
 
 // Re-export NPC types for consumers
 export type { NPC, Disposition };

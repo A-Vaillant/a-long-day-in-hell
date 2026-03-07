@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { generateLifeStory, formatLifeStory } from "../lib/lifestory.core.js";
-import { BOOKS_PER_GALLERY, isRestArea } from "../lib/library.core.js";
-import { PAGES_PER_BOOK } from "../lib/book.core.js";
+import { generateLifeStory, formatLifeStory } from "../lib/lifestory.core.ts";
+import { BOOKS_PER_GALLERY, isRestArea } from "../lib/library.core.ts";
+import { PAGES_PER_BOOK } from "../lib/book.core.ts";
 
 describe("generateLifeStory winnability", () => {
     const SEEDS = 500;
