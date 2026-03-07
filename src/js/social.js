@@ -182,30 +182,31 @@ export const Social = {
             if (!psych || !ident) continue;
 
             npc.disposition = deriveDisposition(psych, ident.alive);
-            // Sync alive status back (social pressure can't kill, but
-            // the old system's catatonic→dead transition still applies)
-            if (!ident.alive) npc.alive = false;
+            // Sync alive status back
+            if (!ident.alive && npc.alive) {
+                const needs = getComponent(world, ent, NEEDS);
+                console.log("NPC DEATH (ECS sync):", npc.name, "id="+npc.id,
+                    "needs:", needs ? {h:Math.round(needs.hunger), t:Math.round(needs.thirst), e:Math.round(needs.exhaustion)} : "none",
+                    "tick="+state.tick, "day="+state.day);
+                npc.alive = false;
+            }
         }
     },
 
-    /** Dawn hook — resurrect dead NPCs, reset needs. Position sync is per-tick now. */
+    /** Dawn hook — resurrect dead NPCs. Position sync is per-tick now. */
     onDawn() {
         if (!world) return;
-        // Resurrect dead NPCs
+        // ECS handles resurrection (ident.alive = true) and resets needs for resurrected NPCs
+        resetNeedsAtDawn(world);
+        // Sync ECS resurrection back to state.npcs
         if (state.npcs) {
             for (const npc of state.npcs) {
                 if (!npc.alive) {
                     npc.alive = true;
                     npc.falling = null;
-                    const ent = npcEntities.get(npc.id);
-                    if (ent !== undefined) {
-                        const ident = getComponent(world, ent, IDENTITY);
-                        if (ident) ident.alive = true;
-                    }
                 }
             }
         }
-        resetNeedsAtDawn(world);
     },
 
     /** Expose world for debug. */
@@ -287,6 +288,7 @@ export const Social = {
             if (result.landed) {
                 npc.falling = null;
                 if (result.fatal) {
+                    console.log("NPC DEATH (fatal landing):", npc.name, "id="+npc.id, "floor="+npc.floor, "speed="+Math.round(result.newSpeed), "tick="+state.tick);
                     npc.alive = false;
                     const ent = npcEntities.get(npc.id);
                     if (ent !== undefined) {
@@ -309,6 +311,7 @@ export const Social = {
                         npc.falling.speed = grabResult.speedAfter;
                         // Mortality damage — NPCs don't track mortality, just kill on bad hits
                         if (grabResult.mortalityHit > 15) {
+                            console.log("NPC DEATH (grab damage):", npc.name, "id="+npc.id, "mortalityHit="+grabResult.mortalityHit, "speed="+Math.round(npc.falling.speed), "floor="+npc.floor, "tick="+state.tick);
                             npc.alive = false;
                             const ent = npcEntities.get(npc.id);
                             if (ent !== undefined) {
