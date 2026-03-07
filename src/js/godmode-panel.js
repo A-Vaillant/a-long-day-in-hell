@@ -98,24 +98,6 @@ function renderList(snap, pane) {
 
     html += '</div>';
     pane.innerHTML = html;
-
-    // Bind clicks
-    pane.querySelectorAll(".gm-npc-row").forEach(function (row) {
-        row.addEventListener("click", function (ev) {
-            // Don't select if clicking the location link
-            if (ev.target.closest("[data-center-id]")) return;
-            const id = parseInt(row.dataset.npcId, 10);
-            if (callbacks.onSelect) callbacks.onSelect(id);
-        });
-    });
-
-    pane.querySelectorAll("[data-center-id]").forEach(function (el) {
-        el.addEventListener("click", function (ev) {
-            ev.stopPropagation();
-            const id = parseInt(el.dataset.centerId, 10);
-            if (callbacks.onCenter) callbacks.onCenter(id);
-        });
-    });
 }
 
 function renderDetail(npc, snap, pane) {
@@ -196,24 +178,38 @@ function renderDetail(npc, snap, pane) {
 
     html += '</div>';
     pane.innerHTML = html;
-
-    // Bind back button
-    document.getElementById("gm-npc-back").addEventListener("click", function () {
-        if (callbacks.onDeselect) callbacks.onDeselect();
-    });
-
-    // Bind location click
-    pane.querySelectorAll("[data-center-id]").forEach(function (el) {
-        el.addEventListener("click", function () {
-            const id = parseInt(el.dataset.centerId, 10);
-            if (callbacks.onCenter) callbacks.onCenter(id);
-        });
-    });
 }
 
 export const GodmodePanel = {
     init(cbs) {
         callbacks = cbs || {};
+
+        // Event delegation — survives innerHTML rebuilds
+        const pane = document.getElementById("gm-npc-pane");
+        if (pane) {
+            pane.addEventListener("click", function (ev) {
+                // Back button
+                if (ev.target.closest("#gm-npc-back")) {
+                    if (callbacks.onDeselect) callbacks.onDeselect();
+                    return;
+                }
+
+                // Location link (center on NPC)
+                const locEl = ev.target.closest("[data-center-id]");
+                if (locEl) {
+                    const id = parseInt(locEl.dataset.centerId, 10);
+                    if (callbacks.onCenter) callbacks.onCenter(id);
+                    return;
+                }
+
+                // NPC row (select NPC)
+                const row = ev.target.closest("[data-npc-id]");
+                if (row) {
+                    const id = parseInt(row.dataset.npcId, 10);
+                    if (callbacks.onSelect) callbacks.onSelect(id);
+                }
+            });
+        }
     },
 
     update(snap, selectedId) {
