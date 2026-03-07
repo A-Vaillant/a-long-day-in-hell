@@ -17,6 +17,8 @@
 
 import type { Entity, World } from "./ecs.core.ts";
 import { getComponent, query } from "./ecs.core.ts";
+import { seedFromString } from "./prng.core.ts";
+import { CHARSET } from "./book.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY,
     type Position, type Identity, type Psychology,
@@ -73,6 +75,78 @@ export function scoreBigram(text: string, sampleLen: number = 400): number {
     if (pairs === 0) return 0;
     return score / pairs;
 }
+
+// --- Fast PRNG-direct scoring (no string allocation) ---
+
+/** Map charset index → lowercase letter index (0–25), or -1 if not a letter. */
+const CHARSET_TO_LOWER: Int8Array = new Int8Array(95);
+for (let i = 0; i < 95; i++) {
+    const code = i + 32;  // printable ASCII starts at 32
+    if (code >= 65 && code <= 90) CHARSET_TO_LOWER[i] = code - 65;       // A-Z
+    else if (code >= 97 && code <= 122) CHARSET_TO_LOWER[i] = code - 97;  // a-z
+    else CHARSET_TO_LOWER[i] = -1;
+}
+
+/** 26×26 bigram lookup: BIGRAM_TABLE[a*26 + b] = frequency. */
+const BIGRAM_TABLE = new Float32Array(26 * 26);
+for (const [bg, freq] of Object.entries(BIGRAMS)) {
+    const a = bg.charCodeAt(0) - 97;
+    const b = bg.charCodeAt(1) - 97;
+    if (a >= 0 && a < 26 && b >= 0 && b < 26) {
+        BIGRAM_TABLE[a * 26 + b] = freq;
+    }
+}
+
+/**
+ * Score a book page for legibility directly from PRNG, without generating text.
+ * Produces identical scores to scoreBigram(generateBookPage(...), 400) but
+ * avoids all string allocation. ~10x faster for NPC search.
+ */
+/**
+ * Score a book page for legibility directly from PRNG, without generating text.
+ * Produces identical scores to scoreBigram(generateBookPage(...), sampleLen) but
+ * avoids all string allocation.
+ */
+export function scoreFromSeed(
+    globalSeed: string,
+    side: number, position: number, floor: number,
+    bookIndex: number, pageIndex: number,
+    sampleLen: number = 400,
+): number {
+    const rng = seedFromString(`${globalSeed}:book:${side}:${position}:${floor}:${bookIndex}:p${pageIndex}`);
+    const n = CHARSET.length;
+
+    // Mirror generateBookPage: generates lines of 80 chars, joined with \n.
+    // scoreBigram(text, sampleLen) takes first sampleLen chars of that joined string.
+    // Newlines break bigram pairs (not a letter → reset prevLetter).
+    let score = 0;
+    let pairs = 0;
+    let prevLetter = -1;
+    let outputPos = 0;
+    let lineCol = 0;
+
+    while (outputPos < sampleLen) {
+        if (lineCol < 80) {
+            const charIdx = rng.nextInt(n);
+            const letter = CHARSET_TO_LOWER[charIdx];
+            if (letter >= 0 && prevLetter >= 0) {
+                score += BIGRAM_TABLE[prevLetter * 26 + letter];
+                pairs++;
+            }
+            prevLetter = letter;
+            lineCol++;
+            outputPos++;
+        } else {
+            prevLetter = -1;
+            lineCol = 0;
+            outputPos++;
+        }
+    }
+
+    if (pairs === 0) return 0;
+    return score / pairs;
+}
+
 
 // --- ECS Component ---
 
@@ -162,6 +236,12 @@ export type PageSampler = (
     bookIndex: number, pageIndex: number,
 ) => string;
 
+/** Fast scorer that bypasses page generation — returns legibility score directly. */
+export type ScoreFn = (
+    side: number, position: number, floor: number,
+    bookIndex: number, pageIndex: number,
+) => number;
+
 // --- System ---
 
 /**
@@ -176,12 +256,16 @@ export type PageSampler = (
  * 2. Sample current book's first page, score bigrams.
  * 3. If legible: hope boost, record bestScore, emit event.
  * 4. Advance to next unclaimed book or exhaust patience.
+ *
+ * When `scoreFn` is provided, it bypasses samplePage + scoreBigram
+ * for a ~10x speedup (no string allocation).
  */
 export function searchSystem(
     world: World,
     rng: Rng,
     samplePage: PageSampler,
     config: SearchConfig = DEFAULT_SEARCH,
+    scoreFn?: ScoreFn,
 ): SearchEvent[] {
     const events: SearchEvent[] = [];
 
@@ -241,12 +325,10 @@ export function searchSystem(
             search.active = true;
         }
 
-        // Sample the book
-        const pageText = samplePage(
-            pos.side, pos.position, pos.floor,
-            search.bookIndex, 0,
-        );
-        const score = scoreBigram(pageText);
+        // Score the book (fast path skips string allocation)
+        const score = scoreFn
+            ? scoreFn(pos.side, pos.position, pos.floor, search.bookIndex, 0)
+            : scoreBigram(samplePage(pos.side, pos.position, pos.floor, search.bookIndex, 0));
 
         if (score > config.legibilityFloor) {
             const boost = Math.min(config.maxHopeBoost, score * config.hopePerLegibility);

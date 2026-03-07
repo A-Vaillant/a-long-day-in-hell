@@ -58,17 +58,22 @@ export function generateBookPage(
     floor: number,
     bookIndex: number,
     pageIndex: number,
-    globalSeed: string
+    globalSeed: string,
+    maxChars?: number,
 ): string {
     const rng = seedFromString(`${globalSeed}:book:${side}:${position}:${floor}:${bookIndex}:p${pageIndex}`);
     const n: number = CHARSET.length;
+    const limit = maxChars ?? CHARS_PER_PAGE;
     const lines: string[] = [];
-    for (let l = 0; l < LINES_PER_PAGE; l++) {
+    let total = 0;
+    for (let l = 0; l < LINES_PER_PAGE && total < limit; l++) {
+        const lineLen = Math.min(CHARS_PER_LINE, limit - total);
         let line = "";
-        for (let c = 0; c < CHARS_PER_LINE; c++) {
+        for (let c = 0; c < lineLen; c++) {
             line += CHARSET[rng.nextInt(n)];
         }
         lines.push(line);
+        total += lineLen;
     }
     return lines.join("\n");
 }
