@@ -57,17 +57,17 @@ export const GodmodePanel = {
     },
 
     update(snap, selectedId) {
-        const panel = document.getElementById("godmode-panel");
-        if (!panel) return;
+        const pane = document.getElementById("gm-npc-pane");
+        if (!pane) return;
 
         if (selectedId === null) {
-            panel.innerHTML = '<div class="gm-panel-empty">Click an NPC to observe</div>';
+            pane.innerHTML = '<div class="gm-panel-empty">Click an NPC to observe</div>';
             return;
         }
 
         const npc = snap.npcs.find(n => n.id === selectedId);
         if (!npc) {
-            panel.innerHTML = '<div class="gm-panel-empty">NPC not found</div>';
+            pane.innerHTML = '<div class="gm-panel-empty">NPC not found</div>';
             return;
         }
 
@@ -143,7 +143,7 @@ export const GodmodePanel = {
         html += '</div>';
 
         html += '</div>';
-        panel.innerHTML = html;
+        pane.innerHTML = html;
     },
 };
 
