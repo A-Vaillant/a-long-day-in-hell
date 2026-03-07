@@ -324,6 +324,12 @@ body.godmode {
     text-align: right;
 }
 
+.gm-bar-num-wrap {
+    word-break: break-all;
+    max-width: 140px;
+    font-size: 10px;
+}
+
 /* Bonds */
 
 .gm-bond {
