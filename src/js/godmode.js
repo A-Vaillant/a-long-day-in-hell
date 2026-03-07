@@ -11,6 +11,7 @@
 import { state } from "./state.js";
 import { Social } from "./social.js";
 import { Tick } from "./tick.js";
+import { Engine } from "./engine.js";
 import { GodmodeMap } from "./godmode-map.js";
 import { GodmodePanel } from "./godmode-panel.js";
 import { GodmodeLog } from "./godmode-log.js";
@@ -27,6 +28,8 @@ let followMode = false;
 let activeTab = "log"; // "log" | "npc"
 let prevSnap = null;
 let ffBusy = false;     // true during async fast-forward
+let possessing = false; // true while controlling an NPC
+let godmodeDOM = null;  // saved godmode container for restoration
 
 // Slider: logarithmic 1x–10000x
 const SPEED_MIN = 0;    // log2(1)
@@ -115,6 +118,7 @@ function snapshot() {
             groupId,
             // All ECS components for auto-populating detail view
             components,
+            falling: npc.falling || null,
         });
     }
 
@@ -281,6 +285,7 @@ function setSpeedFromSlider(val) {
 }
 
 function loop(now) {
+    if (possessing) return; // normal game loop runs instead
     if (!running || ffBusy) {
         lastFrame = now;
         requestAnimationFrame(loop);
@@ -477,6 +482,9 @@ function setupInput(canvas) {
     }, { passive: false });
 
     document.addEventListener("keydown", function (ev) {
+        // Don't handle godmode keys during possession — normal keybindings take over
+        if (possessing) return;
+
         // Don't handle keys when typing in the FF input
         if (document.activeElement === ffInput) return;
 
@@ -534,9 +542,110 @@ function setupInput(canvas) {
     });
 }
 
+function possessNpc(npcId) {
+    if (possessing) return;
+    const npc = state.npcs && state.npcs.find(n => n.id === npcId);
+    if (!npc || !npc.alive) return;
+
+    // Pause godmode sim
+    const wasRunning = running;
+    running = false;
+    possessing = true;
+
+    // Save the godmode DOM
+    godmodeDOM = document.getElementById("godmode-container");
+    if (godmodeDOM) godmodeDOM.style.display = "none";
+
+    // Tell Social to swap player state to NPC
+    Social.possess(npcId);
+
+    // Build the normal game DOM structure
+    const gameWrap = document.createElement("div");
+    gameWrap.id = "godmode-game-wrap";
+
+    // Possess banner
+    const banner = document.createElement("div");
+    banner.id = "possess-banner";
+    banner.innerHTML = '<span>Possessing <strong>' + (npc.name || "NPC") +
+        '</strong></span> <button id="unpossess-btn"><kbd>Esc</kbd> release</button>';
+    gameWrap.appendChild(banner);
+
+    // Standard game layout
+    const storyRight = document.createElement("div");
+    storyRight.id = "story-right";
+    const storyCaption = document.createElement("div");
+    storyCaption.id = "story-caption";
+    storyRight.appendChild(storyCaption);
+
+    const passages = document.createElement("div");
+    passages.id = "passages";
+    const passage = document.createElement("div");
+    passage.id = "passage";
+    passages.appendChild(passage);
+
+    gameWrap.appendChild(passages);
+    gameWrap.appendChild(storyRight);
+    document.body.appendChild(gameWrap);
+
+    // Navigate to appropriate screen
+    if (state.falling) {
+        Engine.goto("Falling");
+    } else {
+        Engine.goto("Corridor");
+    }
+
+    // Wire unpossess button
+    document.getElementById("unpossess-btn").addEventListener("click", unpossessNpc);
+
+    // Store wasRunning for restoration
+    state._possessWasRunning = wasRunning;
+}
+
+function unpossessNpc() {
+    if (!possessing) return;
+    possessing = false;
+
+    // Tell Social to restore player state
+    Social.unpossess();
+
+    // Remove game DOM
+    const gameWrap = document.getElementById("godmode-game-wrap");
+    if (gameWrap) gameWrap.remove();
+
+    // Restore godmode DOM
+    if (godmodeDOM) {
+        godmodeDOM.style.display = "";
+        document.body.className = "godmode";
+    }
+
+    // Resume simulation
+    if (state._possessWasRunning) {
+        running = true;
+        updatePlayButton();
+    }
+    state._possessWasRunning = undefined;
+
+    // Re-render godmode
+    lastFrame = performance.now();
+    accumulator = 0;
+    render();
+    requestAnimationFrame(loop);
+}
+
+function npcJump(npcId) {
+    Social.npcJump(npcId);
+    render();
+}
+
 export const Godmode = {
     /** Force a re-render (for screenshots / debug). */
     render,
+
+    /** Exit possession mode (callable from keybindings). */
+    unpossess: unpossessNpc,
+
+    /** Whether we're in possession mode. */
+    isPossessing() { return possessing; },
 
     /** Called by Engine.init() after shared world setup. Replaces DOM and starts observation loop. */
     start() {
@@ -563,6 +672,12 @@ export const Godmode = {
                 selectedNpcId = null;
                 followMode = false;
                 render();
+            },
+            onPossess(id) {
+                possessNpc(id);
+            },
+            onJump(id) {
+                npcJump(id);
             },
         });
         setupInput(canvas);
