@@ -20,6 +20,7 @@ import {
     getOrCreateBond,
     DEFAULT_BOND,
 } from "./social.core.ts";
+import { applyShockToEntity, type ShockConfig, DEFAULT_SHOCKS } from "./psych.core.ts";
 import { isRestArea } from "./library.core.ts";
 
 // --- Component ---
@@ -208,15 +209,20 @@ export function sleepWakeSystem(
             }
             hopeChange = Math.min(config.maxCoSleepHopeBoost, hopeChange);
         } else if (sleep.bedIndex !== null) {
-            // Slept alone in a bed
-            hopeChange = -config.aloneHopePenalty;
+            // Slept alone in a bed — routed through habituation
+            const impact = applyShockToEntity(world, entity, "sleepAlone");
+            hopeChange = impact.hope;
         }
-        // No bed at all (overflow) — worse than alone
+        // No bed at all (overflow) — worse than alone, also habituates
         if (sleep.bedIndex === null) {
-            hopeChange = -config.aloneHopePenalty * 1.5;
+            const impact = applyShockToEntity(world, entity, "sleepNoBed");
+            hopeChange = impact.hope;
         }
 
-        psych.hope = Math.max(0, Math.min(100, psych.hope + hopeChange));
+        // Co-sleeping hope boost applied directly (not a shock)
+        if (hopeChange > 0) {
+            psych.hope = Math.max(0, Math.min(100, psych.hope + hopeChange));
+        }
 
         // Home shift: if sleeping at a different rest area, track streak (not nomadic)
         const atHome = isRestArea(pos.position) &&

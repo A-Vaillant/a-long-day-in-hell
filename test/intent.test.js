@@ -258,6 +258,41 @@ describe("evaluateIntent", () => {
         );
         assert.strictEqual(r.behavior, "seek_rest");
     });
+
+    it("lights off → idle (can't act in the dark)", () => {
+        const r = evaluateIntent(
+            makeIntent({ behavior: "explore" }),
+            { lucidity: 80, hope: 80 },
+            true, null, null, makeRng(),
+            undefined, undefined, undefined, undefined,
+            160, // tick 160 = lights off
+        );
+        assert.deepStrictEqual(r, { behavior: "idle", cooldown: 0 });
+    });
+
+    it("lights off overrides even starving NPC", () => {
+        const r = evaluateIntent(
+            makeIntent({ behavior: "seek_rest" }),
+            { lucidity: 80, hope: 80 },
+            true,
+            { hunger: 99, thirst: 99, exhaustion: 99 },
+            null, makeRng(),
+            undefined, undefined, undefined, undefined,
+            170,
+        );
+        assert.deepStrictEqual(r, { behavior: "idle", cooldown: 0 });
+    });
+
+    it("already idle during lights off → no change", () => {
+        const r = evaluateIntent(
+            makeIntent({ behavior: "idle" }),
+            { lucidity: 80, hope: 80 },
+            true, null, null, makeRng(),
+            undefined, undefined, undefined, undefined,
+            200,
+        );
+        assert.strictEqual(r, null);
+    });
 });
 
 // --- intentSystem ---

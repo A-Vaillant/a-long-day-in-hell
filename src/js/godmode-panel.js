@@ -181,7 +181,7 @@ const componentRenderers = {
         return html;
     },
 
-    intent(comp) {
+    intent(comp, npc, snap) {
         const BEHAVIOR_LABELS = {
             idle: "Idle",
             explore: "Exploring",
@@ -198,8 +198,10 @@ const componentRenderers = {
             return_home: "#c49530",
             wander_mad: "#9a2a2a",
         };
-        const label = BEHAVIOR_LABELS[comp.behavior] || comp.behavior;
-        const color = BEHAVIOR_COLORS[comp.behavior] || "#888";
+        // Show "Asleep" when idle during lights-off
+        const asleep = comp.behavior === "idle" && snap && !snap.lightsOn && npc && npc.alive;
+        const label = asleep ? "Asleep" : (BEHAVIOR_LABELS[comp.behavior] || comp.behavior);
+        const color = asleep ? "#6a3a6a" : (BEHAVIOR_COLORS[comp.behavior] || "#888");
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">behavior</div>';
         html += '<div class="gm-stat"><span class="gm-tip" data-tip="Current goal. Chosen by utility scoring each tick.">intent</span>';
