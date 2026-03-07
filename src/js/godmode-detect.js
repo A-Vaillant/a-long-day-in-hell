@@ -80,15 +80,15 @@ export function detectEvents(prev, curr) {
             }
         }
 
-        // Started falling (jumped into chasm)
+        // Started falling (jumped into chasm — not death, endless freefall)
         if (!old.falling && npc.falling) {
-            events.push({ tick: curr.tick, day: curr.day, type: "death",
+            events.push({ tick: curr.tick, day: curr.day, type: "chasm",
                 text: npc.name + " jumped into the chasm.", npcIds: [npc.id] });
         }
 
         // Stopped falling (grabbed railing or landed)
         if (old.falling && !npc.falling && npc.alive) {
-            events.push({ tick: curr.tick, day: curr.day, type: "resurrection",
+            events.push({ tick: curr.tick, day: curr.day, type: "chasm",
                 text: npc.name + " caught a railing at floor " + npc.floor + ".", npcIds: [npc.id] });
         }
 

@@ -157,7 +157,12 @@ const scorers: Record<string, BehaviorScorer> = {
         const exhaustUrgency = Math.max(0, ctx.needs.exhaustion - 40) / 60;
         const maxUrgency = Math.max(hungerUrgency, thirstUrgency, exhaustUrgency);
         if (maxUrgency <= 0) return -Infinity;
-        // Scales from 0.6 (mildly hungry) to 2.0+ (starving)
+        // Scales from 0.6 (mildly hungry) to 2.0 (very hungry).
+        // Above 85% need, survival panic kicks in — score spikes to 3.0+,
+        // overriding pilgrimage (2.5) and everything except madness.
+        if (maxUrgency >= 0.7) {
+            return 2.0 + (maxUrgency - 0.7) / 0.3 * 1.5;
+        }
         return 0.6 + maxUrgency * 1.4;
     },
 

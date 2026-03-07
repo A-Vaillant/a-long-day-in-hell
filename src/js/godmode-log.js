@@ -19,6 +19,7 @@ const filters = {
     search: false,
     pilgrimage: true,
     escape: true,
+    chasm: true,
 };
 
 // Time filter: how far back to show events.
@@ -51,6 +52,7 @@ export const LOG_COLORS = {
     pilgrimage: "#d4a0e0",
     escape: "#60d060",
     search: "#8a7a60",
+    chasm: "#6a4a7a",
 };
 
 export const LOG_FILTER_LABELS = {
@@ -62,6 +64,7 @@ export const LOG_FILTER_LABELS = {
     search: "search",
     pilgrimage: "pilgrim",
     escape: "escape",
+    chasm: "chasm",
 };
 
 export const GodmodeLog = {
@@ -76,6 +79,7 @@ export const GodmodeLog = {
         filters.search = false;
         filters.pilgrimage = true;
         filters.escape = true;
+        filters.chasm = true;
         timeFilter = "all";
     },
 
