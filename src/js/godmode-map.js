@@ -13,8 +13,9 @@ const LABEL_GUTTER = 52; // floor number labels on left
 const HEADER_H = 28;     // reserved header strip for view title
 
 // Zoom
-const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
-let zoomIndex = 3;  // start at 1x
+const ZOOM_LEVELS = [0.005, 0.01, 0.02, 0.05, 0.1, 0.15, 0.25, 0.5, 0.75, 1, 1.5, 2];
+let zoomIndex = 9;  // start at 1x
+const SCATTER_THRESHOLD = 0.2; // below this, skip grid, render as scatter plot
 let zoom = 1;
 
 // Derived from zoom
@@ -88,15 +89,25 @@ export const GodmodeMap = {
     },
 
     _recalcCells() {
-        CELL_W = Math.round(BASE_CELL_W * zoom);
-        CELL_H = Math.round(BASE_CELL_H * zoom);
-        CHASM_W = Math.round(BASE_CHASM_W * zoom);
         if (!canvas) return;
-        const usableW = viewSide !== null
-            ? canvas.width - LABEL_GUTTER           // single side: full width
-            : (canvas.width - CHASM_W - LABEL_GUTTER) / 2;  // both sides: split
-        vpCols = Math.max(4, Math.ceil(usableW / CELL_W) + 1);
-        vpRows = Math.max(4, Math.ceil((canvas.height - HEADER_H) / CELL_H) + 1);
+        if (zoom < SCATTER_THRESHOLD) {
+            // Scatter mode: fractional pixels per world unit
+            CELL_W = BASE_CELL_W * zoom;
+            CELL_H = BASE_CELL_H * zoom;
+            CHASM_W = 0; // no chasm gap in scatter
+            const usableW = canvas.width - LABEL_GUTTER;
+            vpCols = Math.max(4, Math.ceil(usableW / CELL_W));
+            vpRows = Math.max(4, Math.ceil((canvas.height - HEADER_H) / CELL_H));
+        } else {
+            CELL_W = Math.round(BASE_CELL_W * zoom);
+            CELL_H = Math.round(BASE_CELL_H * zoom);
+            CHASM_W = Math.round(BASE_CHASM_W * zoom);
+            const usableW = viewSide !== null
+                ? canvas.width - LABEL_GUTTER
+                : (canvas.width - CHASM_W - LABEL_GUTTER) / 2;
+            vpCols = Math.max(4, Math.ceil(usableW / CELL_W) + 1);
+            vpRows = Math.max(4, Math.ceil((canvas.height - HEADER_H) / CELL_H) + 1);
+        }
     },
 
     /** Zoom in/out, centering on the given pixel coords (or canvas center). */
@@ -121,11 +132,17 @@ export const GodmodeMap = {
 
     /** Convert pixel coords to world (position, floor). */
     _pixelToWorld(px, py) {
-        const colW = vpCols * CELL_W;
         const corridorX = LABEL_GUTTER;
+        if (zoom < SCATTER_THRESHOLD) {
+            // Scatter mode: direct linear mapping
+            const pos = vpX + (px - corridorX) / CELL_W;
+            const gridH = canvas.height - HEADER_H;
+            const floor = vpY + (gridH - (py - HEADER_H)) / CELL_H;
+            return { pos, floor };
+        }
+        const colW = vpCols * CELL_W;
         let localCol;
         if (viewSide !== null) {
-            // Single side — one corridor fills the canvas
             localCol = (px - corridorX) / CELL_W;
         } else {
             const chasmX = corridorX + colW;
@@ -242,205 +259,259 @@ export const GodmodeMap = {
         ctx.translate(0, HEADER_H);
         const gridH = h - HEADER_H;
 
-        if (showBoth) {
-            // Draw chasm — darker with subtle gradient edges
-            ctx.fillStyle = "#020201";
-            ctx.fillRect(chasmX, 0, CHASM_W, gridH);
-            ctx.strokeStyle = "#2a2218";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(chasmX, 0); ctx.lineTo(chasmX, gridH);
-            ctx.moveTo(eastX, 0); ctx.lineTo(eastX, gridH);
-            ctx.stroke();
+        const scatter = zoom < SCATTER_THRESHOLD;
+
+        // --- World-to-pixel helpers (work for both modes) ---
+        function worldToPixelX(pos, side) {
+            if (scatter) {
+                return corridorX + (pos - vpX) * CELL_W;
+            }
+            const baseX = showBoth ? (side === 0 ? westX : eastX) : corridorX;
+            return baseX + (pos - Math.floor(vpX)) * CELL_W + CELL_W / 2;
+        }
+        function worldToPixelY(floor) {
+            if (scatter) {
+                return gridH - (floor - vpY) * CELL_H;
+            }
+            const row = vpRows - 1 - (floor - Math.floor(vpY));
+            return row * CELL_H + CELL_H / 2;
         }
 
-        // Floor label font
-        const floorFontSize = Math.max(8, Math.round(9 * zoom));
-        ctx.font = floorFontSize + "px 'Share Tech Mono', monospace";
-        ctx.textAlign = "right";
+        if (!scatter) {
+            // === GRID MODE (zoom >= 0.2) ===
 
-        // Determine floor label interval based on zoom
-        const floorLabelEvery = zoom < 0.35 ? 20 : zoom < 0.6 ? 10 : zoom < 2 ? 5 : 1;
-
-        // Draw grid lines, rest areas, and floor labels
-        for (let row = 0; row < vpRows; row++) {
-            const floor = Math.floor(vpY) + vpRows - 1 - row;
-            const y = row * CELL_H;
-
-            // Floor line
-            ctx.strokeStyle = "#201c14";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(corridorX, y);
-            ctx.lineTo(corridorX + colW, y);
             if (showBoth) {
-                ctx.moveTo(eastX, y);
-                ctx.lineTo(eastX + colW, y);
+                ctx.fillStyle = "#020201";
+                ctx.fillRect(chasmX, 0, CHASM_W, gridH);
+                ctx.strokeStyle = "#2a2218";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(chasmX, 0); ctx.lineTo(chasmX, gridH);
+                ctx.moveTo(eastX, 0); ctx.lineTo(eastX, gridH);
+                ctx.stroke();
             }
-            ctx.stroke();
 
-            // Floor number label in gutter
-            if (floor >= 0 && floor % floorLabelEvery === 0) {
-                ctx.fillStyle = floor % 10 === 0 ? "#6a6050" : "#3a3428";
-                ctx.fillText(String(floor), LABEL_GUTTER - 6, y + CELL_H / 2 + floorFontSize / 3);
-            }
+            const floorFontSize = Math.max(8, Math.round(9 * zoom));
+            ctx.font = floorFontSize + "px 'Share Tech Mono', monospace";
+            ctx.textAlign = "right";
+            const floorLabelEvery = zoom < 0.35 ? 20 : zoom < 0.6 ? 10 : zoom < 2 ? 5 : 1;
 
-            for (let col = 0; col < vpCols; col++) {
-                const pos = Math.floor(vpX + col);
+            for (let row = 0; row < vpRows; row++) {
+                const floor = Math.floor(vpY) + vpRows - 1 - row;
+                const y = row * CELL_H;
 
-                // Rest area highlight
-                if (pos % REST_EVERY === 0) {
-                    ctx.fillStyle = snap.lightsOn ? "#16130c" : "#0c0a06";
-                    ctx.fillRect(corridorX + col * CELL_W, y, CELL_W, CELL_H);
-                    if (showBoth) {
-                        ctx.fillRect(eastX + col * CELL_W, y, CELL_W, CELL_H);
+                ctx.strokeStyle = "#201c14";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(corridorX, y);
+                ctx.lineTo(corridorX + colW, y);
+                if (showBoth) {
+                    ctx.moveTo(eastX, y);
+                    ctx.lineTo(eastX + colW, y);
+                }
+                ctx.stroke();
+
+                if (floor >= 0 && floor % floorLabelEvery === 0) {
+                    ctx.fillStyle = floor % 10 === 0 ? "#6a6050" : "#3a3428";
+                    ctx.fillText(String(floor), LABEL_GUTTER - 6, y + CELL_H / 2 + floorFontSize / 3);
+                }
+
+                for (let col = 0; col < vpCols; col++) {
+                    const pos = Math.floor(vpX + col);
+                    if (pos % REST_EVERY === 0) {
+                        ctx.fillStyle = snap.lightsOn ? "#16130c" : "#0c0a06";
+                        ctx.fillRect(corridorX + col * CELL_W, y, CELL_W, CELL_H);
+                        if (showBoth) {
+                            ctx.fillRect(eastX + col * CELL_W, y, CELL_W, CELL_H);
+                        }
+                    }
+                }
+
+                if (showBoth && floor === 0) {
+                    ctx.fillStyle = "#3a3020";
+                    ctx.fillRect(chasmX, y, CHASM_W, CELL_H);
+                    ctx.strokeStyle = "#4a4030";
+                    ctx.lineWidth = 0.5;
+                    for (let bx = chasmX; bx < eastX; bx += 6) {
+                        ctx.beginPath();
+                        ctx.moveTo(bx, y); ctx.lineTo(bx + 6, y + CELL_H);
+                        ctx.stroke();
                     }
                 }
             }
 
-            // Bridge at floor 0 (only in both-sides view)
-            if (showBoth && floor === 0) {
-                ctx.fillStyle = "#3a3020";
-                ctx.fillRect(chasmX, y, CHASM_W, CELL_H);
-                ctx.strokeStyle = "#4a4030";
-                ctx.lineWidth = 0.5;
-                for (let bx = chasmX; bx < eastX; bx += 6) {
-                    ctx.beginPath();
-                    ctx.moveTo(bx, y); ctx.lineTo(bx + 6, y + CELL_H);
-                    ctx.stroke();
-                }
-            }
-        }
-
-        // Position labels along the top of grid area — rest area kiosk numbers
-        const posFontSize = Math.max(9, Math.round(11 * zoom));
-        const posLabelY = posFontSize + 4;
-        ctx.font = posFontSize + "px 'Share Tech Mono', monospace";
-        ctx.textAlign = "center";
-        for (let col = 0; col < vpCols; col++) {
-            const pos = Math.floor(vpX + col);
-            if (pos % REST_EVERY !== 0) continue;
-            const px = corridorX + col * CELL_W + CELL_W / 2;
-            const label = String(pos);
-            const tw = ctx.measureText(label).width;
-            // Background pill for readability
-            ctx.fillStyle = snap.lightsOn ? "#0a0906" : "#050403";
-            ctx.fillRect(px - tw / 2 - 3, posLabelY - posFontSize, tw + 6, posFontSize + 4);
-            ctx.fillStyle = "#b8a878";
-            ctx.fillText(label, px, posLabelY);
-            // Dashed vertical guide line
-            ctx.strokeStyle = "#2a2418";
-            ctx.lineWidth = 1;
-            ctx.setLineDash([2, 4]);
-            ctx.beginPath();
-            ctx.moveTo(px, posLabelY + 4);
-            ctx.lineTo(px, gridH);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            if (showBoth) {
-                const epx = eastX + col * CELL_W + CELL_W / 2;
+            // Position labels
+            const posFontSize = Math.max(9, Math.round(11 * zoom));
+            const posLabelY = posFontSize + 4;
+            ctx.font = posFontSize + "px 'Share Tech Mono', monospace";
+            ctx.textAlign = "center";
+            const posLabelEvery = zoom < 0.35 ? 20 : REST_EVERY;
+            for (let col = 0; col < vpCols; col++) {
+                const pos = Math.floor(vpX + col);
+                if (pos % posLabelEvery !== 0) continue;
+                const px = corridorX + col * CELL_W + CELL_W / 2;
+                const label = String(pos);
+                const tw = ctx.measureText(label).width;
                 ctx.fillStyle = snap.lightsOn ? "#0a0906" : "#050403";
-                ctx.fillRect(epx - tw / 2 - 3, posLabelY - posFontSize, tw + 6, posFontSize + 4);
+                ctx.fillRect(px - tw / 2 - 3, posLabelY - posFontSize, tw + 6, posFontSize + 4);
                 ctx.fillStyle = "#b8a878";
-                ctx.fillText(label, epx, posLabelY);
+                ctx.fillText(label, px, posLabelY);
                 ctx.strokeStyle = "#2a2418";
                 ctx.lineWidth = 1;
                 ctx.setLineDash([2, 4]);
                 ctx.beginPath();
-                ctx.moveTo(epx, posLabelY + 4);
-                ctx.lineTo(epx, gridH);
+                ctx.moveTo(px, posLabelY + 4);
+                ctx.lineTo(px, gridH);
                 ctx.stroke();
                 ctx.setLineDash([]);
+                if (showBoth) {
+                    const epx = eastX + col * CELL_W + CELL_W / 2;
+                    ctx.fillStyle = snap.lightsOn ? "#0a0906" : "#050403";
+                    ctx.fillRect(epx - tw / 2 - 3, posLabelY - posFontSize, tw + 6, posFontSize + 4);
+                    ctx.fillStyle = "#b8a878";
+                    ctx.fillText(label, epx, posLabelY);
+                    ctx.strokeStyle = "#2a2418";
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([2, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(epx, posLabelY + 4);
+                    ctx.lineTo(epx, gridH);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+        } else {
+            // === SCATTER MODE (zoom < 0.2) ===
+            // Sparse axis labels only, no grid lines or rest areas
+
+            const floorFontSize = 9;
+            ctx.font = floorFontSize + "px 'Share Tech Mono', monospace";
+            ctx.textAlign = "right";
+
+            // Floor labels — compute a nice interval based on visible range
+            const visibleFloors = vpRows;
+            const floorInterval = Math.pow(10, Math.max(1, Math.floor(Math.log10(visibleFloors / 6))));
+            const floorStart = Math.floor(vpY / floorInterval) * floorInterval;
+            for (let f = floorStart; f < vpY + vpRows; f += floorInterval) {
+                const py = gridH - (f - vpY) * CELL_H;
+                if (py < 0 || py > gridH) continue;
+                // Faint horizontal guide
+                ctx.strokeStyle = "#1a1610";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(LABEL_GUTTER, py);
+                ctx.lineTo(w, py);
+                ctx.stroke();
+                // Label
+                ctx.fillStyle = "#4a4030";
+                ctx.fillText(String(f), LABEL_GUTTER - 6, py + floorFontSize / 3);
+            }
+
+            // Position labels
+            const posFontSize = 9;
+            ctx.font = posFontSize + "px 'Share Tech Mono', monospace";
+            ctx.textAlign = "center";
+            const visiblePositions = vpCols;
+            const posInterval = Math.pow(10, Math.max(1, Math.floor(Math.log10(visiblePositions / 6))));
+            const posStart = Math.floor(vpX / posInterval) * posInterval;
+            for (let p = posStart; p < vpX + vpCols; p += posInterval) {
+                const px = corridorX + (p - vpX) * CELL_W;
+                if (px < LABEL_GUTTER || px > w) continue;
+                ctx.strokeStyle = "#1a1610";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(px, 0);
+                ctx.lineTo(px, gridH);
+                ctx.stroke();
+                ctx.fillStyle = "#4a4030";
+                ctx.fillText(String(p), px, posFontSize + 4);
             }
         }
 
-        // Collect NPC screen positions and group data
-        const dotR = Math.max(3, Math.round(4.5 * zoom));
+        // --- NPC rendering (shared between modes) ---
+
+        const dotR = Math.max(2, Math.round(4.5 * zoom));
         const nameFontSize = Math.max(8, Math.round(9 * zoom));
         const npcScreenPos = [];
         const groups = new Map();
 
-        // Collect NPCs by cell to cluster co-located ones
-        const cellBuckets = new Map(); // "side,pos,floor" → [npc, ...]
         for (const npc of snap.npcs) {
             if (viewSide !== null && npc.side !== viewSide) continue;
-            const col = npc.position - Math.floor(vpX);
-            const row = vpRows - 1 - (npc.floor - Math.floor(vpY));
-            if (col < 0 || col >= vpCols || row < 0 || row >= vpRows) continue;
-            const key = npc.side + "," + npc.position + "," + npc.floor;
-            let bucket = cellBuckets.get(key);
-            if (!bucket) { bucket = []; cellBuckets.set(key, bucket); }
-            bucket.push({ npc, col, row });
-        }
+            const cx = worldToPixelX(npc.position, npc.side);
+            const cy = worldToPixelY(npc.floor);
+            // Cull off-screen
+            if (cx < LABEL_GUTTER - dotR || cx > w + dotR) continue;
+            if (cy < -dotR || cy > gridH + dotR) continue;
 
-        for (const [, bucket] of cellBuckets) {
-            const n = bucket.length;
-            for (let i = 0; i < n; i++) {
-                const { npc, col, row } = bucket[i];
-                const baseX = showBoth
-                    ? (npc.side === 0 ? westX : eastX)
-                    : corridorX;
-                let cx = baseX + col * CELL_W + CELL_W / 2;
-                let cy = row * CELL_H + CELL_H / 2;
+            const color = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
+            npcScreenPos.push({ npc, cx, cy, color });
 
-                // Spread co-located NPCs in a circle around cell center
-                if (n > 1) {
-                    const spread = Math.min(dotR * 1.4, CELL_W * 0.35, CELL_H * 0.35);
-                    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-                    cx += Math.cos(angle) * spread;
-                    cy += Math.sin(angle) * spread;
-                }
-
-                const color = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
-                npcScreenPos.push({ npc, cx, cy, color });
-
-                if (npc.groupId !== null && npc.groupId !== undefined) {
-                    let list = groups.get(npc.groupId);
-                    if (!list) { list = []; groups.set(npc.groupId, list); }
-                    list.push({ cx, cy });
-                }
+            if (npc.groupId !== null && npc.groupId !== undefined) {
+                let list = groups.get(npc.groupId);
+                if (!list) { list = []; groups.set(npc.groupId, list); }
+                list.push({ cx, cy });
             }
         }
 
-        // Draw group enclosures (behind NPCs)
-        for (const [groupId, members] of groups) {
-            if (members.length < 2) continue;
-            const gColor = GROUP_COLORS[groupId % GROUP_COLORS.length];
-            const pad = Math.max(6, Math.round(8 * zoom));
+        // Draw group enclosures (behind NPCs) — skip in extreme scatter
+        if (zoom >= 0.05) {
+            for (const [groupId, members] of groups) {
+                if (members.length < 2) continue;
+                const gColor = GROUP_COLORS[groupId % GROUP_COLORS.length];
+                const pad = Math.max(4, Math.round(8 * zoom));
 
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            for (const m of members) {
-                if (m.cx < minX) minX = m.cx;
-                if (m.cy < minY) minY = m.cy;
-                if (m.cx > maxX) maxX = m.cx;
-                if (m.cy > maxY) maxY = m.cy;
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                for (const m of members) {
+                    if (m.cx < minX) minX = m.cx;
+                    if (m.cy < minY) minY = m.cy;
+                    if (m.cx > maxX) maxX = m.cx;
+                    if (m.cy > maxY) maxY = m.cy;
+                }
+
+                const rx = minX - pad;
+                const ry = minY - pad;
+                const rw = maxX - minX + pad * 2;
+                const rh = maxY - minY + pad * 2;
+                const corner = Math.min(pad, 6);
+
+                ctx.fillStyle = gColor + "15";
+                ctx.beginPath();
+                ctx.roundRect(rx, ry, rw, rh, corner);
+                ctx.fill();
+
+                ctx.strokeStyle = gColor + "40";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.roundRect(rx, ry, rw, rh, corner);
+                ctx.stroke();
             }
-
-            const rx = minX - pad;
-            const ry = minY - pad;
-            const rw = maxX - minX + pad * 2;
-            const rh = maxY - minY + pad * 2;
-            const corner = Math.min(pad, 6);
-
-            ctx.fillStyle = gColor + "15";
-            ctx.beginPath();
-            ctx.roundRect(rx, ry, rw, rh, corner);
-            ctx.fill();
-
-            ctx.strokeStyle = gColor + "40";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.roundRect(rx, ry, rw, rh, corner);
-            ctx.stroke();
         }
 
         // Draw NPCs
         for (const { npc, cx, cy, color } of npcScreenPos) {
-            // Glow
-            ctx.fillStyle = color.slice(0, 7) + "40";
-            ctx.beginPath();
-            ctx.arc(cx, cy, dotR + 3, 0, Math.PI * 2);
-            ctx.fill();
+            // Falling trail
+            if (npc.falling) {
+                const trailLen = Math.min(Math.round(npc.falling.speed * 0.5), 60) * Math.max(zoom, 0.1);
+                if (trailLen > 1) {
+                    const grad = ctx.createLinearGradient(cx, cy - trailLen, cx, cy);
+                    grad.addColorStop(0, color.slice(0, 7) + "00");
+                    grad.addColorStop(1, color.slice(0, 7) + "80");
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = Math.max(1, dotR * 0.8);
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy - trailLen);
+                    ctx.lineTo(cx, cy);
+                    ctx.stroke();
+                }
+            }
+
+            // Glow (skip at extreme zoom-out)
+            if (zoom >= 0.25) {
+                ctx.fillStyle = color.slice(0, 7) + "40";
+                ctx.beginPath();
+                ctx.arc(cx, cy, dotR + 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
             // Dot
             ctx.fillStyle = color;
@@ -448,7 +519,7 @@ export const GodmodeMap = {
             ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
             ctx.fill();
 
-            // Selection ring + name (selected only)
+            // Selection ring + name
             if (npc.id === selectedId) {
                 ctx.strokeStyle = "#ffffff";
                 ctx.lineWidth = 2;
@@ -462,8 +533,8 @@ export const GodmodeMap = {
                 ctx.fillText(npc.name, cx, cy - dotR - 5);
             }
 
-            // Group indicator ring
-            if (npc.groupId !== null && npc.groupId !== undefined) {
+            // Group indicator ring (skip at extreme zoom)
+            if (zoom >= 0.1 && npc.groupId !== null && npc.groupId !== undefined) {
                 ctx.strokeStyle = "rgba(184, 168, 120, 0.5)";
                 ctx.lineWidth = 1.5;
                 ctx.setLineDash([2, 2]);
@@ -473,7 +544,7 @@ export const GodmodeMap = {
                 ctx.setLineDash([]);
             }
 
-            hitTargets.push({ id: npc.id, x: cx, y: cy + HEADER_H, r: dotR + 6 });
+            hitTargets.push({ id: npc.id, x: cx, y: cy + HEADER_H, r: Math.max(dotR + 6, 8) });
         }
 
         ctx.restore(); // end grid translation
