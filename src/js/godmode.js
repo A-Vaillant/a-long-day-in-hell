@@ -153,6 +153,14 @@ function render() {
     if (activeTab === "log") renderLog();
 }
 
+function cancelFF() {
+    if (!ffBusy) return;
+    ffBusy = false;
+    updateFFStatus(0, 0);
+    updatePlayButton();
+    render();
+}
+
 function fastForward(n) {
     if (ffBusy || n <= 0) return;
     ffBusy = true;
@@ -164,6 +172,7 @@ function fastForward(n) {
     let remaining = n;
 
     function step() {
+        if (!ffBusy) return; // cancelled
         const chunk = Math.min(remaining, BATCH);
         for (let i = 0; i < chunk; i++) tickOnce();
         remaining -= chunk;
@@ -407,6 +416,13 @@ function setupInput(canvas) {
     document.addEventListener("keydown", function (ev) {
         // Don't handle keys when typing in the FF input
         if (document.activeElement === ffInput) return;
+
+        // Cancel fast-forward on Escape or Space
+        if (ffBusy && (ev.key === "Escape" || ev.key === " ")) {
+            ev.preventDefault();
+            cancelFF();
+            return;
+        }
 
         if (ev.key === " ") {
             ev.preventDefault();
