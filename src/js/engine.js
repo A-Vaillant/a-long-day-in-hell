@@ -216,7 +216,10 @@ export const Engine = {
             var cur = this._screens[state.screen];
             if (cur && cur.kind === "transition") return; // never save on a transition
             localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-        } catch (e) { /* ignore quota errors */ }
+        } catch (e) {
+            if (e instanceof DOMException && e.name === "QuotaExceededError") return;
+            console.error("Save failed:", e);
+        }
     },
     load() {
         try {

@@ -105,7 +105,8 @@ describe("repeated death-resurrection cycle", () => {
 
         for (let i = 0; i < MURDERS; i++) {
             stats = { ...stats, dead: true, mortality: 0 };
-            while (true) {
+            let safety = 0;
+            while (safety++ < 100) {
                 const result = advanceTick(tick, TICKS_PER_HOUR);
                 tick = result.state;
                 if (result.events.includes("dawn")) {
@@ -113,6 +114,7 @@ describe("repeated death-resurrection cycle", () => {
                     break;
                 }
             }
+            assert.ok(safety <= 100, "dawn should arrive within 100 hour-steps");
             assert.strictEqual(stats.dead, false, "should be alive after dawn");
             assert.strictEqual(stats.mortality, 100, "mortality should be full");
         }
@@ -126,7 +128,8 @@ describe("repeated death-resurrection cycle", () => {
 
         for (let i = 0; i < 10; i++) {
             stats = { ...stats, dead: true, mortality: 0 };
-            while (true) {
+            let safety = 0;
+            while (safety++ < 100) {
                 const result = advanceTick(tick, TICKS_PER_HOUR);
                 tick = result.state;
                 if (result.events.includes("dawn")) {
@@ -134,6 +137,7 @@ describe("repeated death-resurrection cycle", () => {
                     break;
                 }
             }
+            assert.ok(safety <= 100, "dawn should arrive within 100 hour-steps");
         }
         assert.deepStrictEqual(heldBook, { side: 0, position: 5, floor: 3, bookIndex: 42 });
     });

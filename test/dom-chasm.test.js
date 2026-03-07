@@ -325,10 +325,19 @@ describe("DOM: chasm and freefall", () => {
         // One tick — speed 1, grab chance ~78.5%
         clickElement(game, "fall-wait");
 
-        // Force a successful grab by setting speed to 0 (100% chance)
+        // Force a successful grab: speed 0 gives 80% chance, retry with different ticks
         game.state.falling.speed = 0;
-        game.Engine.goto("Falling"); // re-render with new speed
-        clickElement(game, "fall-grab");
+        let grabbed = false;
+        for (let attempt = 0; attempt < 10 && !grabbed; attempt++) {
+            game.Engine.goto("Falling");
+            clickElement(game, "fall-grab");
+            grabbed = game.state.falling === null;
+            if (!grabbed) {
+                game.state.falling.speed = 0;
+                game.state.tick++;
+            }
+        }
+        assert.ok(grabbed, "grab succeeded within 10 attempts at speed 0");
 
         // Should be on corridor now at whatever floor we stopped at
         assert.strictEqual(game.state.screen, "Corridor", "on corridor after grab");

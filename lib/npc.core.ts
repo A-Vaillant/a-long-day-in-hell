@@ -39,8 +39,16 @@ function gaussianish(rng: Rng): number {
 /** Spawn NPCs near a player location. Names passed in from content. */
 export function spawnNPCs(playerLoc: Location, count: number, names: string[], rng: Rng): NPC[] {
     const npcs: NPC[] = [];
+    const usedNames = new Set<number>();
     for (let i = 0; i < count; i++) {
-        const nameIdx = Math.floor(rng.next() * names.length);
+        let nameIdx = Math.floor(rng.next() * names.length);
+        // Avoid duplicate names when we have enough names
+        if (usedNames.size < names.length) {
+            while (usedNames.has(nameIdx)) {
+                nameIdx = (nameIdx + 1) % names.length;
+            }
+        }
+        usedNames.add(nameIdx);
         const posDelta = Math.round(gaussianish(rng) * 20);
         const floorDelta = Math.round(gaussianish(rng) * 5);
         const floor = Math.max(0, playerLoc.floor + floorDelta);

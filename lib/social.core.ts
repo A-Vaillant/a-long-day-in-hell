@@ -18,8 +18,8 @@
  */
 
 import type { Entity, World } from "./ecs.core.js";
-import { getComponent, query, entitiesWith, addComponent } from "./ecs.core.js";
-import { PERSONALITY, type Personality, decayBias, entityCompatibility } from "./personality.core.js";
+import { getComponent, query, addComponent } from "./ecs.core.js";
+import { PERSONALITY, type Personality, decayBias, entityCompatibility, familiarityFatigue } from "./personality.core.js";
 
 // --- Component keys ---
 
@@ -277,13 +277,7 @@ export function accumulateBond(
 
     // Familiarity fatigue: compatibility determines how long affinity keeps growing
     if (compat !== undefined) {
-        const threshold = compat * config.maxFamiliarity;
-        if (bond.familiarity > threshold) {
-            const range = config.maxFamiliarity - threshold;
-            const overshoot = range > 0 ? (bond.familiarity - threshold) / range : 1;
-            // Friction scales with overshoot: at max overshoot, net gain can go negative
-            affinityDelta -= 0.03 * overshoot;
-        }
+        affinityDelta += familiarityFatigue(bond.familiarity, compat, config.maxFamiliarity);
     }
 
     bond.affinity = Math.max(config.minAffinity,
@@ -608,16 +602,7 @@ export function groupFormationSystem(
         list.push(e);
     }
 
-    // Clear all existing group components
-    const existingGrouped = entitiesWith(world, GROUP);
-    for (const e of existingGrouped) {
-        // Remove by setting to undefined isn't how ECS works — use removeComponent
-        // But we imported addComponent. Let's just overwrite or skip.
-        // Actually we need removeComponent. For now, we'll re-add groups for
-        // all entities: grouped ones get a group, ungrouped ones get removed.
-    }
-
-    // We need removeComponent
+    // Clear all existing group components (iterate map directly, no array alloc)
     const groupMap = world.components.get(GROUP);
     if (groupMap) groupMap.clear();
 
@@ -724,25 +709,36 @@ export function socialPressureSystem(
 ): void {
     const entities = query(world, [POSITION, PSYCHOLOGY, IDENTITY]);
 
-    // Collect all alive entities with their disposition
-    const alive: { entity: Entity, pos: Position, psych: Psychology, disp: Disposition }[] = [];
-    for (const [entity, pos, psych, ident] of entities) {
+    // Partition alive entities into mad (sources) and targets, indexed spatially
+    const targets: { pos: Position, psych: Psychology }[] = [];
+    // Index mad entities by (side, floor) for O(M) range checks per target
+    const madIndex = new Map<string, { position: number }[]>();
+
+    for (const [, pos, psych, ident] of entities) {
         if (!(ident as Identity).alive) continue;
         const psychology = psych as Psychology;
         const position = pos as Position;
         const disp = deriveDisposition(psychology, true, thresholds);
-        alive.push({ entity: entity as Entity, pos: position, psych: psychology, disp });
+
+        if (disp === "mad") {
+            const key = `${position.side}:${position.floor}`;
+            let list = madIndex.get(key);
+            if (!list) { list = []; madIndex.set(key, list); }
+            list.push({ position: position.position });
+        } else if (disp !== "catatonic") {
+            targets.push({ pos: position, psych: psychology });
+        }
     }
 
-    // For each non-mad, non-catatonic entity, count mad entities within shout range
-    for (const target of alive) {
-        if (target.disp === "mad" || target.disp === "catatonic") continue;
+    // For each target, count mad entities within shout range (same side+floor only)
+    for (const target of targets) {
+        const key = `${target.pos.side}:${target.pos.floor}`;
+        const madNearby = madIndex.get(key);
+        if (!madNearby) continue;
 
         let nearbyMadCount = 0;
-        for (const other of alive) {
-            if (other.disp !== "mad") continue;
-            const dist = segmentDistance(target.pos, other.pos);
-            if (dist <= awareness.shoutRange) {
+        for (const mad of madNearby) {
+            if (Math.abs(target.pos.position - mad.position) <= awareness.shoutRange) {
                 nearbyMadCount++;
             }
         }
