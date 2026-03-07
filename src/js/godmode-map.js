@@ -327,8 +327,10 @@ export const GodmodeMap = {
                 const floor = Math.floor(vpY) + vpRows - 1 - row;
                 const y = row * CELL_H;
 
-                ctx.strokeStyle = "#201c14";
-                ctx.lineWidth = 1;
+                // Floor gridlines — thicker at rest-area floors
+                const isRestFloor = floor >= 0 && floor % REST_EVERY === 0;
+                ctx.strokeStyle = isRestFloor ? "#2a2418" : "#181510";
+                ctx.lineWidth = isRestFloor ? 1.5 : 0.5;
                 ctx.beginPath();
                 ctx.moveTo(corridorX, y);
                 ctx.lineTo(corridorX + colW, y);
@@ -345,15 +347,57 @@ export const GodmodeMap = {
 
                 for (let col = 0; col < vpCols; col++) {
                     const pos = Math.floor(vpX + col);
+                    const cellX = corridorX + col * CELL_W;
+
                     if (pos % REST_EVERY === 0) {
-                        ctx.fillStyle = snap.lightsOn ? "#16130c" : "#0c0a06";
-                        ctx.fillRect(corridorX + col * CELL_W, y, CELL_W, CELL_H);
+                        // Rest area — brighter cell with subtle marker
+                        ctx.fillStyle = snap.lightsOn ? "#1a1610" : "#0e0c08";
+                        ctx.fillRect(cellX, y, CELL_W, CELL_H);
                         if (showBoth) {
                             ctx.fillRect(eastX + col * CELL_W, y, CELL_W, CELL_H);
+                        }
+                        // Rest area accent — small dot at center if zoomed in enough
+                        if (zoom >= 0.5) {
+                            ctx.fillStyle = "#2a2418";
+                            const cx = cellX + CELL_W / 2;
+                            const cy = y + CELL_H / 2;
+                            ctx.beginPath();
+                            ctx.arc(cx, cy, Math.max(1, zoom * 1.5), 0, Math.PI * 2);
+                            ctx.fill();
+                            if (showBoth) {
+                                ctx.beginPath();
+                                ctx.arc(eastX + col * CELL_W + CELL_W / 2, cy, Math.max(1, zoom * 1.5), 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        }
+                    } else {
+                        // Gallery segment — draw book-shelf strokes
+                        if (zoom >= 0.4) {
+                            const shelves = Math.min(4, Math.max(1, Math.floor(CELL_W / 5)));
+                            const gap = CELL_W / (shelves + 1);
+                            ctx.strokeStyle = snap.lightsOn ? "#1a1610" : "#0f0d08";
+                            ctx.lineWidth = 0.5;
+                            for (let s = 1; s <= shelves; s++) {
+                                const sx = cellX + s * gap;
+                                ctx.beginPath();
+                                ctx.moveTo(sx, y + 1);
+                                ctx.lineTo(sx, y + CELL_H - 1);
+                                ctx.stroke();
+                            }
+                            if (showBoth) {
+                                for (let s = 1; s <= shelves; s++) {
+                                    const sx = eastX + col * CELL_W + s * gap;
+                                    ctx.beginPath();
+                                    ctx.moveTo(sx, y + 1);
+                                    ctx.lineTo(sx, y + CELL_H - 1);
+                                    ctx.stroke();
+                                }
+                            }
                         }
                     }
                 }
 
+                // Chasm bridge at floor 0
                 if (showBoth && floor === 0) {
                     ctx.fillStyle = "#3a3020";
                     ctx.fillRect(chasmX, y, CHASM_W, CELL_H);
@@ -578,6 +622,12 @@ export const GodmodeMap = {
                 ctx.fillStyle = "#ffffff";
                 ctx.textAlign = "center";
                 ctx.fillText(npc.name, cx, cy - dotR - 5);
+            } else if (zoom >= 0.65) {
+                // Show names at moderate zoom for all NPCs
+                ctx.font = Math.max(8, Math.round(8 * zoom)) + "px 'Share Tech Mono', monospace";
+                ctx.fillStyle = color.slice(0, 7) + "90";
+                ctx.textAlign = "center";
+                ctx.fillText(npc.name, cx, cy - dotR - 3);
             }
 
             // Group indicator ring (skip at extreme zoom)
