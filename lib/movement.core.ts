@@ -109,10 +109,13 @@ export function movementSystem(
             const sleep = getComponent<Sleep>(world, entity, SLEEP);
             mov.targetPosition = sleep ? sleep.homeRestArea : nearestRestArea(pos.position);
         } else if (behavior === "pilgrimage") {
-            // Pilgrimage pathfinding: prioritize side → floor → position
             const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
             const vision = knowledge?.bookVision;
-            if (vision) {
+            if (knowledge?.hasBook) {
+                // Has book: walk to nearest rest area for submission
+                mov.targetPosition = nearestRestArea(pos.position);
+            } else if (vision) {
+                // Pilgrimage pathfinding: prioritize side → floor → position
                 if (pos.side !== vision.side) {
                     // Wrong side: need to get to floor 0, then a rest area to cross
                     if (pos.floor > 0) {

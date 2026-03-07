@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { KNOWLEDGE, createKnowledge, generateNpcLifeStory, grantVision } from "../lib/knowledge.core.ts";
+import { KNOWLEDGE, createKnowledge, generateNpcLifeStory, grantVision, isAtBookSegment } from "../lib/knowledge.core.ts";
 import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
 import { POSITION, IDENTITY, PSYCHOLOGY } from "../lib/social.core.ts";
 import { PERSONALITY } from "../lib/personality.core.ts";
@@ -47,7 +47,7 @@ describe("knowledge.core", () => {
         const k = createKnowledge("seed", 0, { side: 0, position: 0, floor: 10 });
         assert.equal(k.bookVision, null);
         assert.equal(k.visionAccurate, true);
-        assert.equal(k.escaped, false);
+        assert.equal(k.hasBook, false);
         assert.ok(k.lifeStory.bookCoords);
     });
 
@@ -73,7 +73,7 @@ describe("pilgrimage intent scorer", () => {
         addComponent(world, entity, POSITION, {
             side: opts.side ?? 0, position: opts.position ?? 5, floor: opts.floor ?? 10,
         });
-        addComponent(world, entity, IDENTITY, { name: "Test", alive: true });
+        addComponent(world, entity, IDENTITY, { name: "Test", alive: true, free: false });
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
         addComponent(world, entity, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
         addComponent(world, entity, PERSONALITY, {
@@ -131,16 +131,29 @@ describe("pilgrimage intent scorer", () => {
         assert.equal(pilgrim, undefined, "pilgrimage should not appear when at destination");
     });
 
-    it("pilgrimage excluded when escaped", () => {
+    it("pilgrimage excluded when entity is free (dead)", () => {
         const world = createWorld();
         const entity = makeEntity(world);
+        // Mark entity as dead (free entities are dead)
+        const ident = getComponent(world, entity, "identity");
+        ident.alive = false;
+        ident.free = true;
         const k = createKnowledge("seed", 0, { side: 0, position: 5, floor: 10 });
         grantVision(k, true);
-        k.escaped = true;
         addComponent(world, entity, KNOWLEDGE, k);
-        const results = getAvailableBehaviors(world, entity, makeRng());
-        const pilgrim = results.find(r => r.behavior === "pilgrimage");
-        assert.equal(pilgrim, undefined);
+        // evaluateIntent forces idle for dead entities — pilgrimage never activates
+        const intent = getComponent(world, entity, "intent");
+        const result = evaluateIntent(
+            intent, { lucidity: 80, hope: 80 }, false, null, null, makeRng(),
+        );
+        // Already idle → returns null (no change). If not idle, would force idle.
+        assert.equal(result, null, "already idle, no transition needed");
+        // Verify: if intent were pilgrimage, it would be forced to idle
+        intent.behavior = "pilgrimage";
+        const result2 = evaluateIntent(
+            intent, { lucidity: 80, hope: 80 }, false, null, null, makeRng(),
+        );
+        assert.equal(result2.behavior, "idle", "dead entity forced from pilgrimage to idle");
     });
 });
 
@@ -216,5 +229,52 @@ describe("pilgrimage movement", () => {
         movementSystem(world, makeRng(0.01), undefined, 100);
         const pos = getComponent(world, entity, POSITION);
         assert.equal(pos.position, 15, "should have reached target position");
+    });
+});
+
+describe("escape resolution", () => {
+    it("isAtBookSegment returns true at matching segment", () => {
+
+        const k = createKnowledge("seed", 0, { side: 0, position: 5, floor: 10 });
+        grantVision(k, true);
+        const at = isAtBookSegment(k, {
+            side: k.bookVision.side,
+            position: k.bookVision.position,
+            floor: k.bookVision.floor,
+        });
+        assert.equal(at, true);
+    });
+
+    it("isAtBookSegment returns false at wrong position", () => {
+
+        const k = createKnowledge("seed", 0, { side: 0, position: 5, floor: 10 });
+        grantVision(k, true);
+        assert.equal(isAtBookSegment(k, { side: k.bookVision.side, position: k.bookVision.position + 1, floor: k.bookVision.floor }), false);
+    });
+
+    it("isAtBookSegment returns false without vision", () => {
+
+        const k = createKnowledge("seed", 0, { side: 0, position: 5, floor: 10 });
+        assert.equal(isAtBookSegment(k, { side: 0, position: 5, floor: 10 }), false);
+    });
+
+    it("hasBook + pilgrimage targets nearest rest area", () => {
+        // NPC with hasBook at non-rest position should target nearest rest area
+        const world = createWorld();
+        const entity = spawn(world);
+        addComponent(world, entity, POSITION, { side: 0, position: 7, floor: 10 });
+        addComponent(world, entity, IDENTITY, { name: "Pilgrim", alive: true, free: false });
+        addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
+        addComponent(world, entity, INTENT, { behavior: "pilgrimage", cooldown: 20, elapsed: 0 });
+        addComponent(world, entity, MOVEMENT, { targetPosition: null, moveAccum: 0 });
+        const k = createKnowledge("seed", 0, { side: 0, position: 5, floor: 10 });
+        grantVision(k, true);
+        k.hasBook = true;
+        addComponent(world, entity, KNOWLEDGE, k);
+
+        movementSystem(world, makeRng(0.01));
+        const pos = getComponent(world, entity, POSITION);
+        // Position 7 → nearest rest area is 10, should step toward it
+        assert.equal(pos.position, 8, "should step toward rest area");
     });
 });

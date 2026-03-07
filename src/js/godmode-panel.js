@@ -47,6 +47,7 @@ const DISP_SHORT = {
     mad: "mad",
     catatonic: "cat",
     inspired: "insp",
+    escaped: "FREE",
 };
 
 const TIPS = {
@@ -244,8 +245,8 @@ const componentRenderers = {
         } else {
             html += '<div class="gm-stat"><span>vision</span><span class="gm-bar-num" style="color:#666">none</span></div>';
         }
-        if (comp.escaped) {
-            html += '<div class="gm-stat"><span>status</span><span class="gm-bar-num" style="color:#6a8a5a">escaped!</span></div>';
+        if (comp.hasBook) {
+            html += '<div class="gm-stat"><span>book</span><span class="gm-bar-num" style="color:#60d060">found!</span></div>';
         }
         html += '</div>';
         return html;
@@ -464,7 +465,8 @@ function renderList(snap, pane) {
         html += '<div class="gm-npc-row-top">';
         html += '<span class="gm-npc-row-name">' + esc(npc.name) + '</span>';
         html += '<span class="gm-npc-row-disp ' + dispClass + '">' + (DISP_SHORT[npc.disposition] || npc.disposition) + '</span>';
-        if (!npc.alive) html += '<span class="gm-dead-tag">dead</span>';
+        const isEscaped = npc.free;
+        if (!npc.alive) html += '<span class="gm-dead-tag" style="' + (isEscaped ? 'color:#60d060;font-style:normal' : '') + '">' + (isEscaped ? 'FREE' : 'dead') + '</span>';
         html += '</div>';
         html += '<div class="gm-npc-row-bars">';
         html += '<span class="gm-npc-row-label">luc</span>' + miniBar(npc.lucidity, 100, "#b8a878");
@@ -493,7 +495,8 @@ function renderDetail(npc, snap, pane) {
     html += '<div class="gm-section gm-identity">';
     html += '<div class="gm-name">' + esc(npc.name) + '</div>';
     html += '<div class="gm-disp gm-disp-' + npc.disposition + ' gm-tip" data-tip="' + esc(TIPS[npc.disposition] || "") + '">' + npc.disposition + '</div>';
-    if (!npc.alive) html += '<div class="gm-dead-tag">dead</div>';
+    const isEscaped = npc.free;
+    if (!npc.alive) html += '<div class="gm-dead-tag" style="' + (isEscaped ? 'color:#60d060;font-style:normal' : '') + '">' + (isEscaped ? 'FREE' : 'dead') + '</div>';
     if (npc.falling) html += '<div class="gm-dead-tag" style="color:#e0b040">falling (spd ' + Math.round(npc.falling.speed) + ')</div>';
     // Location (right below name)
     html += '<div class="gm-loc-inline"><span class="gm-loc-link" data-center-id="' + npc.id + '">' +
@@ -508,7 +511,7 @@ function renderDetail(npc, snap, pane) {
             html += '<button class="gm-btn" id="gm-npc-jump" data-npc-id="' + npc.id + '">push into chasm</button>';
         }
         const k = npc.components && npc.components.knowledge;
-        if (k && !k.bookVision && !k.escaped) {
+        if (k && !k.bookVision && !npc.free) {
             html += '<button class="gm-btn" id="gm-grant-vision" data-npc-id="' + npc.id + '">grant vision</button>';
         }
     }
