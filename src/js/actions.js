@@ -19,6 +19,7 @@ import { Events } from "./events.js";
 import { Despair } from "./despairing.js";
 import { PRNG } from "./prng.js";
 import { Book } from "./book.js";
+import { Social } from "./social.js";
 
 /**
  * Resolve a single action. Returns result object.
@@ -164,7 +165,7 @@ function resolveChasmJump() {
 
 function resolveGrabRailing() {
     if (!state.falling) return { resolved: false };
-    const result = Chasm.grab();
+    const result = Chasm.grab(Social.getQuicknessGrabBonus());
     if (result.success) {
         return { resolved: true, screen: "Corridor", data: result };
     }

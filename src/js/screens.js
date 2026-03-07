@@ -785,7 +785,7 @@ Engine.register("Falling", {
         }
 
         const alt = Chasm.getAltitude();
-        const chance = Chasm.getGrabChance();
+        const chance = Chasm.getGrabChance(Social.getQuicknessGrabBonus());
         let html = '<div id="falling-view">';
         html += '<p class="location-header">Falling</p>';
 

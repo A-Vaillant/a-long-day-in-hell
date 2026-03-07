@@ -26,6 +26,7 @@ import {
 import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { INTENT, type Intent } from "./intent.core.ts";
 import { BOOKS_PER_GALLERY } from "./library.core.ts";
+import { STATS, type Stats, quicknessMod } from "./stats.core.ts";
 
 // --- Bigram scoring ---
 
@@ -325,38 +326,47 @@ export function searchSystem(
             search.active = true;
         }
 
-        // Score the book (fast path skips string allocation)
-        const score = scoreFn
-            ? scoreFn(pos.side, pos.position, pos.floor, search.bookIndex, 0)
-            : scoreBigram(samplePage(pos.side, pos.position, pos.floor, search.bookIndex, 0));
+        // Quickness: fast NPCs examine multiple books per tick
+        const stats = getComponent<Stats>(world, entity, STATS);
+        const qMod = stats ? quicknessMod(stats) : 1.0;
+        const booksThisTick = Math.floor(qMod) + (rng.next() < (qMod % 1) ? 1 : 0);
 
-        if (score > config.legibilityFloor) {
-            const boost = Math.min(config.maxHopeBoost, score * config.hopePerLegibility);
-            psych.hope = Math.min(100, psych.hope + boost);
-            if (score > search.bestScore) search.bestScore = score;
-            events.push({
-                entity,
-                name: ident.name,
-                bookIndex: search.bookIndex,
-                score,
-                hopeBoost: boost,
-                position: { ...pos },
-            });
-        }
+        for (let b = 0; b < booksThisTick; b++) {
+            if (!search.active) break;
 
-        search.ticksSearched++;
+            // Score the book (fast path skips string allocation)
+            const score = scoreFn
+                ? scoreFn(pos.side, pos.position, pos.floor, search.bookIndex, 0)
+                : scoreBigram(samplePage(pos.side, pos.position, pos.floor, search.bookIndex, 0));
 
-        // Advance to next book or exhaust patience
-        if (search.ticksSearched >= search.patience) {
-            search.active = false;
-            claimed.delete(search.bookIndex);
-        } else {
-            claimed.delete(search.bookIndex);
-            const nextIdx = claimBookIndex(claimed, rng);
-            if (nextIdx === -1) {
+            if (score > config.legibilityFloor) {
+                const boost = Math.min(config.maxHopeBoost, score * config.hopePerLegibility);
+                psych.hope = Math.min(100, psych.hope + boost);
+                if (score > search.bestScore) search.bestScore = score;
+                events.push({
+                    entity,
+                    name: ident.name,
+                    bookIndex: search.bookIndex,
+                    score,
+                    hopeBoost: boost,
+                    position: { ...pos },
+                });
+            }
+
+            search.ticksSearched++;
+
+            // Advance to next book or exhaust patience
+            if (search.ticksSearched >= search.patience) {
                 search.active = false;
+                claimed.delete(search.bookIndex);
             } else {
-                search.bookIndex = nextIdx;
+                claimed.delete(search.bookIndex);
+                const nextIdx = claimBookIndex(claimed, rng);
+                if (nextIdx === -1) {
+                    search.active = false;
+                } else {
+                    search.bookIndex = nextIdx;
+                }
             }
         }
     }

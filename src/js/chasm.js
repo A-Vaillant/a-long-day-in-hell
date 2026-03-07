@@ -34,9 +34,9 @@ export const Chasm = {
         };
     },
 
-    grab() {
+    grab(quicknessBonus = 0) {
         const rng = PRNG.fork("grab:" + state.floor + ":" + state.tick);
-        const result = attemptGrab(state.falling.speed, rng);
+        const result = attemptGrab(state.falling.speed, rng, quicknessBonus);
         if (result.success) {
             state.falling = null;
             return { success: true, mortalityHit: 0 };
@@ -51,8 +51,8 @@ export const Chasm = {
         state.heldBook = null;
     },
 
-    getGrabChance() {
-        return grabChance(state.falling.speed);
+    getGrabChance(quicknessBonus = 0) {
+        return grabChance(state.falling.speed, quicknessBonus);
     },
 
     getAltitude(floor) {

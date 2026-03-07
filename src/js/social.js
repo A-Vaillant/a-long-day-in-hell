@@ -18,7 +18,7 @@ import {
 import { HABITUATION } from "../../lib/psych.core.ts";
 import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts";
 import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
-import { STATS, generateStats } from "../../lib/stats.core.ts";
+import { STATS, generateStats, quicknessMod } from "../../lib/stats.core.ts";
 import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, searchSystem, scoreFromSeed } from "../../lib/search.core.ts";
@@ -28,7 +28,7 @@ import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment
 import { isRestArea } from "../../lib/library.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
-import { fallTick, attemptGrab } from "../../lib/chasm.core.js";
+import { fallTick, attemptGrab } from "../../lib/chasm.core.ts";
 import { state } from "./state.js";
 
 let world = null;
@@ -442,7 +442,10 @@ export const Social = {
                 const grabRng = seedFromString(state.seed + ":npcgrab:" + npc.id + ":" + state.tick + ":" + npc.floor);
                 // NPCs only attempt grab 20% of eligible ticks (they're panicking)
                 if (grabRng.next() < 0.2) {
-                    const grabResult = attemptGrab(npc.falling.speed, grabRng);
+                    const ent2 = npcEntities.get(npc.id);
+                    const npcStats = ent2 !== undefined ? getComponent(world, ent2, STATS) : null;
+                    const qBonus = npcStats ? Math.max(0, quicknessMod(npcStats) - 1) * 0.2 : 0;
+                    const grabResult = attemptGrab(npc.falling.speed, grabRng, qBonus);
                     if (grabResult.success) {
                         npc.falling = null;
                     } else {
@@ -632,5 +635,12 @@ export const Social = {
         }
         result.sort((a, b) => a.distance - b.distance);
         return result;
+    },
+
+    /** Get the current entity's quickness bonus for grab chance (0 if no stats). */
+    getQuicknessGrabBonus() {
+        if (!world || playerEntity === null) return 0;
+        const stats = getComponent(world, playerEntity, STATS);
+        return stats ? Math.max(0, quicknessMod(stats) - 1) * 0.2 : 0;
     },
 };

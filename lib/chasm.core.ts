@@ -68,8 +68,8 @@ export function fallTick(fallingState: Pick<FallingState, "speed">, currentFloor
  * @param {number} speed - current falling speed in floors/tick
  * @returns {number} probability 0-1
  */
-export function grabChance(speed: number): number {
-    return Math.max(0, GRAB_BASE_CHANCE - speed * GRAB_SPEED_PENALTY);
+export function grabChance(speed: number, quicknessBonus: number = 0): number {
+    return Math.max(0, Math.min(1, GRAB_BASE_CHANCE - speed * GRAB_SPEED_PENALTY + quicknessBonus));
 }
 
 /**
@@ -78,8 +78,8 @@ export function grabChance(speed: number): number {
  * @param {{ next: () => number }} rng - PRNG with next() returning [0,1)
  * @returns {{ success: boolean, mortalityHit: number, speedAfter: number }}
  */
-export function attemptGrab(speed: number, rng: Rng): GrabResult {
-    const chance = grabChance(speed);
+export function attemptGrab(speed: number, rng: Rng, quicknessBonus: number = 0): GrabResult {
+    const chance = grabChance(speed, quicknessBonus);
     const roll = rng.next();
     if (roll < chance) {
         return { success: true, mortalityHit: 0, speedAfter: 0 };
