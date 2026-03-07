@@ -188,31 +188,30 @@ export function movementSystem(
                         const vision = knowledge?.bookVision;
                         if (vision) {
                             let remaining = n - dist;
-                            if (pos.side !== vision.side) {
-                                const floorsDown = pos.floor;
-                                if (remaining >= floorsDown) {
-                                    pos.floor = 0;
-                                    remaining -= floorsDown;
-                                    if (remaining > 0) {
-                                        pos.side = vision.side;
-                                        remaining--;
-                                    }
-                                } else {
-                                    pos.floor -= remaining;
-                                    remaining = 0;
+                            // Phase 1: wrong side → descend to floor 0, then cross
+                            if (pos.side !== vision.side && remaining > 0) {
+                                const floorsDown = Math.min(pos.floor, remaining);
+                                pos.floor -= floorsDown;
+                                remaining -= floorsDown;
+                                if (pos.floor === 0 && remaining > 0) {
+                                    pos.side = vision.side;
+                                    remaining--;
                                 }
                             }
+                            // Phase 2: right side, wrong floor → move toward target floor
                             if (pos.side === vision.side && pos.floor !== vision.floor && remaining > 0) {
                                 const floorDist = Math.abs(pos.floor - vision.floor);
                                 const floorMoves = Math.min(remaining, floorDist);
                                 pos.floor += (pos.floor < vision.floor ? 1 : -1) * floorMoves;
                                 remaining -= floorMoves;
                             }
+                            // Phase 3: right side+floor → walk toward book position
                             if (pos.side === vision.side && pos.floor === vision.floor && remaining > 0) {
                                 const posDist = Math.abs(pos.position - vision.position);
                                 const posMoves = Math.min(remaining, posDist);
                                 pos.position += stepToward(pos.position, vision.position) * posMoves;
                             }
+                            pos.floor = Math.max(0, pos.floor);
                         }
                     }
                 } else {
