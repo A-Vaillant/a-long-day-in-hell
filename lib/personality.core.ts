@@ -167,15 +167,18 @@ export function familiarityFatigue(
  * Centered around 1.0. Range roughly 0.7–1.3.
  */
 export function decayBias(personality: Personality): { lucidityMul: number; hopeMul: number } {
+    // Wider range matters at cosmic scale — some people are rocks, others crack in decades.
     // Temperament: volatile = faster lucidity loss, withdrawn = faster hope loss
-    // At 0.5 (neutral): no bias. Deviation of 0.5 → ±0.2 multiplier shift.
-    const tempBias = (personality.temperament - 0.5) * 0.4;
+    const tempBias = (personality.temperament - 0.5) * 0.8;
 
     // Outlook: resistant = faster lucidity loss, accepting = slight hope resilience
-    const outlookBias = (personality.outlook - 0.5) * 0.2;
+    const outlookBias = (personality.outlook - 0.5) * 0.4;
+
+    // Pace: restless people lose hope faster (can't sit still in eternity)
+    const paceBias = (personality.pace - 0.5) * 0.3;
 
     return {
         lucidityMul: 1.0 + tempBias + outlookBias,
-        hopeMul: 1.0 - tempBias + outlookBias * 0.5,
+        hopeMul: 1.0 - tempBias + outlookBias * 0.5 + paceBias,
     };
 }

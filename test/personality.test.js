@@ -292,12 +292,14 @@ describe("personality disposition trajectory", () => {
         let madDay = 0;
         let catDay = 0;
 
-        for (let day = 0; day < 500; day++) {
+        // Cosmic scale: needs thousands of days
+        for (let day = 0; day < 50000; day++) {
             for (let t = 0; t < 240; t++) {
                 decayPsychology(psych, false, DEFAULT_DECAY, bias);
             }
             if (psych.lucidity <= 40 && !hitMad) { hitMad = true; madDay = day; }
             if (psych.hope <= 15 && !hitCatatonic) { hitCatatonic = true; catDay = day; }
+            if (hitMad && hitCatatonic) break;
         }
 
         assert.ok(hitMad, "volatile should eventually go mad");
@@ -313,12 +315,14 @@ describe("personality disposition trajectory", () => {
         let madDay = 0;
         let catDay = 0;
 
-        for (let day = 0; day < 500; day++) {
+        // Cosmic scale: needs thousands of days
+        for (let day = 0; day < 50000; day++) {
             for (let t = 0; t < 240; t++) {
                 decayPsychology(psych, false, DEFAULT_DECAY, bias);
             }
             if (psych.lucidity <= 40 && !hitMad) { hitMad = true; madDay = day; }
             if (psych.hope <= 15 && !hitCatatonic) { hitCatatonic = true; catDay = day; }
+            if (hitMad && hitCatatonic) break;
         }
 
         assert.ok(hitCatatonic, "withdrawn should eventually go catatonic");
