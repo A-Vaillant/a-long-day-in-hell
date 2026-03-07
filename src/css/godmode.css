@@ -507,6 +507,12 @@ body.godmode {
     font-size: 10px;
 }
 
+.gm-log-tag {
+    font-size: 9px;
+    opacity: 0.6;
+    margin-right: 4px;
+}
+
 .gm-log-filters {
     display: flex;
     gap: 2px;

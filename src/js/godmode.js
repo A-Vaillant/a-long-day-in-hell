@@ -198,8 +198,10 @@ function renderLog() {
         const mins = (ev.tick / 240) * 24 * 60 + 6 * 60;
         const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
         const mm = String(Math.floor(mins % 60)).padStart(2, "0");
+        const tag = LOG_FILTER_LABELS[ev.type] || ev.type;
         html += '<div class="gm-log-entry" style="color:' + color + '">' +
             '<span class="gm-log-time">d' + (ev.day - 1) + ' ' + hh + ':' + mm + '</span>' +
+            '<span class="gm-log-tag">[' + tag + ']</span> ' +
             ev.text + '</div>';
         count++;
     }
