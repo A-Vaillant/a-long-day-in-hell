@@ -45,6 +45,8 @@ export interface Position {
 export interface Identity {
     name: string;
     alive: boolean;
+    /** Entity has submitted their book and left the library. */
+    free: boolean;
 }
 
 export interface Psychology {
@@ -76,7 +78,7 @@ export interface Rng {
 
 // --- Disposition derivation ---
 
-export type Disposition = "calm" | "anxious" | "mad" | "catatonic" | "dead" | "inspired";
+export type Disposition = "calm" | "anxious" | "mad" | "catatonic" | "dead" | "inspired" | "escaped";
 
 /**
  * Thresholds for disposition derivation from psychology.
@@ -278,7 +280,7 @@ export function psychologyDecaySystem(
 
         // Pilgrims have purpose — hope can't drop below catatonic threshold
         const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
-        if (knowledge && knowledge.bookVision && !knowledge.escaped) {
+        if (knowledge && knowledge.bookVision && identity.alive) {
             const pilgrimHopeFloor = 20; // above catatonic (15)
             if (psychology.hope < pilgrimHopeFloor) {
                 psychology.hope = pilgrimHopeFloor;

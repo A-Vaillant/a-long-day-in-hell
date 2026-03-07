@@ -228,8 +228,10 @@ const scorers: Record<string, BehaviorScorer> = {
      * Needs override pilgrimage only at critical levels.
      */
     pilgrimage(ctx) {
-        if (!ctx.knowledge || !ctx.knowledge.bookVision || ctx.knowledge.escaped) return -Infinity;
-        // Already at the book location — no need to travel
+        if (!ctx.knowledge || !ctx.knowledge.bookVision) return -Infinity;
+        // Has book: keep pilgrimaging to nearest rest area for submission
+        if (ctx.knowledge.hasBook) return 2.5;
+        // Already at the book location — no need to travel (pickup handled by escape system)
         if (ctx.position) {
             const v = ctx.knowledge.bookVision;
             if (ctx.position.side === v.side &&
