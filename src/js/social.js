@@ -65,6 +65,13 @@ export const Social = {
         addComponent(world, playerEntity, BELIEF, generateBelief(playerBeliefRng));
         const playerStatsRng = seedFromString(state.seed + ":player:stats");
         addComponent(world, playerEntity, STATS, generateStats(playerStatsRng));
+        addComponent(world, playerEntity, KNOWLEDGE, {
+            lifeStory: state.lifeStory,
+            bookVision: null,
+            visionAccurate: true,
+            hasBook: false,
+            searchedSegments: new Set(),
+        });
 
         // Spawn NPC entities
         if (state.npcs) {
@@ -296,6 +303,12 @@ export const Social = {
         const ent = npcEntities.get(npcId);
         if (ent === undefined || !world) return null;
         return getComponent(world, ent, BELIEF);
+    },
+
+    /** Get player knowledge. */
+    getPlayerKnowledge() {
+        if (!world || playerEntity === null) return null;
+        return getComponent(world, playerEntity, KNOWLEDGE);
     },
 
     /** Get NPC knowledge for debug/UI. */

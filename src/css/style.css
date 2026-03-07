@@ -780,6 +780,11 @@ button:disabled {
     50%      { filter: brightness(2.5) saturate(1.6); }
 }
 
+.shelf-grid.shelf-searched {
+    opacity: 0.35;
+    filter: saturate(0.3);
+}
+
 .book-spine a {
     display: block;
     width: 100%;

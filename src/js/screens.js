@@ -285,13 +285,18 @@ Engine.register("Corridor", {
         if (!seg.restArea) {
             const COUNT = 192;
             const grid = document.createElement("div");
-            grid.className = "shelf-grid";
+            const playerKnow = Social.getPlayerKnowledge();
+            const segSearched = playerKnow && playerKnow.searchedSegments.has(
+                state.side + ":" + state.position + ":" + state.floor);
+            grid.className = "shelf-grid" + (segSearched ? " shelf-searched" : "");
 
             for (let bi = 0; bi < COUNT; bi++) {
                 const isHeld = state.heldBook !== null && state.heldBook.side === state.side &&
                     state.heldBook.position === state.position && state.heldBook.floor === state.floor &&
                     state.heldBook.bookIndex === bi;
-                const isTarget = state.targetBook.side === state.side &&
+                const hasVision = playerKnow && playerKnow.bookVision;
+                const isTarget = hasVision &&
+                    state.targetBook.side === state.side &&
                     state.targetBook.position === state.position && state.targetBook.floor === state.floor &&
                     state.targetBook.bookIndex === bi;
                 const rng = seedFromString("spine:" + PRNG.getSeed() + ":" + state.side + ":" + state.position + ":" + state.floor + ":" + bi);
@@ -394,7 +399,9 @@ Engine.register("Shelf Open Book", {
             html += '<p class="location-header">' + bkLabel + ' — Page ' + pg + ' / ' + Book.PAGES_PER_BOOK + '</p>';
         }
 
-        if (bk.side === state.targetBook.side && bk.position === state.targetBook.position &&
+        const pkOpen = Social.getPlayerKnowledge();
+        if (pkOpen && pkOpen.bookVision &&
+            bk.side === state.targetBook.side && bk.position === state.targetBook.position &&
             bk.floor === state.targetBook.floor && bk.bookIndex === state.targetBook.bookIndex) {
             html += '<p class="target-book-hint">Something about this book makes you stop.</p>';
         }
