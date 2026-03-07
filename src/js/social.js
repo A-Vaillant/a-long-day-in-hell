@@ -190,7 +190,22 @@ export const Social = {
 
     /** Dawn hook — resurrect dead NPCs, reset needs. Position sync is per-tick now. */
     onDawn() {
-        if (world) resetNeedsAtDawn(world);
+        if (!world) return;
+        // Resurrect dead NPCs
+        if (state.npcs) {
+            for (const npc of state.npcs) {
+                if (!npc.alive) {
+                    npc.alive = true;
+                    npc.falling = null;
+                    const ent = npcEntities.get(npc.id);
+                    if (ent !== undefined) {
+                        const ident = getComponent(world, ent, IDENTITY);
+                        if (ident) ident.alive = true;
+                    }
+                }
+            }
+        }
+        resetNeedsAtDawn(world);
     },
 
     /** Expose world for debug. */
