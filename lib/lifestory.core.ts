@@ -10,31 +10,61 @@
  * @module lifestory.core
  */
 
-import { seedFromString } from "./prng.core.js";
-import { BOOKS_PER_GALLERY, isRestArea } from "./library.core.js";
-import { PAGES_PER_BOOK } from "./book.core.js";
+import { seedFromString, type Xoshiro128ss } from "./prng.core.ts";
+import { BOOKS_PER_GALLERY, isRestArea } from "./library.core.ts";
+import { PAGES_PER_BOOK } from "./book.core.ts";
+
+export interface BookCoords {
+    side: number;
+    position: number;
+    floor: number;
+    bookIndex: number;
+}
+
+export interface StartLocation {
+    side: number;
+    position: number;
+    floor: number;
+}
+
+export interface LifeStoryOptions {
+    placement?: "gaussian" | "random";
+    startLoc?: StartLocation;
+}
+
+export interface LifeStory {
+    name: string;
+    occupation: string;
+    hometown: string;
+    causeOfDeath: string;
+    lastThing: string;
+    storyText: string;
+    targetPage: number;
+    placement: string;
+    bookCoords: BookCoords;
+}
 
 // Template pools
-const FIRST_NAMES = [
+const FIRST_NAMES: readonly string[] = [
     "Alma","Cedric","Dolores","Edmund","Fatima","Gordon","Helena","Ivan",
     "Judith","Kaspar","Leonora","Marcus","Nadia","Oliver","Priya","Quentin",
     "Rosa","Sebastian","Thea","Ulrich","Vera","Walter","Xenia","Yusuf","Zara",
 ];
 
-const LAST_NAMES = [
+const LAST_NAMES: readonly string[] = [
     "Ashby","Brant","Crane","Dahl","Ellison","Ferris","Gould","Harlow",
     "Ingram","Janssen","Keane","Lund","Marsh","Noel","Okafor","Pratt",
     "Quinn","Rowe","Strand","Thorn","Ueda","Voss","Ward","Xiao","Yuen",
 ];
 
-const OCCUPATIONS = [
+const OCCUPATIONS: readonly string[] = [
     "librarian","schoolteacher","electrician","bus driver","accountant",
     "nurse","carpenter","postal worker","journalist","farmer",
     "chemist","translator","architect","cook","taxi driver",
     "dentist","watchmaker","bookbinder","radio operator","cartographer",
 ];
 
-const HOMETOWNS = [
+const HOMETOWNS: readonly string[] = [
     "a small town on the coast","a city you mostly tried to leave",
     "a suburb that no longer exists","a valley that flooded years later",
     "a neighborhood that changed while you were away",
@@ -43,7 +73,7 @@ const HOMETOWNS = [
     "somewhere flat, with good light in the mornings",
 ];
 
-const CAUSE_OF_DEATH = [
+const CAUSE_OF_DEATH: readonly string[] = [
     "a stroke, in the night, without warning",
     "a car accident on a road you'd driven a hundred times",
     "a long illness you pretended wasn't serious",
@@ -54,7 +84,7 @@ const CAUSE_OF_DEATH = [
     "an accident at work that shouldn't have been possible",
 ];
 
-const LAST_THINGS = [
+const LAST_THINGS: readonly string[] = [
     "You were thinking about what to have for dinner.",
     "You had meant to call someone back.",
     "You were in the middle of a sentence.",
@@ -65,12 +95,20 @@ const LAST_THINGS = [
     "You were making a list.",
 ];
 
+interface StoryFields {
+    name: string;
+    occupation: string;
+    hometown: string;
+    causeOfDeath: string;
+    lastThing: string;
+}
+
 /**
  * Prose templates for the life story page. Each is a function that takes
  * the story object and returns a ~150-word paragraph in corpus voice.
  * These read like the stories in content/stories.json.
  */
-const PROSE_TEMPLATES = [
+const PROSE_TEMPLATES: readonly ((s: StoryFields) => string)[] = [
     (s) => `Your name was ${s.name}. You were a ${s.occupation}, from ${s.hometown}. You got up in the morning and went to work and came home and did it again. There were people you loved and a few you did not and most you never thought about at all. You had a window you liked to look out of. You had a drawer full of things you meant to organize. You died of ${s.causeOfDeath}. ${s.lastThing} The last day was not remarkable. You did not know it was the last day. Nobody does. Somewhere in this library there is a book that contains every detail of your life, every word you spoke, every morning you woke and every night you did not. Most of its pages are silence. The parts that mattered fit in a paragraph. This is that paragraph.`,
 
     (s) => `${s.name} was a ${s.occupation} from ${s.hometown}. Not a good one or a bad one. Competent. Present. The kind of person who showed up and did the work and went home without making a fuss. There was a kitchen with a window and a view that was not beautiful but was familiar, which is better. There were years that passed without anything happening worth writing down, and those were the good years. The death was ${s.causeOfDeath}. Quick enough. ${s.lastThing} The body was found and dealt with and the kitchen window looked out on the same view and the drawer stayed full of things that would never be organized. That is the whole story. It fits on a page. Most lives do.`,
@@ -88,8 +126,8 @@ const PROSE_TEMPLATES = [
  * Box-Muller transform: two uniform [0,1) → one standard normal sample.
  * Returns a value from approximately N(0,1).
  */
-function gaussianSample(rng) {
-    let u, v;
+function gaussianSample(rng: Xoshiro128ss): number {
+    let u: number, v: number;
     do { u = rng.next(); } while (u === 0);
     v = rng.next();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
@@ -99,32 +137,20 @@ function gaussianSample(rng) {
  * Generate a life story and book coordinates from a seed string.
  *
  * @param {string} seed
- * @param {object} [opts]
- * @param {string} [opts.placement="gaussian"] - "gaussian" or "random"
- * @param {{ side: number, position: number, floor: number }} [opts.startLoc]
- * @returns {{
- *   name: string,
- *   occupation: string,
- *   hometown: string,
- *   causeOfDeath: string,
- *   lastThing: string,
- *   storyText: string,
- *   targetPage: number,
- *   placement: string,
- *   bookCoords: { side: number, position: number, floor: number, bookIndex: number }
- * }}
+ * @param {LifeStoryOptions} [opts]
+ * @returns {LifeStory}
  */
-export function generateLifeStory(seed, opts) {
+export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeStory {
     const placement = (opts && opts.placement) || "gaussian";
-    const startLoc = (opts && opts.startLoc) || { side: 0, position: 0, floor: 10 };
+    const startLoc: StartLocation = (opts && opts.startLoc) || { side: 0, position: 0, floor: 10 };
 
-    const rng = seedFromString("life:" + seed);
-    const pick = (arr) => arr[rng.nextInt(arr.length)];
+    const rng: Xoshiro128ss = seedFromString("life:" + seed);
+    const pick = <T>(arr: readonly T[]): T => arr[rng.nextInt(arr.length)];
 
     const firstName = pick(FIRST_NAMES);
     const lastName  = pick(LAST_NAMES);
 
-    const story = {
+    const story: StoryFields & { storyText?: string; targetPage?: number; placement?: string; bookCoords?: BookCoords } = {
         name:         `${firstName} ${lastName}`,
         occupation:   pick(OCCUPATIONS),
         hometown:     pick(HOMETOWNS),
@@ -141,9 +167,9 @@ export function generateLifeStory(seed, opts) {
 
     // Book coordinates: derived independently so changing template pools
     // doesn't shift everyone's book.
-    const coordRng  = seedFromString("coords:" + seed);
+    const coordRng: Xoshiro128ss = seedFromString("coords:" + seed);
 
-    let side, position, floor, bookIndex;
+    let side: number, position: number, floor: number, bookIndex: number;
 
     if (placement === "random") {
         side      = coordRng.nextInt(2);
@@ -164,16 +190,16 @@ export function generateLifeStory(seed, opts) {
     story.placement = placement;
     story.bookCoords = { side, position, floor, bookIndex };
 
-    return story;
+    return story as LifeStory;
 }
 
 /**
  * Format a life story as a short prose paragraph (for the Life Story screen).
  *
- * @param {ReturnType<typeof generateLifeStory>} story
+ * @param {LifeStory} story
  * @returns {string}
  */
-export function formatLifeStory(story) {
+export function formatLifeStory(story: LifeStory): string {
     return [
         `Your name was ${story.name}.`,
         `You were a ${story.occupation}, from ${story.hometown}.`,

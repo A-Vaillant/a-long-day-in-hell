@@ -11,16 +11,28 @@
  * @module tick.core
  */
 
-export const TICKS_PER_HOUR  = 10;
-export const HOURS_PER_DAY   = 24;
-export const TICKS_PER_DAY   = TICKS_PER_HOUR * HOURS_PER_DAY; // 240
-export const DAY_START_HOUR  = 6;   // 6:00am
-export const LIGHTS_OFF_HOUR = 22;  // 10:00pm
-export const LIGHTS_ON_TICKS = (LIGHTS_OFF_HOUR - DAY_START_HOUR) * TICKS_PER_HOUR; // 160
-export const RESET_HOUR_TICK = TICKS_PER_DAY - TICKS_PER_HOUR; // 230 = 5:00 AM
+export interface TickState {
+    tick: number;
+    day: number;
+}
+
+export type TickEvent = "lightsOut" | "resetHour" | "dawn";
+
+export interface AdvanceTickResult {
+    state: TickState;
+    events: TickEvent[];
+}
+
+export const TICKS_PER_HOUR: number  = 10;
+export const HOURS_PER_DAY: number   = 24;
+export const TICKS_PER_DAY: number   = TICKS_PER_HOUR * HOURS_PER_DAY; // 240
+export const DAY_START_HOUR: number  = 6;   // 6:00am
+export const LIGHTS_OFF_HOUR: number = 22;  // 10:00pm
+export const LIGHTS_ON_TICKS: number = (LIGHTS_OFF_HOUR - DAY_START_HOUR) * TICKS_PER_HOUR; // 160
+export const RESET_HOUR_TICK: number = TICKS_PER_DAY - TICKS_PER_HOUR; // 230 = 5:00 AM
 
 /** @returns {{ tick: number, day: number }} */
-export function defaultTickState() {
+export function defaultTickState(): TickState {
     return { tick: 0, day: 1 };
 }
 
@@ -36,9 +48,9 @@ export function defaultTickState() {
  * @param {number} n  Ticks to advance (must be > 0)
  * @returns {{ state: { tick: number, day: number }, events: string[] }}
  */
-export function advanceTick(state, n) {
+export function advanceTick(state: TickState, n: number): AdvanceTickResult {
     let { tick, day } = state;
-    const events = [];
+    const events: TickEvent[] = [];
 
     const newAbsolute = tick + n;
 
@@ -84,7 +96,7 @@ export function advanceTick(state, n) {
  * @param {number} tick
  * @returns {boolean}
  */
-export function isLightsOn(tick) {
+export function isLightsOn(tick: number): boolean {
     return tick < LIGHTS_ON_TICKS;
 }
 
@@ -92,7 +104,7 @@ export function isLightsOn(tick) {
  * Whether the given tick falls within the reset hour (5:00–6:00 AM).
  * During this hour sleep is enforced and the library resets.
  */
-export function isResetHour(tick) {
+export function isResetHour(tick: number): boolean {
     return tick >= RESET_HOUR_TICK && tick < TICKS_PER_DAY;
 }
 
@@ -103,7 +115,7 @@ export function isResetHour(tick) {
  * @param {number} tick
  * @returns {string}  e.g. "6:00 AM", "10:40 PM"
  */
-export function tickToTimeString(tick) {
+export function tickToTimeString(tick: number): string {
     const totalMinutes = tick * (60 / TICKS_PER_HOUR);
     const absoluteMinutes = DAY_START_HOUR * 60 + totalMinutes;
     const hour24 = Math.floor(absoluteMinutes / 60) % 24;
@@ -123,7 +135,7 @@ export function tickToTimeString(tick) {
  * @param {number} tick
  * @returns {number}
  */
-export function ticksUntilDawn(tick) {
+export function ticksUntilDawn(tick: number): number {
     return TICKS_PER_DAY - tick;
 }
 
@@ -133,6 +145,6 @@ export function ticksUntilDawn(tick) {
  * @param {number} tick
  * @returns {number}
  */
-export function hoursUntilDawn(tick) {
+export function hoursUntilDawn(tick: number): number {
     return Math.ceil(ticksUntilDawn(tick) / TICKS_PER_HOUR);
 }

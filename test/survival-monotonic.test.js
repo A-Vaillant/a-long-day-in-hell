@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { applyMoveTick, applySleep, applyEat, applyDrink, defaultStats } from "../lib/survival.core.js";
+import { applyMoveTick, applySleep, applyEat, applyDrink, defaultStats } from "../lib/survival.core.ts";
 
 describe("hunger/thirst monotonic progression", () => {
     it("hunger increases monotonically over 200 move ticks", () => {

@@ -2,15 +2,15 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
     createWorld, spawn, addComponent, getComponent,
-} from "../lib/ecs.core.js";
+} from "../lib/ecs.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP,
     DEFAULT_THRESHOLDS, DEFAULT_BOND,
-} from "../lib/social.core.js";
+} from "../lib/social.core.ts";
 import {
     inviteAcceptance, invite, dismiss, attack, decideAction, buildAwareness,
-} from "../lib/actions.core.js";
-import { HABITUATION } from "../lib/psych.core.js";
+} from "../lib/actions.core.ts";
+import { HABITUATION } from "../lib/psych.core.ts";
 
 // --- Helpers ---
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
     createWorld, spawn, addComponent, removeComponent,
     getComponent, hasComponent, query, destroy, entitiesWith,
-} from "../lib/ecs.core.js";
+} from "../lib/ecs.core.ts";
 
 describe("createWorld", () => {
     it("returns a world with nextId 0 and empty components", () => {

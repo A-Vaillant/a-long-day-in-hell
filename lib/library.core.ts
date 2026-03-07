@@ -25,17 +25,50 @@
  * @module library.core
  */
 
-export const BOTTOM_FLOOR = 0;
-export const BOOKS_PER_GALLERY   = 192;  // 24 wide × 8 tall — one shelf face
-export const GALLERIES_PER_SEGMENT = 10; // gallery pages between rest areas
-export const SEGMENT_BOOK_COUNT  = BOOKS_PER_GALLERY * GALLERIES_PER_SEGMENT; // 1920
+/** A location in the library. */
+export interface Location {
+    side: number;
+    position: number;
+    floor: number;
+}
+
+/** Rest area descriptor within a segment. */
+export interface RestArea {
+    hasStairs: boolean;
+    hasKiosk: boolean;
+    bedsAvailable: number;
+    hasZoroastrianText: boolean;
+}
+
+/** Segment descriptor returned by generateSegment. */
+export interface Segment {
+    side: number;
+    position: number;
+    floor: number;
+    lightLevel: "dim" | "normal";
+    restArea: RestArea | null;
+    hasBridge: boolean;
+    bookCount: number;
+}
+
+/** An RNG instance that can be forked by key. */
+export interface Rng {
+    next(): number;
+}
+
+export type Direction = "left" | "right" | "up" | "down" | "cross";
+
+export const BOTTOM_FLOOR: number = 0;
+export const BOOKS_PER_GALLERY: number   = 192;  // 24 wide × 8 tall — one shelf face
+export const GALLERIES_PER_SEGMENT: number = 10; // gallery pages between rest areas
+export const SEGMENT_BOOK_COUNT: number  = BOOKS_PER_GALLERY * GALLERIES_PER_SEGMENT; // 1920
 
 /** True when a position falls on a rest area (kiosk, beds, stairs). */
-export function isRestArea(position) {
+export function isRestArea(position: number): boolean {
     return ((position % GALLERIES_PER_SEGMENT) + GALLERIES_PER_SEGMENT) % GALLERIES_PER_SEGMENT === 0;
 }
 
-export const DIRS = {
+export const DIRS: Record<string, Direction> = {
     LEFT:  "left",
     RIGHT: "right",
     UP:    "up",
@@ -44,7 +77,7 @@ export const DIRS = {
 };
 
 /** Canonical string key for a location. */
-export function locationKey({ side, position, floor }) {
+export function locationKey({ side, position, floor }: Location): string {
     return `${side}:${position}:${floor}`;
 }
 
@@ -57,14 +90,14 @@ export function locationKey({ side, position, floor }) {
  * @param {function} forkRng - (key: string) => rng instance
  * @returns {object} segment descriptor
  */
-export function generateSegment(side, position, floor, forkRng) {
+export function generateSegment(side: number, position: number, floor: number, forkRng: (key: string) => Rng): Segment {
     const rng = forkRng("seg:" + locationKey({ side, position, floor }));
 
-    const lightLevel = rng.next() < 0.05 ? "dim" : "normal";
+    const lightLevel: "dim" | "normal" = rng.next() < 0.05 ? "dim" : "normal";
 
     // Rest area only at gallery boundaries (position % GALLERIES_PER_SEGMENT === 0)
     const atRestArea = isRestArea(position);
-    const restArea = atRestArea ? {
+    const restArea: RestArea | null = atRestArea ? {
         hasStairs: true,
         hasKiosk: true,
         bedsAvailable: 7,
@@ -86,8 +119,8 @@ export function generateSegment(side, position, floor, forkRng) {
 }
 
 /** Returns available moves from a given location. */
-export function availableMoves({ side, position, floor }) {
-    const moves = [];
+export function availableMoves({ side, position, floor }: Location): Direction[] {
+    const moves: Direction[] = [];
 
     moves.push(DIRS.LEFT);
     moves.push(DIRS.RIGHT);
@@ -103,7 +136,7 @@ export function availableMoves({ side, position, floor }) {
 }
 
 /** Apply a move to a location, returning new coordinates. */
-export function applyMove({ side, position, floor }, dir) {
+export function applyMove({ side, position, floor }: Location, dir: Direction): Location {
     switch (dir) {
         case DIRS.LEFT:  return { side, position: position - 1, floor };
         case DIRS.RIGHT: return { side, position: position + 1, floor };
@@ -124,7 +157,7 @@ export function applyMove({ side, position, floor }, dir) {
 }
 
 /** Human-readable description of a location. */
-export function describeLocation({ side, position, floor }) {
+export function describeLocation({ side, position, floor }: Location): string {
     const sideLabel = side === 0 ? "west" : "east";
     return `${sideLabel} corridor, segment ${position}, floor ${floor}`;
 }

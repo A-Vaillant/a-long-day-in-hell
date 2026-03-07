@@ -6,21 +6,46 @@
  * @module chasm.core
  */
 
-export const GRAVITY = 1;
-export const TERMINAL_VELOCITY = 50;
-export const GRAB_BASE_CHANCE = 0.8;
-export const GRAB_SPEED_PENALTY = 0.015;
-export const GRAB_DAMAGE_SPEED_THRESHOLD = 10; // no damage below this speed
-export const GRAB_FAIL_MAX_MORTALITY_HIT = 25; // damage at terminal velocity
-export const GRAB_FAIL_SPEED_REDUCTION = 0.3;  // lose 30% of speed on failed grab (above threshold)
-export const LANDING_KILL_SPEED = 10;
+export const GRAVITY: number = 1;
+export const TERMINAL_VELOCITY: number = 50;
+export const GRAB_BASE_CHANCE: number = 0.8;
+export const GRAB_SPEED_PENALTY: number = 0.015;
+export const GRAB_DAMAGE_SPEED_THRESHOLD: number = 10; // no damage below this speed
+export const GRAB_FAIL_MAX_MORTALITY_HIT: number = 25; // damage at terminal velocity
+export const GRAB_FAIL_SPEED_REDUCTION: number = 0.3;  // lose 30% of speed on failed grab (above threshold)
+export const LANDING_KILL_SPEED: number = 10;
+
+export interface FallingState {
+    speed: number;
+    floorsToFall: number;
+    side: number;
+}
+
+export interface FallTickResult {
+    newFloor: number;
+    newSpeed: number;
+    landed: boolean;
+    fatal: boolean;
+}
+
+export interface GrabResult {
+    success: boolean;
+    mortalityHit: number;
+    speedAfter: number;
+}
+
+export interface Rng {
+    next: () => number;
+}
+
+export type AltitudeBand = "abyss" | "deep" | "mid" | "low" | "near" | "bottom";
 
 /**
  * Create a default falling state.
  * @param {number} side - which side the player jumped from (0 or 1)
  * @returns {{ speed: number, floorsToFall: number, side: number }}
  */
-export function defaultFallingState(side) {
+export function defaultFallingState(side: number): FallingState {
     return { speed: 0, floorsToFall: 0, side: side };
 }
 
@@ -30,7 +55,7 @@ export function defaultFallingState(side) {
  * @param {number} currentFloor
  * @returns {{ newFloor: number, newSpeed: number, landed: boolean, fatal: boolean }}
  */
-export function fallTick(fallingState, currentFloor) {
+export function fallTick(fallingState: Pick<FallingState, "speed">, currentFloor: number): FallTickResult {
     const newSpeed = Math.min(fallingState.speed + GRAVITY, TERMINAL_VELOCITY);
     const newFloor = Math.max(0, currentFloor - newSpeed);
     const landed = newFloor === 0;
@@ -43,7 +68,7 @@ export function fallTick(fallingState, currentFloor) {
  * @param {number} speed - current falling speed in floors/tick
  * @returns {number} probability 0-1
  */
-export function grabChance(speed) {
+export function grabChance(speed: number): number {
     return Math.max(0, GRAB_BASE_CHANCE - speed * GRAB_SPEED_PENALTY);
 }
 
@@ -53,7 +78,7 @@ export function grabChance(speed) {
  * @param {{ next: () => number }} rng - PRNG with next() returning [0,1)
  * @returns {{ success: boolean, mortalityHit: number, speedAfter: number }}
  */
-export function attemptGrab(speed, rng) {
+export function attemptGrab(speed: number, rng: Rng): GrabResult {
     const chance = grabChance(speed);
     const roll = rng.next();
     if (roll < chance) {
@@ -76,7 +101,7 @@ export function attemptGrab(speed, rng) {
  * @param {number} floor
  * @returns {"abyss"|"deep"|"mid"|"low"|"near"|"bottom"}
  */
-export function altitudeBand(floor) {
+export function altitudeBand(floor: number): AltitudeBand {
     if (floor <= 0)     return "bottom";
     if (floor <= 20)    return "near";
     if (floor <= 200)   return "low";

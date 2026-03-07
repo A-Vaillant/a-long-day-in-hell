@@ -8,16 +8,17 @@
 
 import {
     createWorld, spawn, addComponent, getComponent, entitiesWith,
-} from "../../lib/ecs.core.js";
+} from "../../lib/ecs.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, PLAYER, AI, GROUP,
     deriveDisposition, psychologyDecaySystem, relationshipSystem,
     groupFormationSystem, socialPressureSystem, segmentDistance,
-} from "../../lib/social.core.js";
-import { HABITUATION } from "../../lib/psych.core.js";
-import { PERSONALITY, generatePersonality } from "../../lib/personality.core.js";
-import { BELIEF, generateBelief } from "../../lib/belief.core.js";
-import { seedFromString } from "../../lib/prng.core.js";
+    buildLocationIndex,
+} from "../../lib/social.core.ts";
+import { HABITUATION } from "../../lib/psych.core.ts";
+import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts";
+import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
+import { seedFromString } from "../../lib/prng.core.ts";
 import { state } from "./state.js";
 
 let world = null;
@@ -114,18 +115,26 @@ export const Social = {
      * Updates ECS psychology, bonds, groups, then writes disposition back
      * to state.npcs[].
      */
-    onTick() {
+    /**
+     * Run n ticks of social simulation. Defaults to 1.
+     * Batch mode: runs systems once with scaled effects (n > 1).
+     */
+    onTick(n) {
         if (!world || !state.npcs) return;
+        if (n === undefined) n = 1;
 
         this.syncPlayerPosition();
 
         const currentTick = (state.day - 1) * 240 + state.tick;
 
+        // Build location index once, share between relationship + group systems
+        const prebuilt = buildLocationIndex(world);
+
         // Core systems — order matters
-        relationshipSystem(world, currentTick);
-        psychologyDecaySystem(world);
-        groupFormationSystem(world);
-        socialPressureSystem(world);
+        relationshipSystem(world, currentTick, undefined, prebuilt, n);
+        psychologyDecaySystem(world, undefined, n);
+        groupFormationSystem(world, undefined, prebuilt);
+        socialPressureSystem(world, undefined, undefined, undefined, n);
 
         // Write derived disposition back to state.npcs
         for (const npc of state.npcs) {
