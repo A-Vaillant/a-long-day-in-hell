@@ -20,6 +20,7 @@
 import type { Entity, World } from "./ecs.core.js";
 import { getComponent, query, addComponent } from "./ecs.core.js";
 import { PERSONALITY, type Personality, decayBias, entityCompatibility, familiarityFatigue } from "./personality.core.js";
+import { BELIEF, type BeliefComponent, beliefDecayMod, evolveBelief, updateStance } from "./belief.core.js";
 
 // --- Component keys ---
 
@@ -196,8 +197,10 @@ export function decayPsychology(
 
 /**
  * System: apply psychological decay to all entities with Psychology + Identity.
- * Dead entities are skipped. If the entity has a Personality component,
- * trait-based decay bias is applied.
+ * Dead entities are skipped. Combines personality trait bias and belief state
+ * modifiers multiplicatively into the decay bias.
+ *
+ * Also evolves belief (faith crisis / acceptance) and updates stance per tick.
  */
 export function psychologyDecaySystem(
     world: World,
@@ -211,7 +214,25 @@ export function psychologyDecaySystem(
 
         const social = hasSocialContact(world, entity as Entity);
         const personality = getComponent<Personality>(world, entity as Entity, PERSONALITY);
-        const bias = personality ? decayBias(personality) : undefined;
+        const belief = getComponent<BeliefComponent>(world, entity as Entity, BELIEF);
+
+        // Combine personality bias and belief bias multiplicatively
+        let lucidityMul = 1.0;
+        let hopeMul = 1.0;
+        if (personality) {
+            const pb = decayBias(personality);
+            lucidityMul *= pb.lucidityMul;
+            hopeMul *= pb.hopeMul;
+        }
+        if (belief) {
+            evolveBelief(belief);
+            const bb = beliefDecayMod(belief);
+            lucidityMul *= bb.lucidityMul;
+            hopeMul *= bb.hopeMul;
+            updateStance(belief, psychology.lucidity, psychology.hope, 0);
+        }
+
+        const bias = { lucidityMul, hopeMul };
         decayPsychology(psychology, social, config, bias);
     }
 }

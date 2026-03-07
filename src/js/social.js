@@ -16,6 +16,7 @@ import {
 } from "../../lib/social.core.js";
 import { HABITUATION } from "../../lib/psych.core.js";
 import { PERSONALITY, generatePersonality } from "../../lib/personality.core.js";
+import { BELIEF, generateBelief } from "../../lib/belief.core.js";
 import { seedFromString } from "../../lib/prng.core.js";
 import { state } from "./state.js";
 
@@ -45,6 +46,8 @@ export const Social = {
         // to avoid shifting the main PRNG sequence)
         const playerPersRng = seedFromString(state.seed + ":player:personality");
         addComponent(world, playerEntity, PERSONALITY, generatePersonality(playerPersRng));
+        const playerBeliefRng = seedFromString(state.seed + ":player:belief");
+        addComponent(world, playerEntity, BELIEF, generateBelief(playerBeliefRng));
 
         // Spawn NPC entities
         if (state.npcs) {
@@ -69,6 +72,8 @@ export const Social = {
                 // NPC personality seeded from their name + game seed
                 const npcPersRng = seedFromString(state.seed + ":npc:pers:" + npc.id);
                 addComponent(world, ent, PERSONALITY, generatePersonality(npcPersRng));
+                const npcBeliefRng = seedFromString(state.seed + ":npc:belief:" + npc.id);
+                addComponent(world, ent, BELIEF, generateBelief(npcBeliefRng));
             }
         }
     },
@@ -165,6 +170,13 @@ export const Social = {
         const ent = npcEntities.get(npcId);
         if (ent === undefined || !world) return null;
         return getComponent(world, ent, PSYCHOLOGY);
+    },
+
+    /** Get NPC belief for debug/UI. */
+    getNpcBelief(npcId) {
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined || !world) return null;
+        return getComponent(world, ent, BELIEF);
     },
 
     /**
