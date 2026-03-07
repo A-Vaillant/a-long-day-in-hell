@@ -196,6 +196,13 @@ document.addEventListener("keydown", function (ev) {
             return;
         }
         return;
+    } else if (screen === "Sign") {
+        if (key === "q" || key === "Escape") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
+        return;
     } else if (screen === "Chasm") {
         if (key === "y" || key === "Y") {
             ev.preventDefault();
@@ -285,6 +292,12 @@ document.addEventListener("keydown", function (ev) {
             ev.preventDefault();
             const sseg = Lib.getSegment(state.side, state.position, state.floor);
             if (sseg.restArea && state.lightsOn) Engine.goto("Submission Slot");
+            break;
+        }
+        case "R": {
+            ev.preventDefault();
+            const rseg = Lib.getSegment(state.side, state.position, state.floor);
+            if (rseg.restArea) Engine.goto("Sign");
             break;
         }
         case "~":

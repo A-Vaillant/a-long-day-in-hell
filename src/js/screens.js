@@ -258,7 +258,7 @@ Engine.register("Corridor", {
             html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
         }
         if (seg.restArea) {
-            html += '<a data-goto="Kiosk"><kbd>K</kbd> kiosk</a> <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a> <a data-goto="Submission Slot"><kbd>s</kbd> submit</a>';
+            html += '<a data-goto="Kiosk"><kbd>K</kbd> kiosk</a> <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a> <a data-goto="Submission Slot"><kbd>s</kbd> submit</a> <a data-goto="Sign"><kbd>R</kbd> sign</a>';
         }
         html += '</div>';
 
@@ -581,6 +581,26 @@ Engine.register("Kiosk Get Alcohol", {
     render() {
         return '<p>' + esc(Madlib(TEXT.madlibs.kiosk_alcohol, "kiosk_alcohol:" + state.tick)) + '</p>' +
             '<a data-goto="Kiosk"><kbd>⏎</kbd> Continue</a>';
+    },
+});
+
+/* ---------- Sign ---------- */
+
+Engine.register("Sign", {
+    kind: "state",
+    render() {
+        var text = TEXT.screens.sign_text || "";
+        var paragraphs = text.split("\n\n");
+        var html = '<div id="sign-view">';
+        html += '<p class="location-header">The Sign</p>';
+        html += '<div class="sign-text">';
+        for (var i = 0; i < paragraphs.length; i++) {
+            html += '<p>' + esc(paragraphs[i]) + '</p>';
+        }
+        html += '</div>';
+        html += '<p class="key-hint"><a data-goto="Corridor"><kbd>q</kbd> Back</a></p>';
+        html += '</div>';
+        return html;
     },
 });
 

@@ -848,6 +848,23 @@ button:disabled {
     margin-top: 1rem;
 }
 
+/* === SIGN === */
+
+#sign-view {
+    max-width: 520px;
+}
+.sign-text {
+    border: 1px solid var(--text-dim);
+    padding: 0.8rem 1rem;
+    margin: 0.5rem 0;
+    font-size: 0.95em;
+    line-height: 1.5;
+    background: rgba(255,255,255,0.03);
+}
+.sign-text p {
+    margin: 0.4rem 0;
+}
+
 /* === KIOSK === */
 
 #kiosk-view {

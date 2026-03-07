@@ -66,6 +66,8 @@
   "falling_landed_fatal": "You hit the bottom. The impact is absolute.",
   "chasm_jump_confirm": "The chasm yawns below. Jump?",
 
+  "sign_text": "Welcome to Hell. This Hell is based upon a short story by Jorge Luis Borges called \"The Library of Babel.\" Here you will find all the books that can possibly be written. When you are ready to leave, find the book describing your earthly life story (without errors, e.g., in spelling, grammar, etc.) and submit the story through the slot below this sign. If the story is accepted, you will be admitted into a glorious heaven filled with wonders and joys beyond your imagination. During your stay you may be interested in reading a book on Zoroastrianism. By special arrangement, there is one on every floor. The other books are randomized. The food kiosk will provide whatever you would like to eat. Just ask for it. We would ask that you please follow a few simple rules during your stay in Hell:\n\n1. Please be kind. Treat others as you would like to be treated.\n2. Do not deface or destroy any books. They will be restored nightly.\n3. The lights go out at approximately 10 PM and return at 6 AM.\n4. If you die, you will be restored at dawn in the place where you fell.",
+
   "menu_save_confirm": "Saved.",
   "menu_new_game_confirm": "Are you sure? All progress will be lost."
 }
