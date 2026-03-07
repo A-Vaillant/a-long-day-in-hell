@@ -622,12 +622,6 @@ export const GodmodeMap = {
                 ctx.fillStyle = "#ffffff";
                 ctx.textAlign = "center";
                 ctx.fillText(npc.name, cx, cy - dotR - 5);
-            } else if (zoom >= 0.65) {
-                // Show names at moderate zoom for all NPCs
-                ctx.font = Math.max(8, Math.round(8 * zoom)) + "px 'Share Tech Mono', monospace";
-                ctx.fillStyle = color.slice(0, 7) + "90";
-                ctx.textAlign = "center";
-                ctx.fillText(npc.name, cx, cy - dotR - 3);
             }
 
             // Group indicator ring (skip at extreme zoom)

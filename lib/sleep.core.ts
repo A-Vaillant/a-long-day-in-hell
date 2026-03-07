@@ -15,8 +15,8 @@
 import type { Entity, World } from "./ecs.core.ts";
 import { getComponent, query } from "./ecs.core.ts";
 import {
-    POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS,
-    type Position, type Identity, type Psychology, type Relationships,
+    POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP,
+    type Position, type Identity, type Psychology, type Relationships, type Group,
     getOrCreateBond,
     DEFAULT_BOND,
 } from "./social.core.ts";
@@ -222,6 +222,20 @@ export function sleepWakeSystem(
         // Co-sleeping hope boost applied directly (not a shock)
         if (hopeChange > 0) {
             psych.hope = Math.max(0, Math.min(100, psych.hope + hopeChange));
+        }
+
+        // Group home alignment: if you slept with a groupmate, adopt this
+        // rest area as home immediately. Groups want to sleep together.
+        const group = getComponent<Group>(world, entity, GROUP);
+        if (group && !sleep.nomadic && isRestArea(pos.position) && sleep.coSleepers.length > 0) {
+            const hasGroupmate = sleep.coSleepers.some(other => {
+                const otherGroup = getComponent<Group>(world, other, GROUP);
+                return otherGroup && otherGroup.groupId === group.groupId;
+            });
+            if (hasGroupmate) {
+                sleep.home = { side: pos.side, position: pos.position, floor: pos.floor };
+                sleep.awayStreak = 0;
+            }
         }
 
         // Home shift: if sleeping at a different rest area, track streak (not nomadic)

@@ -226,9 +226,10 @@ describe("Scenario: companions slow psychological decay", () => {
     it("bonded co-located NPCs retain more lucidity than isolated NPCs", () => {
         const world = createWorld();
 
+        // Use same id so they get identical personalities → max compatibility
         const paired1 = makeNpc(world, { name: "Duo-A", id: 10, seed: "lucid", position: 0 });
-        const paired2 = makeNpc(world, { name: "Duo-B", id: 11, seed: "lucid", position: 0 });
-        const loner = makeNpc(world, { name: "Solo", id: 12, seed: "lucid", position: 500 });
+        const paired2 = makeNpc(world, { name: "Duo-B", id: 10, seed: "lucid", position: 0 });
+        const loner = makeNpc(world, { name: "Solo", id: 10, seed: "lucid", position: 500 });
 
         const TICKS = 40000;
         const BATCH = 500;

@@ -50,7 +50,8 @@ export const Social = {
         addComponent(world, playerEntity, POSITION, {
             side: state.side, position: state.position, floor: state.floor,
         });
-        addComponent(world, playerEntity, IDENTITY, { name: "You", alive: true, free: false });
+        const playerName = (state.lifeStory && state.lifeStory.name) || "You";
+        addComponent(world, playerEntity, IDENTITY, { name: playerName, alive: true, free: false });
         addComponent(world, playerEntity, PSYCHOLOGY, { lucidity: 100, hope: 100 });
         addComponent(world, playerEntity, RELATIONSHIPS, { bonds: new Map() });
         addComponent(world, playerEntity, HABITUATION, { exposures: new Map() });
