@@ -144,13 +144,16 @@ export const GodmodeLog = {
     },
 
     /**
-     * Wire click delegation for filter buttons on a container element.
-     * Call once after creating the pane element.
+     * Wire filter toggle delegation on a container element.
+     * Uses mousedown instead of click because the render loop
+     * replaces innerHTML every frame — if the element is destroyed
+     * between mousedown and mouseup, the click event never fires.
      */
     wireFilterClicks(el) {
-        el.addEventListener("click", function (ev) {
+        el.addEventListener("mousedown", function (ev) {
             const btn = ev.target.closest("[data-filter]");
             if (!btn) return;
+            ev.preventDefault(); // prevent focus/selection side effects
             const type = btn.getAttribute("data-filter");
             GodmodeLog.toggleFilter(type);
             GodmodeLog.renderTo(el);
