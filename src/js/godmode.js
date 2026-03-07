@@ -18,7 +18,7 @@ import { detectEvents } from "./godmode-detect.js";
 import { getComponent } from "../../lib/ecs.core.js";
 import { TICKS_PER_DAY, LIGHTS_ON_TICKS } from "../../lib/tick.core.js";
 
-let running = false;
+let running = true;
 let speed = 1;          // ticks per second (continuous via slider)
 let lastFrame = 0;
 let accumulator = 0;
@@ -277,7 +277,7 @@ function setupDOM() {
         '<span id="gm-day">Day 0</span>' +
         '<span id="gm-tick">0:00</span>' +
         '<div class="gm-ctrl-sep"></div>' +
-        '<button id="gm-play" title="Play / Pause (Space)"><kbd>\u2423</kbd>\u25B6</button>' +
+        '<button id="gm-play" title="Play / Pause (Space)"><kbd>\u2423</kbd>\u23F8</button>' +
         '<button id="gm-step" title="Advance 1 tick (.)"><kbd>.</kbd>+1</button>' +
         '<div class="gm-ctrl-sep"></div>' +
         '<div class="gm-speed-wrap" title="Simulation speed ([ slower, ] faster)">' +
