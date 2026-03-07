@@ -448,7 +448,7 @@ export const GodmodeMap = {
             ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
             ctx.fill();
 
-            // Selection ring
+            // Selection ring + name (selected only)
             if (npc.id === selectedId) {
                 ctx.strokeStyle = "#ffffff";
                 ctx.lineWidth = 2;
@@ -460,11 +460,6 @@ export const GodmodeMap = {
                 ctx.fillStyle = "#ffffff";
                 ctx.textAlign = "center";
                 ctx.fillText(npc.name, cx, cy - dotR - 5);
-            } else if (zoom >= 1.5) {
-                ctx.font = nameFontSize + "px 'Share Tech Mono', monospace";
-                ctx.fillStyle = "#5a5040";
-                ctx.textAlign = "center";
-                ctx.fillText(npc.name, cx, cy - dotR - 3);
             }
 
             // Group indicator ring
