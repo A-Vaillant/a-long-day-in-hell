@@ -5,10 +5,11 @@
  * Viewport scrolls to follow selected NPC or pans manually.
  */
 
-const BASE_CELL_W = 12;
-const BASE_CELL_H = 8;
-const BASE_CHASM_W = 40;
+const BASE_CELL_W = 18;
+const BASE_CELL_H = 14;
+const BASE_CHASM_W = 48;
 const REST_EVERY = 10;
+const LABEL_GUTTER = 38; // floor number labels on left
 
 // Zoom
 const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
@@ -40,11 +41,11 @@ let dragVpY = 0;
 let hitTargets = []; // { id, x, y, r }
 
 const DISP_COLORS = {
-    calm:      "#b8a878",
-    anxious:   "#c49530",
-    mad:       "#9a2a2a",
-    catatonic: "#555555",
-    dead:      "#2a2a2a",
+    calm:      "#d4c898",
+    anxious:   "#e0b040",
+    mad:       "#d04040",
+    catatonic: "#707070",
+    dead:      "#3a3a3a",
 };
 
 export const GodmodeMap = {
@@ -72,7 +73,7 @@ export const GodmodeMap = {
         CELL_H = Math.round(BASE_CELL_H * zoom);
         CHASM_W = Math.round(BASE_CHASM_W * zoom);
         if (!canvas) return;
-        const usableW = (canvas.width - CHASM_W) / 2;
+        const usableW = (canvas.width - CHASM_W - LABEL_GUTTER) / 2;
         vpCols = Math.max(4, Math.ceil(usableW / CELL_W) + 1);
         vpRows = Math.max(4, Math.ceil(canvas.height / CELL_H) + 1);
     },
@@ -100,14 +101,16 @@ export const GodmodeMap = {
     /** Convert pixel coords to world (position, floor). */
     _pixelToWorld(px, py) {
         const colW = vpCols * CELL_W;
-        // Determine which side/column the pixel is in
+        const westX = LABEL_GUTTER;
+        const chasmX = westX + colW;
+        const eastX = chasmX + CHASM_W;
         let localCol;
-        if (px < colW) {
-            localCol = px / CELL_W;
-        } else if (px >= colW + CHASM_W) {
-            localCol = (px - colW - CHASM_W) / CELL_W;
+        if (px < chasmX) {
+            localCol = (px - westX) / CELL_W;
+        } else if (px >= eastX) {
+            localCol = (px - eastX) / CELL_W;
         } else {
-            localCol = vpCols / 2; // chasm center
+            localCol = vpCols / 2;
         }
         const pos = vpX + localCol;
         const row = py / CELL_H;
@@ -162,24 +165,44 @@ export const GodmodeMap = {
 
         hitTargets = [];
 
-        // Compute column widths
+        // Compute column widths with label gutter
         const colW = vpCols * CELL_W;
-        const westX = 0;
-        const chasmX = colW;
-        const eastX = colW + CHASM_W;
+        const westX = LABEL_GUTTER;
+        const chasmX = westX + colW;
+        const eastX = chasmX + CHASM_W;
 
-        // Draw chasm
+        // Draw chasm — darker with subtle gradient edges
         ctx.fillStyle = "#020201";
         ctx.fillRect(chasmX, 0, CHASM_W, h);
+        // Chasm edge lines
+        ctx.strokeStyle = "#2a2218";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(chasmX, 0); ctx.lineTo(chasmX, h);
+        ctx.moveTo(eastX, 0); ctx.lineTo(eastX, h);
+        ctx.stroke();
 
-        // Draw grid lines and rest areas
+        // Corridor labels at top
+        const labelFontSize = Math.max(9, Math.round(11 * zoom));
+        ctx.font = labelFontSize + "px 'Share Tech Mono', monospace";
+        ctx.fillStyle = "#3a3428";
+        ctx.textAlign = "center";
+        ctx.fillText("WEST", westX + colW / 2, labelFontSize + 4);
+        ctx.fillText("EAST", eastX + colW / 2, labelFontSize + 4);
+
+        // Floor label font
+        const floorFontSize = Math.max(8, Math.round(9 * zoom));
+        ctx.font = floorFontSize + "px 'Share Tech Mono', monospace";
+        ctx.textAlign = "right";
+
+        // Draw grid lines, rest areas, and floor labels
         for (let row = 0; row < vpRows; row++) {
             const floor = Math.floor(vpY) + vpRows - 1 - row;
             const y = row * CELL_H;
 
             // Floor line
-            ctx.strokeStyle = "#1a1810";
-            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = "#201c14";
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(westX, y);
             ctx.lineTo(westX + colW, y);
@@ -187,26 +210,43 @@ export const GodmodeMap = {
             ctx.lineTo(eastX + colW, y);
             ctx.stroke();
 
+            // Floor number label in gutter — every 5th floor, or every floor at high zoom
+            if (floor >= 0 && (floor % 5 === 0 || zoom >= 2)) {
+                ctx.fillStyle = floor % 10 === 0 ? "#6a6050" : "#3a3428";
+                ctx.fillText(String(floor), LABEL_GUTTER - 6, y + CELL_H / 2 + floorFontSize / 3);
+            }
+
             for (let col = 0; col < vpCols; col++) {
                 const pos = Math.floor(vpX + col);
                 if (pos < 0) continue;
 
-                // Rest area highlight
+                // Rest area highlight — more visible
                 if (pos % REST_EVERY === 0) {
-                    ctx.fillStyle = snap.lightsOn ? "#0f0d08" : "#080704";
+                    ctx.fillStyle = snap.lightsOn ? "#16130c" : "#0c0a06";
                     ctx.fillRect(westX + col * CELL_W, y, CELL_W, CELL_H);
                     ctx.fillRect(eastX + col * CELL_W, y, CELL_W, CELL_H);
                 }
             }
 
-            // Bridge at floor 0
+            // Bridge at floor 0 — more prominent
             if (floor === 0) {
-                ctx.fillStyle = "#2a2520";
+                ctx.fillStyle = "#3a3020";
                 ctx.fillRect(chasmX, y, CHASM_W, CELL_H);
+                // Bridge cross-hatching
+                ctx.strokeStyle = "#4a4030";
+                ctx.lineWidth = 0.5;
+                for (let bx = chasmX; bx < eastX; bx += 6) {
+                    ctx.beginPath();
+                    ctx.moveTo(bx, y); ctx.lineTo(bx + 6, y + CELL_H);
+                    ctx.stroke();
+                }
             }
         }
 
         // Draw NPCs
+        const dotR = Math.max(3, Math.round(4.5 * zoom));
+        const nameFontSize = Math.max(8, Math.round(9 * zoom));
+
         for (const npc of snap.npcs) {
             const col = npc.position - Math.floor(vpX);
             const row = vpRows - 1 - (npc.floor - Math.floor(vpY));
@@ -216,33 +256,54 @@ export const GodmodeMap = {
             const baseX = npc.side === 0 ? westX : eastX;
             const cx = baseX + col * CELL_W + CELL_W / 2;
             const cy = row * CELL_H + CELL_H / 2;
-            const r = Math.max(2, Math.round(3 * zoom));
+
+            const color = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
+
+            // Glow behind dot for visibility
+            ctx.fillStyle = color.slice(0, 7) + "40";
+            ctx.beginPath();
+            ctx.arc(cx, cy, dotR + 3, 0, Math.PI * 2);
+            ctx.fill();
 
             // Dot
-            ctx.fillStyle = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
+            ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
             ctx.fill();
 
             // Selection ring
             if (npc.id === selectedId) {
                 ctx.strokeStyle = "#ffffff";
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.arc(cx, cy, r + 2, 0, Math.PI * 2);
+                ctx.arc(cx, cy, dotR + 3, 0, Math.PI * 2);
                 ctx.stroke();
+
+                // Name label for selected NPC
+                ctx.font = "bold " + nameFontSize + "px 'Share Tech Mono', monospace";
+                ctx.fillStyle = "#ffffff";
+                ctx.textAlign = "center";
+                ctx.fillText(npc.name, cx, cy - dotR - 5);
+            } else if (zoom >= 1.5) {
+                // Show names at high zoom levels
+                ctx.font = nameFontSize + "px 'Share Tech Mono', monospace";
+                ctx.fillStyle = "#5a5040";
+                ctx.textAlign = "center";
+                ctx.fillText(npc.name, cx, cy - dotR - 3);
             }
 
-            // Group indicator — subtle glow for grouped NPCs
+            // Group indicator — more visible ring
             if (npc.groupId !== null && npc.groupId !== undefined) {
-                ctx.strokeStyle = "rgba(184, 168, 120, 0.3)";
-                ctx.lineWidth = 1;
+                ctx.strokeStyle = "rgba(184, 168, 120, 0.5)";
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([2, 2]);
                 ctx.beginPath();
-                ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
+                ctx.arc(cx, cy, dotR + 6, 0, Math.PI * 2);
                 ctx.stroke();
+                ctx.setLineDash([]);
             }
 
-            hitTargets.push({ id: npc.id, x: cx, y: cy, r: r + 4 });
+            hitTargets.push({ id: npc.id, x: cx, y: cy, r: dotR + 6 });
         }
 
         // Update controls display

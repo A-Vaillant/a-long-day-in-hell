@@ -40,69 +40,72 @@ body.godmode {
     right: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    background: rgba(10, 9, 6, 0.9);
-    border-top: 1px solid #1a1810;
-    font-size: 12px;
+    gap: 12px;
+    padding: 8px 14px;
+    background: rgba(10, 9, 6, 0.92);
+    border-top: 1px solid #2a2418;
+    font-size: 14px;
 }
 
 #godmode-controls button {
     background: #1a1810;
-    border: 1px solid #2a2520;
-    color: #b8a878;
-    padding: 2px 8px;
+    border: 1px solid #3a3428;
+    color: #d4c8a0;
+    padding: 4px 12px;
     cursor: pointer;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 14px;
 }
 
 #godmode-controls button:hover {
     background: #2a2520;
+    border-color: #4a4030;
 }
 
 #gm-day {
-    color: #8a7a60;
+    color: #b8a878;
+    font-weight: bold;
 }
 
 #gm-tick {
-    color: #6a6050;
+    color: #8a7a60;
 }
 
 #gm-zoom {
-    color: #4a4030;
-    font-size: 10px;
+    color: #6a6050;
+    font-size: 12px;
 }
 
 #gm-status {
     margin-left: auto;
-    color: #6a6050;
+    color: #8a7a60;
 }
 
 /* --- Panel --- */
 
 #godmode-panel {
-    width: 280px;
-    min-width: 280px;
+    width: 320px;
+    min-width: 320px;
     overflow-y: auto;
-    border-left: 1px solid #1a1810;
-    padding: 12px;
+    border-left: 1px solid #2a2418;
+    padding: 16px;
     background: #0d0b08;
 }
 
 .gm-panel-empty {
-    color: #4a4030;
+    color: #6a6050;
     font-style: italic;
     margin-top: 40px;
     text-align: center;
+    font-size: 14px;
 }
 
 /* --- Interior sections --- */
 
 .gm-section {
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #1a1810;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #2a2418;
 }
 
 .gm-section:last-child {
@@ -110,29 +113,29 @@ body.godmode {
 }
 
 .gm-section-title {
-    color: #6a6050;
-    font-size: 10px;
+    color: #8a7a60;
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
 }
 
 /* Identity */
 
 .gm-name {
-    font-size: 16px;
-    color: #d4c8a0;
-    margin-bottom: 2px;
+    font-size: 18px;
+    color: #e0d8b8;
+    margin-bottom: 4px;
 }
 
 .gm-disp {
-    font-size: 11px;
+    font-size: 13px;
 }
-.gm-disp-calm      { color: #b8a878; }
-.gm-disp-anxious   { color: #c49530; }
-.gm-disp-mad       { color: #9a2a2a; }
-.gm-disp-catatonic { color: #555555; }
-.gm-dead-tag       { color: #333; font-style: italic; }
+.gm-disp-calm      { color: #c8b888; }
+.gm-disp-anxious   { color: #d4a540; }
+.gm-disp-mad       { color: #c44040; }
+.gm-disp-catatonic { color: #666666; }
+.gm-dead-tag       { color: #444; font-style: italic; }
 
 /* Psychology bars */
 
@@ -144,17 +147,17 @@ body.godmode {
 }
 
 .gm-stat > span:first-child {
-    width: 80px;
-    color: #8a7a60;
-    font-size: 11px;
+    width: 85px;
+    color: #9a8a68;
+    font-size: 12px;
 }
 
 .gm-bar {
     flex: 1;
-    height: 8px;
+    height: 10px;
     background: #1a1810;
     position: relative;
-    border-radius: 1px;
+    border-radius: 2px;
 }
 
 .gm-bar-fill {
@@ -164,8 +167,8 @@ body.godmode {
 }
 
 .gm-bar-num {
-    font-size: 10px;
-    color: #6a6050;
+    font-size: 11px;
+    color: #8a7a60;
     min-width: 32px;
     text-align: right;
 }
@@ -175,27 +178,27 @@ body.godmode {
 .gm-bond {
     display: flex;
     gap: 8px;
-    font-size: 11px;
-    margin: 2px 0;
+    font-size: 12px;
+    margin: 3px 0;
 }
 
 .gm-bond-name {
     flex: 1;
-    color: #b8a878;
+    color: #c8b888;
 }
 
 .gm-bond-fam {
-    color: #6a6050;
+    color: #8a7a60;
 }
 
-.gm-aff-pos { color: #6a8a5a; }
-.gm-aff-neg { color: #9a2a2a; }
+.gm-aff-pos { color: #7a9a6a; }
+.gm-aff-neg { color: #c44040; }
 
 /* Group */
 
 .gm-group-member {
-    font-size: 11px;
-    margin: 1px 0;
+    font-size: 12px;
+    margin: 2px 0;
 }
 
 /* Monologue */
@@ -203,9 +206,10 @@ body.godmode {
 .gm-monologue .gm-thought {
     font-family: 'IM Fell English', serif;
     font-style: italic;
-    color: #8a7a60;
-    line-height: 1.5;
-    margin-top: 4px;
+    color: #9a8a68;
+    line-height: 1.6;
+    margin-top: 6px;
+    font-size: 14px;
 }
 
 /* Location */
@@ -213,6 +217,6 @@ body.godmode {
 .gm-location {
     display: flex;
     justify-content: space-between;
-    font-size: 10px;
-    color: #4a4030;
+    font-size: 12px;
+    color: #6a6050;
 }
