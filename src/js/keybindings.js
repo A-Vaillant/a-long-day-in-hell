@@ -3,12 +3,12 @@
 import { state } from "./state.js";
 import { Engine } from "./engine.js";
 import { Book } from "./book.js";
-import { Chasm } from "./chasm.js";
 import { Despair } from "./despairing.js";
 import { Lib } from "./library.js";
 import { Surv } from "./survival.js";
 import { doMove } from "./screens.js";
 import { Godmode } from "./godmode.js";
+import { Actions } from "./actions.js";
 
 const VI_MOVE = {
     "h": "left",  "ArrowLeft":  "left",
@@ -55,8 +55,7 @@ document.addEventListener("keydown", function (ev) {
                         state.heldBook.position === bk.position && state.heldBook.floor === bk.floor &&
                         state.heldBook.bookIndex === bk.bookIndex;
                     if (!isHeld) {
-                        state.heldBook = { side: bk.side, position: bk.position, floor: bk.floor, bookIndex: bk.bookIndex };
-                        
+                        Actions.resolve({ type: "take_book", bookIndex: bk.bookIndex });
                         state.openBook = null;
                         Engine.goto("Corridor");
                     }
@@ -69,8 +68,7 @@ document.addEventListener("keydown", function (ev) {
                 if (bk2 && state.heldBook && state.heldBook.side === bk2.side &&
                     state.heldBook.position === bk2.position && state.heldBook.floor === bk2.floor &&
                     state.heldBook.bookIndex === bk2.bookIndex) {
-                    state.heldBook = null;
-                    
+                    Actions.resolve({ type: "drop_book" });
                     state.openBook = null;
                     Engine.goto("Corridor");
                 }
@@ -103,17 +101,27 @@ document.addEventListener("keydown", function (ev) {
         }
     } else if (screen === "Falling") {
         switch (key) {
-            case "w":
+            case "w": {
                 ev.preventDefault();
-                document.getElementById("fall-wait")?.click();
+                const r = Actions.resolve({ type: "fall_wait" });
+                if (r.screen) Engine.goto(r.screen);
                 return;
-            case "g":
+            }
+            case "g": {
                 ev.preventDefault();
-                document.getElementById("fall-grab")?.click();
+                const r = Actions.resolve({ type: "grab_railing" });
+                if (r.data && r.data.success) {
+                    Engine.goto("Corridor");
+                } else {
+                    const r2 = Actions.resolve({ type: "fall_wait" });
+                    if (r2.screen) Engine.goto(r2.screen);
+                }
                 return;
+            }
             case "t":
                 ev.preventDefault();
-                document.getElementById("fall-throw")?.click();
+                Actions.resolve({ type: "throw_book" });
+                Engine.goto("Falling");
                 return;
             case "Escape":
                 ev.preventDefault();
@@ -271,7 +279,7 @@ document.addEventListener("keydown", function (ev) {
             ev.preventDefault();
             if (state.floor > 0) {
                 if (Despair.chasmSkipsConfirm()) {
-                    Chasm.jump(state.side);
+                    Actions.resolve({ type: "chasm_jump" });
                     Engine.goto("Falling");
                 } else {
                     Engine.goto("Chasm");
