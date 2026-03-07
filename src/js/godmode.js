@@ -385,6 +385,7 @@ function setupInput(canvas) {
                 followMode = true;
                 switchTab("npc");
             } else {
+                selectedNpcId = null;
                 followMode = false;
             }
         }
