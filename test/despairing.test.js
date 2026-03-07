@@ -9,9 +9,6 @@ import {
 } from "../lib/despairing.core.js";
 import * as survFns from "../lib/survival.core.js";
 import * as tickFns from "../lib/tick.core.js";
-import { dwellMoraleDelta } from "../lib/book.core.js";
-
-const bookFns = { dwellMoraleDelta };
 
 // Save defaults so we can restore after each test
 const DEFAULT_CONFIG = { ...CONFIG };
@@ -217,7 +214,7 @@ describe("simulation: healthy player", () => {
     it("player who eats, drinks, and sleeps stays alive for 30 days", () => {
         const { finalStats, dayStats } = simulate(
             { days: 30, behavior: { eats: true, drinks: true, sleeps: true } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         assert.strictEqual(finalStats.dead, false);
         assert.strictEqual(finalStats.despairing, false);
@@ -231,7 +228,7 @@ describe("simulation: no food or water", () => {
     it("player dies within 7 days without eating or drinking", () => {
         const { dayStats } = simulate(
             { days: 7, behavior: { eats: false, drinks: false, sleeps: true } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         const deathDay = dayStats.find(d => d.dead);
         assert.ok(deathDay, "player should die without food/water");
@@ -241,7 +238,7 @@ describe("simulation: no food or water", () => {
     it("player becomes despairing before dying", () => {
         const { dayStats } = simulate(
             { days: 7, behavior: { eats: false, drinks: false, sleeps: true } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         const despairDay = dayStats.find(d => d.despairing);
         const deathDay = dayStats.find(d => d.dead);
@@ -259,11 +256,11 @@ describe("simulation: no food only", () => {
     it("player survives longer than no-water scenario", () => {
         const noFood = simulate(
             { days: 14, behavior: { eats: false, drinks: true, sleeps: true } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         const noWater = simulate(
             { days: 14, behavior: { eats: true, drinks: false, sleeps: true } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         const foodDeathDay = noFood.dayStats.find(d => d.dead)?.day ?? 999;
         const waterDeathDay = noWater.dayStats.find(d => d.dead)?.day ?? 999;
@@ -281,7 +278,7 @@ describe("simulation: despairing recovery is sticky", () => {
         // while despairing (0.3x multiplier), so morale stays suppressed.
         const despairingRun = simulate(
             { days: 30, behavior: { eats: true, drinks: true, sleeps: true, nonsensePerDay: 20 } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         const despairStart = despairingRun.dayStats.find(d => d.despairing);
         if (despairStart) {
@@ -302,11 +299,11 @@ describe("simulation: nonsense reading morale drain", () => {
     it("heavy nonsense reading accelerates morale loss", () => {
         const noReading = simulate(
             { days: 10, behavior: { eats: true, drinks: true, sleeps: true, nonsensePerDay: 0 } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         const heavyReading = simulate(
             { days: 10, behavior: { eats: true, drinks: true, sleeps: true, nonsensePerDay: 20 } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         // Heavy nonsense reader should have lower morale
         const noReadMorale = noReading.dayStats[noReading.dayStats.length - 1].morale;
@@ -318,32 +315,13 @@ describe("simulation: nonsense reading morale drain", () => {
     it("diminishing returns: 50 nonsense pages hurts less than 50 × first-page penalty", () => {
         const run = simulate(
             { days: 5, behavior: { eats: true, drinks: true, sleeps: true, nonsensePerDay: 50 } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         const endMorale = run.dayStats[run.dayStats.length - 1].morale;
         // If no diminishing returns, 50 pages × -2 = -100 per day → morale would be 0 fast
         // With diminishing returns, morale should still be well above 0
         assert.ok(endMorale > 30,
             `morale ${endMorale} should stay above 30 with diminishing returns`);
-    });
-});
-
-describe("simulation: sensible reading restores morale", () => {
-    beforeEach(resetConfig);
-
-    it("finding sensible pages counteracts nonsense drain", () => {
-        const nonsenseOnly = simulate(
-            { days: 10, behavior: { eats: true, drinks: true, sleeps: true, nonsensePerDay: 5, sensiblePerDay: 0 } },
-            survFns, tickFns, bookFns
-        );
-        const mixed = simulate(
-            { days: 10, behavior: { eats: true, drinks: true, sleeps: true, nonsensePerDay: 5, sensiblePerDay: 5 } },
-            survFns, tickFns, bookFns
-        );
-        const nonsenseMorale = nonsenseOnly.dayStats[nonsenseOnly.dayStats.length - 1].morale;
-        const mixedMorale = mixed.dayStats[mixed.dayStats.length - 1].morale;
-        assert.ok(mixedMorale > nonsenseMorale,
-            `mixed reading morale ${mixedMorale} should exceed nonsense-only ${nonsenseMorale}`);
     });
 });
 
@@ -374,7 +352,7 @@ describe("simulation: config overrides change outcomes", () => {
         CONFIG.sleepRecoveryMult = 0.1;
         const harsh = simulate(
             { days: 7, behavior: { eats: false, drinks: false, sleeps: true } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
 
         resetConfig();
@@ -383,7 +361,7 @@ describe("simulation: config overrides change outcomes", () => {
         CONFIG.sleepRecoveryMult = 0.8;
         const gentle = simulate(
             { days: 7, behavior: { eats: false, drinks: false, sleeps: true } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
 
         // Both will die (no food/water), but gentle should have higher morale on average
@@ -399,13 +377,13 @@ describe("simulation: config overrides change outcomes", () => {
         CONFIG.exitThreshold = 5;
         const easy = simulate(
             { days: 10, behavior: { eats: true, drinks: true, sleeps: true, nonsensePerDay: 10 } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
         resetConfig();
         CONFIG.exitThreshold = 40;
         const hard = simulate(
             { days: 10, behavior: { eats: true, drinks: true, sleeps: true, nonsensePerDay: 10 } },
-            survFns, tickFns, bookFns
+            survFns, tickFns
         );
 
         const easyDespairDays = easy.dayStats.filter(d => d.despairing).length;

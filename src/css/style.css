@@ -566,6 +566,17 @@ button:disabled {
     display: none;
 }
 
+/* Symbol slop — monospace grid for random ASCII pages */
+.book-single.book-page-symbols {
+    font-family: var(--font-mono);
+    font-size: 0.52em;
+    line-height: 1.15;
+    white-space: pre;
+    word-wrap: normal;
+    overflow: hidden;
+    padding: 1em 1.2em;
+}
+
 /* Two-page spread */
 .book-spread {
     display: flex;
@@ -637,7 +648,7 @@ button:disabled {
     font-size: 2em;
 }
 
-/* Fragment highlighting — surviving original phrases */
+/* Fragment highlighting — disabled (word-degradation system removed)
 .fragment {
     color: #3a3228;
     background: transparent;
@@ -648,6 +659,7 @@ button:disabled {
     background: rgba(160, 120, 40, 0.22);
     text-shadow: 0 0 6px rgba(180, 140, 50, 0.2);
 }
+*/
 
 /* === BOOK CONTROLS === */
 

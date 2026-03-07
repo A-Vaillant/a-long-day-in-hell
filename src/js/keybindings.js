@@ -48,7 +48,7 @@ document.addEventListener("keydown", function (ev) {
                         state.heldBook.bookIndex === bk.bookIndex;
                     if (!isHeld) {
                         state.heldBook = { side: bk.side, position: bk.position, floor: bk.floor, bookIndex: bk.bookIndex };
-                        Book.clearDwell();
+                        
                         state.openBook = null;
                         Engine.goto("Corridor");
                     }
@@ -62,7 +62,7 @@ document.addEventListener("keydown", function (ev) {
                     state.heldBook.position === bk2.position && state.heldBook.floor === bk2.floor &&
                     state.heldBook.bookIndex === bk2.bookIndex) {
                     state.heldBook = null;
-                    Book.clearDwell();
+                    
                     state.openBook = null;
                     Engine.goto("Corridor");
                 }
@@ -76,7 +76,7 @@ document.addEventListener("keydown", function (ev) {
             }
             case "Escape": case "q":
                 ev.preventDefault();
-                Book.clearDwell();
+                
                 state.openBook = null;
                 Engine.goto("Corridor");
                 return;
