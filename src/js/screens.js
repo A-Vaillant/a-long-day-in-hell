@@ -606,13 +606,18 @@ Engine.register("Kiosk Get Alcohol", {
 Engine.register("Sign", {
     kind: "state",
     render() {
-        var text = TEXT.screens.sign_text || "";
-        var paragraphs = text.split("\n\n");
+        var rules = TEXT.screens.sign_rules || [];
         var html = '<div id="sign-view">';
         html += '<p class="location-header">The Sign</p>';
         html += '<div class="sign-text">';
-        for (var i = 0; i < paragraphs.length; i++) {
-            html += '<p>' + esc(paragraphs[i]) + '</p>';
+        html += '<p>' + esc(TEXT.screens.sign_body) + '</p>';
+        html += '<ol class="sign-rules">';
+        for (var i = 0; i < rules.length; i++) {
+            html += '<li>' + esc(rules[i]) + '</li>';
+        }
+        html += '</ol>';
+        if (TEXT.screens.sign_closing) {
+            html += '<p class="sign-closing">' + esc(TEXT.screens.sign_closing) + '</p>';
         }
         html += '</div>';
         html += '<p class="key-hint"><a data-goto="Corridor"><kbd>q</kbd> Back</a></p>';

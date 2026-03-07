@@ -879,6 +879,19 @@ button:disabled {
 .sign-text p {
     margin: 0.4rem 0;
 }
+.sign-rules {
+    margin: 0.6rem 0;
+    padding-left: 1.4rem;
+    list-style: decimal;
+}
+.sign-rules li {
+    margin: 0.3rem 0;
+    line-height: 1.5;
+}
+.sign-closing {
+    margin-top: 0.6rem;
+    font-style: italic;
+}
 
 /* === KIOSK === */
 
