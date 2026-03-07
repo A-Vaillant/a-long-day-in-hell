@@ -22,9 +22,9 @@
 import type { Entity, World } from "./ecs.core.ts";
 import { getComponent, hasComponent, query } from "./ecs.core.ts";
 import {
-    POSITION, IDENTITY, PSYCHOLOGY, PLAYER,
-    deriveDisposition,
-    type Position, type Identity, type Psychology,
+    POSITION, IDENTITY, PSYCHOLOGY, PLAYER, RELATIONSHIPS,
+    deriveDisposition, coLocated,
+    type Position, type Identity, type Psychology, type Relationships,
 } from "./social.core.ts";
 import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { NEEDS, type Needs } from "./needs.core.ts";
@@ -42,6 +42,7 @@ export const BEHAVIORS = [
     "return_home",
     "wander_mad",
     "pilgrimage",
+    "socialize",
 ] as const;
 
 export type Behavior = typeof BEHAVIORS[number];
@@ -78,6 +79,8 @@ export interface ScorerContext {
     knowledge: Knowledge | null;
     /** Current tick within the day (0–239). */
     tick: number;
+    /** Whether a bonded entity is co-located. */
+    hasCompanion: boolean;
 }
 
 interface Rng {
@@ -115,6 +118,7 @@ export const DEFAULT_INTENT: IntentConfig = {
         seek_rest: 5,
         return_home: 8,
         pilgrimage: 20,
+        socialize: 12,
     },
     defaultCooldown: 5,
 };
@@ -227,6 +231,23 @@ const scorers: Record<string, BehaviorScorer> = {
     },
 
     /**
+     * Socialize: stay put and interact with a co-located companion.
+     * Only scores when a bonded entity is here. Patient, sociable
+     * NPCs prefer this. Keeps the NPC idle (movement system ignores it).
+     */
+    socialize(ctx) {
+        if (!ctx.hasCompanion) return -Infinity;
+        let score = 0.4;
+        if (ctx.personality) {
+            score += (1 - ctx.personality.pace) * 0.3;  // patient → socialize
+            score += ctx.personality.openness * 0.2;     // open → socialize
+        }
+        // Small jitter
+        score += (ctx.rng.next() - 0.5) * 0.2;
+        return score;
+    },
+
+    /**
      * Pilgrimage: travel to a divinely revealed book location.
      * Only scores when the entity has a bookVision and hasn't escaped.
      * Very high priority — this is the most purposeful thing an NPC can do.
@@ -254,6 +275,29 @@ const scorers: Record<string, BehaviorScorer> = {
 /** Exported for testing. */
 export const DEFAULT_SCORERS: Record<string, BehaviorScorer> = scorers;
 
+// --- Companion check ---
+
+/**
+ * Check if entity has a bonded, alive, co-located companion.
+ * Used by the socialize scorer.
+ */
+function checkHasCompanion(
+    world: World,
+    entity: Entity,
+    position: Position | null | undefined,
+): boolean {
+    if (!position) return false;
+    const rels = getComponent<Relationships>(world, entity, RELATIONSHIPS);
+    if (!rels || rels.bonds.size === 0) return false;
+    for (const [other] of rels.bonds) {
+        const otherPos = getComponent<Position>(world, other, POSITION);
+        const otherIdent = getComponent<Identity>(world, other, IDENTITY);
+        if (!otherPos || !otherIdent || !otherIdent.alive) continue;
+        if (coLocated(position, otherPos)) return true;
+    }
+    return false;
+}
+
 // --- Arbiter ---
 
 /**
@@ -278,6 +322,7 @@ export function evaluateIntent(
     sleep: Sleep | null = null,
     tick: number = 0,
     knowledge: Knowledge | null = null,
+    hasCompanion: boolean = false,
 ): { behavior: Behavior; cooldown: number } | null {
     const disposition = deriveDisposition(psych, alive);
 
@@ -298,7 +343,7 @@ export function evaluateIntent(
 
     const ctx: ScorerContext = {
         psych, alive, disposition, needs, personality, intent, rng,
-        position, sleep, knowledge, tick,
+        position, sleep, knowledge, tick, hasCompanion,
     };
 
     let bestBehavior: Behavior = "idle";
@@ -360,13 +405,14 @@ export function getAvailableBehaviors(
     const sleep = getComponent<Sleep>(world, entity, SLEEP);
     const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
     const disposition = deriveDisposition(psych, ident.alive);
+    const hasCompanion = checkHasCompanion(world, entity, position ?? null);
 
     const ctx: ScorerContext = {
         psych, alive: ident.alive, disposition,
         needs: needs ?? null, personality: personality ?? null,
         intent, rng,
         position: position ?? null, sleep: sleep ?? null,
-        knowledge: knowledge ?? null, tick,
+        knowledge: knowledge ?? null, tick, hasCompanion,
     };
 
     const results: ScoredBehavior[] = [];
@@ -416,10 +462,11 @@ export function intentSystem(
         const position = getComponent<Position>(world, entity, POSITION);
         const sleep = getComponent<Sleep>(world, entity, SLEEP);
         const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
+        const hasCompanion = checkHasCompanion(world, entity, position);
 
         const result = evaluateIntent(
             intent, psych, ident.alive, needs, personality, rng, config,
-            undefined, position, sleep, tick, knowledge,
+            undefined, position, sleep, tick, knowledge, hasCompanion,
         );
 
         if (result) {

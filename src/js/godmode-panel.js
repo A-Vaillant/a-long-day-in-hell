@@ -215,6 +215,7 @@ const componentRenderers = {
             return_home: "Heading home",
             wander_mad: "Wandering (mad)",
             pilgrimage: "Pilgrimage",
+            socialize: "Socializing",
         };
         const BEHAVIOR_COLORS = {
             idle: "#888",
@@ -224,6 +225,7 @@ const componentRenderers = {
             return_home: "#c49530",
             wander_mad: "#9a2a2a",
             pilgrimage: "#d4a0e0",
+            socialize: "#7ab0a0",
         };
         // Show "Asleep" when idle during lights-off
         const asleep = comp.behavior === "idle" && snap && !snap.lightsOn && npc && npc.alive;
@@ -455,6 +457,7 @@ function narrate(npc) {
         else if (intent.behavior === "seek_rest") parts.push("They need to rest.");
         else if (intent.behavior === "wander_mad") parts.push("They are wandering erratically.");
         else if (intent.behavior === "pilgrimage") parts.push("They are on a pilgrimage to find their book.");
+        else if (intent.behavior === "socialize") parts.push("They are talking with someone nearby.");
     }
 
     // Sleep
