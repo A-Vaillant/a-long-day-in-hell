@@ -13,8 +13,8 @@ const LABEL_GUTTER = 52; // floor number labels on left
 const HEADER_H = 28;     // reserved header strip for view title
 
 // Zoom
-const ZOOM_LEVELS = [0.005, 0.01, 0.02, 0.05, 0.1, 0.15, 0.25, 0.5, 0.75, 1, 1.5, 2];
-let zoomIndex = 9;  // start at 1x
+const ZOOM_LEVELS = [0.005, 0.01, 0.02, 0.04, 0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 1, 1.25, 1.5, 2];
+let zoomIndex = 13;  // start at 1x
 const SCATTER_THRESHOLD = 0.2; // below this, skip grid, render as scatter plot
 let zoom = 1;
 
@@ -565,6 +565,14 @@ export const GodmodeMap = {
         const zoomEl = document.getElementById("gm-zoom");
         if (zoomEl) zoomEl.textContent = zoom + "x";
 
+        // Viewport position
+        const posEl = document.getElementById("gm-pos");
+        if (posEl) {
+            const center = Math.round(vpX + vpCols / 2);
+            const centerFloor = Math.round(vpY + vpRows / 2);
+            posEl.textContent = "s" + center + " f" + centerFloor;
+        }
+
         // Status
         const statusEl = document.getElementById("gm-status");
         if (statusEl) {
@@ -592,6 +600,7 @@ export const GodmodeMap = {
         else if (key === "ArrowDown" || key === "j") vpY -= step;
         else if (key === "+" || key === "=") this.zoom(1);
         else if (key === "-" || key === "_") this.zoom(-1);
+        else if (key === "Home" || key === "H") { this.goHome(); }
         else if (key === "Tab") {
             // Cycle: corridor 1 (start side) → corridor 2 (chasm view disabled)
             const otherSide = startSide === 0 ? 1 : 0;
@@ -630,5 +639,23 @@ export const GodmodeMap = {
     setSide(s) {
         viewSide = s;
         this._recalcCells();
+    },
+
+    /** Reset viewport to starting position and default zoom. */
+    goHome() {
+        zoomIndex = 13; // 1x
+        zoom = ZOOM_LEVELS[zoomIndex];
+        this._recalcCells();
+        vpX = 0 - Math.floor(vpCols / 2);
+        vpY = startFloor - Math.floor(vpRows / 2);
+        viewSide = startSide;
+    },
+
+    /** Get current viewport center in world coords. */
+    getViewportCenter() {
+        return {
+            position: Math.round(vpX + vpCols / 2),
+            floor: Math.round(vpY + vpRows / 2),
+        };
     },
 };
