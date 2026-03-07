@@ -27,6 +27,7 @@ import {
     modifyAffinity,
     applyShock,
     socialPressureSystem,
+    decayRate,
 } from "../lib/social.core.js";
 
 // --- Helpers ---
@@ -1091,5 +1092,83 @@ describe("socialPressureSystem", () => {
 
         const p = getComponent(w, sane, PSYCHOLOGY);
         assert.ok(p.lucidity >= 0);
+    });
+});
+
+// --- Non-linear decay ---
+
+describe("decayRate", () => {
+    it("is slowest at stat=100 (near base rate)", () => {
+        const rate100 = decayRate(100, DEFAULT_DECAY.lucidityBase);
+        const rate50 = decayRate(50, DEFAULT_DECAY.lucidityBase);
+        assert.ok(rate100 < rate50, "decay should be slower at high stats");
+    });
+
+    it("accelerates as stat drops", () => {
+        const rate80 = decayRate(80, DEFAULT_DECAY.lucidityBase);
+        const rate40 = decayRate(40, DEFAULT_DECAY.lucidityBase);
+        const rate10 = decayRate(10, DEFAULT_DECAY.lucidityBase);
+        assert.ok(rate80 < rate40);
+        assert.ok(rate40 < rate10);
+        assert.ok(rate10 > rate80 * 3, "low stats should decay much faster than high");
+    });
+
+    it("at stat=100, rate equals base (acceleration=1)", () => {
+        const rate = decayRate(100, 0.001);
+        assert.strictEqual(rate, 0.001);
+    });
+});
+
+describe("companion restoration", () => {
+    it("social contact can restore stats when decay is very small", () => {
+        const psych = { lucidity: 95, hope: 95 };
+        decayPsychology(psych, true);
+        assert.ok(psych.lucidity >= 95 || psych.hope >= 95,
+            "companion should at least nearly maintain high stats");
+    });
+
+    it("restoration cannot exceed 100", () => {
+        const psych = { lucidity: 100, hope: 100 };
+        decayPsychology(psych, true);
+        assert.ok(psych.lucidity <= 100);
+        assert.ok(psych.hope <= 100);
+    });
+});
+
+// --- Bond encounter tracking ---
+
+describe("bond encounter tracking", () => {
+    it("new bond has firstContact and encounters=1", () => {
+        const rels = { bonds: new Map() };
+        const bond = getOrCreateBond(rels, 5, 1000);
+        assert.strictEqual(bond.firstContact, 1000);
+        assert.strictEqual(bond.encounters, 1);
+    });
+
+    it("accumulateBond increments encounters after absence gap", () => {
+        const bond = {
+            familiarity: 10, affinity: 5,
+            firstContact: 0, lastContact: 0, encounters: 1,
+        };
+        accumulateBond(bond, 500);
+        assert.strictEqual(bond.encounters, 2);
+    });
+
+    it("accumulateBond does not increment encounters for continuous contact", () => {
+        const bond = {
+            familiarity: 10, affinity: 5,
+            firstContact: 0, lastContact: 99, encounters: 1,
+        };
+        accumulateBond(bond, 100);
+        assert.strictEqual(bond.encounters, 1);
+    });
+
+    it("existing bond without encounters field gets upgraded", () => {
+        const bond = {
+            familiarity: 10, affinity: 5,
+            firstContact: 0, lastContact: 0,
+        };
+        accumulateBond(bond, 500);
+        assert.strictEqual(bond.encounters, 2);
     });
 });

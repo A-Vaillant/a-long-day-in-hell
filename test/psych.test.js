@@ -99,11 +99,11 @@ describe("applyShock", () => {
         const psych = makePsych(100, 100);
         const habit = makeHabit();
         const impact = applyShock(psych, habit, "beingKilled");
-        // beingKilled: lucidity -5, hope -8
-        assert.equal(psych.lucidity, 95);
-        assert.equal(psych.hope, 92);
-        assert.equal(impact.lucidity, -5);
-        assert.equal(impact.hope, -8);
+        // beingKilled: lucidity -1, hope -1.5
+        assert.equal(psych.lucidity, 99);
+        assert.equal(psych.hope, 98.5);
+        assert.equal(impact.lucidity, -1);
+        assert.equal(impact.hope, -1.5);
     });
 
     it("increments exposure counter", () => {
@@ -118,17 +118,17 @@ describe("applyShock", () => {
     it("attenuates on repeated exposure", () => {
         const psych = makePsych(100, 100);
         const habit = makeHabit({ beingKilled: 5 });
-        // beingKilled: hope -8, habitRate 0.8
-        // 5 exposures: -8 / (1 + 0.8*5) = -8/5 = -1.6
+        // beingKilled: hope -1.5, habitRate 0.8
+        // 5 exposures: -1.5 / (1 + 0.8*5) = -1.5/5 = -0.3
         const impact = applyShock(psych, habit, "beingKilled");
-        assert.ok(impact.hope > -2 && impact.hope < -1);
+        assert.ok(impact.hope > -0.5 && impact.hope < -0.2);
     });
 
     it("works without habituation component (full shock)", () => {
         const psych = makePsych(100, 100);
         const impact = applyShock(psych, undefined, "beingKilled");
-        assert.equal(psych.lucidity, 95);
-        assert.equal(psych.hope, 92);
+        assert.equal(psych.lucidity, 99);
+        assert.equal(psych.hope, 98.5);
     });
 
     it("does not increment exposure without habituation component", () => {
@@ -148,7 +148,7 @@ describe("applyShock", () => {
     });
 
     it("clamps psychology to 0 floor", () => {
-        const psych = makePsych(2, 2);
+        const psych = makePsych(0.5, 0.5);
         const habit = makeHabit();
         applyShock(psych, habit, "beingKilled");
         assert.equal(psych.lucidity, 0);
@@ -175,12 +175,12 @@ describe("applyShock", () => {
     });
 
     it("returns actual applied delta (respecting clamp)", () => {
-        const psych = makePsych(2, 2);
+        const psych = makePsych(0.5, 0.5);
         const habit = makeHabit();
         const impact = applyShock(psych, habit, "companionMad");
-        // companionMad: lucidity -8, hope -5, but clamped to 0
-        assert.equal(impact.lucidity, -2);
-        assert.equal(impact.hope, -2);
+        // companionMad: lucidity -1.5, hope -1, but clamped to 0
+        assert.equal(impact.lucidity, -0.5);
+        assert.equal(impact.hope, -0.5);
     });
 });
 
@@ -191,10 +191,10 @@ describe("applyShockToEntity", () => {
         const { world, entity } = makeWorld();
         const impact = applyShockToEntity(world, entity, "beingKilled");
         const psych = getComponent(world, entity, PSYCHOLOGY);
-        assert.equal(psych.lucidity, 95);
-        assert.equal(psych.hope, 92);
-        assert.equal(impact.lucidity, -5);
-        assert.equal(impact.hope, -8);
+        assert.equal(psych.lucidity, 99);
+        assert.equal(psych.hope, 98.5);
+        assert.equal(impact.lucidity, -1);
+        assert.equal(impact.hope, -1.5);
     });
 
     it("increments habituation via world lookup", () => {
@@ -237,11 +237,11 @@ describe("applyShockToEntity", () => {
 describe("default shock sources", () => {
     it("witnessChasm: heavy hope, slow habituation", () => {
         const src = DEFAULT_SHOCKS.witnessChasm;
-        assert.ok(src.hope < -10);
+        assert.ok(src.hope < -1);
         assert.ok(src.habitRate < 0.5);
         // After 3 exposures still significant
         const r3 = attenuateShock(src, 3);
-        assert.ok(r3.hope < -5);
+        assert.ok(r3.hope < -0.5);
     });
 
     it("beingKilled: fast habituation", () => {
@@ -258,7 +258,7 @@ describe("default shock sources", () => {
         assert.ok(src.habitRate < 0.2);
         // After 5 exposures still painful
         const r5 = attenuateShock(src, 5);
-        assert.ok(Math.abs(r5.lucidity) > 3);
+        assert.ok(Math.abs(r5.lucidity) > 0.5);
     });
 
     it("witnessAttack: numbs fastest", () => {
@@ -303,8 +303,8 @@ describe("habituation arc", () => {
                 `impact ${i} should be weaker than ${i - 1}`);
         }
         // First should be strong, last should be weak
-        assert.ok(Math.abs(impacts[0].hope) > 5);
-        assert.ok(Math.abs(impacts[9].hope) < 2);
+        assert.ok(Math.abs(impacts[0].hope) > 1);
+        assert.ok(Math.abs(impacts[9].hope) < 0.5);
     });
 
     it("companionMad: stays painful longer", () => {
@@ -316,8 +316,8 @@ describe("habituation arc", () => {
             psych.hope = 100;
             impacts.push(applyShock(psych, habit, "companionMad"));
         }
-        // After 5 exposures, companionMad lucidity impact should still be > 3
-        assert.ok(Math.abs(impacts[4].lucidity) > 3,
+        // After 5 exposures, companionMad lucidity impact should still be > 0.5
+        assert.ok(Math.abs(impacts[4].lucidity) > 0.5,
             "companionMad should still hurt at 5 exposures");
     });
 });

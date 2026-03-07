@@ -51,9 +51,11 @@ export interface Psychology {
 }
 
 export interface Bond {
-    familiarity: number;  // how well you know them (accumulates, very slow decay)
-    affinity: number;     // how you feel about them (fluctuates, can go negative)
-    lastContact: number;  // tick of last co-location
+    familiarity: number;   // how well you know them (accumulates, very slow decay)
+    affinity: number;      // how you feel about them (fluctuates, can go negative)
+    firstContact: number;  // tick of first meeting
+    lastContact: number;   // tick of last co-location
+    encounters: number;    // number of distinct encounters (separated by absence)
 }
 
 export interface Relationships {
@@ -122,17 +124,27 @@ export function deriveDisposition(
 export interface DecayConfig {
     lucidityBase: number;       // base lucidity drain per tick
     hopeBase: number;           // base hope drain per tick
+    accel: number;              // acceleration factor at low stats
+    curve: number;              // exponent for non-linear acceleration
     isolationMultiplier: number; // multiplier when entity has no co-located bonds
     companionDamper: number;    // multiplier when entity has co-located bonds (< 1 = slows decay)
+    companionRestore: number;   // per-tick restoration from companion contact
     lucidityFloor: number;      // lucidity can't go below this from decay alone
     hopeFloor: number;          // hope can't go below this from decay alone
 }
 
 export const DEFAULT_DECAY: DecayConfig = {
-    lucidityBase: 0.003,       // ~0.72/day alone → anxious ~day 55, mad ~day 83
-    hopeBase: 0.004,           // ~0.96/day alone → anxious ~day 62, catatonic ~day 88
-    isolationMultiplier: 1.0,  // no extra penalty — base rate IS the isolation rate
-    companionDamper: 0.15,     // companion slows decay to 15% of base
+    // --- Cosmic-scale decay ---
+    // Non-linear: decay accelerates as stats drop (despair feedback).
+    // High stats decay very slowly (functional people stay functional for centuries).
+    // rate = base * (1 + accel * (1 - stat/100)^curve)
+    lucidityBase: 0.00003,
+    hopeBase: 0.00004,
+    accel: 12.0,
+    curve: 2.0,
+    isolationMultiplier: 1.0,
+    companionDamper: 0.1,       // companion slows decay to 10% of base
+    companionRestore: 0.000008, // per tick — very slow healing from social contact
     lucidityFloor: 0,
     hopeFloor: 0,
 };
@@ -166,12 +178,22 @@ export function hasSocialContact(
 }
 
 /**
+ * Non-linear decay rate: accelerates as stat drops.
+ * rate = base * (1 + accel * (1 - stat/100)^curve)
+ */
+export function decayRate(stat: number, base: number, config: DecayConfig = DEFAULT_DECAY): number {
+    const deficit = 1 - stat / 100;
+    const acceleration = 1 + config.accel * Math.pow(Math.max(0, deficit), config.curve);
+    return base * acceleration;
+}
+
+/**
  * Apply psychological decay to a single entity.
  * Mutates the psychology component in place.
  * Returns the new psychology values (same reference).
  *
- * If decayBias is provided ({ lucidityMul, hopeMul }), it skews
- * which axis decays faster based on personality traits.
+ * Non-linear: decay accelerates as stats drop (despair feedback loop).
+ * Social contact provides slow restoration, not just damping.
  */
 export function decayPsychology(
     psych: Psychology,
@@ -179,18 +201,20 @@ export function decayPsychology(
     config: DecayConfig = DEFAULT_DECAY,
     bias?: { lucidityMul: number; hopeMul: number },
 ): Psychology {
-    const multiplier = hasSocial ? config.companionDamper : config.isolationMultiplier;
     const lucMul = bias ? bias.lucidityMul : 1.0;
-    const hopeMul = bias ? bias.hopeMul : 1.0;
+    const hopMul = bias ? bias.hopeMul : 1.0;
 
-    psych.lucidity = Math.max(
-        config.lucidityFloor,
-        psych.lucidity - config.lucidityBase * multiplier * lucMul,
-    );
-    psych.hope = Math.max(
-        config.hopeFloor,
-        psych.hope - config.hopeBase * multiplier * hopeMul,
-    );
+    if (hasSocial) {
+        const lucDecay = decayRate(psych.lucidity, config.lucidityBase, config) * config.companionDamper * lucMul;
+        const hopDecay = decayRate(psych.hope, config.hopeBase, config) * config.companionDamper * hopMul;
+        psych.lucidity = Math.min(100, Math.max(config.lucidityFloor, psych.lucidity - lucDecay + config.companionRestore));
+        psych.hope = Math.min(100, Math.max(config.hopeFloor, psych.hope - hopDecay + config.companionRestore));
+    } else {
+        const lucDecay = decayRate(psych.lucidity, config.lucidityBase, config) * config.isolationMultiplier * lucMul;
+        const hopDecay = decayRate(psych.hope, config.hopeBase, config) * config.isolationMultiplier * hopMul;
+        psych.lucidity = Math.max(config.lucidityFloor, psych.lucidity - lucDecay);
+        psych.hope = Math.max(config.hopeFloor, psych.hope - hopDecay);
+    }
 
     return psych;
 }
@@ -253,6 +277,8 @@ export interface BondConfig {
     // Bond creation threshold: entities must be co-located for this many
     // ticks before a bond forms at all
     contactThreshold: number;
+    // Minimum absence (ticks) before re-contact counts as a new encounter
+    reencounterGap: number;
 }
 
 export const DEFAULT_BOND: BondConfig = {
@@ -264,6 +290,7 @@ export const DEFAULT_BOND: BondConfig = {
     maxAffinity: 100,
     minAffinity: -100,
     contactThreshold: 0,
+    reencounterGap: 240,        // 1 day of absence = new encounter
 };
 
 /**
@@ -272,7 +299,11 @@ export const DEFAULT_BOND: BondConfig = {
 export function getOrCreateBond(rels: Relationships, target: Entity, currentTick: number): Bond {
     let bond = rels.bonds.get(target);
     if (!bond) {
-        bond = { familiarity: 0, affinity: 0, lastContact: currentTick };
+        bond = {
+            familiarity: 0, affinity: 0,
+            firstContact: currentTick, lastContact: currentTick,
+            encounters: 1,
+        };
         rels.bonds.set(target, bond);
     }
     return bond;
@@ -291,6 +322,12 @@ export function accumulateBond(
     config: BondConfig = DEFAULT_BOND,
     compat?: number,
 ): void {
+    // Track re-encounters: if enough time has passed since last contact, count a new encounter
+    const absence = currentTick - bond.lastContact;
+    if (absence > config.reencounterGap) {
+        bond.encounters = (bond.encounters || 1) + 1;
+    }
+
     bond.familiarity = Math.min(config.maxFamiliarity,
         bond.familiarity + config.familiarityPerTick);
 
@@ -725,7 +762,7 @@ export function applyShock(
 export function socialPressureSystem(
     world: World,
     thresholds: DispositionThresholds = DEFAULT_THRESHOLDS,
-    pressureRate: number = 0.1,
+    pressureRate: number = 0.003,
     awareness: AwarenessConfig = DEFAULT_AWARENESS,
 ): void {
     const entities = query(world, [POSITION, PSYCHOLOGY, IDENTITY]);
