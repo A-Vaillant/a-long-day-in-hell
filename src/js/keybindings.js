@@ -8,6 +8,7 @@ import { Despair } from "./despairing.js";
 import { Lib } from "./library.js";
 import { Surv } from "./survival.js";
 import { doMove } from "./screens.js";
+import { Godmode } from "./godmode.js";
 
 const VI_MOVE = {
     "h": "left",  "ArrowLeft":  "left",
@@ -19,6 +20,13 @@ const VI_MOVE = {
 
 document.addEventListener("keydown", function (ev) {
     if (ev.target.tagName === "INPUT" || ev.target.tagName === "TEXTAREA") return;
+
+    // Possession mode: Esc releases the NPC back to godmode
+    if (Godmode.isPossessing() && ev.key === "Escape") {
+        ev.preventDefault();
+        Godmode.unpossess();
+        return;
+    }
 
     const screen = state.screen;
     const key = ev.key;

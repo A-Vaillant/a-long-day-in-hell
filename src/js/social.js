@@ -21,6 +21,7 @@ import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
 import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
+import { fallTick, attemptGrab } from "../../lib/chasm.core.js";
 import { state } from "./state.js";
 
 let world = null;
@@ -95,6 +96,17 @@ export const Social = {
         // Keep player alive status in sync
         const ident = getComponent(world, playerEntity, IDENTITY);
         if (ident) ident.alive = !state.dead;
+
+        // When possessing, sync player state back to the possessed NPC
+        if (state._possessedNpcId != null) {
+            const npc = state.npcs && state.npcs.find(n => n.id === state._possessedNpcId);
+            if (npc) {
+                npc.side = state.side;
+                npc.position = state.position;
+                npc.floor = state.floor;
+                npc.falling = state.falling;
+            }
+        }
     },
 
     /** Sync NPC positions from state.npcs into ECS. Call after NPC movement. */
@@ -156,6 +168,10 @@ export const Social = {
                 npc.floor = pos.floor;
             }
         }
+
+        // NPC chasm AI: check for jumps, advance falling
+        this.checkNpcChasmJump();
+        this.tickNpcFalling();
 
         // Write derived disposition back to state.npcs
         for (const npc of state.npcs) {
@@ -234,6 +250,189 @@ export const Social = {
             });
         }
         return members;
+    },
+
+    // --- NPC chasm falling ---
+
+    /**
+     * Tick all falling NPCs. Called once per tick from onTick().
+     * Each falling NPC gets physics + auto-grab attempt.
+     */
+    tickNpcFalling() {
+        if (!state.npcs) return;
+        for (const npc of state.npcs) {
+            if (!npc.falling || !npc.alive) continue;
+            // Skip possessed NPC — player controls their falling via normal screens
+            if (state._possessedNpcId === npc.id) continue;
+
+            const result = fallTick(npc.falling, npc.floor);
+            npc.floor = result.newFloor;
+            npc.falling.speed = result.newSpeed;
+
+            if (result.landed) {
+                npc.falling = null;
+                if (result.fatal) {
+                    npc.alive = false;
+                    const ent = npcEntities.get(npc.id);
+                    if (ent !== undefined) {
+                        const ident = getComponent(world, ent, IDENTITY);
+                        if (ident) ident.alive = false;
+                    }
+                }
+                continue;
+            }
+
+            // Auto-grab: NPCs try every few ticks when speed is manageable
+            if (npc.falling.speed > 0 && npc.falling.speed < 30) {
+                const grabRng = seedFromString(state.seed + ":npcgrab:" + npc.id + ":" + state.tick + ":" + npc.floor);
+                // NPCs only attempt grab 20% of eligible ticks (they're panicking)
+                if (grabRng.next() < 0.2) {
+                    const grabResult = attemptGrab(npc.falling.speed, grabRng);
+                    if (grabResult.success) {
+                        npc.falling = null;
+                    } else {
+                        npc.falling.speed = grabResult.speedAfter;
+                        // Mortality damage — NPCs don't track mortality, just kill on bad hits
+                        if (grabResult.mortalityHit > 15) {
+                            npc.alive = false;
+                            const ent = npcEntities.get(npc.id);
+                            if (ent !== undefined) {
+                                const ident = getComponent(world, ent, IDENTITY);
+                                if (ident) ident.alive = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Sync floor to ECS
+            const ent = npcEntities.get(npc.id);
+            if (ent !== undefined) {
+                const pos = getComponent(world, ent, POSITION);
+                if (pos) pos.floor = npc.floor;
+            }
+        }
+    },
+
+    /**
+     * Check if any catatonic NPCs should jump into the chasm.
+     * Called once per tick. Very low probability.
+     */
+    checkNpcChasmJump() {
+        if (!state.npcs) return;
+        for (const npc of state.npcs) {
+            if (!npc.alive || npc.falling) continue;
+            if (npc.floor <= 0) continue; // can't fall from bottom
+            if (state._possessedNpcId === npc.id) continue;
+
+            // Only catatonic or very low hope NPCs jump
+            const ent = npcEntities.get(npc.id);
+            if (ent === undefined) continue;
+            const psych = getComponent(world, ent, PSYCHOLOGY);
+            if (!psych) continue;
+
+            const disp = deriveDisposition(psych, true);
+            // Catatonic: ~0.1% per tick. Mad: ~0.02% per tick.
+            let jumpChance = 0;
+            if (disp === "catatonic") jumpChance = 0.001;
+            else if (disp === "mad") jumpChance = 0.0002;
+            else continue;
+
+            const rng = seedFromString(state.seed + ":npcjump:" + npc.id + ":" + state.tick);
+            if (rng.next() < jumpChance) {
+                npc.falling = { speed: 0, floorsToFall: 0, side: npc.side };
+            }
+        }
+    },
+
+    /**
+     * Make a specific NPC jump into the chasm. Called from godmode possess.
+     */
+    npcJump(npcId) {
+        const npc = state.npcs && state.npcs.find(n => n.id === npcId);
+        if (!npc || !npc.alive || npc.floor <= 0) return false;
+        npc.falling = { speed: 0, floorsToFall: 0, side: npc.side };
+        return true;
+    },
+
+    // --- Possession ---
+
+    /**
+     * Possess an NPC: swap player state to NPC's position.
+     * Stores original player state for restoration.
+     */
+    possess(npcId) {
+        const npc = state.npcs && state.npcs.find(n => n.id === npcId);
+        if (!npc) return false;
+
+        // Save original player state
+        state._possessedNpcId = npcId;
+        state._possessOriginal = {
+            side: state.side,
+            position: state.position,
+            floor: state.floor,
+            falling: state.falling,
+            heldBook: state.heldBook,
+        };
+
+        // Swap player position to NPC
+        state.side = npc.side;
+        state.position = npc.position;
+        state.floor = npc.floor;
+        state.falling = npc.falling || null;
+        state.heldBook = null;
+
+        return true;
+    },
+
+    /**
+     * Unpossess: sync NPC state from player, restore original player position.
+     */
+    unpossess() {
+        if (!state._possessedNpcId) return;
+        const npc = state.npcs && state.npcs.find(n => n.id === state._possessedNpcId);
+
+        // Sync player position back to NPC
+        if (npc) {
+            npc.side = state.side;
+            npc.position = state.position;
+            npc.floor = state.floor;
+            npc.falling = state.falling;
+
+            // Sync to ECS
+            const ent = npcEntities.get(npc.id);
+            if (ent !== undefined) {
+                const pos = getComponent(world, ent, POSITION);
+                if (pos) {
+                    pos.side = npc.side;
+                    pos.position = npc.position;
+                    pos.floor = npc.floor;
+                }
+            }
+        }
+
+        // Restore original player state
+        const orig = state._possessOriginal;
+        if (orig) {
+            state.side = orig.side;
+            state.position = orig.position;
+            state.floor = orig.floor;
+            state.falling = orig.falling;
+            state.heldBook = orig.heldBook;
+        }
+
+        state._possessedNpcId = null;
+        state._possessOriginal = null;
+    },
+
+    /** Is the player currently possessing an NPC? */
+    isPossessing() {
+        return !!state._possessedNpcId;
+    },
+
+    /** Get the ID of the possessed NPC. */
+    getPossessedId() {
+        return state._possessedNpcId || null;
     },
 
     /**
