@@ -443,21 +443,41 @@ export const GodmodeMap = {
         const npcScreenPos = [];
         const groups = new Map();
 
+        // Group NPCs by cell to fan out co-located dots
+        const cellBuckets = new Map();
         for (const npc of snap.npcs) {
             if (viewSide !== null && npc.side !== viewSide) continue;
             const cx = worldToPixelX(npc.position, npc.side);
             const cy = worldToPixelY(npc.floor);
-            // Cull off-screen
             if (cx < LABEL_GUTTER - dotR || cx > w + dotR) continue;
             if (cy < -dotR || cy > gridH + dotR) continue;
 
-            const color = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
-            npcScreenPos.push({ npc, cx, cy, color });
+            const cellKey = npc.side + ":" + npc.position + ":" + npc.floor;
+            let bucket = cellBuckets.get(cellKey);
+            if (!bucket) { bucket = { cx, cy, npcs: [] }; cellBuckets.set(cellKey, bucket); }
+            bucket.npcs.push(npc);
+        }
 
-            if (npc.groupId !== null && npc.groupId !== undefined) {
-                let list = groups.get(npc.groupId);
-                if (!list) { list = []; groups.set(npc.groupId, list); }
-                list.push({ cx, cy });
+        // Compute offset positions for stacked NPCs
+        const fanRadius = dotR * 1.6;
+        for (const { cx, cy, npcs: cellNpcs } of cellBuckets.values()) {
+            const n = cellNpcs.length;
+            for (let i = 0; i < n; i++) {
+                const npc = cellNpcs[i];
+                let ox = cx, oy = cy;
+                if (n > 1) {
+                    const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+                    ox = cx + Math.cos(angle) * fanRadius;
+                    oy = cy + Math.sin(angle) * fanRadius;
+                }
+                const color = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
+                npcScreenPos.push({ npc, cx: ox, cy: oy, color });
+
+                if (npc.groupId !== null && npc.groupId !== undefined) {
+                    let list = groups.get(npc.groupId);
+                    if (!list) { list = []; groups.set(npc.groupId, list); }
+                    list.push({ cx: ox, cy: oy });
+                }
             }
         }
 
