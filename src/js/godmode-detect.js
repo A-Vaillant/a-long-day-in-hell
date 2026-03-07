@@ -63,19 +63,24 @@ export function detectEvents(prev, curr) {
         }
 
         // New bond (familiarity crossed 1.0 threshold) — deduplicate by pair
+        const oldBondNames = new Set(old.bonds.filter(b => b.familiarity >= 1).map(b => b.name));
         for (const bond of npc.bonds) {
-            if (bond.familiarity >= 1) {
-                const pairKey = npc.name < bond.name ? npc.name + ":" + bond.name : bond.name + ":" + npc.name;
+            if (bond.familiarity >= 1 && !oldBondNames.has(bond.name) && npc.name < bond.name) {
+                const pairKey = npc.name + ":" + bond.name;
                 if (!reportedBonds.has(pairKey)) {
                     reportedBonds.add(pairKey);
-                    if (npc.name < bond.name) {
-                        events.push({ tick: curr.tick, day: curr.day, type: "bond",
-                            text: npc.name + " met " + bond.name + "." });
-                    }
+                    events.push({ tick: curr.tick, day: curr.day, type: "bond",
+                        text: npc.name + " met " + bond.name + "." });
                 }
             }
         }
     }
 
     return events;
+}
+
+/** Reset dedup state (for tests). */
+export function resetDetectState() {
+    reportedBonds.clear();
+    reportedGroups.clear();
 }

@@ -1,12 +1,12 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { detectEvents } from "../src/js/godmode-detect.js";
+import { detectEvents, resetDetectState } from "../src/js/godmode-detect.js";
 
 function makeNpc(overrides) {
     return {
         id: 0, name: "Alice", side: 0, position: 0, floor: 100,
         disposition: "calm", alive: true, lucidity: 100, hope: 100,
-        personality: null, bonds: [], groupId: null,
+        personality: null, bonds: [], groupId: null, falling: null,
         ...overrides,
     };
 }
@@ -16,6 +16,8 @@ function makeSnap(npcs, overrides) {
 }
 
 describe("detectEvents", () => {
+    beforeEach(() => resetDetectState());
+
     it("returns empty for identical snapshots", () => {
         const npc = makeNpc();
         const snap = makeSnap([npc]);
@@ -148,5 +150,136 @@ describe("detectEvents", () => {
         assert.ok(types.includes("disposition"), "has disposition event");
         assert.ok(types.includes("death"), "has death event");
         assert.ok(types.includes("bond"), "has bond event");
+    });
+
+    // --- Deduplication tests ---
+
+    it("does not re-report bond when familiarity fluctuates", () => {
+        const prev1 = makeSnap([makeNpc({ id: 0, name: "Alice", bonds: [] })]);
+        const curr1 = makeSnap([makeNpc({ id: 0, name: "Alice",
+            bonds: [{ name: "Bob", familiarity: 1.5, affinity: 0.5 }] })]);
+        const events1 = detectEvents(prev1, curr1);
+        assert.strictEqual(events1.length, 1);
+        assert.strictEqual(events1[0].type, "bond");
+
+        // Familiarity drops below 1 then comes back
+        const prev2 = makeSnap([makeNpc({ id: 0, name: "Alice",
+            bonds: [{ name: "Bob", familiarity: 0.8, affinity: 0.3 }] })]);
+        const curr2 = makeSnap([makeNpc({ id: 0, name: "Alice",
+            bonds: [{ name: "Bob", familiarity: 1.2, affinity: 0.5 }] })]);
+        const events2 = detectEvents(prev2, curr2);
+        const bondEvents = events2.filter(e => e.type === "bond");
+        assert.strictEqual(bondEvents.length, 0, "bond should not re-fire");
+    });
+
+    it("does not re-report group when group IDs flicker", () => {
+        const prev1 = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: null }),
+            makeNpc({ id: 1, name: "Bob", groupId: null }),
+        ]);
+        const curr1 = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: 5 }),
+            makeNpc({ id: 1, name: "Bob", groupId: 5 }),
+        ]);
+        const events1 = detectEvents(prev1, curr1);
+        assert.strictEqual(events1.length, 1);
+        assert.strictEqual(events1[0].type, "group");
+
+        // Group dissolves and reforms (flicker)
+        const prev2 = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: null }),
+            makeNpc({ id: 1, name: "Bob", groupId: null }),
+        ]);
+        const curr2 = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: 9 }),
+            makeNpc({ id: 1, name: "Bob", groupId: 9 }),
+        ]);
+        const events2 = detectEvents(prev2, curr2);
+        const groupEvents = events2.filter(e => e.type === "group");
+        assert.strictEqual(groupEvents.length, 0, "group should not re-fire for same members");
+    });
+
+    it("reports group with different members as new", () => {
+        const prev1 = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: null }),
+            makeNpc({ id: 1, name: "Bob", groupId: null }),
+            makeNpc({ id: 2, name: "Charlie", groupId: null }),
+        ]);
+        const curr1 = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: 5 }),
+            makeNpc({ id: 1, name: "Bob", groupId: 5 }),
+            makeNpc({ id: 2, name: "Charlie", groupId: null }),
+        ]);
+        detectEvents(prev1, curr1); // Alice+Bob group reported
+
+        // Now Alice+Charlie form a group (different members)
+        const prev2 = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: null }),
+            makeNpc({ id: 2, name: "Charlie", groupId: null }),
+        ]);
+        const curr2 = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: 3 }),
+            makeNpc({ id: 2, name: "Charlie", groupId: 3 }),
+        ]);
+        const events2 = detectEvents(prev2, curr2);
+        const groupEvents = events2.filter(e => e.type === "group");
+        assert.strictEqual(groupEvents.length, 1, "new member combo should fire");
+    });
+
+    it("resetDetectState clears dedup history", () => {
+        const prev = makeSnap([makeNpc({ id: 0, name: "Alice", bonds: [] })]);
+        const curr = makeSnap([makeNpc({ id: 0, name: "Alice",
+            bonds: [{ name: "Bob", familiarity: 1.5, affinity: 0.5 }] })]);
+        detectEvents(prev, curr);
+        resetDetectState();
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.filter(e => e.type === "bond").length, 1,
+            "bond should fire again after reset");
+    });
+
+    // --- Chasm events ---
+
+    it("detects NPC jumping into chasm", () => {
+        const prev = makeSnap([makeNpc({ falling: null })]);
+        const curr = makeSnap([makeNpc({ falling: { speed: 1 } })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.length, 1);
+        assert.strictEqual(events[0].type, "death");
+        assert.ok(events[0].text.includes("chasm"));
+    });
+
+    it("detects NPC catching a railing", () => {
+        const prev = makeSnap([makeNpc({ falling: { speed: 10 }, floor: 50 })]);
+        const curr = makeSnap([makeNpc({ falling: null, floor: 42 })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.length, 1);
+        assert.strictEqual(events[0].type, "resurrection");
+        assert.ok(events[0].text.includes("railing"));
+        assert.ok(events[0].text.includes("42"));
+    });
+
+    it("does not emit railing event for dead NPC", () => {
+        const prev = makeSnap([makeNpc({ falling: { speed: 10 }, alive: true })]);
+        const curr = makeSnap([makeNpc({ falling: null, alive: false })]);
+        const events = detectEvents(prev, curr);
+        // Should get death event but not railing
+        const types = events.map(e => e.type);
+        assert.ok(types.includes("death"));
+        assert.ok(!events.some(e => e.text.includes("railing")));
+    });
+
+    it("death and resurrection are not deduplicated", () => {
+        const prev1 = makeSnap([makeNpc({ alive: true })]);
+        const curr1 = makeSnap([makeNpc({ alive: false })]);
+        detectEvents(prev1, curr1); // first death
+
+        const prev2 = makeSnap([makeNpc({ alive: false })]);
+        const curr2 = makeSnap([makeNpc({ alive: true })]);
+        detectEvents(prev2, curr2); // resurrection
+
+        // Second death should still fire
+        const events = detectEvents(prev1, curr1);
+        assert.strictEqual(events.length, 1);
+        assert.strictEqual(events[0].type, "death");
     });
 });
