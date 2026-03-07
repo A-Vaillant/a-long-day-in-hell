@@ -194,12 +194,20 @@ export const GodmodeMap = {
         const w = canvas.width;
         const h = canvas.height;
 
-        // If following, center on selected NPC
+        // Soft follow: nudge viewport only when NPC hits edge of a deadzone
         if (follow && selectedId !== null) {
             const npc = snap.npcs.find(n => n.id === selectedId);
             if (npc) {
-                vpX = npc.position - Math.floor(vpCols / 2);
-                vpY = npc.floor - Math.floor(vpRows / 2);
+                const marginX = vpCols * 0.25;
+                const marginY = vpRows * 0.25;
+                const left = vpX + marginX;
+                const right = vpX + vpCols - marginX;
+                const bottom = vpY + marginY;
+                const top = vpY + vpRows - marginY;
+                if (npc.position < left) vpX = npc.position - marginX;
+                else if (npc.position > right) vpX = npc.position - vpCols + marginX;
+                if (npc.floor < bottom) vpY = npc.floor - marginY;
+                else if (npc.floor > top) vpY = npc.floor - vpRows + marginY;
             }
         }
 
