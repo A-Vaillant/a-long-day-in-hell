@@ -416,6 +416,10 @@ function setupInput(canvas) {
             render();
         } else if (ev.key === "e") {
             toggleLog();
+        } else if (ev.key === "Tab") {
+            ev.preventDefault();
+            GodmodeMap.handleKey(ev.key);
+            render();
         } else {
             GodmodeMap.handleKey(ev.key);
             if (ev.key !== " ") followMode = false;
@@ -425,6 +429,9 @@ function setupInput(canvas) {
 }
 
 export const Godmode = {
+    /** Force a re-render (for screenshots / debug). */
+    render,
+
     /** Called by Engine.init() after shared world setup. Replaces DOM and starts observation loop. */
     start() {
         GodmodeLog.init();

@@ -17,7 +17,8 @@ mkdir -p "$OUT"
 
 python3 -m http.server "$PORT" --directory "${ROOT}/dist" &>/dev/null &
 SERVER_PID=$!
-trap 'kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null || true' EXIT
+cleanup() { kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null; }
+trap 'cleanup || true' EXIT
 sleep 0.8
 
 echo "seed: $SEED  →  $OUT/"
@@ -176,6 +177,34 @@ snap "18_win"                "Win"             "#win-view" \
     "state.won = true;
      state.submissionsAttempted = 1;
      Engine.goto('Win');"
+
+# --- Godmode ---
+GM_BASE="${BASE}/?seed=${SEED}&godmode=1"
+
+gm_snap() {
+    local name="$1" js="${2:-}"
+    shot-scraper shot "$GM_BASE" \
+        --wait-for "document.getElementById('godmode-canvas')" \
+        ${js:+--javascript "$js"} \
+        --timeout 12000 \
+        -o "${OUT}/${name}.png" \
+        --width "$W" --height "$H" 2>/dev/null
+    echo "  ✔  ${name}.png"
+}
+
+gm_snap "20_godmode_both"
+
+gm_snap "21_godmode_west" \
+    "GodmodeMap.handleKey('Tab'); Godmode.render();"
+
+gm_snap "22_godmode_east" \
+    "GodmodeMap.handleKey('Tab'); GodmodeMap.handleKey('Tab'); Godmode.render();"
+
+gm_snap "23_godmode_zoomed" \
+    "GodmodeMap.zoom(2); Godmode.render();"
+
+gm_snap "24_godmode_stepped" \
+    "for (var i = 0; i < 20; i++) { document.getElementById('gm-step').click(); }"
 
 echo ""
 echo "Done. Open screenshots/ to review."
