@@ -7,7 +7,7 @@ function getCorridorProse(document) {
     const view = document.getElementById("corridor-view");
     if (!view) return "";
     const paras = view.querySelectorAll(
-        "p:not(.location-header):not(.shelf-hint):not(.warnings):not(.dim-notice):not(.despair-notice)"
+        "p:not(.location-header):not(.shelf-hint):not(.warnings):not(.dim-notice):not(.despair-notice):not(.npc-entry):not(.stair-notice)"
     );
     return Array.from(paras).map(p => p.textContent).join("\n");
 }

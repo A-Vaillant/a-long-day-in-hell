@@ -36,8 +36,16 @@ function gaussianish(rng: Rng): number {
     return sum - 3;
 }
 
+export interface SpawnConfig {
+    positionSpread: number;  // σ for position gaussian (default 20)
+    floorSpread: number;     // σ for floor gaussian (default 5)
+    sameSide: boolean;       // force same side as player (default false)
+}
+
+const DEFAULT_SPAWN: SpawnConfig = { positionSpread: 20, floorSpread: 5, sameSide: false };
+
 /** Spawn NPCs near a player location. Names passed in from content. */
-export function spawnNPCs(playerLoc: Location, count: number, names: string[], rng: Rng): NPC[] {
+export function spawnNPCs(playerLoc: Location, count: number, names: string[], rng: Rng, config: SpawnConfig = DEFAULT_SPAWN): NPC[] {
     const npcs: NPC[] = [];
     const usedNames = new Set<number>();
     for (let i = 0; i < count; i++) {
@@ -49,14 +57,14 @@ export function spawnNPCs(playerLoc: Location, count: number, names: string[], r
             }
         }
         usedNames.add(nameIdx);
-        const posDelta = Math.round(gaussianish(rng) * 20);
-        const floorDelta = Math.round(gaussianish(rng) * 5);
+        const posDelta = Math.round(gaussianish(rng) * config.positionSpread);
+        const floorDelta = Math.round(gaussianish(rng) * config.floorSpread);
         const floor = Math.max(0, playerLoc.floor + floorDelta);
 
         npcs.push({
             id: i,
             name: names[nameIdx],
-            side: rng.next() < 0.5 ? 0 : 1,
+            side: config.sameSide ? playerLoc.side : (rng.next() < 0.5 ? 0 : 1),
             position: playerLoc.position + posDelta,
             floor,
             disposition: "calm",

@@ -175,10 +175,10 @@ Engine.register("Corridor", {
         html += '<p class="location-header">' + (state.side === 0 ? 'The Corridor' : 'The Other Corridor') + '</p>';
 
         if (state._lastMove === "up") {
-            html += '<p class="stair-notice">You ascend to floor ' + state.floor + '.</p>';
+            html += '<p class="stair-notice">You ascend.</p>';
             state._lastMove = null;
         } else if (state._lastMove === "down") {
-            html += '<p class="stair-notice">You descend to floor ' + state.floor + '.</p>';
+            html += '<p class="stair-notice">You descend.</p>';
             state._lastMove = null;
         }
         if (seg.lightLevel === "dim") {

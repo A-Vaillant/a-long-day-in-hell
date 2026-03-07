@@ -13,7 +13,13 @@ export const Npc = {
     init() {
         const rng = PRNG.fork("npc:spawn");
         const loc = { side: state.side, position: state.position, floor: state.floor };
-        state.npcs = spawnNPCs(loc, 8, TEXT.npc_names, rng);
+        // Tight spawn: same side, same floor, within a few segments.
+        // In the book, everyone arrives together at the sign.
+        state.npcs = spawnNPCs(loc, 8, TEXT.npc_names, rng, {
+            positionSpread: 3,
+            floorSpread: 0,
+            sameSide: true,
+        });
     },
     onDawn() {
         const moveRng = PRNG.fork("npc:move:" + state.day);
