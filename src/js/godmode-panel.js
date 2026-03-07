@@ -55,9 +55,7 @@ const TIPS = {
     exhaustion: "Fatigue. Auto-sleeps at rest areas when high.",
     bookIndex: "Which book in the gallery they're currently examining (0–191).",
     ticksSearched: "How many ticks spent searching at this position.",
-    patience: "Max ticks before giving up and moving on. Personality-driven.",
-    bestScore: "Best legibility score found this search session.",
-    active: "Whether actively searching bookshelves right now.",
+    patience: "Search stamina. Higher for patient, open NPCs. Shown as progress bar.",
     "prior faith": "Religion in life. Determines how hard the Zoroastrian revelation hits.",
     devotion: "How devout they were in life. Higher = harder the faith crisis.",
     "faith crisis": "How far their prior faith has crumbled. Grows over time.",
@@ -111,7 +109,7 @@ function bar(value, max, color) {
 // Each renderer: (comp, npc, snap) => html string (a gm-section)
 // Order array controls display order; unlisted components render last via fallback.
 
-const COMPONENT_ORDER = ["psychology", "needs", "belief", "personality", "searching", "relationships", "group", "habituation"];
+const COMPONENT_ORDER = ["psychology", "intent", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation"];
 
 const componentRenderers = {
     psychology(comp) {
@@ -183,21 +181,80 @@ const componentRenderers = {
         return html;
     },
 
+    intent(comp) {
+        const BEHAVIOR_LABELS = {
+            idle: "Idle",
+            explore: "Exploring",
+            seek_rest: "Seeking rest",
+            search: "Searching books",
+            return_home: "Heading home",
+            wander_mad: "Wandering (mad)",
+        };
+        const BEHAVIOR_COLORS = {
+            idle: "#888",
+            explore: "#b8a878",
+            seek_rest: "#4a8ab0",
+            search: "#6a8a5a",
+            return_home: "#c49530",
+            wander_mad: "#9a2a2a",
+        };
+        const label = BEHAVIOR_LABELS[comp.behavior] || comp.behavior;
+        const color = BEHAVIOR_COLORS[comp.behavior] || "#888";
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">behavior</div>';
+        html += '<div class="gm-stat"><span class="gm-tip" data-tip="Current goal. Chosen by utility scoring each tick.">intent</span>';
+        html += '<span class="gm-bar-num" style="color:' + color + '">' + esc(label) + '</span></div>';
+        if (comp.cooldown > 0) {
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Ticks before the arbiter can switch behaviors.">cooldown</span>';
+            html += '<span class="gm-bar-num">' + comp.cooldown + '</span></div>';
+        }
+        html += '</div>';
+        return html;
+    },
+
+    sleep(comp) {
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">sleep</div>';
+        if (comp.nomadic) {
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="No fixed home. Sleeps wherever they end up.">lifestyle</span>';
+            html += '<span class="gm-bar-num" style="color:#c49530">nomadic</span></div>';
+        } else {
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Rest area this NPC returns to each night.">home</span>';
+            html += '<span class="gm-bar-num">seg ' + comp.homeRestArea + '</span></div>';
+            if (comp.awayStreak > 0) {
+                html += '<div class="gm-stat"><span class="gm-tip" data-tip="Nights slept away from home. Home shifts after ' + 3 + '.">away streak</span>';
+                html += '<span class="gm-bar-num">' + comp.awayStreak + '</span></div>';
+            }
+        }
+        if (comp.asleep) {
+            html += '<div class="gm-stat"><span>status</span>';
+            html += '<span class="gm-bar-num" style="color:#6a8a5a">sleeping';
+            if (comp.bedIndex !== null) html += ' (bed ' + comp.bedIndex + ')';
+            html += '</span></div>';
+            if (comp.coSleepers && comp.coSleepers.length > 0) {
+                html += '<div class="gm-stat"><span class="gm-tip" data-tip="Sharing a bedroom. Familiarity grows overnight.">with</span>';
+                html += '<span class="gm-bar-num">' + comp.coSleepers.length + ' other' + (comp.coSleepers.length > 1 ? 's' : '') + '</span></div>';
+            }
+        }
+        html += '</div>';
+        return html;
+    },
+
     searching(comp) {
-        if (!comp.active && comp.bestScore <= 0) return "";
+        // Hide if never searched and not active
+        if (!comp.active && comp.bestScore <= 0 && comp.ticksSearched <= 0) return "";
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">searching</div>';
         if (comp.active) {
-            html += '<div class="gm-stat">' + tip("bookIndex") +
-                '<span class="gm-bar-num">' + comp.bookIndex + ' / 192</span></div>';
-            html += '<div class="gm-stat">' + tip("ticksSearched") +
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Currently examining a book for legible text.">status</span>';
+            html += '<span class="gm-bar-num" style="color:#6a8a5a">reading book ' + comp.bookIndex + '</span></div>';
+            html += '<div class="gm-stat">' + tip("patience") +
                 bar(comp.ticksSearched, comp.patience, "#b8a878") + '</div>';
-        } else {
-            html += '<div class="gm-stat"><span>idle</span><span class="gm-bar-num">not searching</span></div>';
         }
         if (comp.bestScore > 0) {
-            html += '<div class="gm-stat">' + tip("bestScore") +
-                bar(comp.bestScore, 0.5, "#6a8a5a") + '</div>';
+            const pct = Math.round(comp.bestScore * 100);
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Best legibility score found. English prose scores ~35-55%.">best find</span>';
+            html += '<span class="gm-bar-num">' + pct + '% coherent</span></div>';
         }
         html += '</div>';
         return html;
@@ -234,6 +291,9 @@ const componentRenderers = {
         html += '</div>';
         return html;
     },
+
+    // Movement internals — not useful to display
+    movement() { return ""; },
 
     habituation(comp) {
         if (!comp.exposures || Object.keys(comp.exposures).length === 0) return "";
@@ -316,9 +376,28 @@ function narrate(npc) {
         }
     }
 
+    // Intent
+    const intent = npc.components && npc.components.intent;
+    if (intent) {
+        if (intent.behavior === "search") parts.push("They are browsing bookshelves.");
+        else if (intent.behavior === "return_home") parts.push("They are heading home for the night.");
+        else if (intent.behavior === "seek_rest") parts.push("They need to rest.");
+        else if (intent.behavior === "wander_mad") parts.push("They are wandering erratically.");
+    }
+
+    // Sleep
+    const sleep = npc.components && npc.components.sleep;
+    if (sleep && sleep.asleep) {
+        if (sleep.coSleepers && sleep.coSleepers.length > 0) {
+            parts.push("They are sleeping among others.");
+        } else {
+            parts.push("They are sleeping alone.");
+        }
+    }
+
     if (npc.groupId !== null && npc.groupId !== undefined) {
         parts.push("They are traveling with others.");
-    } else {
+    } else if (!sleep || !sleep.asleep) {
         parts.push("They are alone.");
     }
 
