@@ -5,6 +5,7 @@
  */
 
 let callbacks = {};
+let lastHtml = "";
 
 const TRAIT_LABELS = {
     openness: "openness",
@@ -97,7 +98,10 @@ function renderList(snap, pane) {
     }
 
     html += '</div>';
-    pane.innerHTML = html;
+    if (html !== lastHtml) {
+        pane.innerHTML = html;
+        lastHtml = html;
+    }
 }
 
 function renderDetail(npc, snap, pane) {
@@ -177,12 +181,16 @@ function renderDetail(npc, snap, pane) {
     html += '</div>';
 
     html += '</div>';
-    pane.innerHTML = html;
+    if (html !== lastHtml) {
+        pane.innerHTML = html;
+        lastHtml = html;
+    }
 }
 
 export const GodmodePanel = {
     init(cbs) {
         callbacks = cbs || {};
+        lastHtml = "";
 
         // Event delegation — survives innerHTML rebuilds
         const pane = document.getElementById("gm-npc-pane");
