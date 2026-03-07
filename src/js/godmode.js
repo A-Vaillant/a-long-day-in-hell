@@ -402,9 +402,12 @@ function setupInput(canvas) {
             const hit = GodmodeMap.hitTest(x, y);
             if (hit !== null) {
                 selectedNpcId = hit;
-                followMode = true;
+                followMode = false;
+                const npc = state.npcs && state.npcs.find(n => n.id === hit);
+                if (npc) GodmodeMap.setSide(npc.side);
                 switchTab("npc");
             } else {
+                GodmodeMap.centerOnPixel(x, y);
                 selectedNpcId = null;
                 followMode = false;
             }
@@ -490,13 +493,17 @@ export const Godmode = {
         GodmodePanel.init({
             onSelect(id) {
                 selectedNpcId = id;
-                followMode = true;
+                followMode = false;
+                const npc = state.npcs && state.npcs.find(n => n.id === id);
+                if (npc) GodmodeMap.setSide(npc.side);
                 switchTab("npc");
                 render();
             },
             onCenter(id) {
                 selectedNpcId = id;
-                followMode = true;
+                followMode = false;
+                const npc = state.npcs && state.npcs.find(n => n.id === id);
+                if (npc) GodmodeMap.setSide(npc.side);
                 render();
             },
             onDeselect() {
