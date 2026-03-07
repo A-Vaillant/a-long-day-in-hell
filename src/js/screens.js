@@ -12,6 +12,7 @@ import { Tick } from "./tick.js";
 import { Npc } from "./npc.js";
 import { Despair } from "./despairing.js";
 import { Chasm } from "./chasm.js";
+import { Social } from "./social.js";
 
 function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -217,6 +218,22 @@ Engine.register("Corridor", {
                 html += '</p>';
             }
             html += '</div>';
+        }
+
+        // Ambient muttering from nearby NPCs (within hearing range, not here)
+        const mutterers = Social.getNearbyMutterers();
+        if (mutterers.length > 0) {
+            // Show at most 2 mutterings to avoid clutter
+            const shown = mutterers.slice(0, 2);
+            for (let mi = 0; mi < shown.length; mi++) {
+                const m = shown[mi];
+                const pool = TEXT.npc_dialogue["muttering_" + m.disposition];
+                if (pool && pool.length > 0) {
+                    const rng = seedFromString("mutter:" + m.id + ":" + state.tick);
+                    const line = pool[rng.nextInt(pool.length)];
+                    html += '<p class="muttering muttering-' + m.disposition + '">' + esc(line) + '</p>';
+                }
+            }
         }
 
         if (seg.restArea) {

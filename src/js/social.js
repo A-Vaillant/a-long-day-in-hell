@@ -12,7 +12,7 @@ import {
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, PLAYER, AI, GROUP,
     deriveDisposition, psychologyDecaySystem, relationshipSystem,
-    groupFormationSystem, socialPressureSystem,
+    groupFormationSystem, socialPressureSystem, segmentDistance,
 } from "../../lib/social.core.js";
 import { HABITUATION } from "../../lib/psych.core.js";
 import { PERSONALITY, generatePersonality } from "../../lib/personality.core.js";
@@ -192,5 +192,35 @@ export const Social = {
             });
         }
         return members;
+    },
+
+    /**
+     * Get NPCs the player can hear but not see (nearby, not co-located).
+     * Returns array of { name, disposition, distance } sorted by distance.
+     */
+    getNearbyMutterers() {
+        if (!world || playerEntity === null || !state.npcs) return [];
+        const playerPos = getComponent(world, playerEntity, POSITION);
+        if (!playerPos) return [];
+
+        const result = [];
+        for (const npc of state.npcs) {
+            if (!npc.alive) continue;
+            const ent = npcEntities.get(npc.id);
+            if (ent === undefined) continue;
+            const npcPos = getComponent(world, ent, POSITION);
+            if (!npcPos) continue;
+            const dist = segmentDistance(playerPos, npcPos);
+            // Nearby but not here (distance 1–3 on same side/floor)
+            if (dist > 0 && dist <= 3) {
+                const psych = getComponent(world, ent, PSYCHOLOGY);
+                const disp = psych ? deriveDisposition(psych, true) : "calm";
+                // Catatonic NPCs don't mutter
+                if (disp === "catatonic") continue;
+                result.push({ name: npc.name, disposition: disp, distance: dist, id: npc.id });
+            }
+        }
+        result.sort((a, b) => a.distance - b.distance);
+        return result;
     },
 };

@@ -2,13 +2,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { bootGame } from "./dom-harness.js";
 
-/** Extract the corridor prose text (excludes debug panel, location header, controls). */
+/** Extract the static corridor prose (madlib descriptions + features only). */
 function getCorridorProse(document) {
     const view = document.getElementById("corridor-view");
     if (!view) return "";
-    const paras = view.querySelectorAll(
-        "p:not(.location-header):not(.shelf-hint):not(.warnings):not(.dim-notice):not(.despair-notice):not(.npc-entry):not(.stair-notice)"
-    );
+    // Select only the elements that should be deterministic for a location:
+    // madlib paragraphs (no class) and feature paragraphs (.feature)
+    const paras = view.querySelectorAll("p:not([class]), p.feature");
     return Array.from(paras).map(p => p.textContent).join("\n");
 }
 

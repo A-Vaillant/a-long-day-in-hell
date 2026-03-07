@@ -826,6 +826,21 @@ button:disabled {
     font-style: italic;
 }
 
+.muttering {
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 0.88em;
+    margin: 0.3rem 0;
+    opacity: 0.7;
+}
+.muttering-mad {
+    color: #9a2a2a;
+    opacity: 0.85;
+}
+.muttering-anxious {
+    color: #8b6914;
+}
+
 /* === LIFE STORY === */
 
 #lifestory-view {

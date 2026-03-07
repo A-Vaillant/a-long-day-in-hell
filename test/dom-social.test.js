@@ -98,6 +98,80 @@ describe("DOM: Social sidebar — group display", () => {
     });
 });
 
+describe("DOM: Ambient muttering", () => {
+    it("getNearbyMutterers returns NPCs within hearing range but not co-located", () => {
+        const game = bootGame();
+        // Place an NPC 2 segments away, same side/floor
+        const npc = game.state.npcs[0];
+        npc.side = game.state.side;
+        npc.position = game.state.position + 2;
+        npc.floor = game.state.floor;
+        game.Social.syncNpcPositions();
+        game.Social.syncPlayerPosition();
+
+        const mutterers = game.Social.getNearbyMutterers();
+        assert.ok(mutterers.some(m => m.id === npc.id), "nearby NPC is a mutterer");
+    });
+
+    it("co-located NPCs are not mutterers", () => {
+        const game = bootGame();
+        const npc = game.state.npcs[0];
+        npc.side = game.state.side;
+        npc.position = game.state.position;
+        npc.floor = game.state.floor;
+        game.Social.syncNpcPositions();
+        game.Social.syncPlayerPosition();
+
+        const mutterers = game.Social.getNearbyMutterers();
+        assert.ok(!mutterers.some(m => m.id === npc.id), "co-located NPC is not a mutterer");
+    });
+
+    it("NPCs beyond hearing range are not mutterers", () => {
+        const game = bootGame();
+        const npc = game.state.npcs[0];
+        npc.side = game.state.side;
+        npc.position = game.state.position + 10;
+        npc.floor = game.state.floor;
+        game.Social.syncNpcPositions();
+        game.Social.syncPlayerPosition();
+
+        const mutterers = game.Social.getNearbyMutterers();
+        assert.ok(!mutterers.some(m => m.id === npc.id), "distant NPC is not a mutterer");
+    });
+
+    it("catatonic NPCs do not mutter", () => {
+        const game = bootGame();
+        const npc = game.state.npcs[0];
+        npc.side = game.state.side;
+        npc.position = game.state.position + 1;
+        npc.floor = game.state.floor;
+        game.Social.syncNpcPositions();
+
+        // Force catatonic
+        const npcEnt = game.Social.getNpcEntity(npc.id);
+        const psych = getComponent(game.Social.getWorld(), npcEnt, "psychology");
+        psych.hope = 5;
+        game.Social.onTick();
+
+        const mutterers = game.Social.getNearbyMutterers();
+        assert.ok(!mutterers.some(m => m.id === npc.id), "catatonic NPC does not mutter");
+    });
+
+    it("corridor renders muttering text for nearby NPCs", () => {
+        const game = bootGame();
+        // Place NPC 1 segment away
+        const npc = game.state.npcs[0];
+        npc.side = game.state.side;
+        npc.position = game.state.position + 1;
+        npc.floor = game.state.floor;
+        game.Social.syncNpcPositions();
+
+        game.Engine.goto("Corridor");
+        const mutterings = game.document.querySelectorAll(".muttering");
+        assert.ok(mutterings.length > 0, "muttering text shown in corridor");
+    });
+});
+
 describe("DOM: Social bridge — psychology sync", () => {
     it("player psychology accessible and starts at 100/100", () => {
         const game = bootGame();

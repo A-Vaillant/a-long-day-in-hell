@@ -57,6 +57,33 @@
       "lies still on the carpet. They'll be back at dawn.",
       "is crumpled near the wall. Not breathing. Tomorrow.",
       "lies face down between the shelves. Temporary."
+    ],
+
+    "muttering_calm": [
+      "You hear someone turning pages nearby.",
+      "Quiet footsteps echo from a few galleries over.",
+      "Someone coughs in the distance.",
+      "You hear a book being slid back onto a shelf.",
+      "A voice, too far to make out the words.",
+      "Someone sighs, a few corridors away.",
+      "Faint humming drifts down the corridor.",
+      "You hear someone walking. Steady, unhurried."
+    ],
+    "muttering_anxious": [
+      "Someone is pacing nearby. Back and forth.",
+      "A muttered voice, tight and rapid. You can't make out the words.",
+      "You hear someone breathing hard a few galleries over.",
+      "Restless footsteps. Someone who can't sit still.",
+      "A sound like someone hitting a shelf. Then silence.",
+      "Quiet sobbing from somewhere down the corridor."
+    ],
+    "muttering_mad": [
+      "Shouting echoes from down the corridor. Incoherent.",
+      "Someone is screaming about the books. The words don't make sense.",
+      "A ranting voice, rising and falling. Getting closer? No. Staying put.",
+      "You hear tearing paper. Then laughter.",
+      "Someone is howling. The sound bounces off the shelves.",
+      "A voice is reciting numbers. Loudly. Over and over."
     ]
   }
 }
