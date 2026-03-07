@@ -23,8 +23,11 @@ function makeNpc(overrides) {
     return {
         id: 0, name: "Soren", side: 0, position: 10, floor: 50,
         disposition: "calm", alive: true, lucidity: 80, hope: 60,
-        personality: { openness: 0.7, agreeableness: 0.5, resilience: 0.3, sociability: 0.8, curiosity: 0.6 },
         bonds: [], groupId: null,
+        components: {
+            psychology: { lucidity: 80, hope: 60 },
+            personality: { openness: 0.7, agreeableness: 0.5, resilience: 0.3, sociability: 0.8, curiosity: 0.6 },
+        },
         ...overrides,
     };
 }
@@ -150,12 +153,31 @@ describe("GodmodePanel — NPC detail", () => {
     });
 
     it("shows bonds", () => {
+        const bonds = [{ name: "Rachel", familiarity: 5, affinity: 3 }];
         const snap = makeSnap([makeNpc({
-            bonds: [{ name: "Rachel", familiarity: 5, affinity: 3 }],
+            bonds,
+            components: {
+                psychology: { lucidity: 80, hope: 60 },
+                relationships: { bonds },
+            },
         })]);
         GodmodePanel.update(snap, 0);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.innerHTML.includes("Rachel"));
+    });
+
+    it("auto-renders unknown ECS components via fallback", () => {
+        const snap = makeSnap([makeNpc({
+            components: {
+                psychology: { lucidity: 80, hope: 60 },
+                mysticism: { aura: 0.42, alignment: "chaotic" },
+            },
+        })]);
+        GodmodePanel.update(snap, 0);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(pane.innerHTML.includes("mysticism"), "section title");
+        assert.ok(pane.innerHTML.includes("aura"), "numeric field");
+        assert.ok(pane.innerHTML.includes("chaotic"), "string field");
     });
 
     it("shows clickable location", () => {
