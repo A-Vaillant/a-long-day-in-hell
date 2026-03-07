@@ -20,6 +20,9 @@ import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts"
 import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
 import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
+import { SEARCHING, searchSystem } from "../../lib/search.core.ts";
+import { INTENT, intentSystem } from "../../lib/intent.core.ts";
+import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.js";
 import { state } from "./state.js";
@@ -73,6 +76,8 @@ export const Social = {
                 addComponent(world, ent, HABITUATION, { exposures: new Map() });
                 addComponent(world, ent, NEEDS, { hunger: 0, thirst: 0, exhaustion: 0 });
                 addComponent(world, ent, MOVEMENT, { intent: "idle", targetPosition: null, moveAccum: 0 });
+                addComponent(world, ent, SEARCHING, { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0 });
+                addComponent(world, ent, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
                 addComponent(world, ent, AI, {});
 
                 // NPC personality seeded from their name + game seed
@@ -152,10 +157,22 @@ export const Social = {
         groupFormationSystem(world, undefined, prebuilt);
         socialPressureSystem(world, undefined, undefined, undefined, n);
 
-        // Needs + movement (after social systems)
+        // Needs (before intent evaluation — intent reads needs)
         needsSystem(world, state.lightsOn, undefined, n);
+
+        // Intent arbiter (before movement/search — they read intent)
+        const intentRng = seedFromString(state.seed + ":npc:intent:" + currentTick);
+        intentSystem(world, intentRng);
+
+        // Movement (only for explore/seek_rest/wander_mad intents)
         const moveRng = seedFromString(state.seed + ":npc:move:" + currentTick);
         movementSystem(world, moveRng, undefined, n);
+
+        // Book searching (only for search intent)
+        const searchRng = seedFromString(state.seed + ":npc:search:" + currentTick);
+        const pageSampler = (side, position, floor, bookIndex, pageIndex) =>
+            generateBookPage(side, position, floor, bookIndex, pageIndex, state.seed);
+        searchSystem(world, searchRng, pageSampler);
 
         // Sync ECS positions back to state.npcs (every tick now, not just dawn)
         for (const npc of state.npcs) {
