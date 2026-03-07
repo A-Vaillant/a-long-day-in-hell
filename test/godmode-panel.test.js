@@ -26,7 +26,7 @@ function makeNpc(overrides) {
         bonds: [], groupId: null,
         components: {
             psychology: { lucidity: 80, hope: 60 },
-            personality: { openness: 0.7, agreeableness: 0.5, resilience: 0.3, sociability: 0.8, curiosity: 0.6 },
+            personality: { temperament: 0.5, pace: 0.3, openness: 0.7, outlook: 0.6 },
         },
         ...overrides,
     };
@@ -149,7 +149,7 @@ describe("GodmodePanel — NPC detail", () => {
         GodmodePanel.update(makeSnap(), 0);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.innerHTML.includes("openness"));
-        assert.ok(pane.innerHTML.includes("sociability"));
+        assert.ok(pane.innerHTML.includes("temperament"));
     });
 
     it("shows bonds", () => {

@@ -43,6 +43,44 @@ const DISP_SHORT = {
     catatonic: "cat",
 };
 
+const TIPS = {
+    lucidity: "Mental clarity. Low lucidity → madness, violence.",
+    hope: "Will to continue. Low hope → catatonia, shutdown.",
+    "prior faith": "Religion in life. Determines how hard the Zoroastrian revelation hits.",
+    devotion: "How devout they were in life. Higher = harder the faith crisis.",
+    "faith crisis": "How far their prior faith has crumbled. Grows over time.",
+    faithCrisis: "How far their prior faith has crumbled. Grows over time.",
+    acceptance: "How much they've accepted the Zoroastrian reality of this place.",
+    stance: "Current worldview forged by hell.",
+    undecided: "Haven't committed to a worldview yet.",
+    seeker: "Accepted the rules. Searching for their book with purpose.",
+    direite: "God spoke — scourge them. Meaning through violence.",
+    nihilist: "Nothing means anything. Precursor to catatonia.",
+    holdout: "Clinging to prior faith. \"This is a test from God.\"",
+    temperament: "Stress response. Withdrawn (0) ↔ volatile (1). Volatile → madness. Withdrawn → despair.",
+    pace: "Tolerance for staying put. Patient (0) ↔ restless (1).",
+    openness: "How readily they let people in. Guarded (0) ↔ open (1).",
+    outlook: "How they frame being here. Accepting (0) ↔ resistant (1).",
+    fam: "Familiarity — time spent together. Grows with proximity.",
+    aff: "Affinity — how they feel about each other. Can go negative.",
+    calm: "Functional. Lucidity and hope both adequate.",
+    anxious: "Strained. Lucidity or hope dropping.",
+    mad: "Lucidity collapsed. Erratic, potentially violent.",
+    catatonic: "Hope collapsed. Unresponsive. May not recover.",
+    witnessChasm: "Saw someone jump into the chasm. Devastating at first.",
+    beingKilled: "Died and came back. Terrifying, then routine.",
+    companionMad: "A companion went mad. Personal. Slow to numb.",
+    beingDismissed: "Abandoned or rejected. Pure hope damage.",
+    witnessAttack: "Saw violence. Goes numb fastest.",
+    committingViolence: "Killed someone. Costs clarity and hope.",
+};
+
+function tip(label) {
+    const desc = TIPS[label];
+    if (!desc) return '<span>' + esc(label) + '</span>';
+    return '<span class="gm-tip" data-tip="' + esc(desc) + '">' + esc(label) + '</span>';
+}
+
 function miniBar(value, max, color) {
     const pct = Math.max(0, Math.min(100, (value / max) * 100));
     return '<div class="gm-mini-bar"><div class="gm-mini-bar-fill" style="width:' + pct +
@@ -68,9 +106,9 @@ const componentRenderers = {
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">psychology</div>';
         if (comp.lucidity !== undefined)
-            html += '<div class="gm-stat"><span>lucidity</span>' + bar(comp.lucidity, 100, "#b8a878") + '</div>';
+            html += '<div class="gm-stat">' + tip("lucidity") + bar(comp.lucidity, 100, "#b8a878") + '</div>';
         if (comp.hope !== undefined)
-            html += '<div class="gm-stat"><span>hope</span>' + bar(comp.hope, 100, "#6a8a5a") + '</div>';
+            html += '<div class="gm-stat">' + tip("hope") + bar(comp.hope, 100, "#6a8a5a") + '</div>';
         html += '</div>';
         return html;
     },
@@ -80,7 +118,7 @@ const componentRenderers = {
         html += '<div class="gm-section-title">personality</div>';
         for (const key in comp) {
             if (typeof comp[key] === "number") {
-                html += '<div class="gm-stat"><span>' + esc(key) + '</span>' +
+                html += '<div class="gm-stat">' + tip(key) +
                     bar(comp[key], 1, "#7a7060") + '</div>';
             }
         }
@@ -93,27 +131,27 @@ const componentRenderers = {
         html += '<div class="gm-section-title">belief</div>';
         if (comp.faith !== undefined) {
             const label = FAITH_LABELS[comp.faith] || comp.faith;
-            html += '<div class="gm-stat"><span>prior faith</span><span class="gm-bar-num">' + esc(label) + '</span></div>';
+            html += '<div class="gm-stat">' + tip("prior faith") + '<span class="gm-bar-num">' + esc(label) + '</span></div>';
         }
         if (comp.devotion !== undefined)
-            html += '<div class="gm-stat"><span>devotion</span>' + bar(comp.devotion, 1, "#b8a878") + '</div>';
+            html += '<div class="gm-stat">' + tip("devotion") + bar(comp.devotion, 1, "#b8a878") + '</div>';
         if (comp.faithCrisis !== undefined)
-            html += '<div class="gm-stat"><span>faith crisis</span>' + bar(comp.faithCrisis, 1, "#c49530") + '</div>';
+            html += '<div class="gm-stat">' + tip("faith crisis") + bar(comp.faithCrisis, 1, "#c49530") + '</div>';
         if (comp.acceptance !== undefined)
-            html += '<div class="gm-stat"><span>acceptance</span>' + bar(comp.acceptance, 1, "#6a8a5a") + '</div>';
+            html += '<div class="gm-stat">' + tip("acceptance") + bar(comp.acceptance, 1, "#6a8a5a") + '</div>';
         if (comp.stance !== undefined) {
             const label = STANCE_LABELS[comp.stance] || comp.stance;
             const color = STANCE_COLORS[comp.stance] || "#888";
-            html += '<div class="gm-stat"><span>stance</span><span class="gm-bar-num" style="color:' + color + '">' + esc(label) + '</span></div>';
+            html += '<div class="gm-stat">' + tip("stance") + '<span class="gm-bar-num gm-tip" data-tip="' + esc(TIPS[comp.stance] || "") + '" style="color:' + color + '">' + esc(label) + '</span></div>';
         }
         // Render any other belief fields generically
         for (const key in comp) {
             if (["faith", "devotion", "faithCrisis", "acceptance", "stance"].includes(key)) continue;
             const val = comp[key];
             if (typeof val === "number") {
-                html += '<div class="gm-stat"><span>' + esc(key) + '</span>' + bar(val, 1, "#c49530") + '</div>';
+                html += '<div class="gm-stat">' + tip(key) + bar(val, 1, "#c49530") + '</div>';
             } else if (typeof val === "string") {
-                html += '<div class="gm-stat"><span>' + esc(key) + '</span><span class="gm-bar-num">' + esc(val) + '</span></div>';
+                html += '<div class="gm-stat">' + tip(key) + '<span class="gm-bar-num">' + esc(val) + '</span></div>';
             }
         }
         html += '</div>';
@@ -129,8 +167,8 @@ const componentRenderers = {
             if (bond.familiarity < 0.5) continue;
             html += '<div class="gm-bond">';
             html += '<span class="gm-bond-name">' + esc(bond.name) + '</span>';
-            html += '<span class="gm-bond-fam">fam ' + Math.round(bond.familiarity) + '</span>';
-            html += '<span class="gm-bond-aff ' + (bond.affinity >= 0 ? 'gm-aff-pos' : 'gm-aff-neg') + '">' +
+            html += '<span class="gm-bond-fam gm-tip" data-tip="' + esc(TIPS.fam) + '">fam ' + Math.round(bond.familiarity) + '</span>';
+            html += '<span class="gm-bond-aff gm-tip ' + (bond.affinity >= 0 ? 'gm-aff-pos' : 'gm-aff-neg') + '" data-tip="' + esc(TIPS.aff) + '">' +
                 'aff ' + (bond.affinity >= 0 ? '+' : '') + Math.round(bond.affinity) + '</span>';
             html += '</div>';
         }
@@ -159,10 +197,10 @@ const componentRenderers = {
         for (const name in comp.exposures) {
             const val = comp.exposures[name];
             if (typeof val === "number") {
-                html += '<div class="gm-stat"><span>' + esc(name) + '</span>' +
+                html += '<div class="gm-stat">' + tip(name) +
                     bar(val, 10, "#6a6050") + '</div>';
             } else if (typeof val === "object" && val !== null) {
-                html += '<div class="gm-stat"><span>' + esc(name) + '</span>' +
+                html += '<div class="gm-stat">' + tip(name) +
                     '<span class="gm-bar-num">' + esc(JSON.stringify(val)) + '</span></div>';
             }
         }
@@ -178,16 +216,16 @@ function renderComponentFallback(key, comp) {
         const val = comp[field];
         if (typeof val === "number") {
             const max = val > 1 ? 100 : 1;
-            html += '<div class="gm-stat"><span>' + esc(field) + '</span>' +
+            html += '<div class="gm-stat">' + tip(field) +
                 bar(val, max, "#6a6050") + '</div>';
         } else if (typeof val === "string") {
-            html += '<div class="gm-stat"><span>' + esc(field) + '</span>' +
+            html += '<div class="gm-stat">' + tip(field) +
                 '<span class="gm-bar-num">' + esc(val) + '</span></div>';
         } else if (typeof val === "boolean") {
-            html += '<div class="gm-stat"><span>' + esc(field) + '</span>' +
+            html += '<div class="gm-stat">' + tip(field) +
                 '<span class="gm-bar-num">' + (val ? "yes" : "no") + '</span></div>';
         } else if (val !== null && val !== undefined) {
-            html += '<div class="gm-stat"><span>' + esc(field) + '</span>' +
+            html += '<div class="gm-stat">' + tip(field) +
                 '<span class="gm-bar-num gm-bar-num-wrap">' + esc(JSON.stringify(val)) + '</span></div>';
         }
     }
@@ -289,7 +327,7 @@ function renderDetail(npc, snap, pane) {
     // Identity (always present, from flat fields)
     html += '<div class="gm-section gm-identity">';
     html += '<div class="gm-name">' + esc(npc.name) + '</div>';
-    html += '<div class="gm-disp gm-disp-' + npc.disposition + '">' + npc.disposition + '</div>';
+    html += '<div class="gm-disp gm-disp-' + npc.disposition + ' gm-tip" data-tip="' + esc(TIPS[npc.disposition] || "") + '">' + npc.disposition + '</div>';
     if (!npc.alive) html += '<div class="gm-dead-tag">dead</div>';
     html += '</div>';
 
