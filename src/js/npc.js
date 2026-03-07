@@ -1,7 +1,7 @@
 /* NPC wrapper — spawn, movement, deterioration, dialogue. */
 
 import {
-    DISPOSITIONS, spawnNPCs, moveNPCs, getNPCsAt, interactText, deteriorate,
+    DISPOSITIONS, spawnNPCs, getNPCsAt, interactText,
 } from "../../lib/npc.core.ts";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
@@ -40,10 +40,8 @@ export const Npc = {
         state.npcs = nearby.concat(scattered, mad);
     },
     onDawn() {
-        const moveRng = PRNG.fork("npc:move:" + state.day);
-        state.npcs = moveNPCs(state.npcs, moveRng);
-        // Disposition now derived from ECS psychology (Social.onTick),
-        // old deteriorate() removed — decay is continuous, not daily dice.
+        // Movement is now per-tick via ECS (movementSystem in Social.onTick).
+        // Disposition derived from ECS psychology (Social.onTick).
     },
     here() {
         if (!state.npcs) return [];
