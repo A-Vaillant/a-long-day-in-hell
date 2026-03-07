@@ -469,7 +469,7 @@ function runSimulation() {
     const dayLog = [];
     let lastView = null;
 
-    console.log(`A Short Stay in Hell — Social Simulation (${ENTITY_COUNT} souls, seed "${SEED}")`);
+    console.log(`A Long Day in Hell — Social Simulation (${ENTITY_COUNT} souls, seed "${SEED}")`);
     console.log(`${"─".repeat(60)}`);
 
     for (let day = 1; day <= MAX_DAYS; day++) {

@@ -1,4 +1,4 @@
-# Death & Resurrection — *A Short Stay in Hell*
+# Death & Resurrection — *A Long Day in Hell*
 
 ## Source Canon
 

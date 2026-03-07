@@ -1,4 +1,4 @@
-# A Short Stay in Hell
+# A Long Day in Hell
 
 A 7DRL (7-Day Roguelike) based on the novella *A Short Stay in Hell* by Steven L. Peck, itself inspired by Borges' *The Library of Babel*.
 

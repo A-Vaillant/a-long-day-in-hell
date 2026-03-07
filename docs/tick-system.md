@@ -1,4 +1,4 @@
-# Tick System Spec — *A Short Stay in Hell*
+# Tick System Spec — *A Long Day in Hell*
 
 ## Source Canon
 

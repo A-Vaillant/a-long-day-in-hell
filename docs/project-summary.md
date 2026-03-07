@@ -1,4 +1,4 @@
-# Project Summary: A Short Stay in Hell
+# Project Summary: A Long Day in Hell
 
 Vanilla JS roguelike based on Steven L. Peck's novella. 7DRL jam project (March 4–10, 2026). Single-file build output (`dist/index.html`), no framework dependencies.
 

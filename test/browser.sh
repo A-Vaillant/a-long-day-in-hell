@@ -77,7 +77,7 @@ assert_not_null() { [[ "$2" != "null" ]] && [[ -n "$2" ]] && pass "$1" || fail "
 echo "▶ corridor"
 
 title=$(shot-scraper javascript "$URL" "document.title" 2>/dev/null)
-assert_eq        "title" "$title" '"A Short Stay in Hell"'
+assert_eq        "title" "$title" '"A Long Day in Hell"'
 
 corridor=$(js "$URL" "#corridor-view" "document.querySelector('#corridor-view')?.innerText ?? null")
 assert_contains  "renders corridor text"    "$corridor" "corridor"

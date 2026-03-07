@@ -1,6 +1,6 @@
 # Game Systems Reference
 
-All systems for *A Short Stay in Hell*. Each section covers: what it does, where it lives, what state it touches, and what's missing.
+All systems for *A Long Day in Hell*. Each section covers: what it does, where it lives, what state it touches, and what's missing.
 
 ---
 
