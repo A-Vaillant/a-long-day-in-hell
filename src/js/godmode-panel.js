@@ -51,6 +51,11 @@ const TIPS = {
     hunger: "Food need. Accumulates over time. Death at 100.",
     thirst: "Water need. Accumulates faster than hunger. Death at 100.",
     exhaustion: "Fatigue. Auto-sleeps at rest areas when high.",
+    bookIndex: "Which book in the gallery they're currently examining (0–191).",
+    ticksSearched: "How many ticks spent searching at this position.",
+    patience: "Max ticks before giving up and moving on. Personality-driven.",
+    bestScore: "Best legibility score found this search session.",
+    active: "Whether actively searching bookshelves right now.",
     "prior faith": "Religion in life. Determines how hard the Zoroastrian revelation hits.",
     devotion: "How devout they were in life. Higher = harder the faith crisis.",
     "faith crisis": "How far their prior faith has crumbled. Grows over time.",
@@ -104,7 +109,7 @@ function bar(value, max, color) {
 // Each renderer: (comp, npc, snap) => html string (a gm-section)
 // Order array controls display order; unlisted components render last via fallback.
 
-const COMPONENT_ORDER = ["psychology", "needs", "belief", "personality", "relationships", "group", "habituation"];
+const COMPONENT_ORDER = ["psychology", "needs", "belief", "personality", "searching", "relationships", "group", "habituation"];
 
 const componentRenderers = {
     psychology(comp) {
@@ -171,6 +176,26 @@ const componentRenderers = {
             } else if (typeof val === "string") {
                 html += '<div class="gm-stat">' + tip(key) + '<span class="gm-bar-num">' + esc(val) + '</span></div>';
             }
+        }
+        html += '</div>';
+        return html;
+    },
+
+    searching(comp) {
+        if (!comp.active && comp.bestScore <= 0) return "";
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">searching</div>';
+        if (comp.active) {
+            html += '<div class="gm-stat">' + tip("bookIndex") +
+                '<span class="gm-bar-num">' + comp.bookIndex + ' / 192</span></div>';
+            html += '<div class="gm-stat">' + tip("ticksSearched") +
+                bar(comp.ticksSearched, comp.patience, "#b8a878") + '</div>';
+        } else {
+            html += '<div class="gm-stat"><span>idle</span><span class="gm-bar-num">not searching</span></div>';
+        }
+        if (comp.bestScore > 0) {
+            html += '<div class="gm-stat">' + tip("bestScore") +
+                bar(comp.bestScore, 0.5, "#6a8a5a") + '</div>';
         }
         html += '</div>';
         return html;
