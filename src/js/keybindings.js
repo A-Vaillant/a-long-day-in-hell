@@ -232,6 +232,67 @@ document.addEventListener("keydown", function (ev) {
             return;
         }
         return;
+    } else if (screen === "Talk Pick") {
+        if (key >= "1" && key <= "9") {
+            ev.preventDefault();
+            const idx = parseInt(key) - 1;
+            const links = document.querySelectorAll(".talk-pick-npc");
+            if (idx < links.length) links[idx].click();
+            return;
+        }
+        if (key === "q" || key === "Escape") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
+        return;
+    } else if (screen === "Talk") {
+        switch (key) {
+            case "1":
+                ev.preventDefault();
+                { const btn = document.getElementById("talk-kind"); if (btn) btn.click(); }
+                return;
+            case "2":
+                ev.preventDefault();
+                { const btn = document.getElementById("talk-neutral"); if (btn) btn.click(); }
+                return;
+            case "3":
+                ev.preventDefault();
+                { const btn = document.getElementById("talk-dismissive"); if (btn) btn.click(); }
+                return;
+            case "w":
+                ev.preventDefault();
+                { const btn = document.getElementById("talk-spend-time"); if (btn) btn.click(); }
+                return;
+            case "i":
+                ev.preventDefault();
+                { const btn = document.getElementById("talk-recruit"); if (btn) btn.click(); }
+                return;
+            case "q": case "Escape":
+                ev.preventDefault();
+                Engine.goto("Corridor");
+                return;
+        }
+        return;
+    } else if (screen === "Talk Result" || screen === "Spend Time Result") {
+        if (key === "Enter" || key === " " || key === "e") {
+            ev.preventDefault();
+            Engine.goto("Talk");
+            return;
+        }
+        if (key === "Escape") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
+        return;
+    } else if (screen === "Recruit Result") {
+        if (key === "Enter" || key === " " || key === "e" || key === "Escape") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
+        return;
     } else if (screen === "Death") {
         if (key === "Enter" || key === " " || key === "e") {
             ev.preventDefault();
@@ -314,6 +375,12 @@ document.addEventListener("keydown", function (ev) {
             ev.preventDefault();
             const rseg = Lib.getSegment(state.side, state.position, state.floor);
             if (rseg.restArea) Engine.goto("Sign");
+            break;
+        }
+        case "t": {
+            ev.preventDefault();
+            const talkLink = document.getElementById("corridor-talk");
+            if (talkLink) talkLink.click();
             break;
         }
         case "~":

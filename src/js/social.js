@@ -25,6 +25,9 @@ import { SEARCHING, searchSystem, scoreFromSeed } from "../../lib/search.core.ts
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
 import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment } from "../../lib/knowledge.core.ts";
+import {
+    talkTo, spendTime as spendTimeCore, recruit as recruitCore,
+} from "../../lib/interaction.core.ts";
 import { isRestArea } from "../../lib/library.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
@@ -602,6 +605,46 @@ export const Social = {
         if (entity === null) return [];
         const rng = seedFromString(state.seed + ":actions:" + state.tick);
         return getAvailableBehaviors(world, entity, rng, state.tick);
+    },
+
+    // --- Player social actions ---
+
+    talk(npcId, approach) {
+        if (!world || playerEntity === null) return { success: false, reason: "no_world" };
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined) return { success: false, reason: "not_found" };
+        const currentTick = (state.day - 1) * 240 + state.tick;
+        this.syncPlayerPosition();
+        return talkTo(world, playerEntity, ent, approach, currentTick);
+    },
+
+    spendTimeWith(npcId) {
+        if (!world || playerEntity === null) return { success: false, reason: "no_world" };
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined) return { success: false, reason: "not_found" };
+        const currentTick = (state.day - 1) * 240 + state.tick;
+        this.syncPlayerPosition();
+        return spendTimeCore(world, playerEntity, ent, currentTick);
+    },
+
+    recruit(npcId) {
+        if (!world || playerEntity === null) return { success: false, reason: "no_world", joined: false };
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined) return { success: false, reason: "not_found", joined: false };
+        const currentTick = (state.day - 1) * 240 + state.tick;
+        this.syncPlayerPosition();
+        return recruitCore(world, playerEntity, ent, currentTick);
+    },
+
+    getBond(npcId) {
+        if (!world || playerEntity === null) return null;
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined) return null;
+        const rels = getComponent(world, playerEntity, RELATIONSHIPS);
+        if (!rels) return null;
+        const bond = rels.bonds.get(ent);
+        if (!bond) return null;
+        return { familiarity: bond.familiarity, affinity: bond.affinity };
     },
 
     /**
