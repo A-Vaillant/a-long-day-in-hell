@@ -167,6 +167,14 @@ describe("GodmodeLog filters", () => {
         assert.strictEqual(filtered.length, 0);
     });
 
+    it("getFiltered with no now arg ignores time filter", () => {
+        GodmodeLog.push({ tick: 1, day: 1, type: "death", text: "old" });
+        GodmodeLog.setTimeFilter("1h");
+        // no now passed — time filter skipped
+        const filtered = GodmodeLog.getFiltered(100);
+        assert.strictEqual(filtered.length, 1);
+    });
+
     it("toggle + getFiltered simulates click-to-filter flow", () => {
         // Simulate: events arrive, user clicks "bond" filter off, bond events disappear
         GodmodeLog.push({ tick: 1, day: 1, type: "bond", text: "A met B" });
@@ -185,5 +193,92 @@ describe("GodmodeLog filters", () => {
         // User clicks "bond" again to re-enable
         GodmodeLog.toggleFilter("bond");
         assert.strictEqual(GodmodeLog.getFiltered(100).length, 3);
+    });
+});
+
+describe("GodmodeLog time filter", () => {
+    beforeEach(() => {
+        GodmodeLog.init();
+    });
+
+    it("defaults to 'all'", () => {
+        assert.strictEqual(GodmodeLog.getTimeFilter(), "all");
+    });
+
+    it("setTimeFilter changes value", () => {
+        GodmodeLog.setTimeFilter("1h");
+        assert.strictEqual(GodmodeLog.getTimeFilter(), "1h");
+    });
+
+    it("setTimeFilter ignores invalid values", () => {
+        GodmodeLog.setTimeFilter("bogus");
+        assert.strictEqual(GodmodeLog.getTimeFilter(), "all");
+    });
+
+    it("init resets time filter to 'all'", () => {
+        GodmodeLog.setTimeFilter("4h");
+        GodmodeLog.init();
+        assert.strictEqual(GodmodeLog.getTimeFilter(), "all");
+    });
+
+    it("'all' shows everything regardless of age", () => {
+        GodmodeLog.push({ tick: 10, day: 1, type: "death", text: "ancient" });
+        GodmodeLog.push({ tick: 200, day: 5, type: "death", text: "recent" });
+        const now = { day: 10, tick: 100 };
+        const filtered = GodmodeLog.getFiltered(100, now);
+        assert.strictEqual(filtered.length, 2);
+    });
+
+    it("'1h' filters out events older than 10 ticks", () => {
+        GodmodeLog.push({ tick: 80, day: 1, type: "death", text: "old" });
+        GodmodeLog.push({ tick: 95, day: 1, type: "death", text: "recent" });
+        GodmodeLog.setTimeFilter("1h");
+        const now = { day: 1, tick: 100 };
+        const filtered = GodmodeLog.getFiltered(100, now);
+        assert.strictEqual(filtered.length, 1);
+        assert.strictEqual(filtered[0].text, "recent");
+    });
+
+    it("'4h' filters out events older than 40 ticks", () => {
+        GodmodeLog.push({ tick: 50, day: 1, type: "death", text: "old" });
+        GodmodeLog.push({ tick: 70, day: 1, type: "death", text: "recent" });
+        GodmodeLog.setTimeFilter("4h");
+        const now = { day: 1, tick: 100 };
+        const filtered = GodmodeLog.getFiltered(100, now);
+        assert.strictEqual(filtered.length, 1);
+        assert.strictEqual(filtered[0].text, "recent");
+    });
+
+    it("'today' shows only events from current day", () => {
+        GodmodeLog.push({ tick: 100, day: 1, type: "death", text: "yesterday" });
+        GodmodeLog.push({ tick: 50, day: 2, type: "death", text: "today" });
+        GodmodeLog.setTimeFilter("today");
+        const now = { day: 2, tick: 100 };
+        const filtered = GodmodeLog.getFiltered(100, now);
+        assert.strictEqual(filtered.length, 1);
+        assert.strictEqual(filtered[0].text, "today");
+    });
+
+    it("'1h' works across day boundaries", () => {
+        // Event at end of day 1: tick 235 → absolute = 235
+        // Now at start of day 2: tick 5 → absolute = 245
+        // Diff = 10, exactly 1h boundary
+        GodmodeLog.push({ tick: 235, day: 1, type: "death", text: "late night" });
+        GodmodeLog.setTimeFilter("1h");
+        const now = { day: 2, tick: 5 };
+        const filtered = GodmodeLog.getFiltered(100, now);
+        assert.strictEqual(filtered.length, 1);
+    });
+
+    it("time filter combines with type filter", () => {
+        GodmodeLog.push({ tick: 95, day: 1, type: "death", text: "recent death" });
+        GodmodeLog.push({ tick: 95, day: 1, type: "bond", text: "recent bond" });
+        GodmodeLog.push({ tick: 10, day: 1, type: "death", text: "old death" });
+        GodmodeLog.setTimeFilter("1h");
+        GodmodeLog.toggleFilter("bond");
+        const now = { day: 1, tick: 100 };
+        const filtered = GodmodeLog.getFiltered(100, now);
+        assert.strictEqual(filtered.length, 1);
+        assert.strictEqual(filtered[0].text, "recent death");
     });
 });

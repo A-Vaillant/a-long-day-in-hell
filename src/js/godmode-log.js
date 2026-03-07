@@ -21,6 +21,27 @@ const filters = {
     escape: true,
 };
 
+// Time filter: how far back to show events.
+// Values are in ticks (10 ticks/hour, 240 ticks/day). 0 = no limit.
+const TIME_FILTER_OPTIONS = {
+    "1h":    10,
+    "4h":    40,
+    "today": -1,   // special: same day only
+    "all":   0,
+};
+const TIME_FILTER_LABELS = ["1h", "4h", "today", "all"];
+let timeFilter = "all";
+
+function passesTimeFilter(ev, now) {
+    if (timeFilter === "all") return true;
+    if (timeFilter === "today") return ev.day === now.day;
+    const limit = TIME_FILTER_OPTIONS[timeFilter] || 0;
+    if (limit <= 0) return true;
+    const evAbs = (ev.day - 1) * 240 + ev.tick;
+    const nowAbs = (now.day - 1) * 240 + now.tick;
+    return (nowAbs - evAbs) <= limit;
+}
+
 export const LOG_COLORS = {
     bond: "#b8a878",
     disposition: "#c49530",
@@ -55,6 +76,7 @@ export const GodmodeLog = {
         filters.search = false;
         filters.pilgrimage = true;
         filters.escape = true;
+        timeFilter = "all";
     },
 
     push(event) {
@@ -70,11 +92,17 @@ export const GodmodeLog = {
         return events.slice(start).reverse();
     },
 
-    /** Get most recent n events that pass current filters, newest first. */
-    getFiltered(n) {
+    /** Get most recent n events that pass current filters, newest first.
+     *  @param {number} n
+     *  @param {{ day: number, tick: number }} [now] — current time for time filtering
+     */
+    getFiltered(n, now) {
         const filtered = [];
         for (let i = events.length - 1; i >= 0 && filtered.length < n; i--) {
-            if (filters[events[i].type]) filtered.push(events[i]);
+            const ev = events[i];
+            if (!filters[ev.type]) continue;
+            if (now && !passesTimeFilter(ev, now)) continue;
+            filtered.push(ev);
         }
         return filtered;
     },
@@ -102,6 +130,17 @@ export const GodmodeLog = {
         return { ...filters };
     },
 
+    /** Set time filter. Returns new value. */
+    setTimeFilter(value) {
+        if (value in TIME_FILTER_OPTIONS) timeFilter = value;
+        return timeFilter;
+    },
+
+    /** Get current time filter value. */
+    getTimeFilter() {
+        return timeFilter;
+    },
+
     get length() {
         return events.length;
     },
@@ -119,6 +158,13 @@ export const GodmodeLog = {
                 '" data-filter="' + type + '" style="color:' + (active ? color : '#3a3428') +
                 '" title="' + type + '">' + LOG_FILTER_LABELS[type] + '</button>';
         }
+        html += '<span class="gm-log-filter-sep"></span>';
+        for (const label of TIME_FILTER_LABELS) {
+            const active = timeFilter === label;
+            html += '<button class="gm-log-filter gm-log-time-filter' + (active ? ' gm-log-filter-on' : '') +
+                '" data-time-filter="' + label + '" style="color:' + (active ? '#b8a878' : '#3a3428') +
+                '">' + label + '</button>';
+        }
         html += '</div>';
         return html;
     },
@@ -128,8 +174,9 @@ export const GodmodeLog = {
      * Writes directly to the element with id "gm-log-pane".
      * @param {HTMLElement} el
      * @param {Array} [npcs] — current NPC list for name→id mapping
+     * @param {{ day: number, tick: number }} [now] — current time for time filtering
      */
-    renderTo(el, npcs) {
+    renderTo(el, npcs, now) {
         if (!el) return;
         // Build name→id map for clickable names
         const nameToId = new Map();
@@ -137,7 +184,7 @@ export const GodmodeLog = {
             for (const n of npcs) nameToId.set(n.name, n.id);
         }
 
-        const recent = this.getFiltered(100);
+        const recent = this.getFiltered(100, now);
         let html = this.renderFilters();
         let count = 0;
         for (const ev of recent) {
@@ -180,14 +227,21 @@ export const GodmodeLog = {
      * replaces innerHTML every frame — if the element is destroyed
      * between mousedown and mouseup, the click event never fires.
      */
-    wireFilterClicks(el) {
+    wireFilterClicks(el, getNow) {
         el.addEventListener("mousedown", function (ev) {
+            const timeBtn = ev.target.closest("[data-time-filter]");
+            if (timeBtn) {
+                ev.preventDefault();
+                GodmodeLog.setTimeFilter(timeBtn.getAttribute("data-time-filter"));
+                GodmodeLog.renderTo(el, null, getNow ? getNow() : undefined);
+                return;
+            }
             const btn = ev.target.closest("[data-filter]");
             if (!btn) return;
             ev.preventDefault();
             const type = btn.getAttribute("data-filter");
             GodmodeLog.toggleFilter(type);
-            GodmodeLog.renderTo(el);
+            GodmodeLog.renderTo(el, null, getNow ? getNow() : undefined);
         });
         // NPC name clicks in log entries
         el.addEventListener("mousedown", function (ev) {
