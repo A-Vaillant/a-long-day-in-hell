@@ -167,7 +167,7 @@ Engine.register("Corridor", {
                 if (!n.alive) {
                     html += '<span class="npc-name">' + esc(n.name) + '</span> ' + esc(T(TEXT.screens.dead_npc_at_location, "dead_npc:" + n.id));
                 } else {
-                    html += '<span class="npc-name" data-npc-id="' + n.id + '">' + esc(n.name) + '</span> ';
+                    html += '<a class="npc-name npc-talk-link" data-npc-id="' + n.id + '">' + esc(n.name) + '</a> ';
                     html += '<span class="npc-dialogue">' + esc(Npc.talk(n)) + '</span>';
                 }
                 html += '</p>';
@@ -229,6 +229,9 @@ Engine.register("Corridor", {
         if (state.floor > 0) {
             html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
         }
+        if (npcsHere.length > 0) {
+            html += ' <a id="corridor-talk"><kbd>t</kbd> talk</a>';
+        }
         if (seg.restArea) {
             html += '<a data-goto="Kiosk"><kbd>K</kbd> kiosk</a> <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a> <a data-goto="Submission Slot"><kbd>s</kbd> submit</a> <a data-goto="Sign"><kbd>R</kbd> sign</a>';
         }
@@ -241,43 +244,80 @@ Engine.register("Corridor", {
 
     afterRender() {
         if (!state.lightsOn) return;
-        const seg = Lib.getSegment(state.side, state.position, state.floor);
-        if (seg.restArea) return;
 
-        const COUNT = 192;
-        const grid = document.createElement("div");
-        grid.className = "shelf-grid";
-
-        for (let bi = 0; bi < COUNT; bi++) {
-            const isHeld = state.heldBook !== null && state.heldBook.side === state.side &&
-                state.heldBook.position === state.position && state.heldBook.floor === state.floor &&
-                state.heldBook.bookIndex === bi;
-            const isTarget = state.targetBook.side === state.side &&
-                state.targetBook.position === state.position && state.targetBook.floor === state.floor &&
-                state.targetBook.bookIndex === bi;
-            const rng = seedFromString("spine:" + PRNG.getSeed() + ":" + state.side + ":" + state.position + ":" + state.floor + ":" + bi);
-            const h = Math.floor(rng.next() * 30);
-            const s = 15 + Math.floor(rng.next() * 20);
-            const l = 12 + Math.floor(rng.next() * 14);
-            const spine = document.createElement("div");
-            if (isHeld) {
-                spine.className = "book-spine book-gap";
-                grid.appendChild(spine);
-                continue;
+        // NPC talk click handlers
+        function openTalk(npcId) {
+            const npcsHere = Npc.here();
+            const target = npcsHere.find(function (n) { return n.id === npcId; });
+            if (target && target.alive) {
+                state._talkTarget = target;
+                Engine.goto("Talk");
             }
-            spine.className = "book-spine" + (isTarget ? " target-nearby" : "");
-            spine.style.background = "hsl(" + h + "," + s + "%," + l + "%)";
-            spine.addEventListener("click", (function (idx) {
-                return function () {
-                    const result = Actions.resolve({ type: "read_book", bookIndex: idx });
-                    if (result.resolved && result.screen) Engine.goto(result.screen);
-                };
-            })(bi));
-            grid.appendChild(spine);
         }
 
-        const container = document.getElementById("corridor-grid");
-        if (container) container.appendChild(grid);
+        const talkLinks = document.querySelectorAll(".npc-talk-link");
+        for (let i = 0; i < talkLinks.length; i++) {
+            talkLinks[i].addEventListener("click", function (ev) {
+                ev.preventDefault();
+                const npcId = parseInt(this.getAttribute("data-npc-id"), 10);
+                openTalk(npcId);
+            });
+        }
+
+        const talkBtn = document.getElementById("corridor-talk");
+        if (talkBtn) {
+            talkBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                const npcsHere = Npc.here();
+                const alive = npcsHere.filter(function (n) { return n.alive; });
+                if (alive.length === 1) {
+                    openTalk(alive[0].id);
+                } else if (alive.length > 1) {
+                    state._talkTarget = null;
+                    state._talkNpcList = alive;
+                    Engine.goto("Talk Pick");
+                }
+            });
+        }
+
+        // Shelf grid (only in non-rest-area segments)
+        const seg = Lib.getSegment(state.side, state.position, state.floor);
+        if (!seg.restArea) {
+            const COUNT = 192;
+            const grid = document.createElement("div");
+            grid.className = "shelf-grid";
+
+            for (let bi = 0; bi < COUNT; bi++) {
+                const isHeld = state.heldBook !== null && state.heldBook.side === state.side &&
+                    state.heldBook.position === state.position && state.heldBook.floor === state.floor &&
+                    state.heldBook.bookIndex === bi;
+                const isTarget = state.targetBook.side === state.side &&
+                    state.targetBook.position === state.position && state.targetBook.floor === state.floor &&
+                    state.targetBook.bookIndex === bi;
+                const rng = seedFromString("spine:" + PRNG.getSeed() + ":" + state.side + ":" + state.position + ":" + state.floor + ":" + bi);
+                const h = Math.floor(rng.next() * 30);
+                const s = 15 + Math.floor(rng.next() * 20);
+                const l = 12 + Math.floor(rng.next() * 14);
+                const spine = document.createElement("div");
+                if (isHeld) {
+                    spine.className = "book-spine book-gap";
+                    grid.appendChild(spine);
+                    continue;
+                }
+                spine.className = "book-spine" + (isTarget ? " target-nearby" : "");
+                spine.style.background = "hsl(" + h + "," + s + "%," + l + "%)";
+                spine.addEventListener("click", (function (idx) {
+                    return function () {
+                        const result = Actions.resolve({ type: "read_book", bookIndex: idx });
+                        if (result.resolved && result.screen) Engine.goto(result.screen);
+                    };
+                })(bi));
+                grid.appendChild(spine);
+            }
+
+            const container = document.getElementById("corridor-grid");
+            if (container) container.appendChild(grid);
+        }
     },
 });
 
@@ -711,6 +751,210 @@ Engine.register("Menu", {
                 window.location.reload();
             });
         }
+    },
+});
+
+/* ---------- Talk Pick (multiple NPCs) ---------- */
+
+Engine.register("Talk Pick", {
+    kind: "state",
+    render() {
+        const npcs = state._talkNpcList;
+        if (!npcs || npcs.length === 0) {
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
+            return "";
+        }
+        let html = '<div id="talk-pick-view">';
+        html += '<p class="location-header">Who do you approach?</p>';
+        for (let i = 0; i < npcs.length; i++) {
+            const n = npcs[i];
+            const dispClass = "npc-" + n.disposition;
+            html += '<p><a class="talk-pick-npc" data-npc-idx="' + i + '"><kbd>' + (i + 1) + '</kbd> <span class="npc-name ' + dispClass + '">' + esc(n.name) + '</span></a></p>';
+        }
+        html += '<p><a data-goto="Corridor"><kbd>q</kbd> Back</a></p>';
+        html += '</div>';
+        return html;
+    },
+    afterRender() {
+        const npcs = state._talkNpcList;
+        if (!npcs) return;
+        const links = document.querySelectorAll(".talk-pick-npc");
+        for (let i = 0; i < links.length; i++) {
+            links[i].addEventListener("click", function (ev) {
+                ev.preventDefault();
+                const idx = parseInt(this.getAttribute("data-npc-idx"), 10);
+                if (npcs[idx]) {
+                    state._talkTarget = npcs[idx];
+                    state._talkNpcList = null;
+                    Engine.goto("Talk");
+                }
+            });
+        }
+    },
+});
+
+/* ---------- Talk ---------- */
+
+Engine.register("Talk", {
+    kind: "state",
+    render() {
+        const npc = state._talkTarget;
+        if (!npc) {
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
+            return "";
+        }
+        const dispClass = npc.alive ? "npc-" + npc.disposition : "npc-dead";
+        const bond = Social.getBond(npc.id);
+        const bondHint = bond ? ' <span class="bond-hint">(familiar: ' + Math.round(bond.familiarity) + ')</span>' : '';
+
+        let html = '<div id="talk-view">';
+        html += '<p class="location-header">Talking to <span class="npc-name ' + dispClass + '">' + esc(npc.name) + '</span>' + bondHint + '</p>';
+        html += '<p class="npc-dialogue">' + esc(Npc.talk(npc)) + '</p>';
+
+        html += '<div id="talk-actions">';
+        html += '<p>How do you approach them?</p>';
+        html += '<a id="talk-kind"><kbd>1</kbd> Be kind</a><br>';
+        html += '<a id="talk-neutral"><kbd>2</kbd> Make conversation</a><br>';
+        html += '<a id="talk-dismiss"><kbd>3</kbd> Be dismissive</a><br>';
+        html += '<hr>';
+        if (bond && bond.familiarity >= 5) {
+            html += '<a id="talk-spend"><kbd>w</kbd> Spend time together</a><br>';
+        }
+        if (bond && bond.familiarity >= 10) {
+            html += '<a id="talk-recruit"><kbd>i</kbd> Invite to travel together</a><br>';
+        }
+        html += '<a data-goto="Corridor"><kbd>q</kbd> Leave</a>';
+        html += '</div>';
+        html += '</div>';
+        return html;
+    },
+    afterRender() {
+        const npc = state._talkTarget;
+        if (!npc) return;
+
+        function doTalk(approach) {
+            const result = Actions.resolve({ type: "talk", npcId: npc.id, approach: approach });
+            if (result.resolved) {
+                state._talkResult = result.data;
+                state._talkResult._npcName = npc.name;
+                state._talkResult._approach = approach;
+                Engine.goto("Talk Result");
+            }
+        }
+
+        var kindBtn = document.getElementById("talk-kind");
+        var neutralBtn = document.getElementById("talk-neutral");
+        var dismissBtn = document.getElementById("talk-dismiss");
+        var spendBtn = document.getElementById("talk-spend");
+        var recruitBtn = document.getElementById("talk-recruit");
+
+        if (kindBtn) kindBtn.addEventListener("click", function (ev) { ev.preventDefault(); doTalk("kind"); });
+        if (neutralBtn) neutralBtn.addEventListener("click", function (ev) { ev.preventDefault(); doTalk("neutral"); });
+        if (dismissBtn) dismissBtn.addEventListener("click", function (ev) { ev.preventDefault(); doTalk("dismissive"); });
+
+        if (spendBtn) {
+            spendBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                var result = Actions.resolve({ type: "spend_time", npcId: npc.id });
+                if (result.resolved) {
+                    state._spendTimeResult = result.data;
+                    state._spendTimeResult._npcName = npc.name;
+                    Engine.goto("Spend Time Result");
+                }
+            });
+        }
+
+        if (recruitBtn) {
+            recruitBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                var result = Actions.resolve({ type: "recruit", npcId: npc.id });
+                state._recruitResult = result.data || result;
+                state._recruitResult._npcName = npc.name;
+                Engine.goto("Recruit Result");
+            });
+        }
+    },
+});
+
+Engine.register("Talk Result", {
+    kind: "transition",
+    render() {
+        const r = state._talkResult;
+        if (!r) {
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
+            return "";
+        }
+        const dialogue = TEXT.npc_dialogue;
+        const approachKey = "talk_" + (r._approach || "neutral") + "_player";
+        const playerLines = dialogue[approachKey] || dialogue.talk_neutral_player || [];
+        const playerLine = playerLines.length > 0 ? playerLines[Math.floor(Math.random() * playerLines.length)] : "";
+        const responseKey = "talk_" + r.disposition;
+        const responseLines = dialogue[responseKey] || dialogue.talk_calm || [];
+        const responseLine = responseLines.length > 0 ? responseLines[Math.floor(Math.random() * responseLines.length)] : "";
+
+        let html = '<div id="talk-result-view">';
+        if (playerLine) html += '<p class="player-action">' + esc(playerLine) + '</p>';
+        if (responseLine) html += '<p class="npc-response">' + esc(responseLine) + '</p>';
+        html += '<p class="key-hint"><a data-goto="Talk"><kbd>\u23ce</kbd> Continue</a></p>';
+        html += '</div>';
+        state._talkResult = null;
+        return html;
+    },
+});
+
+Engine.register("Spend Time Result", {
+    kind: "transition",
+    render() {
+        const r = state._spendTimeResult;
+        if (!r) {
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
+            return "";
+        }
+        const dialogue = TEXT.npc_dialogue;
+        const lines = dialogue.spend_time || [];
+        const line = lines.length > 0 ? lines[Math.floor(Math.random() * lines.length)] : "You spend some time together.";
+
+        let html = '<div id="spend-time-result-view">';
+        html += '<p>' + esc(line) + '</p>';
+        html += '<p class="key-hint"><a data-goto="Talk"><kbd>\u23ce</kbd> Continue</a></p>';
+        html += '</div>';
+        state._spendTimeResult = null;
+        return html;
+    },
+});
+
+Engine.register("Recruit Result", {
+    kind: "transition",
+    render() {
+        const r = state._recruitResult;
+        if (!r) {
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
+            return "";
+        }
+        const name = r._npcName || "them";
+        const dialogue = TEXT.npc_dialogue;
+        var poolKey;
+        if (r.joined) {
+            poolKey = "recruit_accept";
+        } else if (r.reason === "unfamiliar") {
+            poolKey = "recruit_refuse_unfamiliar";
+        } else if (r.reason === "low_affinity") {
+            poolKey = "recruit_refuse_affinity";
+        } else {
+            poolKey = "recruit_refuse_disposition";
+        }
+        const lines = dialogue[poolKey] || [];
+        const line = lines.length > 0 ? lines[Math.floor(Math.random() * lines.length)] : (r.joined ? "They agree." : "They refuse.");
+
+        let html = '<div id="recruit-result-view">';
+        html += '<p>' + esc(line) + '</p>';
+        if (r.joined) {
+            html += '<p class="recruit-success"><strong>' + esc(name) + '</strong> has joined you.</p>';
+        }
+        html += '<p class="key-hint"><a data-goto="Corridor"><kbd>\u23ce</kbd> Continue</a></p>';
+        html += '</div>';
+        state._recruitResult = null;
+        return html;
     },
 });
 

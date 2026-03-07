@@ -57,6 +57,12 @@ function resolve(action) {
             return resolveThrowBook();
         case "fall_wait":
             return resolveFallWait();
+        case "talk":
+            return resolveTalk(action.npcId, action.approach);
+        case "spend_time":
+            return resolveSpendTime(action.npcId);
+        case "recruit":
+            return resolveRecruit(action.npcId);
         default:
             return { resolved: false };
     }
@@ -187,6 +193,30 @@ function resolveFallWait() {
     if (state.dead) return { resolved: true, screen: "Death" };
     if (!state.falling) return { resolved: true, screen: "Corridor" };
     return { resolved: true, screen: "Falling" };
+}
+
+function resolveTalk(npcId, approach) {
+    if (state.dead) return { resolved: false };
+    const result = Social.talk(npcId, approach);
+    if (!result.success) return { resolved: false, data: result };
+    Tick.advance(2);
+    return { resolved: true, data: result };
+}
+
+function resolveSpendTime(npcId) {
+    if (state.dead) return { resolved: false };
+    const result = Social.spendTimeWith(npcId);
+    if (!result.success) return { resolved: false, data: result };
+    Tick.advance(result.ticksSpent);
+    return { resolved: true, data: result };
+}
+
+function resolveRecruit(npcId) {
+    if (state.dead) return { resolved: false };
+    const result = Social.recruit(npcId);
+    if (!result.success) return { resolved: false, data: result };
+    Tick.advance(1);
+    return { resolved: true, data: result };
 }
 
 export const Actions = { resolve };
