@@ -179,10 +179,15 @@ function fastForward(n) {
 
     function step() {
         if (!ffBusy) return; // cancelled
-        const chunk = Math.min(remaining, BATCH);
-        for (let i = 0; i < chunk; i++) tickOnce();
-        remaining -= chunk;
-        updateFFStatus(n - remaining, n);
+        try {
+            const chunk = Math.min(remaining, BATCH);
+            for (let i = 0; i < chunk; i++) tickOnce();
+            remaining -= chunk;
+            updateFFStatus(n - remaining, n);
+        } catch (err) {
+            console.error("FF error:", err);
+            remaining = 0;
+        }
 
         if (remaining > 0) {
             requestAnimationFrame(step);
