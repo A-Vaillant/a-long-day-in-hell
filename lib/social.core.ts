@@ -21,6 +21,7 @@ import type { Entity, World } from "./ecs.core.ts";
 import { getComponent, query, addComponent } from "./ecs.core.ts";
 import { PERSONALITY, type Personality, decayBias, entityCompatibility, familiarityFatigue } from "./personality.core.ts";
 import { BELIEF, type BeliefComponent, beliefDecayMod, evolveBelief, updateStance } from "./belief.core.ts";
+import { NEEDS, type Needs, needsDecayMultiplier } from "./needs.core.ts";
 
 // --- Component keys ---
 
@@ -232,6 +233,14 @@ export function psychologyDecaySystem(
             lucidityMul *= bb.lucidityMul;
             hopeMul *= bb.hopeMul;
             updateStance(belief, psychology.lucidity, psychology.hope, 0);
+        }
+
+        // Apply needs-based decay multiplier if entity has NEEDS component
+        const needs = getComponent<Needs>(world, entity, NEEDS);
+        if (needs) {
+            const needsMul = needsDecayMultiplier(needs);
+            lucidityMul *= needsMul;
+            hopeMul *= needsMul;
         }
 
         const bias = { lucidityMul, hopeMul };
