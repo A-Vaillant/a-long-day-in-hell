@@ -204,7 +204,7 @@ gm_snap "23_godmode_zoomed" \
     "GodmodeMap.zoom(2); Godmode.render();"
 
 gm_snap "24_godmode_stepped" \
-    "for (var i = 0; i < 20; i++) { document.getElementById('gm-step').click(); }"
+    "for(var i=0;i<20;i++){document.getElementById('gm-step').click();}"
 
 echo ""
 echo "Done. Open screenshots/ to review."

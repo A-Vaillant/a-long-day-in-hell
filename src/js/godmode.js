@@ -24,7 +24,7 @@ let lastFrame = 0;
 let accumulator = 0;
 let selectedNpcId = null;
 let followMode = false;
-let logVisible = false;
+let activeTab = "log"; // "log" | "npc"
 let prevSnap = null;
 let ffBusy = false;     // true during async fast-forward
 
@@ -112,12 +112,10 @@ const LOG_COLORS = {
 };
 
 function renderLog() {
-    const el = document.getElementById("godmode-log");
+    const el = document.getElementById("gm-log-pane");
     if (!el) return;
-    el.className = logVisible ? "gm-log-visible" : "gm-log-hidden";
-    if (!logVisible) return;
 
-    const recent = GodmodeLog.getRecent(50);
+    const recent = GodmodeLog.getRecent(100);
     let html = '';
     for (const ev of recent) {
         const color = LOG_COLORS[ev.type] || "#b8a878";
@@ -134,16 +132,25 @@ function renderLog() {
     el.innerHTML = html;
 }
 
-function toggleLog() {
-    logVisible = !logVisible;
-    renderLog();
+function switchTab(tab) {
+    activeTab = tab;
+    const logPane = document.getElementById("gm-log-pane");
+    const npcPane = document.getElementById("gm-npc-pane");
+    const logTab = document.getElementById("gm-tab-log");
+    const npcTab = document.getElementById("gm-tab-npc");
+    if (!logPane) return;
+
+    logPane.className = tab === "log" ? "gm-pane gm-pane-active" : "gm-pane";
+    npcPane.className = tab === "npc" ? "gm-pane gm-pane-active" : "gm-pane";
+    logTab.className = tab === "log" ? "gm-tab gm-tab-active" : "gm-tab";
+    npcTab.className = tab === "npc" ? "gm-tab gm-tab-active" : "gm-tab";
 }
 
 function render() {
     const snap = snapshot();
     GodmodeMap.draw(snap, selectedNpcId, followMode);
     GodmodePanel.update(snap, selectedNpcId);
-    if (logVisible) renderLog();
+    if (activeTab === "log") renderLog();
 }
 
 function fastForward(n) {
@@ -258,11 +265,6 @@ function setupDOM() {
     canvas.id = "godmode-canvas";
     mapWrap.appendChild(canvas);
 
-    const logEl = document.createElement("div");
-    logEl.id = "godmode-log";
-    logEl.className = "gm-log-hidden";
-    mapWrap.appendChild(logEl);
-
     const controls = document.createElement("div");
     controls.id = "godmode-controls";
     controls.innerHTML =
@@ -285,13 +287,31 @@ function setupDOM() {
         '<input type="number" id="gm-ff-input" min="1" placeholder="ticks" title="Type ticks, Enter to skip">' +
         '<div class="gm-ctrl-sep"></div>' +
         '<span id="gm-zoom">1x</span>' +
-        '<button id="gm-log-toggle">log</button>' +
         '<span id="gm-status"></span>';
     mapWrap.appendChild(controls);
 
+    // Tabbed right panel
     const panel = document.createElement("div");
     panel.id = "godmode-panel";
-    panel.innerHTML = '<div class="gm-panel-empty">Click an NPC to observe</div>';
+
+    const tabBar = document.createElement("div");
+    tabBar.id = "gm-tab-bar";
+    tabBar.innerHTML =
+        '<button id="gm-tab-log" class="gm-tab gm-tab-active">log</button>' +
+        '<button id="gm-tab-npc" class="gm-tab">npc</button>';
+    panel.appendChild(tabBar);
+
+    const logPane = document.createElement("div");
+    logPane.id = "gm-log-pane";
+    logPane.className = "gm-pane gm-pane-active";
+    logPane.innerHTML = '<div class="gm-log-empty">No events yet.</div>';
+    panel.appendChild(logPane);
+
+    const npcPane = document.createElement("div");
+    npcPane.id = "gm-npc-pane";
+    npcPane.className = "gm-pane";
+    npcPane.innerHTML = '<div class="gm-panel-empty">Click an NPC to observe</div>';
+    panel.appendChild(npcPane);
 
     container.appendChild(mapWrap);
     container.appendChild(panel);
@@ -334,7 +354,8 @@ function setupInput(canvas) {
         }
     });
 
-    document.getElementById("gm-log-toggle").addEventListener("click", toggleLog);
+    document.getElementById("gm-tab-log").addEventListener("click", function () { switchTab("log"); });
+    document.getElementById("gm-tab-npc").addEventListener("click", function () { switchTab("npc"); });
 
     // Drag to pan
     canvas.addEventListener("mousedown", function (ev) {
@@ -362,6 +383,7 @@ function setupInput(canvas) {
             if (hit !== null) {
                 selectedNpcId = hit;
                 followMode = true;
+                switchTab("npc");
             } else {
                 followMode = false;
             }
@@ -415,7 +437,7 @@ function setupInput(canvas) {
             followMode = false;
             render();
         } else if (ev.key === "e") {
-            toggleLog();
+            switchTab(activeTab === "log" ? "npc" : "log");
         } else if (ev.key === "Tab") {
             ev.preventDefault();
             GodmodeMap.handleKey(ev.key);
