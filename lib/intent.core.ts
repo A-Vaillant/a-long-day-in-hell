@@ -276,8 +276,8 @@ export function evaluateIntent(
 ): { behavior: Behavior; cooldown: number } | null {
     const disposition = deriveDisposition(psych, alive);
 
-    // Forced: dead or catatonic → idle, bypass scoring
-    if (!alive || disposition === "catatonic") {
+    // Forced: dead, catatonic, or lights off → idle, bypass scoring
+    if (!alive || disposition === "catatonic" || tick >= LIGHTS_ON_TICKS) {
         if (intent.behavior !== "idle") return { behavior: "idle", cooldown: 0 };
         return null;
     }

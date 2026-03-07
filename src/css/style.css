@@ -285,11 +285,17 @@ button:disabled {
     letter-spacing: 0.1em;
     text-transform: uppercase;
     font-size: 0.9em;
+    color: var(--text-dim);
+    padding: 0.2rem 0;
 }
 
 .sb-clock {
     color: var(--text-dim);
     margin-bottom: 0.1rem;
+}
+
+.sb-dusk {
+    color: #8b6914;
 }
 
 .sb-dark {
@@ -301,6 +307,13 @@ button:disabled {
 @keyframes dark-pulse {
     0%, 100% { opacity: 1; }
     50%      { opacity: 0.5; }
+}
+
+.sb-sleeping-hour {
+    color: #6a3a6a;
+    font-style: italic;
+    letter-spacing: 0.06em;
+    animation: dark-pulse 3s ease-in-out infinite;
 }
 
 .sb-divider {

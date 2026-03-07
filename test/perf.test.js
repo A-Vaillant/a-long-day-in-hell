@@ -71,7 +71,7 @@ function createBenchWorld(npcCount) {
         addComponent(world, ent, SEARCHING, { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0 });
         addComponent(world, ent, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
         addComponent(world, ent, SLEEP, {
-            homeRestArea: nearestRestArea(npc.position),
+            home: { side: npc.side, position: nearestRestArea(npc.position), floor: npc.floor },
             bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false,
         });
         addComponent(world, ent, AI, {});
