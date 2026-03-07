@@ -227,6 +227,7 @@ export const Engine = {
         try {
             var cur = this._screens[state.screen];
             if (cur && cur.kind === "transition") return; // never save on a transition
+            if (state._possessedNpcId != null) return; // don't save during possession
             localStorage.setItem(SAVE_KEY, JSON.stringify(state));
         } catch (e) {
             if (e instanceof DOMException && e.name === "QuotaExceededError") return;

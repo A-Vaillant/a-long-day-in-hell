@@ -47,6 +47,18 @@ export function detectEvents(prev, curr) {
             }
         }
 
+        // Started falling (jumped into chasm)
+        if (!old.falling && npc.falling) {
+            events.push({ tick: curr.tick, day: curr.day, type: "death",
+                text: npc.name + " jumped into the chasm." });
+        }
+
+        // Stopped falling (grabbed railing or landed)
+        if (old.falling && !npc.falling && npc.alive) {
+            events.push({ tick: curr.tick, day: curr.day, type: "resurrection",
+                text: npc.name + " caught a railing at floor " + npc.floor + "." });
+        }
+
         // New bond (familiarity crossed 1.0 threshold)
         const oldBondNames = new Set(old.bonds.filter(b => b.familiarity >= 1).map(b => b.name));
         for (const bond of npc.bonds) {
