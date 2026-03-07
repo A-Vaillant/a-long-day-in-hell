@@ -10,7 +10,7 @@ import {
     createWorld, spawn, addComponent, getComponent, entitiesWith,
 } from "../../lib/ecs.core.js";
 import {
-    POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, PLAYER, AI,
+    POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, PLAYER, AI, GROUP,
     deriveDisposition, psychologyDecaySystem, relationshipSystem,
     groupFormationSystem, socialPressureSystem,
 } from "../../lib/social.core.js";
@@ -160,5 +160,32 @@ export const Social = {
         const ent = npcEntities.get(npcId);
         if (ent === undefined || !world) return null;
         return getComponent(world, ent, PSYCHOLOGY);
+    },
+
+    /**
+     * Get the player's group members (NPCs in same ECS group, co-located).
+     * Returns array of { name, disposition } for sidebar display.
+     * Empty array if player is not in a group.
+     */
+    getGroupMembers() {
+        if (!world || playerEntity === null || !state.npcs) return [];
+        const playerGroup = getComponent(world, playerEntity, GROUP);
+        if (!playerGroup) return [];
+
+        const members = [];
+        for (const npc of state.npcs) {
+            const ent = npcEntities.get(npc.id);
+            if (ent === undefined) continue;
+            const npcGroup = getComponent(world, ent, GROUP);
+            if (!npcGroup || npcGroup.groupId !== playerGroup.groupId) continue;
+            const ident = getComponent(world, ent, IDENTITY);
+            if (!ident || !ident.alive) continue;
+            const psych = getComponent(world, ent, PSYCHOLOGY);
+            members.push({
+                name: ident.name,
+                disposition: psych ? deriveDisposition(psych, true) : "calm",
+            });
+        }
+        return members;
     },
 };
