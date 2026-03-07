@@ -10,8 +10,10 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": false,
     "sourceMap": false,
-    "outDir": "lib",
-    "rootDir": "lib"
+    "outDir": ".build",
+    "rootDir": "lib",
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
   "include": ["lib/**/*.core.ts"],
   "exclude": ["node_modules", "dist", "test"]

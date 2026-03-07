@@ -2,7 +2,7 @@
 
 import {
     DISPOSITIONS, spawnNPCs, moveNPCs, getNPCsAt, interactText, deteriorate,
-} from "../../lib/npc.core.js";
+} from "../../lib/npc.core.ts";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
 

@@ -2,7 +2,7 @@
    boundary registry, batch tick processing. */
 
 import { PRNG } from "./prng.js";
-import { seedFromString } from "../../lib/prng.core.js";
+import { seedFromString } from "../../lib/prng.core.ts";
 import { state } from "./state.js";
 import { Lib } from "./library.js";
 import { Book } from "./book.js";
@@ -12,7 +12,7 @@ import { Tick } from "./tick.js";
 import { Events } from "./events.js";
 import { Npc } from "./npc.js";
 import { Social } from "./social.js";
-import { createBoundaryRegistry, processTime } from "../../lib/engine.core.js";
+import { createBoundaryRegistry, processTime } from "../../lib/engine.core.ts";
 import { Godmode } from "./godmode.js";
 
 export { state };

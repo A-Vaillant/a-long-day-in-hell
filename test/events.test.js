@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
     createDeck,
     drawEvent,
-} from "../lib/events.core.js";
+} from "../lib/events.core.ts";
 
 // --- helpers ---
 

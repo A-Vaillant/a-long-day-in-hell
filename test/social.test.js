@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
     createWorld, spawn, addComponent, getComponent,
-} from "../lib/ecs.core.js";
+} from "../lib/ecs.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP, PLAYER, AI,
     DEFAULT_THRESHOLDS, DEFAULT_DECAY, DEFAULT_BOND, DEFAULT_GROUP, DEFAULT_AWARENESS,
@@ -28,7 +28,7 @@ import {
     applyShock,
     socialPressureSystem,
     decayRate,
-} from "../lib/social.core.js";
+} from "../lib/social.core.ts";
 
 // --- Helpers ---
 

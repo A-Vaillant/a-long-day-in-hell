@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
     createWorld, spawn, addComponent, getComponent,
-} from "../lib/ecs.core.js";
+} from "../lib/ecs.core.ts";
 import {
     PERSONALITY,
     generatePersonality,
@@ -11,12 +11,12 @@ import {
     familiarityFatigue,
     decayBias,
     DEFAULT_FATIGUE,
-} from "../lib/personality.core.js";
+} from "../lib/personality.core.ts";
 import {
     PSYCHOLOGY, IDENTITY, POSITION, RELATIONSHIPS,
     accumulateBond, decayPsychology,
     DEFAULT_BOND, DEFAULT_DECAY,
-} from "../lib/social.core.js";
+} from "../lib/social.core.ts";
 
 // --- Helpers ---
 

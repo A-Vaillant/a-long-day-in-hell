@@ -4,22 +4,27 @@
  * No DOM, no window, no browser — pure logic for testing all game paths.
  *
  * Usage:
- *   import { createSimulation, strategies } from "./simulator.core.js";
+ *   import { createSimulation, strategies } from "./simulator.core.ts";
  *   const sim = createSimulation({ seed: "test", days: 30, strategy: strategies.systematic() });
  *   const result = sim.run();
  *
  * @module simulator.core
  */
 
-import { seedFromString } from "./prng.core.js";
-import * as Surv from "./survival.core.js";
-import * as Tick from "./tick.core.js";
-import * as Lib from "./library.core.js";
-import * as BookCore from "./book.core.js";
-import * as LifeStoryCore from "./lifestory.core.js";
-import * as EventsCore from "./events.core.js";
-import * as NpcCore from "./npc.core.js";
-import { applyAmbientDrain, modifySleepRecovery, shouldClearDespairing, isReadingBlocked, CONFIG as DespairConfig } from "./despairing.core.js";
+import { seedFromString } from "./prng.core.ts";
+import type { Xoshiro128ss } from "./prng.core.ts";
+import * as Surv from "./survival.core.ts";
+import type { SurvivalStats } from "./survival.core.ts";
+import * as Tick from "./tick.core.ts";
+import * as Lib from "./library.core.ts";
+import type { Location, Direction } from "./library.core.ts";
+import * as BookCore from "./book.core.ts";
+import * as LifeStoryCore from "./lifestory.core.ts";
+import * as EventsCore from "./events.core.ts";
+import type { EventCard } from "./events.core.ts";
+import * as NpcCore from "./npc.core.ts";
+import type { NPC, DialogueTable } from "./npc.core.ts";
+import { applyAmbientDrain, modifySleepRecovery, shouldClearDespairing, isReadingBlocked, CONFIG as DespairConfig } from "./despairing.core.ts";
 
 
 /* ---- Strategy interface ----
@@ -43,6 +48,145 @@ import { applyAmbientDrain, modifySleepRecovery, shouldClearDespairing, isReadin
  */
 
 /** @typedef {"move"|"wait"|"sleep"|"eat"|"drink"|"alcohol"|"read"|"take"|"submit"} ActionType */
+export type ActionType = "move" | "wait" | "sleep" | "eat" | "drink" | "alcohol" | "read" | "take" | "submit";
+
+export interface MoveAction { type: "move"; dir: Direction; }
+export interface WaitAction { type: "wait"; }
+export interface SleepAction { type: "sleep"; }
+export interface EatAction { type: "eat"; }
+export interface DrinkAction { type: "drink"; }
+export interface AlcoholAction { type: "alcohol"; }
+export interface ReadAction { type: "read"; bookIndex: number; }
+export interface TakeAction { type: "take"; bookIndex: number; }
+export interface SubmitAction { type: "submit"; }
+
+export type Action =
+    | MoveAction
+    | WaitAction
+    | SleepAction
+    | EatAction
+    | DrinkAction
+    | AlcoholAction
+    | ReadAction
+    | TakeAction
+    | SubmitAction;
+
+export interface BookCoords {
+    side: number;
+    position: number;
+    floor: number;
+    bookIndex: number;
+}
+
+export interface LifeStory {
+    name: string;
+    occupation: string;
+    hometown: string;
+    causeOfDeath: string;
+    storyText: string;
+    targetPage: number;
+    placement: string;
+    bookCoords: BookCoords;
+}
+
+/** Read-only snapshot exposed to strategies. */
+export interface GameState {
+    seed: string;
+    side: number;
+    position: number;
+    floor: number;
+    tick: number;
+    day: number;
+    lightsOn: boolean;
+    heldBook: BookCoords | null;
+    dead: boolean;
+    despairing: boolean;
+    deaths: number;
+    won: boolean;
+    stats: SurvivalStats;
+    targetBook: BookCoords;
+    totalMoves: number;
+    segmentsVisited: number;
+    booksRead: number;
+    submissionsAttempted: number;
+    npcs: NPC[];
+    lastEvent: EventCard | null;
+    availableMoves: Direction[];
+    isRestArea: boolean;
+    timeString: string;
+}
+
+/** Strategy object that makes player decisions each tick. */
+export interface Strategy {
+    name: string;
+    decide(gs: GameState): Action | Action[];
+}
+
+/** Result returned by sim.run(). */
+export interface SimResult {
+    won: boolean;
+    day: number;
+    deaths: number;
+    totalMoves: number;
+    segmentsVisited: number;
+    booksRead: number;
+    submissionsAttempted: number;
+    finalStats: SurvivalStats;
+    despairing: boolean;
+    npcsAlive: number;
+    npcsTotal: number;
+    targetBook: BookCoords;
+    heldBook: BookCoords | null;
+}
+
+/** Internal mutable game state. */
+interface InternalState {
+    seed: string;
+    side: number;
+    position: number;
+    floor: number;
+    tick: number;
+    day: number;
+    lightsOn: boolean;
+    heldBook: BookCoords | null;
+    dead: boolean;
+    despairing: boolean;
+    deathCause: string | null;
+    deaths: number;
+    won: boolean;
+    submissionsAttempted: number;
+    lifeStory: LifeStory;
+    targetBook: BookCoords;
+    stats: SurvivalStats;
+    eventDeck: number[];
+    lastEvent: EventCard | null;
+    npcs: NPC[];
+    nonsensePagesRead: number;
+    totalMoves: number;
+    segmentsVisited: Set<string>;
+    booksRead: Set<string>;
+}
+
+export interface SimulationOpts {
+    seed?: string;
+    maxDays?: number;
+    maxDeaths?: number;
+    placement?: string;
+    strategy: Strategy;
+    onTick?: (gs: GameState) => void;
+    onDay?: (gs: GameState) => void;
+    onDeath?: (gs: GameState) => void;
+    onEvent?: (event: EventCard, gs: GameState) => void;
+    eventCards?: EventCard[];
+    npcNames?: string[];
+    npcDialogue?: DialogueTable;
+    npcCount?: number;
+}
+
+export interface Simulation {
+    run: () => SimResult;
+    state: () => GameState;
+}
 
 /**
  * Create a simulation instance.
@@ -63,7 +207,7 @@ import { applyAmbientDrain, modifySleepRecovery, shouldClearDespairing, isReadin
  * @param {number} [opts.npcCount=8] - number of NPCs to spawn
  * @returns {{ run: () => SimResult, state: () => GameState }}
  */
-export function createSimulation(opts) {
+export function createSimulation(opts: SimulationOpts): Simulation {
     const seed = opts.seed || String(Math.floor(Math.random() * 0xFFFFFFFF));
     const maxDays = opts.maxDays || 100;
     const maxDeaths = opts.maxDeaths || 50;
@@ -77,12 +221,12 @@ export function createSimulation(opts) {
     const rng = seedFromString(seed);
 
     // Initialize life story + target book
-    const startLoc = { side: 0, position: 0, floor: 10 };
-    const lifeStory = LifeStoryCore.generateLifeStory(seed, { placement, startLoc });
-    const targetBook = lifeStory.bookCoords;
+    const startLoc: Location = { side: 0, position: 0, floor: 10 };
+    const lifeStory: LifeStory = LifeStoryCore.generateLifeStory(seed, { placement: placement as "gaussian" | "random", startLoc });
+    const targetBook: BookCoords = lifeStory.bookCoords;
 
     // Initialize game state
-    const gs = {
+    const gs: InternalState = {
         seed,
         side: startLoc.side,
         position: startLoc.position,
@@ -124,7 +268,7 @@ export function createSimulation(opts) {
     gs.segmentsVisited.add(Lib.locationKey({ side: gs.side, position: gs.position, floor: gs.floor }));
 
     /** Expose a read-only snapshot for strategies. */
-    function gameState() {
+    function gameState(): GameState {
         return {
             seed: gs.seed,
             side: gs.side,
@@ -153,12 +297,12 @@ export function createSimulation(opts) {
     }
 
     /** Apply a single action. Returns true if action consumed a tick. */
-    function applyAction(action) {
+    function applyAction(action: Action): boolean {
         if (gs.dead || gs.won) return false;
 
         switch (action.type) {
             case "move": {
-                const loc = { side: gs.side, position: gs.position, floor: gs.floor };
+                const loc: Location = { side: gs.side, position: gs.position, floor: gs.floor };
                 const available = Lib.availableMoves(loc);
                 if (available.indexOf(action.dir) === -1) return false;
                 const dest = Lib.applyMove(loc, action.dir);
@@ -278,7 +422,7 @@ export function createSimulation(opts) {
         }
     }
 
-    function advanceOneTick() {
+    function advanceOneTick(): void {
         // Apply survival depletion
         gs.stats = Surv.applyMoveTick(gs.stats);
 
@@ -299,7 +443,7 @@ export function createSimulation(opts) {
         advanceTime(1);
     }
 
-    function advanceTime(n) {
+    function advanceTime(n: number): void {
         const result = Tick.advanceTick({ tick: gs.tick, day: gs.day }, n);
         gs.tick = result.state.tick;
         gs.day = result.state.day;
@@ -312,7 +456,7 @@ export function createSimulation(opts) {
         }
     }
 
-    function onDawn() {
+    function onDawn(): void {
         // Resurrection
         if (gs.dead) {
             gs.stats = Surv.applyResurrection(gs.stats);
@@ -338,7 +482,7 @@ export function createSimulation(opts) {
         if (opts.onDay) opts.onDay(gameState());
     }
 
-    function applySleepHour() {
+    function applySleepHour(): void {
         const wasDespairing = gs.despairing;
         const moraleBefore = gs.stats.morale;
         gs.stats = Surv.applySleep(gs.stats);
@@ -358,8 +502,8 @@ export function createSimulation(opts) {
     }
 
     /** Run the simulation to completion. */
-    function run() {
-        const dayLog = [];
+    function run(): SimResult {
+        const dayLog: unknown[] = [];
         let tickCount = 0;
         const MAX_TICKS = maxDays * Tick.TICKS_PER_DAY;
 
@@ -406,6 +550,26 @@ export function createSimulation(opts) {
 
 /* ==== Built-in strategies ==== */
 
+export interface SystematicOpts {
+    eatAt?: number;
+    drinkAt?: number;
+    sleepAt?: number;
+    pattern?: "expanding" | "linear";
+}
+
+export interface RandomWalkOpts {
+    eatAt?: number;
+    drinkAt?: number;
+    sleepAt?: number;
+    readChance?: number;
+}
+
+export interface SurvivalOnlyOpts {
+    eatAt?: number;
+    drinkAt?: number;
+    sleepAt?: number;
+}
+
 export const strategies = {
 
     /**
@@ -418,15 +582,15 @@ export const strategies = {
      * @param {number} [opts.sleepAt=75] - exhaustion threshold to sleep
      * @param {"expanding"|"linear"} [opts.pattern="expanding"] - search pattern
      */
-    systematic(opts) {
-        const cfg = Object.assign({ eatAt: 60, drinkAt: 60, sleepAt: 75, pattern: "expanding" }, opts);
-        let searchDir = "right";
+    systematic(opts?: SystematicOpts): Strategy {
+        const cfg = Object.assign({ eatAt: 60, drinkAt: 60, sleepAt: 75, pattern: "expanding" as const }, opts);
+        let searchDir: Direction = "right";
         let currentBookIndex = 0;
         let needsSubmit = false;
 
         return {
             name: "systematic",
-            decide(gs) {
+            decide(gs: GameState): Action {
                 // Submit if holding target
                 if (needsSubmit && gs.isRestArea) {
                     needsSubmit = false;
@@ -490,13 +654,13 @@ export const strategies = {
      * Random walker: wanders aimlessly, occasionally reads books.
      * Eats/drinks/sleeps to survive. Never submits.
      */
-    randomWalk(opts) {
+    randomWalk(opts?: RandomWalkOpts): Strategy {
         const cfg = Object.assign({ eatAt: 70, drinkAt: 70, sleepAt: 80, readChance: 0.1 }, opts);
-        let walkRng = null;
+        let walkRng: Xoshiro128ss | null = null;
 
         return {
             name: "randomWalk",
-            decide(gs) {
+            decide(gs: GameState): Action {
                 if (!walkRng) walkRng = seedFromString(gs.seed + ":walk-strategy");
 
                 if (!gs.lightsOn || gs.stats.exhaustion >= cfg.sleepAt) return { type: "sleep" };
@@ -522,12 +686,12 @@ export const strategies = {
      * Survival-focused: stays at rest areas, eats/drinks/sleeps.
      * Never searches, never reads. Tests pure survival mechanics.
      */
-    survivalOnly(opts) {
+    survivalOnly(opts?: SurvivalOnlyOpts): Strategy {
         const cfg = Object.assign({ eatAt: 50, drinkAt: 50, sleepAt: 60 }, opts);
 
         return {
             name: "survivalOnly",
-            decide(gs) {
+            decide(gs: GameState): Action {
                 if (!gs.lightsOn || gs.stats.exhaustion >= cfg.sleepAt) return { type: "sleep" };
 
                 if (gs.isRestArea) {
@@ -548,10 +712,10 @@ export const strategies = {
     /**
      * Neglectful: never eats or drinks. Tests death timeline.
      */
-    neglectful() {
+    neglectful(): Strategy {
         return {
             name: "neglectful",
-            decide(gs) {
+            decide(gs: GameState): Action {
                 if (!gs.lightsOn || gs.stats.exhaustion >= 80) return { type: "sleep" };
                 return { type: "wait" };
             }
@@ -562,11 +726,11 @@ export const strategies = {
      * Targeted: knows exact target book location, walks directly to it.
      * Tests the win path end-to-end.
      */
-    targeted() {
-        let phase = "navigate"; // "navigate" | "take" | "toSubmit" | "submit" | "done"
+    targeted(): Strategy {
+        let phase: "navigate" | "take" | "toSubmit" | "submit" | "done" = "navigate";
 
         /** Navigate to a rest area from current position. */
-        function moveToRestArea(pos) {
+        function moveToRestArea(pos: number): MoveAction | null {
             // Rest areas are at positions divisible by 10.
             // Handle negative positions: need modular arithmetic.
             const mod = ((pos % 10) + 10) % 10;
@@ -578,7 +742,7 @@ export const strategies = {
 
         return {
             name: "targeted",
-            decide(gs) {
+            decide(gs: GameState): Action {
                 const tb = gs.targetBook;
 
                 // Survival basics
@@ -654,12 +818,40 @@ export const strategies = {
      * @param {string} name
      * @param {function} decideFn - (gameState) => Action
      */
-    custom(name, decideFn) {
+    custom(name: string, decideFn: (gs: GameState) => Action | Action[]): Strategy {
         return { name, decide: decideFn };
     },
 };
 
 /* ==== Scenario runners ==== */
+
+export interface ScenarioOpts {
+    runs: number;
+    strategyFactory: () => Strategy;
+    maxDays?: number;
+    placement?: string;
+    seedPrefix?: string;
+    simOpts?: Partial<SimulationOpts>;
+}
+
+export interface ScenarioSummary {
+    runs: number;
+    wins: number;
+    winRate: number;
+    avgDays: number;
+    avgDeaths: number;
+    avgSegmentsVisited: number;
+    avgBooksRead: number;
+    avgNpcsAlive: number;
+    medianDays: number;
+    minDays: number;
+    maxDays: number;
+}
+
+export interface ScenarioResult {
+    results: SimResult[];
+    summary: ScenarioSummary;
+}
 
 /**
  * Run a scenario N times with different seeds, collect aggregate stats.
@@ -673,8 +865,8 @@ export const strategies = {
  * @param {object} [opts.simOpts] - additional createSimulation options
  * @returns {{ results: SimResult[], summary: object }}
  */
-export function runScenario(opts) {
-    const results = [];
+export function runScenario(opts: ScenarioOpts): ScenarioResult {
+    const results: SimResult[] = [];
     for (let i = 0; i < opts.runs; i++) {
         const runSeed = (opts.seedPrefix || "scenario") + ":" + i;
         const sim = createSimulation({
@@ -709,6 +901,6 @@ export function runScenario(opts) {
     };
 }
 
-function sorted(arr) {
+function sorted(arr: number[]): number[] {
     return [...arr].sort((a, b) => a - b);
 }

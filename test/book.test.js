@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
     generateBookPage, bookMeta,
     PAGES_PER_BOOK, LINES_PER_PAGE, CHARS_PER_LINE, CHARS_PER_PAGE, CHARS_PER_BOOK, CHARSET,
-} from "../lib/book.core.js";
+} from "../lib/book.core.ts";
 
 describe("constants", () => {
     it("charset is 95 characters", () => {

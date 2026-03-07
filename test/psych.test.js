@@ -2,8 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
     createWorld, spawn, addComponent, getComponent,
-} from "../lib/ecs.core.js";
-import { PSYCHOLOGY } from "../lib/social.core.js";
+} from "../lib/ecs.core.ts";
+import { PSYCHOLOGY } from "../lib/social.core.ts";
 import {
     HABITUATION,
     DEFAULT_SHOCKS,
@@ -11,7 +11,7 @@ import {
     getExposure,
     applyShock,
     applyShockToEntity,
-} from "../lib/psych.core.js";
+} from "../lib/psych.core.ts";
 
 // --- Helpers ---
 

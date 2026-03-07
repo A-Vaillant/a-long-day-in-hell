@@ -3,7 +3,7 @@
 import {
     defaultStats, applyMoveTick, applySleep, applyResurrection, applyEat, applyDrink,
     applyAlcohol, severity, getWarnings, showMortality, describeFromTable, canSleep,
-} from "../../lib/survival.core.js";
+} from "../../lib/survival.core.ts";
 import { Despair } from "./despairing.js";
 import { state } from "./state.js";
 

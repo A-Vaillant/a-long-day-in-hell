@@ -3,7 +3,7 @@
 import { state } from "./state.js";
 import { Engine, T, Madlib } from "./engine.js";
 import { PRNG } from "./prng.js";
-import { seedFromString } from "../../lib/prng.core.js";
+import { seedFromString } from "../../lib/prng.core.ts";
 import { Lib } from "./library.js";
 import { Book } from "./book.js";
 import { LifeStory } from "./lifestory.js";

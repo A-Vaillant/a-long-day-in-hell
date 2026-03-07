@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { bootGame } from "./dom-harness.js";
-import { getComponent } from "../lib/ecs.core.js";
+import { getComponent } from "../lib/ecs.core.ts";
 
 /** Force an NPC co-located with the player, inject mutual bonds above group threshold. */
 function forceGroup(game, npcIndex) {

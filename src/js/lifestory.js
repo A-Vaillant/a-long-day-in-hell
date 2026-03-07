@@ -2,7 +2,7 @@
 
 import {
     generateLifeStory, formatLifeStory,
-} from "../../lib/lifestory.core.js";
+} from "../../lib/lifestory.core.ts";
 
 export const LifeStory = {
     generate(seed, opts) { return generateLifeStory(seed, opts); },

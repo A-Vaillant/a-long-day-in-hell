@@ -5,7 +5,7 @@ import {
     GRAB_DAMAGE_SPEED_THRESHOLD, GRAB_FAIL_MAX_MORTALITY_HIT, GRAB_FAIL_SPEED_REDUCTION,
     LANDING_KILL_SPEED,
     defaultFallingState, fallTick, grabChance, attemptGrab, altitudeBand,
-} from "../lib/chasm.core.js";
+} from "../lib/chasm.core.ts";
 
 // --- defaultFallingState ---
 

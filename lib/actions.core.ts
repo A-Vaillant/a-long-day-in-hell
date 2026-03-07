@@ -11,8 +11,8 @@
  * @module actions.core
  */
 
-import type { Entity, World } from "./ecs.core.js";
-import { getComponent } from "./ecs.core.js";
+import type { Entity, World } from "./ecs.core.ts";
+import { getComponent } from "./ecs.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP,
     type Position, type Identity, type Psychology, type Relationships, type Bond,
@@ -20,11 +20,11 @@ import {
     DEFAULT_BOND, DEFAULT_THRESHOLDS, DEFAULT_AWARENESS,
     coLocated, getOrCreateBond, deriveDisposition,
     segmentDistance, canSee,
-} from "./social.core.js";
+} from "./social.core.ts";
 import {
     HABITUATION, type Habituation, type ShockConfig, DEFAULT_SHOCKS,
     applyShock as applyHabituatedShock,
-} from "./psych.core.js";
+} from "./psych.core.ts";
 
 export interface Rng {
     next(): number;

@@ -6,9 +6,9 @@ import {
     corruptStatValue, shouldCorruptDescriptor,
     isReadingBlocked, chasmSkipsConfirm, applyAlcohol,
     simulate,
-} from "../lib/despairing.core.js";
-import * as survFns from "../lib/survival.core.js";
-import * as tickFns from "../lib/tick.core.js";
+} from "../lib/despairing.core.ts";
+import * as survFns from "../lib/survival.core.ts";
+import * as tickFns from "../lib/tick.core.ts";
 
 // Save defaults so we can restore after each test
 const DEFAULT_CONFIG = { ...CONFIG };

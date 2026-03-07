@@ -1,6 +1,6 @@
 /* Events wrapper — event deck draw and initialization. */
 
-import { createDeck, drawEvent } from "../../lib/events.core.js";
+import { createDeck, drawEvent } from "../../lib/events.core.ts";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
 

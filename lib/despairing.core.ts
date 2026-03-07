@@ -12,8 +12,102 @@
  * @module despairing.core
  */
 
+/** Shape of the tunable CONFIG object. */
+export interface DespairingConfig {
+    /** Ambient morale drain per move tick. The monotony of hell. */
+    ambientDrain: number;
+    /** Morale recovery multiplier while despairing (applied to sleep recovery). */
+    sleepRecoveryMult: number;
+    /** Morale threshold to exit despairing (must reach this to clear flag). */
+    exitThreshold: number;
+    /** Max random offset added to stat display values while despairing. */
+    statCorruptionRange: number;
+    /** Probability [0,1] that a stat descriptor is replaced with a wrong one. */
+    statCorruptionChance: number;
+    /** Probability [0,1] that reading is blocked per attempt while despairing. */
+    readBlockChance: number;
+    /** Whether chasm jump confirmation is skipped while despairing. */
+    chasmSkipConfirm: boolean;
+    /** Alcohol morale boost (flat). */
+    alcoholMoraleBoost: number;
+    /** Alcohol despairing exit: can alcohol alone clear despairing? */
+    alcoholClearsDespairing: boolean;
+}
+
+/** Minimal stat shape consumed by applyAlcohol. */
+export interface AlcoholStats {
+    morale: number;
+    despairing: boolean;
+    [key: string]: unknown;
+}
+
+/** Survival functions expected by simulate(). */
+export interface SurvivalFns {
+    defaultStats(): AlcoholStats;
+    applyMoveTick(stats: AlcoholStats): AlcoholStats;
+    applySleep(stats: AlcoholStats): AlcoholStats;
+    applyResurrection(stats: AlcoholStats): AlcoholStats;
+    applyEat(stats: AlcoholStats): AlcoholStats;
+    applyDrink(stats: AlcoholStats): AlcoholStats;
+}
+
+/** Tick state shape. */
+export interface SimTickState {
+    tick: number;
+    day: number;
+}
+
+/** Tick functions expected by simulate(). */
+export interface TickFns {
+    TICKS_PER_DAY: number;
+    LIGHTS_ON_TICKS?: number;
+    defaultTickState(): SimTickState;
+    advanceTick(state: SimTickState, n: number): { state: SimTickState; events: string[] };
+    isLightsOn(tick: number): boolean;
+    isResetHour(tick: number): boolean;
+}
+
+/** Player behavior overrides for simulate(). */
+export interface SimBehavior {
+    eats?: boolean;
+    drinks?: boolean;
+    sleeps?: boolean;
+    eatAt?: number;
+    drinkAt?: number;
+    sleepAt?: number;
+    nonsensePerDay?: number;
+    sensiblePerDay?: number;
+}
+
+/** Options for simulate(). */
+export interface SimulateOpts {
+    /** Number of days to simulate. */
+    days?: number;
+    /** Player behavior overrides. */
+    behavior?: SimBehavior;
+}
+
+/** Per-day stats recorded by simulate(). */
+export interface DayStat {
+    day: number;
+    morale: number;
+    despairing: boolean;
+    hunger: number;
+    thirst: number;
+    exhaustion: number;
+    mortality: number;
+    dead: boolean;
+    nonsensePagesRead: number;
+}
+
+/** Return value of simulate(). */
+export interface SimulateResult {
+    finalStats: AlcoholStats;
+    dayStats: DayStat[];
+}
+
 /** Tunable parameters. Override fields for simulation/testing. */
-export const CONFIG = {
+export const CONFIG: DespairingConfig = {
     /** Ambient morale drain per move tick. The monotony of hell. */
     ambientDrain: 0.15,
 
@@ -49,7 +143,7 @@ export const CONFIG = {
  * @param {number} morale — current morale (0–100)
  * @returns {number} — new morale value
  */
-export function applyAmbientDrain(morale) {
+export function applyAmbientDrain(morale: number): number {
     return Math.max(0, morale - CONFIG.ambientDrain);
 }
 
@@ -61,7 +155,7 @@ export function applyAmbientDrain(morale) {
  * @param {boolean} isDespairing
  * @returns {number}
  */
-export function modifySleepRecovery(baseDelta, isDespairing) {
+export function modifySleepRecovery(baseDelta: number, isDespairing: boolean): number {
     if (!isDespairing || baseDelta <= 0) return baseDelta;
     return baseDelta * CONFIG.sleepRecoveryMult;
 }
@@ -74,7 +168,7 @@ export function modifySleepRecovery(baseDelta, isDespairing) {
  * @param {number} morale
  * @returns {boolean}
  */
-export function shouldClearDespairing(morale) {
+export function shouldClearDespairing(morale: number): boolean {
     return morale >= CONFIG.exitThreshold;
 }
 
@@ -86,7 +180,7 @@ export function shouldClearDespairing(morale) {
  * @param {number} rngValue — random float in [0,1) for noise magnitude
  * @returns {number} — corrupted display value, clamped to [0,100]
  */
-export function corruptStatValue(trueValue, rngValue) {
+export function corruptStatValue(trueValue: number, rngValue: number): number {
     const offset = (rngValue - 0.5) * 2 * CONFIG.statCorruptionRange;
     return Math.max(0, Math.min(100, trueValue + offset));
 }
@@ -97,7 +191,7 @@ export function corruptStatValue(trueValue, rngValue) {
  * @param {number} rngValue — random float in [0,1)
  * @returns {boolean}
  */
-export function shouldCorruptDescriptor(rngValue) {
+export function shouldCorruptDescriptor(rngValue: number): boolean {
     return rngValue < CONFIG.statCorruptionChance;
 }
 
@@ -108,7 +202,7 @@ export function shouldCorruptDescriptor(rngValue) {
  * @param {number} rngValue — random float in [0,1)
  * @returns {boolean}
  */
-export function isReadingBlocked(isDespairing, rngValue) {
+export function isReadingBlocked(isDespairing: boolean, rngValue: number): boolean {
     if (!isDespairing) return false;
     return rngValue < CONFIG.readBlockChance;
 }
@@ -119,7 +213,7 @@ export function isReadingBlocked(isDespairing, rngValue) {
  * @param {boolean} isDespairing
  * @returns {boolean}
  */
-export function chasmSkipsConfirm(isDespairing) {
+export function chasmSkipsConfirm(isDespairing: boolean): boolean {
     if (!isDespairing) return false;
     return CONFIG.chasmSkipConfirm;
 }
@@ -130,7 +224,7 @@ export function chasmSkipsConfirm(isDespairing) {
  * @param {object} stats — { morale, despairing, ... }
  * @returns {object} — new stats with morale/despairing updated
  */
-export function applyAlcohol(stats) {
+export function applyAlcohol(stats: AlcoholStats): AlcoholStats {
     let morale = Math.min(100, stats.morale + CONFIG.alcoholMoraleBoost);
     let despairing = stats.despairing;
     if (CONFIG.alcoholClearsDespairing && shouldClearDespairing(morale)) {
@@ -158,23 +252,23 @@ export function applyAlcohol(stats) {
  * @param {object} [opts.tickFns] — tick core functions (advanceTick, isLightsOn, etc.)
  * @returns {{ log: object[], finalStats: object, dayStats: object[] }}
  */
-export function simulate(opts, survFns, tickFns) {
+export function simulate(opts: SimulateOpts, survFns: SurvivalFns, tickFns: TickFns): SimulateResult {
     const days = opts.days || 10;
-    const beh = Object.assign({
+    const beh: Required<SimBehavior> = Object.assign({
         eats: true, drinks: true, sleeps: true,
         eatAt: 70, drinkAt: 70, sleepAt: 80,
         nonsensePerDay: 0, sensiblePerDay: 0,
     }, opts.behavior);
 
-    let stats = survFns.defaultStats();
-    let tickState = tickFns.defaultTickState();
+    let stats: AlcoholStats = survFns.defaultStats();
+    let tickState: SimTickState = tickFns.defaultTickState();
     let nonsensePagesRead = 0;
-    const dayStats = [];
+    const dayStats: DayStat[] = [];
     let currentDay = 1;
     let diedThisDay = false;
     let wasDespairing = false;
 
-    function applySleepWithDespairing() {
+    function applySleepWithDespairing(): void {
         const wasDespairing = stats.despairing;
         const moraleBefore = stats.morale;
         stats = survFns.applySleep(stats);
@@ -191,15 +285,15 @@ export function simulate(opts, survFns, tickFns) {
         }
     }
 
-    function recordDay() {
+    function recordDay(): void {
         dayStats.push({
             day: currentDay,
             morale: stats.morale,
-            despairing: stats.despairing || wasDespairing,
-            hunger: stats.hunger,
-            thirst: stats.thirst,
-            exhaustion: stats.exhaustion,
-            mortality: stats.mortality,
+            despairing: (stats.despairing as boolean) || wasDespairing,
+            hunger: stats.hunger as number,
+            thirst: stats.thirst as number,
+            exhaustion: stats.exhaustion as number,
+            mortality: stats.mortality as number,
             dead: diedThisDay,
             nonsensePagesRead,
         });
@@ -209,7 +303,7 @@ export function simulate(opts, survFns, tickFns) {
         let awakeTicks = 0;
         diedThisDay = false;
         wasDespairing = false;
-        let readingsThisDay = { nonsense: 0, sensible: 0 };
+        const readingsThisDay = { nonsense: 0, sensible: 0 };
 
         // Compute reading intervals: spread N readings evenly across 160 awake ticks
         const awakeTicksPerDay = tickFns.LIGHTS_ON_TICKS || 160;
@@ -253,10 +347,10 @@ export function simulate(opts, survFns, tickFns) {
             if (stats.morale <= 0) stats = { ...stats, despairing: true };
 
             // Eat/drink
-            if (beh.eats && stats.hunger >= beh.eatAt) {
+            if (beh.eats && (stats.hunger as number) >= beh.eatAt) {
                 stats = survFns.applyEat(stats);
             }
-            if (beh.drinks && stats.thirst >= beh.drinkAt) {
+            if (beh.drinks && (stats.thirst as number) >= beh.drinkAt) {
                 stats = survFns.applyDrink(stats);
             }
 
@@ -270,7 +364,7 @@ export function simulate(opts, survFns, tickFns) {
             }
 
             // Voluntary nap if exhausted
-            if (beh.sleeps && stats.exhaustion >= beh.sleepAt) {
+            if (beh.sleeps && (stats.exhaustion as number) >= beh.sleepAt) {
                 applySleepWithDespairing();
             }
         }
