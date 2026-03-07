@@ -1,4 +1,4 @@
-/* Godmode event log — ring buffer of simulation events + filter state. */
+/* Godmode event log — ring buffer, filters, and log rendering. */
 
 const MAX_EVENTS = 200;
 let events = [];
@@ -15,10 +15,31 @@ const filters = {
     escape: true,
 };
 
+export const LOG_COLORS = {
+    bond: "#b8a878",
+    disposition: "#c49530",
+    death: "#9a2a2a",
+    resurrection: "#6a8a5a",
+    group: "#7a8ab8",
+    pilgrimage: "#d4a0e0",
+    escape: "#60d060",
+    search: "#8a7a60",
+};
+
+export const LOG_FILTER_LABELS = {
+    death: "death",
+    resurrection: "rez",
+    disposition: "disp",
+    bond: "bond",
+    group: "group",
+    search: "search",
+    pilgrimage: "pilgrim",
+    escape: "escape",
+};
+
 export const GodmodeLog = {
     init() {
         events = [];
-        // Reset filters to defaults
         filters.death = true;
         filters.resurrection = true;
         filters.disposition = true;
@@ -76,5 +97,63 @@ export const GodmodeLog = {
 
     get length() {
         return events.length;
+    },
+
+    /**
+     * Render filter bar HTML.
+     * Reads current filter state from this module.
+     */
+    renderFilters() {
+        let html = '<div class="gm-log-filters">';
+        for (const type in LOG_FILTER_LABELS) {
+            const active = filters[type];
+            const color = LOG_COLORS[type] || "#b8a878";
+            html += '<button class="gm-log-filter' + (active ? ' gm-log-filter-on' : '') +
+                '" data-filter="' + type + '" style="color:' + (active ? color : '#3a3428') +
+                '" title="' + type + '">' + LOG_FILTER_LABELS[type] + '</button>';
+        }
+        html += '</div>';
+        return html;
+    },
+
+    /**
+     * Render full log pane HTML (filters + entries).
+     * Writes directly to the element with id "gm-log-pane".
+     */
+    renderTo(el) {
+        if (!el) return;
+        const recent = this.getFiltered(100);
+        let html = this.renderFilters();
+        let count = 0;
+        for (const ev of recent) {
+            const color = LOG_COLORS[ev.type] || "#b8a878";
+            const mins = (ev.tick / 240) * 24 * 60 + 6 * 60;
+            const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
+            const mm = String(Math.floor(mins % 60)).padStart(2, "0");
+            const tag = LOG_FILTER_LABELS[ev.type] || ev.type;
+            html += '<div class="gm-log-entry" style="color:' + color + '">' +
+                '<span class="gm-log-time">d' + (ev.day - 1) + ' ' + hh + ':' + mm + '</span>' +
+                '<span class="gm-log-tag">[' + tag + ']</span> ' +
+                ev.text + '</div>';
+            count++;
+        }
+        if (count === 0) {
+            html += '<div class="gm-log-empty">No events yet.</div>';
+        }
+        el.innerHTML = html;
+    },
+
+    /**
+     * Wire click delegation for filter buttons on a container element.
+     * Call once after creating the pane element.
+     */
+    wireFilterClicks(el) {
+        el.addEventListener("click", function (ev) {
+            const btn = ev.target.closest("[data-filter]");
+            if (!btn) return;
+            const type = btn.getAttribute("data-filter");
+            GodmodeLog.toggleFilter(type);
+            GodmodeLog.renderTo(el);
+        });
     },
 };
