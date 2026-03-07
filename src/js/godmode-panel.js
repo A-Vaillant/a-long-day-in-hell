@@ -1,6 +1,10 @@
-/* Godmode panel — interior view of selected NPC.
- * Shows psychology, personality, relationships, inner monologue.
+/* Godmode panel — NPC list + detail view.
+ * List: all NPCs with compact stat summary, clickable to select.
+ * Detail: psychology, personality, relationships, narration.
+ * Callbacks: onSelect(id), onCenter(id), onDeselect()
  */
+
+let callbacks = {};
 
 const TRAIT_LABELS = {
     openness: "openness",
@@ -9,6 +13,19 @@ const TRAIT_LABELS = {
     sociability: "sociability",
     curiosity: "curiosity",
 };
+
+const DISP_SHORT = {
+    calm: "calm",
+    anxious: "anx",
+    mad: "mad",
+    catatonic: "cat",
+};
+
+function miniBar(value, max, color) {
+    const pct = Math.max(0, Math.min(100, (value / max) * 100));
+    return '<div class="gm-mini-bar"><div class="gm-mini-bar-fill" style="width:' + pct +
+        '%;background:' + color + '"></div></div>';
+}
 
 function bar(value, max, color) {
     const pct = Math.max(0, Math.min(100, (value / max) * 100));
@@ -23,13 +40,11 @@ function narrate(npc) {
 
     const parts = [];
 
-    // Disposition
     if (npc.disposition === "calm") parts.push("They are unworried.");
     else if (npc.disposition === "anxious") parts.push("They are anxious.");
     else if (npc.disposition === "mad") parts.push("They have lost their mind.");
     else if (npc.disposition === "catatonic") parts.push("They have stopped moving.");
 
-    // Social
     if (npc.bonds.length === 0) {
         parts.push("They know no one.");
     } else {
@@ -41,7 +56,6 @@ function narrate(npc) {
         }
     }
 
-    // Group
     if (npc.groupId !== null && npc.groupId !== undefined) {
         parts.push("They are traveling with others.");
     } else {
@@ -51,9 +65,155 @@ function narrate(npc) {
     return parts.join(" ");
 }
 
+function renderList(snap, pane) {
+    let html = '<div class="gm-npc-list">';
+    const sorted = snap.npcs.slice().sort((a, b) => {
+        // Dead last, then by disposition severity, then name
+        if (a.alive !== b.alive) return a.alive ? -1 : 1;
+        const order = { mad: 0, anxious: 1, catatonic: 2, calm: 3 };
+        const da = order[a.disposition] ?? 3;
+        const db = order[b.disposition] ?? 3;
+        if (da !== db) return da - db;
+        return a.name.localeCompare(b.name);
+    });
+
+    for (const npc of sorted) {
+        const dispClass = "gm-disp-" + npc.disposition;
+        const dead = npc.alive ? "" : " gm-npc-row-dead";
+        html += '<div class="gm-npc-row' + dead + '" data-npc-id="' + npc.id + '">';
+        html += '<div class="gm-npc-row-top">';
+        html += '<span class="gm-npc-row-name">' + esc(npc.name) + '</span>';
+        html += '<span class="gm-npc-row-disp ' + dispClass + '">' + (DISP_SHORT[npc.disposition] || npc.disposition) + '</span>';
+        if (!npc.alive) html += '<span class="gm-dead-tag">dead</span>';
+        html += '</div>';
+        html += '<div class="gm-npc-row-bars">';
+        html += '<span class="gm-npc-row-label">luc</span>' + miniBar(npc.lucidity, 100, "#b8a878");
+        html += '<span class="gm-npc-row-label">hope</span>' + miniBar(npc.hope, 100, "#6a8a5a");
+        html += '</div>';
+        html += '<div class="gm-npc-row-loc" data-center-id="' + npc.id + '">';
+        html += (npc.side === 0 ? 'W' : 'E') + ' f' + npc.floor + ' s' + npc.position;
+        html += '</div>';
+        html += '</div>';
+    }
+
+    html += '</div>';
+    pane.innerHTML = html;
+
+    // Bind clicks
+    pane.querySelectorAll(".gm-npc-row").forEach(function (row) {
+        row.addEventListener("click", function (ev) {
+            // Don't select if clicking the location link
+            if (ev.target.closest("[data-center-id]")) return;
+            const id = parseInt(row.dataset.npcId, 10);
+            if (callbacks.onSelect) callbacks.onSelect(id);
+        });
+    });
+
+    pane.querySelectorAll("[data-center-id]").forEach(function (el) {
+        el.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            const id = parseInt(el.dataset.centerId, 10);
+            if (callbacks.onCenter) callbacks.onCenter(id);
+        });
+    });
+}
+
+function renderDetail(npc, snap, pane) {
+    let html = '<div class="gm-interior">';
+
+    // Back button
+    html += '<button class="gm-back" id="gm-npc-back">\u2190 all npcs</button>';
+
+    // Identity
+    html += '<div class="gm-section gm-identity">';
+    html += '<div class="gm-name">' + esc(npc.name) + '</div>';
+    html += '<div class="gm-disp gm-disp-' + npc.disposition + '">' + npc.disposition + '</div>';
+    if (!npc.alive) html += '<div class="gm-dead-tag">dead</div>';
+    html += '</div>';
+
+    // Psychology
+    html += '<div class="gm-section">';
+    html += '<div class="gm-section-title">psychology</div>';
+    html += '<div class="gm-stat"><span>lucidity</span>' + bar(npc.lucidity, 100, "#b8a878") + '</div>';
+    html += '<div class="gm-stat"><span>hope</span>' + bar(npc.hope, 100, "#6a8a5a") + '</div>';
+    html += '</div>';
+
+    // Personality
+    if (npc.personality) {
+        html += '<div class="gm-section">';
+        html += '<div class="gm-section-title">personality</div>';
+        for (const key in TRAIT_LABELS) {
+            if (npc.personality[key] !== undefined) {
+                html += '<div class="gm-stat"><span>' + TRAIT_LABELS[key] + '</span>' +
+                    bar(npc.personality[key], 1, "#7a7060") + '</div>';
+            }
+        }
+        html += '</div>';
+    }
+
+    // Relationships
+    if (npc.bonds.length > 0) {
+        html += '<div class="gm-section">';
+        html += '<div class="gm-section-title">relationships</div>';
+        const sorted = npc.bonds.slice().sort((a, b) => b.familiarity - a.familiarity);
+        for (const bond of sorted) {
+            if (bond.familiarity < 0.5) continue;
+            html += '<div class="gm-bond">';
+            html += '<span class="gm-bond-name">' + esc(bond.name) + '</span>';
+            html += '<span class="gm-bond-fam">fam ' + Math.round(bond.familiarity) + '</span>';
+            html += '<span class="gm-bond-aff ' + (bond.affinity >= 0 ? 'gm-aff-pos' : 'gm-aff-neg') + '">' +
+                'aff ' + (bond.affinity >= 0 ? '+' : '') + Math.round(bond.affinity) + '</span>';
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+
+    // Group
+    if (npc.groupId !== null && npc.groupId !== undefined) {
+        const groupMates = snap.npcs.filter(n => n.groupId === npc.groupId && n.id !== npc.id);
+        if (groupMates.length > 0) {
+            html += '<div class="gm-section">';
+            html += '<div class="gm-section-title">group</div>';
+            for (const mate of groupMates) {
+                html += '<div class="gm-group-member gm-disp-' + mate.disposition + '">' +
+                    esc(mate.name) + '</div>';
+            }
+            html += '</div>';
+        }
+    }
+
+    // Narration
+    html += '<div class="gm-section gm-monologue">';
+    html += '<div class="gm-thought">' + esc(narrate(npc)) + '</div>';
+    html += '</div>';
+
+    // Location (clickable to center)
+    html += '<div class="gm-section gm-location">';
+    html += '<span>floor ' + npc.floor + '</span>';
+    html += '<span class="gm-loc-link" data-center-id="' + npc.id + '">' +
+        (npc.side === 0 ? 'west' : 'east') + ' \u00B7 seg ' + npc.position + '</span>';
+    html += '</div>';
+
+    html += '</div>';
+    pane.innerHTML = html;
+
+    // Bind back button
+    document.getElementById("gm-npc-back").addEventListener("click", function () {
+        if (callbacks.onDeselect) callbacks.onDeselect();
+    });
+
+    // Bind location click
+    pane.querySelectorAll("[data-center-id]").forEach(function (el) {
+        el.addEventListener("click", function () {
+            const id = parseInt(el.dataset.centerId, 10);
+            if (callbacks.onCenter) callbacks.onCenter(id);
+        });
+    });
+}
+
 export const GodmodePanel = {
-    init() {
-        // Panel DOM already created by godmode.js setupDOM
+    init(cbs) {
+        callbacks = cbs || {};
     },
 
     update(snap, selectedId) {
@@ -61,89 +221,15 @@ export const GodmodePanel = {
         if (!pane) return;
 
         if (selectedId === null) {
-            pane.innerHTML = '<div class="gm-panel-empty">Click an NPC to observe</div>';
-            return;
-        }
-
-        const npc = snap.npcs.find(n => n.id === selectedId);
-        if (!npc) {
-            pane.innerHTML = '<div class="gm-panel-empty">NPC not found</div>';
-            return;
-        }
-
-        let html = '<div class="gm-interior">';
-
-        // Identity
-        html += '<div class="gm-section gm-identity">';
-        html += '<div class="gm-name">' + esc(npc.name) + '</div>';
-        html += '<div class="gm-disp gm-disp-' + npc.disposition + '">' + npc.disposition + '</div>';
-        if (!npc.alive) html += '<div class="gm-dead-tag">dead</div>';
-        html += '</div>';
-
-        // Psychology
-        html += '<div class="gm-section">';
-        html += '<div class="gm-section-title">psychology</div>';
-        html += '<div class="gm-stat"><span>lucidity</span>' + bar(npc.lucidity, 100, "#b8a878") + '</div>';
-        html += '<div class="gm-stat"><span>hope</span>' + bar(npc.hope, 100, "#6a8a5a") + '</div>';
-        html += '</div>';
-
-        // Personality
-        if (npc.personality) {
-            html += '<div class="gm-section">';
-            html += '<div class="gm-section-title">personality</div>';
-            for (const key in TRAIT_LABELS) {
-                if (npc.personality[key] !== undefined) {
-                    html += '<div class="gm-stat"><span>' + TRAIT_LABELS[key] + '</span>' +
-                        bar(npc.personality[key], 1, "#7a7060") + '</div>';
-                }
+            renderList(snap, pane);
+        } else {
+            const npc = snap.npcs.find(n => n.id === selectedId);
+            if (!npc) {
+                renderList(snap, pane);
+                return;
             }
-            html += '</div>';
+            renderDetail(npc, snap, pane);
         }
-
-        // Relationships
-        if (npc.bonds.length > 0) {
-            html += '<div class="gm-section">';
-            html += '<div class="gm-section-title">relationships</div>';
-            const sorted = npc.bonds.slice().sort((a, b) => b.familiarity - a.familiarity);
-            for (const bond of sorted) {
-                if (bond.familiarity < 0.5) continue; // skip trivial
-                html += '<div class="gm-bond">';
-                html += '<span class="gm-bond-name">' + esc(bond.name) + '</span>';
-                html += '<span class="gm-bond-fam">fam ' + Math.round(bond.familiarity) + '</span>';
-                html += '<span class="gm-bond-aff ' + (bond.affinity >= 0 ? 'gm-aff-pos' : 'gm-aff-neg') + '">' +
-                    'aff ' + (bond.affinity >= 0 ? '+' : '') + Math.round(bond.affinity) + '</span>';
-                html += '</div>';
-            }
-            html += '</div>';
-        }
-
-        // Group
-        if (npc.groupId !== null && npc.groupId !== undefined) {
-            const groupMates = snap.npcs.filter(n => n.groupId === npc.groupId && n.id !== npc.id);
-            if (groupMates.length > 0) {
-                html += '<div class="gm-section">';
-                html += '<div class="gm-section-title">group</div>';
-                for (const mate of groupMates) {
-                    html += '<div class="gm-group-member gm-disp-' + mate.disposition + '">' +
-                        esc(mate.name) + '</div>';
-                }
-                html += '</div>';
-            }
-        }
-
-        // Narration
-        html += '<div class="gm-section gm-monologue">';
-        html += '<div class="gm-thought">' + esc(narrate(npc)) + '</div>';
-        html += '</div>';
-
-        // Location
-        html += '<div class="gm-section gm-location">';
-        html += '<span>floor ' + npc.floor + '</span>';
-        html += '<span>' + (npc.side === 0 ? 'west' : 'east') + ' · seg ' + npc.position + '</span>';
-        html += '</div>';
-
-        html += '</div>';
-        pane.innerHTML = html;
     },
 };
 

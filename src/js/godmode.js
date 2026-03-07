@@ -460,7 +460,24 @@ export const Godmode = {
         GodmodeLog.init();
         const canvas = setupDOM();
         GodmodeMap.init(canvas, state);
-        GodmodePanel.init();
+        GodmodePanel.init({
+            onSelect(id) {
+                selectedNpcId = id;
+                followMode = true;
+                switchTab("npc");
+                render();
+            },
+            onCenter(id) {
+                selectedNpcId = id;
+                followMode = true;
+                render();
+            },
+            onDeselect() {
+                selectedNpcId = null;
+                followMode = false;
+                render();
+            },
+        });
         setupInput(canvas);
 
         render();

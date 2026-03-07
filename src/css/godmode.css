@@ -372,6 +372,108 @@ body.godmode {
     color: #6a6050;
 }
 
+.gm-loc-link {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: #3a3428;
+}
+
+.gm-loc-link:hover {
+    color: #b8a878;
+    text-decoration-color: #b8a878;
+}
+
+/* --- Back button --- */
+
+.gm-back {
+    background: none;
+    border: none;
+    color: #6a6050;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 0;
+    margin-bottom: 8px;
+}
+
+.gm-back:hover {
+    color: #b8a878;
+}
+
+/* --- NPC List --- */
+
+.gm-npc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.gm-npc-row {
+    padding: 8px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #1a1810;
+}
+
+.gm-npc-row:hover {
+    background: #14120e;
+}
+
+.gm-npc-row-dead {
+    opacity: 0.5;
+}
+
+.gm-npc-row-top {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.gm-npc-row-name {
+    color: #d4c8a0;
+    font-size: 13px;
+}
+
+.gm-npc-row-disp {
+    font-size: 11px;
+}
+
+.gm-npc-row-bars {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.gm-npc-row-label {
+    font-size: 10px;
+    color: #6a6050;
+    width: 30px;
+}
+
+.gm-mini-bar {
+    width: 50px;
+    height: 4px;
+    background: #1a1810;
+    border-radius: 2px;
+}
+
+.gm-mini-bar-fill {
+    height: 100%;
+    border-radius: 1px;
+}
+
+.gm-npc-row-loc {
+    font-size: 10px;
+    color: #4a4030;
+    cursor: pointer;
+}
+
+.gm-npc-row-loc:hover {
+    color: #b8a878;
+    text-decoration: underline;
+}
+
 /* --- Event Log (in panel) --- */
 
 .gm-log-entry {
