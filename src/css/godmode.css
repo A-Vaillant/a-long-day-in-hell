@@ -319,6 +319,7 @@ body.godmode {
 .gm-disp-inspired  { color: #c8a0e0; }
 .gm-disp-escaped   { color: #60d060; }
 .gm-dead-tag       { color: #444; font-style: italic; }
+.gm-player-tag     { color: #6ac; font-size: 0.75em; font-style: italic; margin-left: 0.3em; }
 
 /* Psychology bars */
 

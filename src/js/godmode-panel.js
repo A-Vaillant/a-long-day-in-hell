@@ -340,7 +340,7 @@ const componentRenderers = {
         for (const bond of sorted) {
             if (bond.familiarity < 0.5) continue;
             html += '<div class="gm-bond">';
-            html += '<span class="gm-bond-name">' + esc(bond.name) + '</span>';
+            html += '<span class="gm-bond-name">' + esc(bond.name) + (bond.isPlayer ? ' <span class="gm-player-tag">you</span>' : '') + '</span>';
             html += '<span class="gm-bond-fam gm-tip" data-tip="' + esc(TIPS.fam) + '">fam ' + Math.round(bond.familiarity) + '</span>';
             html += '<span class="gm-bond-aff gm-tip ' + (bond.affinity >= 0 ? 'gm-aff-pos' : 'gm-aff-neg') + '" data-tip="' + esc(TIPS.aff) + '">' +
                 'aff ' + (bond.affinity >= 0 ? '+' : '') + Math.round(bond.affinity) + '</span>';
@@ -524,6 +524,7 @@ function renderList(snap, pane) {
         html += '<div class="gm-npc-row' + dead + '" data-npc-id="' + npc.id + '">';
         html += '<div class="gm-npc-row-top">';
         html += '<span class="gm-npc-row-name">' + esc(npc.name) + '</span>';
+        if (npc.isPlayer) html += '<span class="gm-player-tag">you</span>';
         html += '<span class="gm-npc-row-disp ' + dispClass + '">' + (DISP_SHORT[npc.disposition] || npc.disposition) + '</span>';
         const isEscaped = npc.free;
         if (!npc.alive) html += '<span class="gm-dead-tag" style="' + (isEscaped ? 'color:#60d060;font-style:normal' : '') + '">' + (isEscaped ? 'FREE' : 'dead') + '</span>';
@@ -556,7 +557,7 @@ function renderDetail(npc, snap, pane) {
 
     // Identity (always present, from flat fields)
     html += '<div class="gm-section gm-identity">';
-    html += '<div class="gm-name">' + esc(npc.name) + '</div>';
+    html += '<div class="gm-name">' + esc(npc.name) + (npc.isPlayer ? ' <span class="gm-player-tag">you</span>' : '') + '</div>';
     html += '<div class="gm-disp gm-disp-' + npc.disposition + ' gm-tip" data-tip="' + esc(TIPS[npc.disposition] || "") + '">' + npc.disposition + '</div>';
     const isEscaped = npc.free;
     if (!npc.alive) html += '<div class="gm-dead-tag" style="' + (isEscaped ? 'color:#60d060;font-style:normal' : '') + '">' + (isEscaped ? 'FREE' : 'dead') + '</div>';

@@ -57,6 +57,7 @@ function snapshot() {
     if (!state.npcs) return { npcs, day: state.day, tick: state.tick, lightsOn: state.lightsOn };
 
     const world = Social.getWorld();
+    const playerEnt = Social.getPlayerEntity();
 
     for (const npc of state.npcs) {
         const psych = Social.getNpcPsych(npc.id);
@@ -80,9 +81,10 @@ function snapshot() {
                             const otherIdent = getComponent(world, otherEnt, "identity");
                             if (otherIdent) {
                                 bonds.push({
-                                    name: otherIdent.name,
+                                    name: otherEnt === playerEnt ? "Player" : otherIdent.name,
                                     familiarity: bond.familiarity,
                                     affinity: bond.affinity,
+                                    isPlayer: otherEnt === playerEnt,
                                 });
                             }
                         }
@@ -132,6 +134,32 @@ function snapshot() {
             components,
             falling: npc.falling || null,
         });
+    }
+
+    // Add player entity to snapshot
+    if (world && playerEnt !== null) {
+        const pPos = getComponent(world, playerEnt, "position");
+        const pPsych = getComponent(world, playerEnt, "psychology");
+        const pIdent = getComponent(world, playerEnt, "identity");
+        if (pPos && pPsych && pIdent) {
+            npcs.push({
+                id: "__player__",
+                name: "Player",
+                side: pPos.side,
+                position: pPos.position,
+                floor: pPos.floor,
+                disposition: "calm",
+                alive: pIdent.alive,
+                free: false,
+                lucidity: pPsych.lucidity,
+                hope: pPsych.hope,
+                bonds: [],
+                groupId: null,
+                components: {},
+                falling: null,
+                isPlayer: true,
+            });
+        }
     }
 
     return {
@@ -355,6 +383,9 @@ function setupDOM() {
         '<span id="gm-zoom" title="Zoom level (scroll wheel, +/-)">1x</span>' +
         '<span id="gm-pos" title="Viewport center (segment, floor)"></span>' +
         '<button id="gm-home" title="Reset view to start (H)"><kbd>H</kbd>\u2302</button>' +
+        '<div class="gm-ctrl-sep"></div>' +
+        '<button id="gm-save" title="Save state">save</button>' +
+        '<button id="gm-reset" title="Reset to new seed">reset</button>' +
         '<span id="gm-status"></span>';
     mapWrap.appendChild(controls);
 
@@ -441,6 +472,17 @@ function setupInput(canvas) {
             this.value = "";
             this.blur();
         }
+    });
+
+    document.getElementById("gm-save").addEventListener("click", function () {
+        Engine.save();
+        const el = document.getElementById("gm-status");
+        if (el) { el.textContent = "saved"; setTimeout(function () { el.textContent = ""; }, 1500); }
+    });
+    document.getElementById("gm-reset").addEventListener("click", function () {
+        if (!confirm("Reset simulation? This clears the save and reloads with a new seed.")) return;
+        Engine.clearSave();
+        window.location.href = window.location.pathname + "?godmode=1";
     });
 
     document.getElementById("gm-tab-log").addEventListener("click", function () { switchTab("log"); });
