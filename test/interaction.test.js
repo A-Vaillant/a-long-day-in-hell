@@ -11,9 +11,11 @@ import { HABITUATION } from "../lib/psych.core.ts";
 import { STATS } from "../lib/stats.core.ts";
 import { KNOWLEDGE } from "../lib/knowledge.core.ts";
 import {
-    talkTo, spendTime, recruit,
+    talkTo, spendTime, recruit, socializeSystem,
     DEFAULT_TALK, DEFAULT_SPEND_TIME, DEFAULT_RECRUIT,
 } from "../lib/interaction.core.ts";
+import { INTENT } from "../lib/intent.core.ts";
+import { DEFAULT_SCORERS } from "../lib/intent.core.ts";
 
 // --- Helpers ---
 
@@ -496,5 +498,168 @@ describe("social action pipeline", () => {
         // Recruit should fail
         const result = recruit(w, p, n, 200);
         assert.strictEqual(result.joined, false);
+    });
+});
+
+// --- socialize scorer diminishing returns ---
+
+describe("socialize scorer diminishing returns", () => {
+    const scorer = DEFAULT_SCORERS.socialize;
+    const config = { needsCriticalThreshold: 80, exhaustionThreshold: 70, stickinessBonus: 0.3, cooldowns: {}, defaultCooldown: 5 };
+    const fakeRng = { next() { return 0.5; } }; // no jitter
+
+    function makeCtx(elapsed, behavior = "socialize") {
+        return {
+            psych: { lucidity: 100, hope: 100 },
+            alive: true,
+            disposition: "calm",
+            needs: null,
+            personality: { openness: 0.5, pace: 0.5, composure: 0.5 },
+            intent: { behavior, cooldown: 0, elapsed },
+            rng: fakeRng,
+            position: { side: 0, position: 0, floor: 0 },
+            sleep: null,
+            knowledge: null,
+            tick: 0,
+            hasCompanion: true,
+        };
+    }
+
+    it("returns -Infinity without a companion", () => {
+        const ctx = makeCtx(0);
+        ctx.hasCompanion = false;
+        assert.strictEqual(scorer(ctx, config), -Infinity);
+    });
+
+    it("full score at elapsed 0", () => {
+        const fresh = scorer(makeCtx(0), config);
+        assert.ok(fresh > 0.4, "base score present");
+    });
+
+    it("score decays after socializing for a while", () => {
+        const fresh = scorer(makeCtx(0), config);
+        const after8 = scorer(makeCtx(8), config);
+        const after16 = scorer(makeCtx(16), config);
+        assert.ok(after8 < fresh, "score lower after 8 ticks");
+        assert.ok(after16 < after8, "score lower after 16 ticks");
+    });
+
+    it("halves roughly every 8 ticks", () => {
+        const fresh = scorer(makeCtx(0), config);
+        const after8 = scorer(makeCtx(8), config);
+        // The base score components that get multiplied by decay
+        // With rng=0.5, jitter is 0. Score = 0.4 + 0.15 + 0.1 = 0.65
+        // After 8 ticks: 0.65 * 0.5 = 0.325
+        const ratio = after8 / fresh;
+        assert.ok(ratio > 0.45 && ratio < 0.55, `ratio ${ratio} should be ~0.5`);
+    });
+
+    it("no decay when current behavior is not socialize", () => {
+        const exploring = scorer(makeCtx(20, "explore"), config);
+        const fresh = scorer(makeCtx(0), config);
+        // When not currently socializing, elapsed doesn't apply decay
+        assert.strictEqual(exploring, fresh);
+    });
+});
+
+// --- socializeSystem (opportunistic walk-and-talk) ---
+
+describe("socializeSystem", () => {
+    function makeBondedPair(world, opts = {}) {
+        const { pos = 0 } = opts;
+        const a = makeEntity(world, { name: "A", position: pos });
+        const b = makeEntity(world, { name: "B", position: pos });
+        // Create mutual bonds
+        const aRels = getComponent(world, a, RELATIONSHIPS);
+        const bRels = getComponent(world, b, RELATIONSHIPS);
+        aRels.bonds.set(b, { familiarity: 20, affinity: 10, firstContact: 0, lastContact: 50, encounters: 5 });
+        bRels.bonds.set(a, { familiarity: 20, affinity: 10, firstContact: 0, lastContact: 50, encounters: 5 });
+        return [a, b];
+    }
+
+    it("pairs co-located bonded NPCs and builds bonds", () => {
+        const w = makeWorld();
+        const [a, b] = makeBondedPair(w);
+        const aBefore = getComponent(w, a, RELATIONSHIPS).bonds.get(b).familiarity;
+        socializeSystem(w, 100);
+        const aAfter = getComponent(w, a, RELATIONSHIPS).bonds.get(b).familiarity;
+        assert.ok(aAfter > aBefore, "familiarity increased from chat");
+    });
+
+    it("does not pair unbonded co-located NPCs", () => {
+        const w = makeWorld();
+        const a = makeEntity(w, { name: "Stranger1" });
+        const b = makeEntity(w, { name: "Stranger2" });
+        // No bonds between them
+        const aPsych = getComponent(w, a, PSYCHOLOGY);
+        const hopeBefore = aPsych.hope;
+        socializeSystem(w, 100);
+        // Hope shouldn't change (no talk happened)
+        assert.strictEqual(aPsych.hope, hopeBefore);
+    });
+
+    it("does not pair bonded NPCs at different locations", () => {
+        const w = makeWorld();
+        const a = makeEntity(w, { name: "Far1", position: 0 });
+        const b = makeEntity(w, { name: "Far2", position: 5 });
+        const aRels = getComponent(w, a, RELATIONSHIPS);
+        const bRels = getComponent(w, b, RELATIONSHIPS);
+        aRels.bonds.set(b, { familiarity: 20, affinity: 10, firstContact: 0, lastContact: 50, encounters: 5 });
+        bRels.bonds.set(a, { familiarity: 20, affinity: 10, firstContact: 0, lastContact: 50, encounters: 5 });
+
+        const famBefore = aRels.bonds.get(b).familiarity;
+        socializeSystem(w, 100);
+        assert.strictEqual(aRels.bonds.get(b).familiarity, famBefore, "no chat at distance");
+    });
+
+    it("works regardless of intent (walk-and-talk)", () => {
+        const w = makeWorld();
+        const [a, b] = makeBondedPair(w);
+        // Give them non-socialize intents
+        addComponent(w, a, INTENT, { behavior: "explore", cooldown: 0, elapsed: 5 });
+        addComponent(w, b, INTENT, { behavior: "search", cooldown: 0, elapsed: 3 });
+
+        const famBefore = getComponent(w, a, RELATIONSHIPS).bonds.get(b).familiarity;
+        socializeSystem(w, 100);
+        const famAfter = getComponent(w, a, RELATIONSHIPS).bonds.get(b).familiarity;
+        assert.ok(famAfter > famBefore, "bonded NPCs chat even while exploring/searching");
+    });
+
+    it("each entity socializes with at most one partner", () => {
+        const w = makeWorld();
+        const a = makeEntity(w, { name: "Hub" });
+        const b = makeEntity(w, { name: "Spoke1" });
+        const c = makeEntity(w, { name: "Spoke2" });
+        // a bonded to both b and c
+        const aRels = getComponent(w, a, RELATIONSHIPS);
+        const bRels = getComponent(w, b, RELATIONSHIPS);
+        const cRels = getComponent(w, c, RELATIONSHIPS);
+        aRels.bonds.set(b, { familiarity: 20, affinity: 10, firstContact: 0, lastContact: 50, encounters: 5 });
+        bRels.bonds.set(a, { familiarity: 20, affinity: 10, firstContact: 0, lastContact: 50, encounters: 5 });
+        aRels.bonds.set(c, { familiarity: 20, affinity: 10, firstContact: 0, lastContact: 50, encounters: 5 });
+        cRels.bonds.set(a, { familiarity: 20, affinity: 10, firstContact: 0, lastContact: 50, encounters: 5 });
+
+        const bFamBefore = bRels.bonds.get(a).familiarity;
+        const cFamBefore = cRels.bonds.get(a).familiarity;
+        socializeSystem(w, 100);
+        const bFamAfter = bRels.bonds.get(a).familiarity;
+        const cFamAfter = cRels.bonds.get(a).familiarity;
+        // a talks to b (first match), c should be unchanged
+        assert.ok(bFamAfter > bFamBefore, "first partner gets chat");
+        assert.strictEqual(cFamAfter, cFamBefore, "second partner skipped (a already talked)");
+    });
+
+    it("shares search knowledge between chatting NPCs", () => {
+        const w = makeWorld();
+        const [a, b] = makeBondedPair(w);
+        addComponent(w, a, KNOWLEDGE, { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:0:0"]) });
+        addComponent(w, b, KNOWLEDGE, { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:5:0"]) });
+
+        socializeSystem(w, 100);
+
+        const aKnow = getComponent(w, a, KNOWLEDGE);
+        const bKnow = getComponent(w, b, KNOWLEDGE);
+        assert.strictEqual(aKnow.searchedSegments.size, 2, "a learned from b");
+        assert.strictEqual(bKnow.searchedSegments.size, 2, "b learned from a");
     });
 });
