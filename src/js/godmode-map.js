@@ -593,11 +593,9 @@ export const GodmodeMap = {
         else if (key === "+" || key === "=") this.zoom(1);
         else if (key === "-" || key === "_") this.zoom(-1);
         else if (key === "Tab") {
-            // Cycle: corridor 1 (start side) → corridor 2 → chasm (both)
+            // Cycle: corridor 1 (start side) → corridor 2 (chasm view disabled)
             const otherSide = startSide === 0 ? 1 : 0;
-            if (viewSide === startSide) viewSide = otherSide;
-            else if (viewSide === otherSide) viewSide = null;
-            else viewSide = startSide;
+            viewSide = viewSide === startSide ? otherSide : startSide;
             this._recalcCells();
         }
     },
