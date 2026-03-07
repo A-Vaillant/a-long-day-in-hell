@@ -46,6 +46,7 @@ const DISP_SHORT = {
     anxious: "anx",
     mad: "mad",
     catatonic: "cat",
+    inspired: "insp",
 };
 
 const TIPS = {
@@ -78,6 +79,7 @@ const TIPS = {
     anxious: "Strained. Lucidity or hope dropping.",
     mad: "Lucidity collapsed. Erratic, potentially violent.",
     catatonic: "Hope collapsed. Unresponsive. May not recover.",
+    inspired: "Divinely inspired. On a pilgrimage to find their book.",
     witnessChasm: "Saw someone jump into the chasm. Devastating at first.",
     beingKilled: "Died and came back. Terrifying, then routine.",
     companionMad: "A companion went mad. Personal. Slow to numb.",
@@ -384,6 +386,7 @@ function narrate(npc) {
     else if (npc.disposition === "anxious") parts.push("They are anxious.");
     else if (npc.disposition === "mad") parts.push("They have lost their mind.");
     else if (npc.disposition === "catatonic") parts.push("They have stopped moving.");
+    else if (npc.disposition === "inspired") parts.push("They have seen where their book is.");
 
     if (npc.bonds.length === 0) {
         parts.push("They know no one.");

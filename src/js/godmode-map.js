@@ -52,6 +52,7 @@ const DISP_COLORS = {
     mad:       "#d04040",
     catatonic: "#707070",
     dead:      "#3a3a3a",
+    inspired:  "#c8a0e0",
 };
 
 // Muted distinct colors for group enclosures (hex without alpha — alpha appended in draw)
