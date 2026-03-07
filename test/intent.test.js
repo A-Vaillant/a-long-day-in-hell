@@ -30,7 +30,7 @@ describe("DEFAULT_SCORERS", () => {
             intent: makeIntent(),
             rng: makeRng(0.5),
             position: { side: 0, position: 5, floor: 0 },
-            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
             tick: 0,
             ...overrides,
         };
@@ -103,7 +103,7 @@ describe("DEFAULT_SCORERS", () => {
     it("return_home scores positively in the evening when away from home", () => {
         const ctx = makeCtx({
             position: { side: 0, position: 5, floor: 0 },
-            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
             tick: 150, // near lights-out
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
@@ -113,7 +113,7 @@ describe("DEFAULT_SCORERS", () => {
     it("return_home returns -Infinity when already at home", () => {
         const ctx = makeCtx({
             position: { side: 0, position: 10, floor: 0 },
-            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
             tick: 150,
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
@@ -123,7 +123,7 @@ describe("DEFAULT_SCORERS", () => {
     it("return_home returns -Infinity when too far from home", () => {
         const ctx = makeCtx({
             position: { side: 0, position: 100, floor: 0 },
-            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
             tick: 150,
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
@@ -137,7 +137,7 @@ describe("DEFAULT_SCORERS", () => {
 
     it("return_home returns -Infinity for nomadic NPCs", () => {
         const ctx = makeCtx({
-            sleep: { homeRestArea: 10, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: true },
+            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: true },
             tick: 150,
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
@@ -257,6 +257,41 @@ describe("evaluateIntent", () => {
             null, makeRng(),
         );
         assert.strictEqual(r.behavior, "seek_rest");
+    });
+
+    it("lights off → idle (can't act in the dark)", () => {
+        const r = evaluateIntent(
+            makeIntent({ behavior: "explore" }),
+            { lucidity: 80, hope: 80 },
+            true, null, null, makeRng(),
+            undefined, undefined, undefined, undefined,
+            160, // tick 160 = lights off
+        );
+        assert.deepStrictEqual(r, { behavior: "idle", cooldown: 0 });
+    });
+
+    it("lights off overrides even starving NPC", () => {
+        const r = evaluateIntent(
+            makeIntent({ behavior: "seek_rest" }),
+            { lucidity: 80, hope: 80 },
+            true,
+            { hunger: 99, thirst: 99, exhaustion: 99 },
+            null, makeRng(),
+            undefined, undefined, undefined, undefined,
+            170,
+        );
+        assert.deepStrictEqual(r, { behavior: "idle", cooldown: 0 });
+    });
+
+    it("already idle during lights off → no change", () => {
+        const r = evaluateIntent(
+            makeIntent({ behavior: "idle" }),
+            { lucidity: 80, hope: 80 },
+            true, null, null, makeRng(),
+            undefined, undefined, undefined, undefined,
+            200,
+        );
+        assert.strictEqual(r, null);
     });
 });
 

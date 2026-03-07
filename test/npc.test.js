@@ -220,6 +220,13 @@ describe("interactText", () => {
         assert.ok(typeof text === "string" && text.length > 0);
     });
 
+    it("returns empty string for unknown disposition", () => {
+        const npc = { id: 0, name: "Test", side: 0, position: 0, floor: 0, disposition: "inspired", alive: true, daysMet: 0, lastSeenDay: 0 };
+        const rng = stubRng([0.5]);
+        const text = interactText(npc, TEST_DIALOGUE, rng);
+        assert.strictEqual(text, "");
+    });
+
     it("different RNG values can produce different text", () => {
         const npc = { id: 0, name: "Test", side: 0, position: 0, floor: 0, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 };
         const texts = new Set();

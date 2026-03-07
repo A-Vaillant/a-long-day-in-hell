@@ -20,15 +20,22 @@ import {
     getOrCreateBond,
     DEFAULT_BOND,
 } from "./social.core.ts";
+import { applyShockToEntity, type ShockConfig, DEFAULT_SHOCKS } from "./psych.core.ts";
 import { isRestArea } from "./library.core.ts";
 
 // --- Component ---
 
 export const SLEEP = "sleep";
 
+export interface HomeLocation {
+    side: number;
+    position: number;
+    floor: number;
+}
+
 export interface Sleep {
-    /** Rest area position this NPC considers home. */
-    homeRestArea: number;
+    /** Full coordinates of this NPC's home rest area. */
+    home: HomeLocation;
     /** Bed index (0–6) if currently sleeping, null otherwise. */
     bedIndex: number | null;
     /** Whether currently asleep. */
@@ -202,21 +209,31 @@ export function sleepWakeSystem(
             }
             hopeChange = Math.min(config.maxCoSleepHopeBoost, hopeChange);
         } else if (sleep.bedIndex !== null) {
-            // Slept alone in a bed
-            hopeChange = -config.aloneHopePenalty;
+            // Slept alone in a bed — routed through habituation
+            const impact = applyShockToEntity(world, entity, "sleepAlone");
+            hopeChange = impact.hope;
         }
-        // No bed at all (overflow) — worse than alone
+        // No bed at all (overflow) — worse than alone, also habituates
         if (sleep.bedIndex === null) {
-            hopeChange = -config.aloneHopePenalty * 1.5;
+            const impact = applyShockToEntity(world, entity, "sleepNoBed");
+            hopeChange = impact.hope;
         }
 
-        psych.hope = Math.max(0, Math.min(100, psych.hope + hopeChange));
+        // Co-sleeping hope boost applied directly (not a shock)
+        if (hopeChange > 0) {
+            psych.hope = Math.max(0, Math.min(100, psych.hope + hopeChange));
+        }
 
         // Home shift: if sleeping at a different rest area, track streak (not nomadic)
-        if (!sleep.nomadic && isRestArea(pos.position) && pos.position !== sleep.homeRestArea) {
+        const atHome = isRestArea(pos.position) &&
+            pos.side === sleep.home.side &&
+            pos.position === sleep.home.position &&
+            pos.floor === sleep.home.floor;
+
+        if (!sleep.nomadic && isRestArea(pos.position) && !atHome) {
             sleep.awayStreak++;
             if (sleep.awayStreak >= config.homeShiftThreshold) {
-                sleep.homeRestArea = pos.position;
+                sleep.home = { side: pos.side, position: pos.position, floor: pos.floor };
                 sleep.awayStreak = 0;
             }
         } else {
@@ -228,7 +245,7 @@ export function sleepWakeSystem(
             name: ident.name,
             hopeChange,
             coSleepers: coSleeperNames,
-            atHome: pos.position === sleep.homeRestArea,
+            atHome,
         });
 
         // Reset sleep state for next day

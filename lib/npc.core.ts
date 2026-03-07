@@ -130,6 +130,7 @@ export function deteriorate(npc: NPC, day: number, rng: Rng): NPC {
 /** Get interaction text. Dialogue table passed in from content. */
 export function interactText(npc: NPC, dialogue: DialogueTable, rng: Rng): string {
     const pool = npc.alive ? dialogue[npc.disposition] : dialogue.dead;
+    if (!pool || pool.length === 0) return "";
     const idx = Math.floor(rng.next() * pool.length);
     return pool[idx];
 }

@@ -6,6 +6,7 @@ import {
 } from "../lib/sleep.core.ts";
 import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
 import { POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS } from "../lib/social.core.ts";
+import { HABITUATION } from "../lib/psych.core.ts";
 
 function spawnSleeper(world, overrides = {}) {
     const ent = spawn(world);
@@ -14,11 +15,12 @@ function spawnSleeper(world, overrides = {}) {
     addComponent(world, ent, IDENTITY, { name: "Test", alive: true, ...overrides.identity });
     addComponent(world, ent, PSYCHOLOGY, { lucidity: 80, hope: 50, ...overrides.psychology });
     addComponent(world, ent, SLEEP, {
-        homeRestArea: pos.position,
+        home: { side: pos.side || 0, position: pos.position, floor: pos.floor || 0 },
         bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false,
         ...overrides.sleep,
     });
     addComponent(world, ent, RELATIONSHIPS, { bonds: new Map(), ...overrides.relationships });
+    addComponent(world, ent, HABITUATION, { exposures: new Map() });
     return ent;
 }
 
@@ -110,7 +112,7 @@ describe("sleepOnsetSystem", () => {
         const world = createWorld();
         const a = spawnSleeper(world, { position: { position: 10 }, identity: { name: "A" } });
         const b = spawnSleeper(world, { position: { position: 20 }, identity: { name: "B" },
-            sleep: { homeRestArea: 20, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false } });
+            sleep: { home: { side: 0, position: 20, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false } });
         sleepOnsetSystem(world);
 
         const sleepA = getComponent(world, a, SLEEP);
@@ -148,7 +150,8 @@ describe("sleepWakeSystem", () => {
         sleepWakeSystem(world, 100);
         const psych = getComponent(world, ent, PSYCHOLOGY);
         assert.ok(psych.hope < 50, "hope should decrease when sleeping alone");
-        assert.strictEqual(psych.hope, 50 - DEFAULT_SLEEP.aloneHopePenalty);
+        // First night: full shock impact (-3 hope from sleepAlone shock source)
+        assert.strictEqual(psych.hope, 47);
     });
 
     it("no bed is worse than sleeping alone", () => {
@@ -164,8 +167,42 @@ describe("sleepWakeSystem", () => {
 
         sleepWakeSystem(world, 100);
         const psych = getComponent(world, ent, PSYCHOLOGY);
-        assert.ok(psych.hope < 50 - DEFAULT_SLEEP.aloneHopePenalty,
-            "no bed should be worse than alone-with-bed");
+        // First night: full shock impact (-4.5 hope from sleepNoBed shock source)
+        assert.ok(psych.hope < 47, "no bed should be worse than alone-with-bed");
+    });
+
+    it("sleeping alone habituates — penalty diminishes over consecutive nights", () => {
+        const world = createWorld();
+        const ent = spawnSleeper(world, {
+            position: { position: 10 },
+            psychology: { lucidity: 80, hope: 80 },
+        });
+
+        // Simulate multiple consecutive alone nights
+        const penalties = [];
+        for (let night = 0; night < 10; night++) {
+            const psych = getComponent(world, ent, PSYCHOLOGY);
+            const hopeBefore = psych.hope;
+
+            const sleep = getComponent(world, ent, SLEEP);
+            sleep.asleep = true;
+            sleep.bedIndex = 0;
+            sleep.coSleepers = [];
+
+            sleepWakeSystem(world, 100 + night * 240);
+
+            penalties.push(hopeBefore - psych.hope);
+
+            // Reset sleep state for next night
+            sleep.asleep = false;
+            sleep.bedIndex = null;
+        }
+
+        // First night should hurt more than later nights
+        assert.ok(penalties[0] > penalties[5], "first night penalty > fifth night penalty");
+        assert.ok(penalties[5] > penalties[9], "fifth night > tenth night (still diminishing)");
+        // By night 10, penalty should be small fraction of original
+        assert.ok(penalties[9] < penalties[0] * 0.4, "tenth night < 40% of first night");
     });
 
     it("co-sleeping boosts hope", () => {
@@ -242,7 +279,7 @@ describe("sleepWakeSystem", () => {
         const ent = spawnSleeper(world, {
             position: { position: 20 }, // at rest area 20
             sleep: {
-                homeRestArea: 10, // home is rest area 10
+                home: { side: 0, position: 10, floor: 0 }, // home is rest area 10
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: DEFAULT_SLEEP.homeShiftThreshold - 1,
             },
@@ -253,7 +290,9 @@ describe("sleepWakeSystem", () => {
         sleep.coSleepers = [];
 
         sleepWakeSystem(world, 100);
-        assert.strictEqual(sleep.homeRestArea, 20, "home should shift to current rest area");
+        assert.strictEqual(sleep.home.position, 20, "home should shift to current rest area");
+        assert.strictEqual(sleep.home.side, 0);
+        assert.strictEqual(sleep.home.floor, 0);
         assert.strictEqual(sleep.awayStreak, 0, "away streak should reset");
     });
 
@@ -262,7 +301,7 @@ describe("sleepWakeSystem", () => {
         const ent = spawnSleeper(world, {
             position: { position: 10 },
             sleep: {
-                homeRestArea: 10,
+                home: { side: 0, position: 10, floor: 0 },
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: 2,
             },

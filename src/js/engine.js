@@ -157,7 +157,19 @@ export const Engine = {
         if (state.hunger === undefined) { cap.innerHTML = ""; return; }
 
         let html = '<div id="sidebar-stats">';
-        if (!state.lightsOn) html += '<div class="sb-dark">dark</div>';
+        // Time-of-day indicator
+        var timeStr = Tick.getTimeString();
+        if (state.tick >= 230) {
+            html += '<div class="sb-sleeping-hour">the sleeping hour</div>';
+            html += '<div class="sb-clock">' + timeStr + '</div>';
+        } else if (!state.lightsOn) {
+            html += '<div class="sb-dark">dark</div>';
+            html += '<div class="sb-clock">' + timeStr + '</div>';
+        } else if (state.tick >= 120) {
+            html += '<div class="sb-time sb-dusk">' + timeStr + '</div>';
+        } else {
+            html += '<div class="sb-time">' + timeStr + '</div>';
+        }
         html += '<div class="sb-divider"></div>';
 
         const stats = [
