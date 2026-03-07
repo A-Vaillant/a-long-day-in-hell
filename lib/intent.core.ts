@@ -29,7 +29,7 @@ import {
 import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { NEEDS, type Needs } from "./needs.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
-import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
+import { KNOWLEDGE, type Knowledge, isSearched } from "./knowledge.core.ts";
 import { LIGHTS_ON_TICKS } from "./tick.core.ts";
 
 // --- Behavior type ---
@@ -163,6 +163,11 @@ const scorers: Record<string, BehaviorScorer> = {
      * Small random jitter so not every NPC searches simultaneously.
      */
     search(ctx) {
+        // Already searched this segment — don't bother
+        if (ctx.knowledge && ctx.position &&
+            isSearched(ctx.knowledge, ctx.position.side, ctx.position.position, ctx.position.floor)) {
+            return -Infinity;
+        }
         let score = 0.3;
         if (ctx.personality) {
             score += ctx.personality.openness * 0.5;      // curious → search

@@ -27,6 +27,7 @@ import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { INTENT, type Intent } from "./intent.core.ts";
 import { BOOKS_PER_GALLERY } from "./library.core.ts";
 import { STATS, type Stats, quicknessMod } from "./stats.core.ts";
+import { KNOWLEDGE, type Knowledge, markSearched } from "./knowledge.core.ts";
 
 // --- Bigram scoring ---
 
@@ -359,6 +360,9 @@ export function searchSystem(
             if (search.ticksSearched >= search.patience) {
                 search.active = false;
                 claimed.delete(search.bookIndex);
+                // Mark this segment as searched in knowledge
+                const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
+                if (knowledge) markSearched(knowledge, pos.side, pos.position, pos.floor);
             } else {
                 claimed.delete(search.bookIndex);
                 const nextIdx = claimBookIndex(claimed, rng);

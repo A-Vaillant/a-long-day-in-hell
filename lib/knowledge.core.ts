@@ -26,6 +26,8 @@ export interface Knowledge {
     visionAccurate: boolean;
     /** Has this entity picked up their book? */
     hasBook: boolean;
+    /** Segments already searched (key: "side:position:floor"). */
+    searchedSegments: Set<string>;
 }
 
 // --- Generation ---
@@ -62,6 +64,7 @@ export function createKnowledge(
         bookVision: null,
         visionAccurate: true,
         hasBook: false,
+        searchedSegments: new Set(),
     };
 }
 
@@ -83,6 +86,37 @@ export function isAtBookSegment(
     return pos.side === vision.side &&
            pos.position === vision.position &&
            pos.floor === vision.floor;
+}
+
+/** Segment key for searchedSegments set. */
+export function segmentKey(side: number, position: number, floor: number): string {
+    return `${side}:${position}:${floor}`;
+}
+
+/** Mark a segment as searched. */
+export function markSearched(knowledge: Knowledge, side: number, position: number, floor: number): void {
+    knowledge.searchedSegments.add(segmentKey(side, position, floor));
+}
+
+/** Check if a segment has been searched. */
+export function isSearched(knowledge: Knowledge, side: number, position: number, floor: number): boolean {
+    return knowledge.searchedSegments.has(segmentKey(side, position, floor));
+}
+
+/**
+ * Share search knowledge between two entities.
+ * Merges searched segments from source into target.
+ * Returns the number of new segments learned.
+ */
+export function shareSearchKnowledge(source: Knowledge, target: Knowledge): number {
+    let learned = 0;
+    for (const seg of source.searchedSegments) {
+        if (!target.searchedSegments.has(seg)) {
+            target.searchedSegments.add(seg);
+            learned++;
+        }
+    }
+    return learned;
 }
 
 export function grantVision(
