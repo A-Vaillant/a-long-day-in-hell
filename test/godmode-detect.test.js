@@ -7,6 +7,7 @@ function makeNpc(overrides) {
         id: 0, name: "Alice", side: 0, position: 0, floor: 100,
         disposition: "calm", alive: true, lucidity: 100, hope: 100,
         personality: null, bonds: [], groupId: null, falling: null,
+        free: false, components: {},
         ...overrides,
     };
 }
@@ -281,5 +282,148 @@ describe("detectEvents", () => {
         const events = detectEvents(prev1, curr1);
         assert.strictEqual(events.length, 1);
         assert.strictEqual(events[0].type, "death");
+    });
+
+    // --- Free (escape) events ---
+
+    it("does not emit death for free NPC", () => {
+        const prev = makeSnap([makeNpc({ alive: true, free: true })]);
+        const curr = makeSnap([makeNpc({ alive: false, free: true })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.filter(e => e.type === "death").length, 0);
+    });
+
+    it("does not emit resurrection for free NPC", () => {
+        const prev = makeSnap([makeNpc({ alive: false, free: true })]);
+        const curr = makeSnap([makeNpc({ alive: true, free: true })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.filter(e => e.type === "resurrection").length, 0);
+    });
+
+    it("detects escape (free transition)", () => {
+        const prev = makeSnap([makeNpc({ free: false })]);
+        const curr = makeSnap([makeNpc({ free: true })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.length, 1);
+        assert.strictEqual(events[0].type, "escape");
+        assert.ok(events[0].text.includes("FREE"));
+    });
+
+    // --- Pilgrimage events ---
+
+    it("detects pilgrimage start", () => {
+        const prev = makeSnap([makeNpc({
+            components: { intent: { behavior: "explore" } },
+        })]);
+        const curr = makeSnap([makeNpc({
+            components: { intent: { behavior: "pilgrimage" } },
+        })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.length, 1);
+        assert.strictEqual(events[0].type, "pilgrimage");
+        assert.ok(events[0].text.includes("pilgrimage"));
+    });
+
+    it("does not emit pilgrimage for non-transition", () => {
+        const prev = makeSnap([makeNpc({
+            components: { intent: { behavior: "pilgrimage" } },
+        })]);
+        const curr = makeSnap([makeNpc({
+            components: { intent: { behavior: "pilgrimage" } },
+        })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.filter(e => e.type === "pilgrimage").length, 0);
+    });
+
+    // --- Book found events ---
+
+    it("detects hasBook change", () => {
+        const prev = makeSnap([makeNpc({
+            components: { knowledge: { hasBook: false } },
+        })]);
+        const curr = makeSnap([makeNpc({
+            components: { knowledge: { hasBook: true } },
+        })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.length, 1);
+        assert.strictEqual(events[0].type, "pilgrimage");
+        assert.ok(events[0].text.includes("found their book"));
+    });
+
+    // --- Search events ---
+
+    it("detects search start", () => {
+        const prev = makeSnap([makeNpc({
+            components: { searching: { active: false, bestScore: 0 } },
+        })]);
+        const curr = makeSnap([makeNpc({
+            components: { searching: { active: true, bestScore: 0 } },
+        })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.length, 1);
+        assert.strictEqual(events[0].type, "search");
+        assert.ok(events[0].text.includes("started searching"));
+    });
+
+    it("detects legible find (bestScore crosses threshold)", () => {
+        const prev = makeSnap([makeNpc({
+            components: { searching: { active: true, bestScore: 0.05 } },
+        })]);
+        const curr = makeSnap([makeNpc({
+            components: { searching: { active: true, bestScore: 0.15 } },
+        })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.length, 1);
+        assert.strictEqual(events[0].type, "search");
+        assert.ok(events[0].text.includes("legible"));
+        assert.ok(events[0].text.includes("15%"));
+    });
+
+    it("does not emit legible find for small score bumps", () => {
+        const prev = makeSnap([makeNpc({
+            components: { searching: { active: true, bestScore: 0.12 } },
+        })]);
+        const curr = makeSnap([makeNpc({
+            components: { searching: { active: true, bestScore: 0.14 } },
+        })]);
+        const events = detectEvents(prev, curr);
+        // +0.02 < 0.05 threshold, should not fire
+        assert.strictEqual(events.filter(e => e.text.includes("legible")).length, 0);
+    });
+
+    // --- All event types have correct type field ---
+
+    it("all events have day, tick, type, text fields", () => {
+        const prev = makeSnap([
+            makeNpc({ id: 0, name: "Alice", alive: true, disposition: "calm", free: false,
+                bonds: [], groupId: null,
+                components: {
+                    searching: { active: false, bestScore: 0 },
+                    intent: { behavior: "explore" },
+                    knowledge: { hasBook: false },
+                },
+            }),
+        ], { day: 3, tick: 50 });
+        const curr = makeSnap([
+            makeNpc({ id: 0, name: "Alice", alive: false, disposition: "anxious", free: false,
+                bonds: [{ name: "Bob", familiarity: 2, affinity: 1 }],
+                groupId: null,
+                components: {
+                    searching: { active: true, bestScore: 0.2 },
+                    intent: { behavior: "pilgrimage" },
+                    knowledge: { hasBook: true },
+                },
+            }),
+        ], { day: 3, tick: 50 });
+        const events = detectEvents(prev, curr);
+        for (const ev of events) {
+            assert.ok("day" in ev, "event missing day: " + JSON.stringify(ev));
+            assert.ok("tick" in ev, "event missing tick: " + JSON.stringify(ev));
+            assert.ok("type" in ev, "event missing type: " + JSON.stringify(ev));
+            assert.ok("text" in ev, "event missing text: " + JSON.stringify(ev));
+            assert.strictEqual(ev.day, 3);
+            assert.strictEqual(ev.tick, 50);
+        }
+        assert.ok(events.length >= 4, "expected at least 4 events, got " + events.length);
     });
 });

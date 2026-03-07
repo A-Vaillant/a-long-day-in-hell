@@ -49,4 +49,36 @@ describe("GodmodeLog", () => {
         GodmodeLog.init();
         assert.strictEqual(GodmodeLog.length, 0);
     });
+
+    it("getAll returns events in insertion order", () => {
+        GodmodeLog.push({ tick: 1, day: 1, type: "bond", text: "first" });
+        GodmodeLog.push({ tick: 2, day: 1, type: "death", text: "second" });
+        const all = GodmodeLog.getAll();
+        assert.strictEqual(all.length, 2);
+        assert.strictEqual(all[0].text, "first");
+        assert.strictEqual(all[1].text, "second");
+    });
+
+    it("events preserve type field", () => {
+        const types = ["death", "resurrection", "disposition", "bond", "group", "search", "pilgrimage", "escape"];
+        for (const type of types) {
+            GodmodeLog.push({ tick: 1, day: 1, type, text: type + " event" });
+        }
+        const all = GodmodeLog.getAll();
+        assert.strictEqual(all.length, types.length);
+        for (let i = 0; i < types.length; i++) {
+            assert.strictEqual(all[i].type, types[i]);
+        }
+    });
+
+    it("getRecent filters correctly with type-based retrieval", () => {
+        GodmodeLog.push({ tick: 1, day: 1, type: "death", text: "A died" });
+        GodmodeLog.push({ tick: 2, day: 1, type: "bond", text: "A met B" });
+        GodmodeLog.push({ tick: 3, day: 1, type: "death", text: "B died" });
+        const recent = GodmodeLog.getRecent(100);
+        const deaths = recent.filter(e => e.type === "death");
+        const bonds = recent.filter(e => e.type === "bond");
+        assert.strictEqual(deaths.length, 2);
+        assert.strictEqual(bonds.length, 1);
+    });
 });
