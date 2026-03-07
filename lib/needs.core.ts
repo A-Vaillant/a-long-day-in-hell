@@ -12,6 +12,7 @@ import type { Entity, World } from "./ecs.core.ts";
 import { getComponent, query } from "./ecs.core.ts";
 import { POSITION, IDENTITY, type Position, type Identity } from "./social.core.ts";
 import { isRestArea } from "./library.core.ts";
+import { STATS, type Stats, enduranceMod } from "./stats.core.ts";
 
 // --- Component ---
 
@@ -63,18 +64,22 @@ export function needsSystem(
 ): void {
     const entities = query(world, [NEEDS, POSITION, IDENTITY]);
     for (const tuple of entities) {
+        const entity = tuple[0] as Entity;
         const needs = tuple[1] as Needs;
         const pos = tuple[2] as Position;
         const ident = tuple[3] as Identity;
         if (!ident.alive) continue;
 
         const atRest = isRestArea(pos.position);
+        // High endurance = slower need accumulation
+        const stats = getComponent<Stats>(world, entity, STATS);
+        const eMod = stats ? enduranceMod(stats) : 1.0;
 
         if (n <= 1) {
             // Single tick
-            needs.hunger += config.hungerRate;
-            needs.thirst += config.thirstRate;
-            needs.exhaustion += config.exhaustionRate;
+            needs.hunger += config.hungerRate * eMod;
+            needs.thirst += config.thirstRate * eMod;
+            needs.exhaustion += config.exhaustionRate * eMod;
 
             if (atRest && lightsOn) {
                 if (needs.hunger >= config.eatThreshold) {
@@ -89,9 +94,9 @@ export function needsSystem(
             }
         } else {
             // Batch: accumulate then simulate relief cycles
-            needs.hunger += config.hungerRate * n;
-            needs.thirst += config.thirstRate * n;
-            needs.exhaustion += config.exhaustionRate * n;
+            needs.hunger += config.hungerRate * eMod * n;
+            needs.thirst += config.thirstRate * eMod * n;
+            needs.exhaustion += config.exhaustionRate * eMod * n;
 
             if (atRest && lightsOn) {
                 // Simulate eat/drink cycles: how many times would threshold be crossed?

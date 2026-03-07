@@ -25,19 +25,7 @@ export const Npc = {
             positionSpread: 50, floorSpread: 15, sameSide: false, idOffset: 8,
         });
 
-        // Wave 3: mad cluster (Direites) — far away, pre-degraded
-        const rng3 = PRNG.fork("npc:spawn:mad");
-        const madCenter = {
-            side: loc.side === 0 ? 1 : 0,
-            position: loc.position + (rng3.next() < 0.5 ? -1 : 1) * (80 + Math.floor(rng3.next() * 40)),
-            floor: Math.max(0, loc.floor + Math.round((rng3.next() - 0.5) * 30)),
-        };
-        const mad = spawnNPCs(madCenter, 4, TEXT.npc_names, rng3, {
-            positionSpread: 2, floorSpread: 0, sameSide: true, idOffset: 12,
-        });
-        for (const n of mad) n.disposition = "mad";
-
-        state.npcs = nearby.concat(scattered, mad);
+        state.npcs = nearby.concat(scattered);
     },
     onDawn() {
         // Movement is now per-tick via ECS (movementSystem in Social.onTick).

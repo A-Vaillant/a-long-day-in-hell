@@ -18,6 +18,7 @@ import {
 import { HABITUATION } from "../../lib/psych.core.ts";
 import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts";
 import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
+import { STATS, generateStats } from "../../lib/stats.core.ts";
 import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, searchSystem, scoreFromSeed } from "../../lib/search.core.ts";
@@ -59,6 +60,8 @@ export const Social = {
         addComponent(world, playerEntity, PERSONALITY, generatePersonality(playerPersRng));
         const playerBeliefRng = seedFromString(state.seed + ":player:belief");
         addComponent(world, playerEntity, BELIEF, generateBelief(playerBeliefRng));
+        const playerStatsRng = seedFromString(state.seed + ":player:stats");
+        addComponent(world, playerEntity, STATS, generateStats(playerStatsRng));
 
         // Spawn NPC entities
         if (state.npcs) {
@@ -95,6 +98,8 @@ export const Social = {
                 addComponent(world, ent, PERSONALITY, generatePersonality(npcPersRng));
                 const npcBeliefRng = seedFromString(state.seed + ":npc:belief:" + npc.id);
                 addComponent(world, ent, BELIEF, generateBelief(npcBeliefRng));
+                const npcStatsRng = seedFromString(state.seed + ":npc:stats:" + npc.id);
+                addComponent(world, ent, STATS, generateStats(npcStatsRng));
 
                 // Knowledge: each NPC has their own life story + target book
                 addComponent(world, ent, KNOWLEDGE, createKnowledge(

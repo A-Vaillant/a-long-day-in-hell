@@ -990,27 +990,15 @@ describe("applyShock", () => {
 // --- socialPressureSystem ---
 
 describe("socialPressureSystem", () => {
-    it("does nothing with fewer than 2 mad entities at a location", () => {
+    it("a single mad entity applies pressure to nearby sane entities", () => {
         const w = createWorld();
         const sane = makeEntity(w, { name: "Sane", lucidity: 80, hope: 80 });
-        const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50 });
+        makeEntity(w, { name: "Mad", lucidity: 20, hope: 50 });
 
         socialPressureSystem(w);
 
         const p = getComponent(w, sane, PSYCHOLOGY);
-        assert.strictEqual(p.lucidity, 80); // unchanged
-    });
-
-    it("reduces lucidity of non-mad entities when 2+ mad at location", () => {
-        const w = createWorld();
-        const sane = makeEntity(w, { name: "Sane", lucidity: 80, hope: 80 });
-        makeEntity(w, { name: "Mad1", lucidity: 20, hope: 50 });
-        makeEntity(w, { name: "Mad2", lucidity: 20, hope: 50 });
-
-        socialPressureSystem(w);
-
-        const p = getComponent(w, sane, PSYCHOLOGY);
-        assert.ok(p.lucidity < 80, "sane entity should lose lucidity");
+        assert.ok(p.lucidity < 80, "sane entity should lose lucidity from one mad prophet");
     });
 
     it("pressure scales with number of mad entities", () => {

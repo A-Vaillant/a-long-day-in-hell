@@ -23,6 +23,7 @@ import { PERSONALITY, type Personality, decayBias, entityCompatibility, familiar
 import { BELIEF, type BeliefComponent, beliefDecayMod, evolveBelief, updateStance } from "./belief.core.ts";
 import { NEEDS, type Needs, needsDecayMultiplier } from "./needs.core.ts";
 import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
+import { STATS, type Stats, influenceMod } from "./stats.core.ts";
 
 // --- Component keys ---
 
@@ -162,26 +163,44 @@ export const DEFAULT_DECAY: DecayConfig = {
  *
  * You feel less alone when you can hear someone you know nearby,
  * even if they're not right next to you.
+ *
+ * Returns 0 if no social contact, or the best companion's influence
+ * modifier (>0) if contact exists. High-influence companions restore
+ * more effectively.
  */
-export function hasSocialContact(
+export function socialContactInfluence(
     world: World,
     entity: Entity,
     awarenessConfig: AwarenessConfig = DEFAULT_AWARENESS,
-): boolean {
+): number {
     const pos = getComponent<Position>(world, entity, POSITION);
     const rels = getComponent<Relationships>(world, entity, RELATIONSHIPS);
-    if (!pos || !rels) return false;
+    if (!pos || !rels) return 0;
 
+    let bestInfluence = 0;
     for (const [other] of rels.bonds) {
         const otherPos = getComponent<Position>(world, other, POSITION);
         const otherIdent = getComponent<Identity>(world, other, IDENTITY);
         if (!otherPos || !otherIdent || !otherIdent.alive) continue;
         if (canHear(pos, otherPos, awarenessConfig)) {
             const bond = rels.bonds.get(other)!;
-            if (bond.familiarity > 0 && bond.affinity > 0) return true;
+            if (bond.familiarity > 0 && bond.affinity > 0) {
+                const stats = getComponent<Stats>(world, entity, STATS);
+                const infMod = stats ? influenceMod(stats) : 1.0;
+                if (infMod > bestInfluence) bestInfluence = infMod;
+            }
         }
     }
-    return false;
+    return bestInfluence;
+}
+
+/** Backwards-compatible boolean check. */
+export function hasSocialContact(
+    world: World,
+    entity: Entity,
+    awarenessConfig: AwarenessConfig = DEFAULT_AWARENESS,
+): boolean {
+    return socialContactInfluence(world, entity, awarenessConfig) > 0;
 }
 
 /**
@@ -207,6 +226,7 @@ export function decayPsychology(
     hasSocial: boolean,
     config: DecayConfig = DEFAULT_DECAY,
     bias?: { lucidityMul: number; hopeMul: number },
+    socialInfluence: number = 1.0,
 ): Psychology {
     const lucMul = bias ? bias.lucidityMul : 1.0;
     const hopMul = bias ? bias.hopeMul : 1.0;
@@ -214,8 +234,9 @@ export function decayPsychology(
     if (hasSocial) {
         const lucDecay = decayRate(psych.lucidity, config.lucidityBase, config) * config.companionDamper * lucMul;
         const hopDecay = decayRate(psych.hope, config.hopeBase, config) * config.companionDamper * hopMul;
-        psych.lucidity = Math.min(100, Math.max(config.lucidityFloor, psych.lucidity - lucDecay + config.companionRestore));
-        psych.hope = Math.min(100, Math.max(config.hopeFloor, psych.hope - hopDecay + config.companionRestore));
+        const restore = config.companionRestore * socialInfluence;
+        psych.lucidity = Math.min(100, Math.max(config.lucidityFloor, psych.lucidity - lucDecay + restore));
+        psych.hope = Math.min(100, Math.max(config.hopeFloor, psych.hope - hopDecay + restore));
     } else {
         const lucDecay = decayRate(psych.lucidity, config.lucidityBase, config) * config.isolationMultiplier * lucMul;
         const hopDecay = decayRate(psych.hope, config.hopeBase, config) * config.isolationMultiplier * hopMul;
@@ -245,7 +266,8 @@ export function psychologyDecaySystem(
         const identity = tuple[2] as Identity;
         if (!identity.alive) continue;
 
-        const social = hasSocialContact(world, entity);
+        const socialInf = socialContactInfluence(world, entity);
+        const social = socialInf > 0;
         const personality = getComponent<Personality>(world, entity, PERSONALITY);
         const belief = getComponent<BeliefComponent>(world, entity, BELIEF);
 
@@ -275,7 +297,7 @@ export function psychologyDecaySystem(
 
         const bias = { lucidityMul, hopeMul };
         for (let t = 0; t < n; t++) {
-            decayPsychology(psychology, social, config, bias);
+            decayPsychology(psychology, social, config, bias, socialInf || 1.0);
         }
 
         // Pilgrims have purpose — hope can't drop below catatonic threshold
@@ -349,6 +371,7 @@ export function accumulateBond(
     currentTick: number,
     config: BondConfig = DEFAULT_BOND,
     compat?: number,
+    infMod: number = 1.0,
 ): void {
     // Track re-encounters: if enough time has passed since last contact, count a new encounter
     const absence = currentTick - bond.lastContact;
@@ -359,7 +382,7 @@ export function accumulateBond(
     bond.familiarity = Math.min(config.maxFamiliarity,
         bond.familiarity + config.familiarityPerTick);
 
-    let affinityDelta = config.affinityPerTick;
+    let affinityDelta = config.affinityPerTick * infMod;
 
     // Familiarity fatigue: compatibility determines how long affinity keeps growing
     if (compat !== undefined) {
@@ -573,8 +596,11 @@ export function relationshipSystem(
                 if (other === entity) continue;
                 const bond = getOrCreateBond(rels, other, currentTick);
                 const compat = entityCompatibility(world, entity, other);
+                // Other entity's influence affects how fast you warm to them
+                const otherStats = getComponent<Stats>(world, other, STATS);
+                const infMod = otherStats ? influenceMod(otherStats) : 1.0;
                 for (let t = 0; t < n; t++) {
-                    accumulateBond(bond, currentTick, config, compat);
+                    accumulateBond(bond, currentTick, config, compat, infMod);
                 }
             }
         }
@@ -796,7 +822,7 @@ export function applyShock(
  * This is the Direite recruitment mechanic. You can hear them ranting
  * from corridors away.
  *
- * Requires 2+ mad entities within shout range to trigger.
+ * A single mad prophet is enough to start the contagion.
  * Call after groupFormationSystem.
  */
 export function socialPressureSystem(
@@ -809,9 +835,11 @@ export function socialPressureSystem(
     const entities = query(world, [POSITION, PSYCHOLOGY, IDENTITY]);
 
     const targets: { pos: Position, psych: Psychology }[] = [];
-    const madIndex = new Map<number, number[]>();
+    // Track mad NPC positions + their influence modifier
+    const madIndex = new Map<number, { position: number, infMod: number }[]>();
 
     for (const tuple of entities) {
+        const entity = tuple[0] as Entity;
         const pos = tuple[1] as Position;
         const psych = tuple[2] as Psychology;
         const ident = tuple[3] as Identity;
@@ -822,7 +850,8 @@ export function socialPressureSystem(
             const key = pos.side * 1000000 + pos.floor;
             let list = madIndex.get(key);
             if (!list) { list = []; madIndex.set(key, list); }
-            list.push(pos.position);
+            const stats = getComponent<Stats>(world, entity, STATS);
+            list.push({ position: pos.position, infMod: stats ? influenceMod(stats) : 1.0 });
         } else if (disp !== "catatonic") {
             targets.push({ pos, psych });
         }
@@ -833,16 +862,16 @@ export function socialPressureSystem(
         const madNearby = madIndex.get(key);
         if (!madNearby) continue;
 
-        let nearbyMadCount = 0;
+        let pressure = 0;
         for (let mi = 0; mi < madNearby.length; mi++) {
-            if (Math.abs(target.pos.position - madNearby[mi]) <= awareness.shoutRange) {
-                nearbyMadCount++;
+            if (Math.abs(target.pos.position - madNearby[mi].position) <= awareness.shoutRange) {
+                pressure += madNearby[mi].infMod;
             }
         }
 
-        if (nearbyMadCount >= 2) {
+        if (pressure > 0) {
             target.psych.lucidity = Math.max(0,
-                target.psych.lucidity - pressureRate * nearbyMadCount * n);
+                target.psych.lucidity - pressureRate * pressure * n);
         }
     }
 }

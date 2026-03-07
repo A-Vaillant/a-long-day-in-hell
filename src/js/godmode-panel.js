@@ -89,6 +89,9 @@ const TIPS = {
     beingDismissed: "Abandoned or rejected. Pure hope damage.",
     witnessAttack: "Saw violence. Goes numb fastest.",
     committingViolence: "Killed someone. Costs clarity and hope.",
+    endurance: "Physical resilience. Slows hunger, thirst, exhaustion. 3d6 (3–18).",
+    influence: "Social force. Scales pressure, companion restoration, affinity gain. 3d6 (3–18).",
+    quickness: "Speed. Movement probability, search speed, grab chance. 3d6 (3–18).",
 };
 
 function tip(label) {
@@ -115,7 +118,7 @@ function bar(value, max, color) {
 // Each renderer: (comp, npc, snap) => html string (a gm-section)
 // Order array controls display order; unlisted components render last via fallback.
 
-const COMPONENT_ORDER = ["psychology", "intent", "knowledge", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation"];
+const COMPONENT_ORDER = ["psychology", "stats", "intent", "knowledge", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation"];
 
 const componentRenderers = {
     psychology(comp) {
@@ -138,6 +141,16 @@ const componentRenderers = {
             html += '<div class="gm-stat">' + tip("thirst") + bar(comp.thirst, 100, "#4a8ab0") + '</div>';
         if (comp.exhaustion !== undefined)
             html += '<div class="gm-stat">' + tip("exhaustion") + bar(comp.exhaustion, 100, "#7a6050") + '</div>';
+        html += '</div>';
+        return html;
+    },
+
+    stats(comp) {
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">stats</div>';
+        html += '<div class="gm-stat">' + tip("endurance") + bar(comp.endurance, 18, "#8a6a4a") + '</div>';
+        html += '<div class="gm-stat">' + tip("influence") + bar(comp.influence, 18, "#6a5a8a") + '</div>';
+        html += '<div class="gm-stat">' + tip("quickness") + bar(comp.quickness, 18, "#4a7a6a") + '</div>';
         html += '</div>';
         return html;
     },
