@@ -256,7 +256,6 @@ export const GodmodeMap = {
 
             for (let col = 0; col < vpCols; col++) {
                 const pos = Math.floor(vpX + col);
-                if (pos < 0) continue;
 
                 // Rest area highlight
                 if (pos % REST_EVERY === 0) {
@@ -289,7 +288,6 @@ export const GodmodeMap = {
         ctx.textAlign = "center";
         for (let col = 0; col < vpCols; col++) {
             const pos = Math.floor(vpX + col);
-            if (pos < 0) continue;
             if (pos % REST_EVERY !== 0) continue;
             const px = corridorX + col * CELL_W + CELL_W / 2;
             const label = String(pos);
@@ -331,29 +329,45 @@ export const GodmodeMap = {
         const npcScreenPos = [];
         const groups = new Map();
 
+        // Collect NPCs by cell to cluster co-located ones
+        const cellBuckets = new Map(); // "side,pos,floor" → [npc, ...]
         for (const npc of snap.npcs) {
-            // Filter by side in single-side mode
             if (viewSide !== null && npc.side !== viewSide) continue;
-
             const col = npc.position - Math.floor(vpX);
             const row = vpRows - 1 - (npc.floor - Math.floor(vpY));
-
             if (col < 0 || col >= vpCols || row < 0 || row >= vpRows) continue;
+            const key = npc.side + "," + npc.position + "," + npc.floor;
+            let bucket = cellBuckets.get(key);
+            if (!bucket) { bucket = []; cellBuckets.set(key, bucket); }
+            bucket.push({ npc, col, row });
+        }
 
-            const baseX = showBoth
-                ? (npc.side === 0 ? westX : eastX)
-                : corridorX;
-            const cx = baseX + col * CELL_W + CELL_W / 2;
-            const cy = row * CELL_H + CELL_H / 2;
+        for (const [, bucket] of cellBuckets) {
+            const n = bucket.length;
+            for (let i = 0; i < n; i++) {
+                const { npc, col, row } = bucket[i];
+                const baseX = showBoth
+                    ? (npc.side === 0 ? westX : eastX)
+                    : corridorX;
+                let cx = baseX + col * CELL_W + CELL_W / 2;
+                let cy = row * CELL_H + CELL_H / 2;
 
-            const color = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
+                // Spread co-located NPCs in a circle around cell center
+                if (n > 1) {
+                    const spread = Math.min(dotR * 1.4, CELL_W * 0.35, CELL_H * 0.35);
+                    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+                    cx += Math.cos(angle) * spread;
+                    cy += Math.sin(angle) * spread;
+                }
 
-            npcScreenPos.push({ npc, cx, cy, color });
+                const color = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
+                npcScreenPos.push({ npc, cx, cy, color });
 
-            if (npc.groupId !== null && npc.groupId !== undefined) {
-                let list = groups.get(npc.groupId);
-                if (!list) { list = []; groups.set(npc.groupId, list); }
-                list.push({ cx, cy });
+                if (npc.groupId !== null && npc.groupId !== undefined) {
+                    let list = groups.get(npc.groupId);
+                    if (!list) { list = []; groups.set(npc.groupId, list); }
+                    list.push({ cx, cy });
+                }
             }
         }
 
