@@ -28,7 +28,7 @@ Soren meets Betty (red-haired, from Mississippi). They become a couple for 2 yea
 
 ## Biscuit's Library Math
 
-- 410 pages × 40 lines × 80 chars = 1,312,000 chars per book (note: our game uses 11 pages, adjusted for playability)
+- 410 pages × 40 lines × 80 chars = 1,312,000 chars per book
 - ~95 keyboard characters
 - Total books: 95^1,312,000
 - Every book ever written exists here, plus every possible variation
