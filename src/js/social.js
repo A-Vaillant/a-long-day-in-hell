@@ -56,7 +56,12 @@ export const Social = {
                     side: npc.side, position: npc.position, floor: npc.floor,
                 });
                 addComponent(world, ent, IDENTITY, { name: npc.name, alive: npc.alive });
-                addComponent(world, ent, PSYCHOLOGY, { lucidity: 100, hope: 100 });
+                // Match initial psychology to spawn disposition
+                const initPsych = npc.disposition === "mad" ? { lucidity: 25, hope: 60 } :
+                                  npc.disposition === "anxious" ? { lucidity: 55, hope: 50 } :
+                                  npc.disposition === "catatonic" ? { lucidity: 20, hope: 10 } :
+                                  { lucidity: 100, hope: 100 };
+                addComponent(world, ent, PSYCHOLOGY, initPsych);
                 addComponent(world, ent, RELATIONSHIPS, { bonds: new Map() });
                 addComponent(world, ent, HABITUATION, { exposures: new Map() });
                 addComponent(world, ent, AI, {});

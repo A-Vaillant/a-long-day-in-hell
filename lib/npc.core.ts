@@ -40,9 +40,10 @@ export interface SpawnConfig {
     positionSpread: number;  // σ for position gaussian (default 20)
     floorSpread: number;     // σ for floor gaussian (default 5)
     sameSide: boolean;       // force same side as player (default false)
+    idOffset: number;        // starting ID for this batch (default 0)
 }
 
-const DEFAULT_SPAWN: SpawnConfig = { positionSpread: 20, floorSpread: 5, sameSide: false };
+const DEFAULT_SPAWN: SpawnConfig = { positionSpread: 20, floorSpread: 5, sameSide: false, idOffset: 0 };
 
 /** Spawn NPCs near a player location. Names passed in from content. */
 export function spawnNPCs(playerLoc: Location, count: number, names: string[], rng: Rng, config: SpawnConfig = DEFAULT_SPAWN): NPC[] {
@@ -62,7 +63,7 @@ export function spawnNPCs(playerLoc: Location, count: number, names: string[], r
         const floor = Math.max(0, playerLoc.floor + floorDelta);
 
         npcs.push({
-            id: i,
+            id: config.idOffset + i,
             name: names[nameIdx],
             side: config.sameSide ? playerLoc.side : (rng.next() < 0.5 ? 0 : 1),
             position: playerLoc.position + posDelta,
