@@ -8,11 +8,15 @@ import { getNpcNarrative } from "./godmode-narrative.js";
 
 let callbacks = {};
 let lastHtml = "";
+let lastGrpHtml = "";
 let possessCallback = null;
 let jumpCallback = null;
 let visionCallback = null;
 let lastRenderTime = 0;
 const RENDER_THROTTLE_MS = 400;
+
+// NPC list disposition filters — all on by default
+const npcFilters = { calm: true, anxious: true, mad: true, catatonic: true, inspired: true, dead: true };
 
 const FAITH_LABELS = {
     mormon: "Mormon",
@@ -470,8 +474,32 @@ function narrate(npc) {
     return parts.join(" ");
 }
 
+const DISP_FILTER_COLORS = {
+    calm: "#c8b888", anxious: "#d4a540", mad: "#c44040",
+    catatonic: "#666666", inspired: "#c8a0e0", dead: "#444444",
+};
+
+function renderNpcFilters() {
+    let html = '<div class="gm-npc-filters">';
+    for (const key in npcFilters) {
+        const on = npcFilters[key];
+        const color = DISP_FILTER_COLORS[key] || "#888";
+        html += '<button class="gm-log-filter' + (on ? ' gm-log-filter-on' : '') +
+            '" data-npc-filter="' + key + '" style="color:' + (on ? color : '#3a3428') +
+            '">' + key + '</button>';
+    }
+    html += '</div>';
+    return html;
+}
+
+function npcPassesFilter(npc) {
+    if (!npc.alive) return npcFilters.dead;
+    return npcFilters[npc.disposition] !== false;
+}
+
 function renderList(snap, pane) {
-    let html = '<div class="gm-npc-list">';
+    let html = renderNpcFilters();
+    html += '<div class="gm-npc-list">';
     const sorted = snap.npcs.slice().sort((a, b) => {
         // Dead last, then by disposition severity, then name
         if (a.alive !== b.alive) return a.alive ? -1 : 1;
@@ -482,7 +510,10 @@ function renderList(snap, pane) {
         return a.name.localeCompare(b.name);
     });
 
+    let count = 0;
     for (const npc of sorted) {
+        if (!npcPassesFilter(npc)) continue;
+        count++;
         const dispClass = "gm-disp-" + npc.disposition;
         const dead = npc.alive ? "" : " gm-npc-row-dead";
         html += '<div class="gm-npc-row' + dead + '" data-npc-id="' + npc.id + '">';
@@ -502,6 +533,9 @@ function renderList(snap, pane) {
         html += '</div>';
     }
 
+    if (count === 0) {
+        html += '<div class="gm-panel-empty">No matching NPCs.</div>';
+    }
     html += '</div>';
     if (html !== lastHtml) {
         pane.innerHTML = html;
@@ -607,8 +641,38 @@ export const GodmodePanel = {
         jumpCallback = cbs.onJump || null;
         visionCallback = cbs.onVision || null;
 
-        // Event delegation — survives innerHTML rebuilds
+        // NPC filter delegation (mousedown for same innerHTML-replacement reason as log)
         const pane = document.getElementById("gm-npc-pane");
+        if (pane) {
+            pane.addEventListener("mousedown", function (ev) {
+                const btn = ev.target.closest("[data-npc-filter]");
+                if (!btn) return;
+                ev.preventDefault();
+                const key = btn.getAttribute("data-npc-filter");
+                if (key in npcFilters) npcFilters[key] = !npcFilters[key];
+                // Force re-render the list
+                lastHtml = "";
+            });
+        }
+
+        // Groups pane delegation
+        const grpPane = document.getElementById("gm-grp-pane");
+        if (grpPane) {
+            grpPane.addEventListener("click", function (ev) {
+                const row = ev.target.closest("[data-npc-id]");
+                if (row) {
+                    const id = parseInt(row.dataset.npcId, 10);
+                    if (callbacks.onSelect) callbacks.onSelect(id);
+                }
+                const locEl = ev.target.closest("[data-center-id]");
+                if (locEl) {
+                    const id = parseInt(locEl.dataset.centerId, 10);
+                    if (callbacks.onCenter) callbacks.onCenter(id);
+                }
+            });
+        }
+
+        // Event delegation — survives innerHTML rebuilds
         if (pane) {
             pane.addEventListener("click", function (ev) {
                 // Back button
@@ -674,6 +738,51 @@ export const GodmodePanel = {
                 return;
             }
             renderDetail(npc, snap, pane);
+        }
+    },
+
+    updateGroups(snap) {
+        const pane = document.getElementById("gm-grp-pane");
+        if (!pane) return;
+
+        // Collect groups
+        const groups = new Map();
+        for (const npc of snap.npcs) {
+            if (npc.groupId === null || npc.groupId === undefined) continue;
+            let g = groups.get(npc.groupId);
+            if (!g) { g = []; groups.set(npc.groupId, g); }
+            g.push(npc);
+        }
+
+        if (groups.size === 0) {
+            const empty = '<div class="gm-panel-empty">No groups yet.</div>';
+            if (empty !== lastGrpHtml) { pane.innerHTML = empty; lastGrpHtml = empty; }
+            return;
+        }
+
+        let html = '<div class="gm-grp-list">';
+        for (const [gid, members] of groups) {
+            html += '<div class="gm-grp-card">';
+            html += '<div class="gm-grp-header">' + members.length + ' members</div>';
+            // Location (use first member)
+            const loc = members[0];
+            html += '<div class="gm-grp-loc" data-center-id="' + loc.id + '">' +
+                (loc.side === 0 ? 'W' : 'E') + ' f' + loc.floor + ' s' + loc.position + '</div>';
+            for (const npc of members) {
+                const dispClass = "gm-disp-" + npc.disposition;
+                html += '<div class="gm-grp-member" data-npc-id="' + npc.id + '">';
+                html += '<span class="gm-npc-row-name">' + esc(npc.name) + '</span>';
+                html += '<span class="gm-npc-row-disp ' + dispClass + '">' + (DISP_SHORT[npc.disposition] || npc.disposition) + '</span>';
+                if (!npc.alive) html += '<span class="gm-dead-tag">dead</span>';
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+        html += '</div>';
+
+        if (html !== lastGrpHtml) {
+            pane.innerHTML = html;
+            lastGrpHtml = html;
         }
     },
 };

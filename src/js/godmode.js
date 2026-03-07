@@ -26,7 +26,7 @@ let lastFrame = 0;
 let accumulator = 0;
 let selectedNpcId = null;
 let followMode = false;
-let activeTab = "log"; // "log" | "npc"
+let activeTab = "log"; // "log" | "npc" | "grp"
 let prevSnap = null;
 let ffBusy = false;     // true during async fast-forward
 let possessing = false; // true while controlling an NPC
@@ -146,16 +146,14 @@ function renderLog() {
 
 function switchTab(tab) {
     activeTab = tab;
-    const logPane = document.getElementById("gm-log-pane");
-    const npcPane = document.getElementById("gm-npc-pane");
-    const logTab = document.getElementById("gm-tab-log");
-    const npcTab = document.getElementById("gm-tab-npc");
-    if (!logPane) return;
-
-    logPane.className = tab === "log" ? "gm-pane gm-pane-active" : "gm-pane";
-    npcPane.className = tab === "npc" ? "gm-pane gm-pane-active" : "gm-pane";
-    logTab.className = tab === "log" ? "gm-tab gm-tab-active" : "gm-tab";
-    npcTab.className = tab === "npc" ? "gm-tab gm-tab-active" : "gm-tab";
+    const panes = { log: "gm-log-pane", npc: "gm-npc-pane", grp: "gm-grp-pane" };
+    const tabs = { log: "gm-tab-log", npc: "gm-tab-npc", grp: "gm-tab-grp" };
+    for (const key in panes) {
+        const p = document.getElementById(panes[key]);
+        const t = document.getElementById(tabs[key]);
+        if (p) p.className = key === tab ? "gm-pane gm-pane-active" : "gm-pane";
+        if (t) t.className = key === tab ? "gm-tab gm-tab-active" : "gm-tab";
+    }
 }
 
 function render(forcePanel) {
@@ -163,6 +161,7 @@ function render(forcePanel) {
     GodmodeMap.draw(snap, selectedNpcId, followMode);
     GodmodePanel.update(snap, selectedNpcId, forcePanel);
     if (activeTab === "log") renderLog();
+    if (activeTab === "grp") GodmodePanel.updateGroups(snap);
 }
 
 function cancelFF() {
@@ -363,7 +362,8 @@ function setupDOM() {
     tabBar.id = "gm-tab-bar";
     tabBar.innerHTML =
         '<button id="gm-tab-log" class="gm-tab gm-tab-active">log</button>' +
-        '<button id="gm-tab-npc" class="gm-tab">npc</button>';
+        '<button id="gm-tab-npc" class="gm-tab">npc</button>' +
+        '<button id="gm-tab-grp" class="gm-tab">grp</button>';
     panel.appendChild(tabBar);
 
     const logPane = document.createElement("div");
@@ -377,6 +377,12 @@ function setupDOM() {
     npcPane.className = "gm-pane";
     npcPane.innerHTML = '<div class="gm-panel-empty">Click an NPC to observe</div>';
     panel.appendChild(npcPane);
+
+    const grpPane = document.createElement("div");
+    grpPane.id = "gm-grp-pane";
+    grpPane.className = "gm-pane";
+    grpPane.innerHTML = '<div class="gm-panel-empty">No groups yet.</div>';
+    panel.appendChild(grpPane);
 
     container.appendChild(mapWrap);
     container.appendChild(panel);
@@ -428,6 +434,7 @@ function setupInput(canvas) {
 
     document.getElementById("gm-tab-log").addEventListener("click", function () { switchTab("log"); });
     document.getElementById("gm-tab-npc").addEventListener("click", function () { switchTab("npc"); });
+    document.getElementById("gm-tab-grp").addEventListener("click", function () { switchTab("grp"); });
 
     // Log filter toggles (event delegation)
     GodmodeLog.wireFilterClicks(document.getElementById("gm-log-pane"));
@@ -549,7 +556,8 @@ function setupInput(canvas) {
             followMode = false;
             render();
         } else if (ev.key === "e") {
-            switchTab(activeTab === "log" ? "npc" : "log");
+            const order = ["log", "npc", "grp"];
+            switchTab(order[(order.indexOf(activeTab) + 1) % order.length]);
         } else if (ev.key === "Tab") {
             ev.preventDefault();
             GodmodeMap.handleKey(ev.key);

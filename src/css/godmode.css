@@ -740,3 +740,66 @@ body.godmode {
     width: 180px;
     padding: 10px;
 }
+
+/* --- NPC list filters --- */
+
+.gm-npc-filters {
+    display: flex;
+    gap: 3px;
+    padding-bottom: 8px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #1a1610;
+    flex-wrap: wrap;
+}
+
+/* --- Groups pane --- */
+
+.gm-grp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gm-grp-card {
+    border: 1px solid #1a1610;
+    border-radius: 3px;
+    padding: 8px 10px;
+    background: #0a0906;
+}
+
+.gm-grp-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #6a6050;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #1a1610;
+}
+
+.gm-grp-loc {
+    font-size: 10px;
+    color: #4a4030;
+    margin-bottom: 6px;
+    cursor: pointer;
+}
+
+.gm-grp-loc:hover {
+    color: #b8a878;
+}
+
+.gm-grp-member {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 3px 4px;
+    cursor: pointer;
+    font-size: 12px;
+    border-left: 2px solid transparent;
+    transition: background 0.1s;
+}
+
+.gm-grp-member:hover {
+    background: #14120e;
+    border-left-color: #3a3428;
+}
