@@ -469,6 +469,25 @@ function setupInput(canvas) {
         render();
     });
 
+    // Double-click to center on NPC
+    canvas.addEventListener("dblclick", function (ev) {
+        const rect = canvas.getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        const hit = GodmodeMap.hitTest(x, y);
+        if (hit !== null) {
+            selectedNpcId = hit;
+            followMode = true;
+            const npc = state.npcs && state.npcs.find(n => n.id === hit);
+            if (npc) {
+                GodmodeMap.setSide(npc.side);
+                GodmodeMap.centerOn(npc.position, npc.floor);
+            }
+            switchTab("npc");
+        }
+        render();
+    });
+
     // Scroll to zoom
     canvas.addEventListener("wheel", function (ev) {
         ev.preventDefault();
@@ -663,9 +682,12 @@ export const Godmode = {
             },
             onCenter(id) {
                 selectedNpcId = id;
-                followMode = false;
+                followMode = true;
                 const npc = state.npcs && state.npcs.find(n => n.id === id);
-                if (npc) GodmodeMap.setSide(npc.side);
+                if (npc) {
+                    GodmodeMap.setSide(npc.side);
+                    GodmodeMap.centerOn(npc.position, npc.floor);
+                }
                 render();
             },
             onDeselect() {

@@ -622,6 +622,12 @@ export const GodmodeMap = {
         if (y !== undefined) vpY = y;
     },
 
+    /** Center viewport on a world position. */
+    centerOn(pos, floor) {
+        vpX = pos - vpCols / 2;
+        vpY = floor - vpRows / 2;
+    },
+
     /** Set side view: 0=west, 1=east, null=both. */
     setSide(s) {
         viewSide = s;
