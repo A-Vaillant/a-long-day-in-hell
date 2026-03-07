@@ -300,7 +300,7 @@ export const GodmodeMap = {
         // Update controls display
         const dayEl = document.getElementById("gm-day");
         const tickEl = document.getElementById("gm-tick");
-        if (dayEl) dayEl.textContent = "Day " + snap.day;
+        if (dayEl) dayEl.textContent = "Day " + (snap.day - 1);
         if (tickEl) {
             // Convert tick to time (0=6am, 160=10pm, 240=6am next)
             const totalMinutes = (snap.tick / 240) * 24 * 60 + 6 * 60;

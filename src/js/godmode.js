@@ -118,8 +118,11 @@ function renderLog() {
     let html = '';
     for (const ev of recent) {
         const color = LOG_COLORS[ev.type] || "#b8a878";
+        const mins = (ev.tick / 240) * 24 * 60 + 6 * 60;
+        const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
+        const mm = String(Math.floor(mins % 60)).padStart(2, "0");
         html += '<div class="gm-log-entry" style="color:' + color + '">' +
-            '<span class="gm-log-time">d' + ev.day + '</span>' +
+            '<span class="gm-log-time">d' + (ev.day - 1) + ' ' + hh + ':' + mm + '</span>' +
             ev.text + '</div>';
     }
     if (recent.length === 0) {
@@ -184,7 +187,7 @@ function setupDOM() {
     const controls = document.createElement("div");
     controls.id = "godmode-controls";
     controls.innerHTML =
-        '<span id="gm-day">Day 1</span>' +
+        '<span id="gm-day">Day 0</span>' +
         '<span id="gm-tick">0:00</span>' +
         '<button id="gm-play">\u25B6</button>' +
         '<button id="gm-step">\u23ED</button>' +
