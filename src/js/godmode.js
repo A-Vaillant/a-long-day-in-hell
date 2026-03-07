@@ -552,9 +552,10 @@ function possessNpc(npcId) {
     running = false;
     possessing = true;
 
-    // Save the godmode DOM
+    // Save the godmode DOM, switch body class for normal game styles
     godmodeDOM = document.getElementById("godmode-container");
     if (godmodeDOM) godmodeDOM.style.display = "none";
+    document.body.classList.remove("godmode");
 
     // Tell Social to swap player state to NPC
     Social.possess(npcId);
@@ -586,6 +587,18 @@ function possessNpc(npcId) {
     gameWrap.appendChild(passages);
     gameWrap.appendChild(storyRight);
     document.body.appendChild(gameWrap);
+
+    // Wire passage click delegation (normally done in Engine.init, but godmode skips it)
+    passage.addEventListener("click", function (ev) {
+        const link = ev.target.closest("[data-goto]");
+        if (!link) return;
+        ev.preventDefault();
+        const actionName = link.getAttribute("data-action");
+        if (actionName && Engine._actions[actionName]) {
+            Engine._actions[actionName]();
+        }
+        Engine.goto(link.getAttribute("data-goto"));
+    });
 
     // Navigate to appropriate screen
     if (state.falling) {
