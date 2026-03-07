@@ -150,14 +150,14 @@ const LOG_COLORS = {
 };
 
 const LOG_FILTER_LABELS = {
-    death: "\u2620",        // skull
-    resurrection: "\u2600", // sun
-    disposition: "\u25C8",  // diamond
-    bond: "\u2661",         // heart
-    group: "\u2302",        // house
-    search: "\u2610",       // ballot box
-    pilgrimage: "\u2698",   // flower
-    escape: "\u2605",       // star
+    death: "death",
+    resurrection: "rez",
+    disposition: "disp",
+    bond: "bond",
+    group: "group",
+    search: "search",
+    pilgrimage: "pilgrim",
+    escape: "escape",
 };
 
 // Filter state: which event types to show. Search off by default.
