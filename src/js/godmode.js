@@ -146,15 +146,54 @@ const LOG_COLORS = {
     group: "#7a8ab8",
     pilgrimage: "#d4a0e0",
     escape: "#60d060",
+    search: "#8a7a60",
 };
+
+const LOG_FILTER_LABELS = {
+    death: "\u2620",        // skull
+    resurrection: "\u2600", // sun
+    disposition: "\u25C8",  // diamond
+    bond: "\u2661",         // heart
+    group: "\u2302",        // house
+    search: "\u2610",       // ballot box
+    pilgrimage: "\u2698",   // flower
+    escape: "\u2605",       // star
+};
+
+// Filter state: which event types to show. Search off by default.
+const logFilters = {
+    death: true,
+    resurrection: true,
+    disposition: true,
+    bond: true,
+    group: true,
+    search: false,
+    pilgrimage: true,
+    escape: true,
+};
+
+function renderLogFilters() {
+    let html = '<div class="gm-log-filters">';
+    for (const type in LOG_FILTER_LABELS) {
+        const active = logFilters[type];
+        const color = LOG_COLORS[type] || "#b8a878";
+        html += '<button class="gm-log-filter' + (active ? ' gm-log-filter-on' : '') +
+            '" data-filter="' + type + '" style="color:' + (active ? color : '#3a3428') +
+            '" title="' + type + '">' + LOG_FILTER_LABELS[type] + '</button>';
+    }
+    html += '</div>';
+    return html;
+}
 
 function renderLog() {
     const el = document.getElementById("gm-log-pane");
     if (!el) return;
 
     const recent = GodmodeLog.getRecent(100);
-    let html = '';
+    let html = renderLogFilters();
+    let count = 0;
     for (const ev of recent) {
+        if (!logFilters[ev.type]) continue;
         const color = LOG_COLORS[ev.type] || "#b8a878";
         const mins = (ev.tick / 240) * 24 * 60 + 6 * 60;
         const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
@@ -162,9 +201,10 @@ function renderLog() {
         html += '<div class="gm-log-entry" style="color:' + color + '">' +
             '<span class="gm-log-time">d' + (ev.day - 1) + ' ' + hh + ':' + mm + '</span>' +
             ev.text + '</div>';
+        count++;
     }
-    if (recent.length === 0) {
-        html = '<div class="gm-log-empty">No events yet.</div>';
+    if (count === 0) {
+        html += '<div class="gm-log-empty">No events yet.</div>';
     }
     el.innerHTML = html;
 }
@@ -452,6 +492,15 @@ function setupInput(canvas) {
 
     document.getElementById("gm-tab-log").addEventListener("click", function () { switchTab("log"); });
     document.getElementById("gm-tab-npc").addEventListener("click", function () { switchTab("npc"); });
+
+    // Log filter toggles (event delegation)
+    document.getElementById("gm-log-pane").addEventListener("click", function (ev) {
+        const btn = ev.target.closest("[data-filter]");
+        if (!btn) return;
+        const type = btn.getAttribute("data-filter");
+        logFilters[type] = !logFilters[type];
+        renderLog();
+    });
 
     // Drag to pan
     canvas.addEventListener("mousedown", function (ev) {
