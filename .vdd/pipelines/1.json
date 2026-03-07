@@ -1,0 +1,13 @@
+{
+  "item_id": "1",
+  "item_title": "implement godmode",
+  "current_phase": "spec_crystallization",
+  "iteration": 0,
+  "phase_history": [],
+  "workspace": ".",
+  "spec_path": null,
+  "test_paths": [],
+  "impl_paths": [],
+  "description": "",
+  "artifact_hashes": {}
+}
