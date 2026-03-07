@@ -31,8 +31,9 @@ let canvas = null;
 let ctx = null;
 let startFloor = 0;
 
-// Side view: null = both, 0 = west only, 1 = east only
-let viewSide = null;
+// Side view: null = chasm (both), 0 = west only, 1 = east only
+let viewSide = 0;   // default: player's starting corridor
+let startSide = 0;
 
 // Mouse drag state
 let dragging = false;
@@ -69,6 +70,8 @@ export const GodmodeMap = {
         canvas = canvasEl;
         ctx = canvas.getContext("2d");
         startFloor = state.floor;
+        startSide = state.side;
+        viewSide = state.side;  // default to player's corridor
         // Center viewport on starting location
         vpX = state.position - Math.floor(vpCols / 2);
         vpY = state.floor - Math.floor(vpRows / 2);
@@ -220,7 +223,9 @@ export const GodmodeMap = {
             ctx.fillText("WEST", westX + colW / 2, labelFontSize + 4);
             ctx.fillText("EAST", eastX + colW / 2, labelFontSize + 4);
         } else {
-            ctx.fillText(viewSide === 0 ? "WEST" : "EAST", corridorX + colW / 2, labelFontSize + 4);
+            const sideName = viewSide === 0 ? "WEST" : "EAST";
+            const corNum = viewSide === startSide ? "1" : "2";
+            ctx.fillText("CORRIDOR " + corNum + " (" + sideName + ")", corridorX + colW / 2, labelFontSize + 4);
         }
 
         // Floor label font
@@ -493,10 +498,11 @@ export const GodmodeMap = {
         else if (key === "+" || key === "=") this.zoom(1);
         else if (key === "-" || key === "_") this.zoom(-1);
         else if (key === "Tab") {
-            // Cycle: both → west → east → both
-            if (viewSide === null) viewSide = 0;
-            else if (viewSide === 0) viewSide = 1;
-            else viewSide = null;
+            // Cycle: corridor 1 (start side) → corridor 2 → chasm (both)
+            const otherSide = startSide === 0 ? 1 : 0;
+            if (viewSide === startSide) viewSide = otherSide;
+            else if (viewSide === otherSide) viewSide = null;
+            else viewSide = startSide;
             this._recalcCells();
         }
     },
