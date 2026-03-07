@@ -10,7 +10,7 @@ const BASE_CELL_H = 14;
 const BASE_CHASM_W = 48;
 const REST_EVERY = 10;
 const LABEL_GUTTER = 52; // floor number labels on left
-const POS_LABEL_H = 18;  // height reserved for position labels at top
+const HEADER_H = 28;     // reserved header strip for view title
 
 // Zoom
 const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
@@ -96,7 +96,7 @@ export const GodmodeMap = {
             ? canvas.width - LABEL_GUTTER           // single side: full width
             : (canvas.width - CHASM_W - LABEL_GUTTER) / 2;  // both sides: split
         vpCols = Math.max(4, Math.ceil(usableW / CELL_W) + 1);
-        vpRows = Math.max(4, Math.ceil(canvas.height / CELL_H) + 1);
+        vpRows = Math.max(4, Math.ceil((canvas.height - HEADER_H) / CELL_H) + 1);
     },
 
     /** Zoom in/out, centering on the given pixel coords (or canvas center). */
@@ -139,7 +139,7 @@ export const GodmodeMap = {
             }
         }
         const pos = vpX + localCol;
-        const row = py / CELL_H;
+        const row = (py - HEADER_H) / CELL_H;
         const floor = vpY + (vpRows - 1) - row;
         return { pos, floor };
     },
@@ -158,7 +158,8 @@ export const GodmodeMap = {
         if (!dragging) return;
         const dx = px - dragStartX;
         const dy = py - dragStartY;
-        vpX = dragVpX - dx / CELL_W;
+        // Chasm view: vertical drag only
+        if (viewSide !== null) vpX = dragVpX - dx / CELL_W;
         vpY = dragVpY + dy / CELL_H;  // screen Y is inverted from world floor
     },
 
@@ -185,47 +186,72 @@ export const GodmodeMap = {
             }
         }
 
+        // Chasm view: lock horizontal viewport (both corridors share the same column space)
+        const showBoth = viewSide === null;
+        if (showBoth && !follow) {
+            vpX = -Math.floor(vpCols / 2);  // center on position 0
+        }
+
         // Clear
         ctx.fillStyle = snap.lightsOn ? "#0a0906" : "#050403";
         ctx.fillRect(0, 0, w, h);
 
         hitTargets = [];
 
+        // --- Header strip ---
+        ctx.fillStyle = "#0d0b08";
+        ctx.fillRect(0, 0, w, HEADER_H);
+        ctx.strokeStyle = "#2a2418";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, HEADER_H);
+        ctx.lineTo(w, HEADER_H);
+        ctx.stroke();
+
+        const titleSize = 16;
+        ctx.font = "bold " + titleSize + "px 'Share Tech Mono', monospace";
+        ctx.textAlign = "center";
+
         // Compute column widths with label gutter
         const colW = vpCols * CELL_W;
         const corridorX = LABEL_GUTTER;
 
         // In single-side mode, no chasm or second column
-        const showBoth = viewSide === null;
         const chasmX = showBoth ? corridorX + colW : -1;
         const eastX = showBoth ? chasmX + CHASM_W : -1;
         // For single-side: westX is always corridorX, eastX not used
         const westX = corridorX;
 
         if (showBoth) {
-            // Draw chasm — darker with subtle gradient edges
-            ctx.fillStyle = "#020201";
-            ctx.fillRect(chasmX, 0, CHASM_W, h);
-            ctx.strokeStyle = "#2a2218";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(chasmX, 0); ctx.lineTo(chasmX, h);
-            ctx.moveTo(eastX, 0); ctx.lineTo(eastX, h);
-            ctx.stroke();
-        }
-
-        // Corridor labels at top
-        const labelFontSize = Math.max(9, Math.round(11 * zoom));
-        ctx.font = labelFontSize + "px 'Share Tech Mono', monospace";
-        ctx.fillStyle = "#3a3428";
-        ctx.textAlign = "center";
-        if (showBoth) {
-            ctx.fillText("WEST", westX + colW / 2, labelFontSize + 4);
-            ctx.fillText("EAST", eastX + colW / 2, labelFontSize + 4);
+            // Header: WEST — CHASM — EAST
+            ctx.fillStyle = "#6a6050";
+            ctx.fillText("WEST", westX + colW / 2, HEADER_H / 2 + titleSize / 3);
+            ctx.fillText("EAST", eastX + colW / 2, HEADER_H / 2 + titleSize / 3);
+            ctx.fillStyle = "#4a4030";
+            ctx.font = "bold 11px 'Share Tech Mono', monospace";
+            ctx.fillText("CHASM", chasmX + CHASM_W / 2, HEADER_H / 2 + 4);
         } else {
             const sideName = viewSide === 0 ? "WEST" : "EAST";
             const corNum = viewSide === startSide ? "1" : "2";
-            ctx.fillText("CORRIDOR " + corNum + " (" + sideName + ")", corridorX + colW / 2, labelFontSize + 4);
+            ctx.fillStyle = "#8a7a60";
+            ctx.fillText("CORRIDOR " + corNum + "  ·  " + sideName, w / 2, HEADER_H / 2 + titleSize / 3);
+        }
+
+        // Offset all grid drawing below header
+        ctx.save();
+        ctx.translate(0, HEADER_H);
+        const gridH = h - HEADER_H;
+
+        if (showBoth) {
+            // Draw chasm — darker with subtle gradient edges
+            ctx.fillStyle = "#020201";
+            ctx.fillRect(chasmX, 0, CHASM_W, gridH);
+            ctx.strokeStyle = "#2a2218";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(chasmX, 0); ctx.lineTo(chasmX, gridH);
+            ctx.moveTo(eastX, 0); ctx.lineTo(eastX, gridH);
+            ctx.stroke();
         }
 
         // Floor label font
@@ -286,9 +312,9 @@ export const GodmodeMap = {
             }
         }
 
-        // Position labels along the top — rest area kiosk numbers (drawn after grid)
-        const posFontSize = Math.max(8, Math.round(10 * zoom));
-        const posLabelY = labelFontSize + 4 + posFontSize + 2;
+        // Position labels along the top of grid area — rest area kiosk numbers
+        const posFontSize = Math.max(9, Math.round(11 * zoom));
+        const posLabelY = posFontSize + 4;
         ctx.font = posFontSize + "px 'Share Tech Mono', monospace";
         ctx.textAlign = "center";
         for (let col = 0; col < vpCols; col++) {
@@ -308,7 +334,7 @@ export const GodmodeMap = {
             ctx.setLineDash([2, 4]);
             ctx.beginPath();
             ctx.moveTo(px, posLabelY + 4);
-            ctx.lineTo(px, h);
+            ctx.lineTo(px, gridH);
             ctx.stroke();
             ctx.setLineDash([]);
             if (showBoth) {
@@ -322,7 +348,7 @@ export const GodmodeMap = {
                 ctx.setLineDash([2, 4]);
                 ctx.beginPath();
                 ctx.moveTo(epx, posLabelY + 4);
-                ctx.lineTo(epx, h);
+                ctx.lineTo(epx, gridH);
                 ctx.stroke();
                 ctx.setLineDash([]);
             }
@@ -452,8 +478,10 @@ export const GodmodeMap = {
                 ctx.setLineDash([]);
             }
 
-            hitTargets.push({ id: npc.id, x: cx, y: cy, r: dotR + 6 });
+            hitTargets.push({ id: npc.id, x: cx, y: cy + HEADER_H, r: dotR + 6 });
         }
+
+        ctx.restore(); // end grid translation
 
         // Update controls display
         const dayEl = document.getElementById("gm-day");
@@ -491,8 +519,9 @@ export const GodmodeMap = {
 
     handleKey(key) {
         const step = Math.max(1, Math.round(3 / zoom));
-        if (key === "ArrowLeft" || key === "h") vpX -= step;
-        else if (key === "ArrowRight" || key === "l") vpX += step;
+        // Chasm view: vertical only
+        if (key === "ArrowLeft" || key === "h") { if (viewSide !== null) vpX -= step; }
+        else if (key === "ArrowRight" || key === "l") { if (viewSide !== null) vpX += step; }
         else if (key === "ArrowUp" || key === "k") vpY += step;
         else if (key === "ArrowDown" || key === "j") vpY -= step;
         else if (key === "+" || key === "=") this.zoom(1);
