@@ -9,6 +9,7 @@ import {
 } from "../lib/social.core.ts";
 import { HABITUATION } from "../lib/psych.core.ts";
 import { STATS } from "../lib/stats.core.ts";
+import { KNOWLEDGE } from "../lib/knowledge.core.ts";
 import {
     talkTo, spendTime, recruit,
     DEFAULT_TALK, DEFAULT_SPEND_TIME, DEFAULT_RECRUIT,
@@ -139,6 +140,36 @@ describe("talkTo", () => {
         assert.ok(result.playerHopeDelta > 0);
         const pPsych = getComponent(w, p, PSYCHOLOGY);
         assert.ok(pPsych.hope > 50);
+    });
+
+    it("shares search knowledge between entities", () => {
+        const w = makeWorld();
+        const p = makeEntity(w, { player: true });
+        const n = makeEntity(w, { name: "Gina" });
+        const pKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:0:0", "0:1:0"]) };
+        const nKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:2:0", "0:3:0"]) };
+        addComponent(w, p, KNOWLEDGE, pKnow);
+        addComponent(w, n, KNOWLEDGE, nKnow);
+        const result = talkTo(w, p, n, "kind", 100);
+        assert.strictEqual(result.segmentsLearned, 2);
+        assert.strictEqual(result.segmentsShared, 2);
+        assert.strictEqual(pKnow.searchedSegments.size, 4);
+        assert.strictEqual(nKnow.searchedSegments.size, 4);
+    });
+
+    it("dismissive talk does not share knowledge", () => {
+        const w = makeWorld();
+        const p = makeEntity(w, { player: true });
+        const n = makeEntity(w, { name: "Hank" });
+        const pKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:0:0"]) };
+        const nKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:1:0"]) };
+        addComponent(w, p, KNOWLEDGE, pKnow);
+        addComponent(w, n, KNOWLEDGE, nKnow);
+        const result = talkTo(w, p, n, "dismissive", 100);
+        assert.strictEqual(result.segmentsLearned, 0);
+        assert.strictEqual(result.segmentsShared, 0);
+        assert.strictEqual(pKnow.searchedSegments.size, 1);
+        assert.strictEqual(nKnow.searchedSegments.size, 1);
     });
 });
 

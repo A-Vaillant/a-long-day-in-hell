@@ -18,6 +18,7 @@ import {
 } from "./social.core.ts";
 import { applyShockToEntity } from "./psych.core.ts";
 import { STATS, type Stats, influenceMod } from "./stats.core.ts";
+import { KNOWLEDGE, type Knowledge, shareSearchKnowledge } from "./knowledge.core.ts";
 
 // --- Talk ---
 
@@ -38,6 +39,10 @@ export interface TalkResult {
     npcHopeDelta: number;
     /** Hope change on player. */
     playerHopeDelta: number;
+    /** Segments player learned from NPC. */
+    segmentsLearned: number;
+    /** Segments NPC learned from player. */
+    segmentsShared: number;
 }
 
 export interface TalkConfig {
@@ -83,19 +88,19 @@ export function talkTo(
     const npcIdent = getComponent<Identity>(world, npc, IDENTITY);
 
     if (!playerPos || !npcPos || !playerIdent || !npcIdent) {
-        return { success: false, reason: "missing", disposition: "calm", affinityDelta: 0, playerAffinityDelta: 0, npcHopeDelta: 0, playerHopeDelta: 0 };
+        return { success: false, reason: "missing", disposition: "calm", affinityDelta: 0, playerAffinityDelta: 0, npcHopeDelta: 0, playerHopeDelta: 0, segmentsLearned: 0, segmentsShared: 0 };
     }
     if (!npcIdent.alive) {
-        return { success: false, reason: "dead", disposition: "dead", affinityDelta: 0, playerAffinityDelta: 0, npcHopeDelta: 0, playerHopeDelta: 0 };
+        return { success: false, reason: "dead", disposition: "dead", affinityDelta: 0, playerAffinityDelta: 0, npcHopeDelta: 0, playerHopeDelta: 0, segmentsLearned: 0, segmentsShared: 0 };
     }
     if (!coLocated(playerPos, npcPos)) {
-        return { success: false, reason: "not_here", disposition: "calm", affinityDelta: 0, playerAffinityDelta: 0, npcHopeDelta: 0, playerHopeDelta: 0 };
+        return { success: false, reason: "not_here", disposition: "calm", affinityDelta: 0, playerAffinityDelta: 0, npcHopeDelta: 0, playerHopeDelta: 0, segmentsLearned: 0, segmentsShared: 0 };
     }
 
     const npcPsych = getComponent<Psychology>(world, npc, PSYCHOLOGY);
     const playerPsych = getComponent<Psychology>(world, player, PSYCHOLOGY);
     if (!npcPsych || !playerPsych) {
-        return { success: false, reason: "missing", disposition: "calm", affinityDelta: 0, playerAffinityDelta: 0, npcHopeDelta: 0, playerHopeDelta: 0 };
+        return { success: false, reason: "missing", disposition: "calm", affinityDelta: 0, playerAffinityDelta: 0, npcHopeDelta: 0, playerHopeDelta: 0, segmentsLearned: 0, segmentsShared: 0 };
     }
 
     // Derive disposition for response flavor
@@ -142,6 +147,19 @@ export function talkTo(
         applyShockToEntity(world, npc, "beingDismissed");
     }
 
+    // Share search knowledge — both parties exchange what segments they've checked
+    // Dismissive conversations don't share knowledge (you're not really listening)
+    let segmentsLearned = 0;
+    let segmentsShared = 0;
+    if (approach !== "dismissive") {
+        const playerKnow = getComponent<Knowledge>(world, player, KNOWLEDGE);
+        const npcKnow = getComponent<Knowledge>(world, npc, KNOWLEDGE);
+        if (playerKnow && npcKnow) {
+            segmentsLearned = shareSearchKnowledge(npcKnow, playerKnow);
+            segmentsShared = shareSearchKnowledge(playerKnow, npcKnow);
+        }
+    }
+
     return {
         success: true,
         disposition,
@@ -149,6 +167,8 @@ export function talkTo(
         playerAffinityDelta,
         npcHopeDelta,
         playerHopeDelta,
+        segmentsLearned,
+        segmentsShared,
     };
 }
 
