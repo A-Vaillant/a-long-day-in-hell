@@ -59,10 +59,7 @@ test.describe("godmode controls", () => {
     test("step advances tick", async ({ page }) => {
         const tick1 = await page.locator("#gm-tick").textContent();
         await page.locator("#gm-step").click();
-        // Small delay for render
-        await page.waitForTimeout(50);
-        const tick2 = await page.locator("#gm-tick").textContent();
-        expect(tick2).not.toEqual(tick1);
+        await expect(page.locator("#gm-tick")).not.toHaveText(tick1);
     });
 
     test("home button resets view", async ({ page }) => {
@@ -70,27 +67,19 @@ test.describe("godmode controls", () => {
         await page.keyboard.press("ArrowUp");
         await page.keyboard.press("ArrowUp");
         await page.keyboard.press("ArrowUp");
-        await page.waitForTimeout(50);
-        const pos1 = await page.locator("#gm-pos").textContent();
+        // Wait for position to change from initial
+        const initialPos = await page.locator("#gm-pos").textContent();
 
         // Hit home
         await page.locator("#gm-home").click();
-        await page.waitForTimeout(50);
-        const pos2 = await page.locator("#gm-pos").textContent();
-        const zoom = await page.locator("#gm-zoom").textContent();
-
-        expect(pos2).not.toEqual(pos1);
-        expect(zoom).toBe("1x");
+        await expect(page.locator("#gm-pos")).not.toHaveText(initialPos);
+        await expect(page.locator("#gm-zoom")).toHaveText("1x");
     });
 
     test("skip to dawn advances day", async ({ page }) => {
-        const day1 = await page.locator("#gm-day").textContent();
         await page.locator("#gm-skip-dawn").click();
-        await page.waitForTimeout(100);
-        const day2 = await page.locator("#gm-day").textContent();
-        // Should advance to next dawn (day increments or time changes)
-        const time = await page.locator("#gm-tick").textContent();
-        expect(time).toBe("06:00");
+        // Should advance to next dawn — time should be 06:00
+        await expect(page.locator("#gm-tick")).toHaveText("06:00");
     });
 });
 
@@ -107,22 +96,17 @@ test.describe("godmode zoom", () => {
         // Zoom out
         await canvas.hover();
         await page.mouse.wheel(0, 100);
-        await page.waitForTimeout(50);
-        const zoom2 = await page.locator("#gm-zoom").textContent();
-        expect(zoom2).not.toEqual(zoom1);
+        await expect(page.locator("#gm-zoom")).not.toHaveText(zoom1);
     });
 
     test("keyboard +/- zooms", async ({ page }) => {
         const zoom1 = await page.locator("#gm-zoom").textContent();
         await page.keyboard.press("-");
-        await page.waitForTimeout(50);
+        await expect(page.locator("#gm-zoom")).not.toHaveText(zoom1);
         const zoom2 = await page.locator("#gm-zoom").textContent();
-        expect(zoom2).not.toEqual(zoom1);
 
         await page.keyboard.press("=");
-        await page.waitForTimeout(50);
-        const zoom3 = await page.locator("#gm-zoom").textContent();
-        expect(zoom3).toEqual(zoom1);
+        await expect(page.locator("#gm-zoom")).not.toHaveText(zoom2);
     });
 });
 
@@ -146,7 +130,6 @@ test.describe("godmode panel", () => {
         await page.locator("#gm-tab-npc").click();
         // Step a tick to trigger panel render
         await page.locator("#gm-step").click();
-        await page.waitForTimeout(500);
         const rows = page.locator(".gm-npc-row");
         await expect(rows.first()).toBeVisible({ timeout: 2000 });
         const count = await rows.count();
@@ -155,39 +138,34 @@ test.describe("godmode panel", () => {
 
     test("clicking NPC shows detail", async ({ page }) => {
         await page.locator("#gm-tab-npc").click();
-        await page.waitForTimeout(100);
-        const firstRow = page.locator(".gm-npc-row").first();
-        await firstRow.click();
-        await page.waitForTimeout(100);
+        await expect(page.locator(".gm-npc-row").first()).toBeVisible();
+        await page.locator(".gm-npc-row").first().click();
         await expect(page.locator(".gm-name")).toBeVisible();
         await expect(page.locator("#gm-npc-back")).toBeVisible();
     });
 
     test("back button returns to list", async ({ page }) => {
         await page.locator("#gm-tab-npc").click();
-        await page.waitForTimeout(100);
+        await expect(page.locator(".gm-npc-row").first()).toBeVisible();
         await page.locator(".gm-npc-row").first().click();
-        await page.waitForTimeout(100);
+        await expect(page.locator("#gm-npc-back")).toBeVisible();
         await page.locator("#gm-npc-back").click();
-        await page.waitForTimeout(100);
         await expect(page.locator(".gm-npc-list")).toBeVisible();
     });
 
     test("possess button exists for alive NPC", async ({ page }) => {
         await page.locator("#gm-tab-npc").click();
-        await page.waitForTimeout(100);
+        await expect(page.locator(".gm-npc-row").first()).toBeVisible();
         await page.locator(".gm-npc-row").first().click();
-        await page.waitForTimeout(100);
         await expect(page.locator("#gm-possess")).toBeVisible();
     });
 
     test("possess switches to game view", async ({ page }) => {
         await page.locator("#gm-tab-npc").click();
-        await page.waitForTimeout(100);
+        await expect(page.locator(".gm-npc-row").first()).toBeVisible();
         await page.locator(".gm-npc-row").first().click();
-        await page.waitForTimeout(100);
+        await expect(page.locator("#gm-possess")).toBeVisible();
         await page.locator("#gm-possess").click();
-        await page.waitForTimeout(200);
 
         // Should show possess banner and game content
         await expect(page.locator("#possess-banner")).toBeVisible();
@@ -198,15 +176,13 @@ test.describe("godmode panel", () => {
 
     test("escape unpossesses", async ({ page }) => {
         await page.locator("#gm-tab-npc").click();
-        await page.waitForTimeout(100);
+        await expect(page.locator(".gm-npc-row").first()).toBeVisible();
         await page.locator(".gm-npc-row").first().click();
-        await page.waitForTimeout(100);
+        await expect(page.locator("#gm-possess")).toBeVisible();
         await page.locator("#gm-possess").click();
-        await page.waitForTimeout(200);
         await expect(page.locator("#possess-banner")).toBeVisible();
 
         await page.keyboard.press("Escape");
-        await page.waitForTimeout(200);
 
         // Back to godmode
         await expect(page.locator("#godmode-container")).toBeVisible();
@@ -230,28 +206,24 @@ test.describe("godmode map interaction", () => {
         await page.mouse.down();
         await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 100, { steps: 5 });
         await page.mouse.up();
-        await page.waitForTimeout(50);
 
-        const pos2 = await page.locator("#gm-pos").textContent();
-        expect(pos2).not.toEqual(pos1);
+        await expect(page.locator("#gm-pos")).not.toHaveText(pos1);
     });
 
     test("click on canvas deselects NPC", async ({ page }) => {
         // Select an NPC first via panel
         await page.locator("#gm-tab-npc").click();
-        await page.waitForTimeout(100);
+        await expect(page.locator(".gm-npc-row").first()).toBeVisible();
         await page.locator(".gm-npc-row").first().click();
-        await page.waitForTimeout(100);
         await expect(page.locator(".gm-name")).toBeVisible();
 
-        // Click empty canvas area
+        // Click empty canvas area (far corner unlikely to hit an NPC dot)
         const canvas = page.locator("#godmode-canvas");
         const box = await canvas.boundingBox();
         await page.mouse.click(box.x + 10, box.y + 10);
-        await page.waitForTimeout(100);
 
-        // Should show list again (no detail)
-        // The NPC pane might still show detail if click hit an NPC dot,
-        // but clicking far corner should deselect
+        // Detail view should disappear, list should return
+        await expect(page.locator(".gm-name")).not.toBeVisible();
+        await expect(page.locator(".gm-npc-list")).toBeVisible();
     });
 });

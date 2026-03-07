@@ -18,6 +18,7 @@ import {
 } from "./social.core.ts";
 import { NEEDS, type Needs } from "./needs.core.ts";
 import { INTENT, type Intent } from "./intent.core.ts";
+import { SLEEP, type Sleep } from "./sleep.core.ts";
 import { isRestArea } from "./library.core.ts";
 
 // --- Component ---
@@ -66,7 +67,7 @@ function stepToward(current: number, target: number): number {
 
 // --- Movement behaviors ---
 
-const MOVE_INTENTS = new Set(["explore", "seek_rest", "wander_mad"]);
+const MOVE_INTENTS = new Set(["explore", "seek_rest", "return_home", "wander_mad"]);
 
 // --- System ---
 
@@ -100,18 +101,23 @@ export function movementSystem(
         const moveProb = isMad ? config.madMoveProbability : config.calmMoveProbability;
         const floorChance = isMad ? config.madFloorChangeChance : config.calmFloorChangeChance;
 
-        // Set target for seek_rest
+        // Set target for directed movement behaviors
         if (behavior === "seek_rest") {
             mov.targetPosition = nearestRestArea(pos.position);
+        } else if (behavior === "return_home") {
+            const sleep = getComponent<Sleep>(world, entity, SLEEP);
+            mov.targetPosition = sleep ? sleep.homeRestArea : nearestRestArea(pos.position);
         } else {
             mov.targetPosition = null;
         }
+
+        const isDirected = (behavior === "seek_rest" || behavior === "return_home") && mov.targetPosition !== null;
 
         if (n <= 1) {
             // Single tick
             if (rng.next() >= moveProb) continue;
 
-            if (behavior === "seek_rest" && mov.targetPosition !== null) {
+            if (isDirected) {
                 const step = stepToward(pos.position, mov.targetPosition);
                 if (step !== 0) {
                     pos.position += step;
@@ -130,7 +136,7 @@ export function movementSystem(
             // Batch mode: expected moves
             const expectedMoves = Math.round(moveProb * n);
 
-            if (behavior === "seek_rest" && mov.targetPosition !== null) {
+            if (isDirected) {
                 const dist = Math.abs(pos.position - mov.targetPosition);
                 if (expectedMoves >= dist) {
                     pos.position = mov.targetPosition;

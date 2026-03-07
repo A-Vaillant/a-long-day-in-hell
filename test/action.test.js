@@ -7,7 +7,7 @@ import {
     DEFAULT_SCORERS, DEFAULT_INTENT, INTENT,
 } from "../lib/intent.core.ts";
 import { createWorld, spawn, addComponent, getComponent, hasComponent } from "../lib/ecs.core.ts";
-import { IDENTITY, PSYCHOLOGY, PLAYER } from "../lib/social.core.ts";
+import { POSITION, IDENTITY, PSYCHOLOGY, PLAYER } from "../lib/social.core.ts";
 import { PERSONALITY } from "../lib/personality.core.ts";
 import { NEEDS } from "../lib/needs.core.ts";
 
@@ -40,6 +40,7 @@ describe("getAvailableBehaviors", () => {
     function makeWorld() {
         const world = createWorld();
         const entity = spawn(world);
+        addComponent(world, entity, POSITION, { side: 0, position: 5, floor: 10 });
         addComponent(world, entity, IDENTITY, { name: "Test", alive: true });
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
         addComponent(world, entity, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });

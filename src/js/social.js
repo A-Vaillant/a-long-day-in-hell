@@ -22,6 +22,7 @@ import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, searchSystem } from "../../lib/search.core.ts";
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
+import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.js";
@@ -76,9 +77,14 @@ export const Social = {
                 addComponent(world, ent, RELATIONSHIPS, { bonds: new Map() });
                 addComponent(world, ent, HABITUATION, { exposures: new Map() });
                 addComponent(world, ent, NEEDS, { hunger: 0, thirst: 0, exhaustion: 0 });
-                addComponent(world, ent, MOVEMENT, { intent: "idle", targetPosition: null, moveAccum: 0 });
+                addComponent(world, ent, MOVEMENT, { targetPosition: null, moveAccum: 0 });
                 addComponent(world, ent, SEARCHING, { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0 });
                 addComponent(world, ent, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
+                addComponent(world, ent, SLEEP, {
+                    homeRestArea: nearestRestArea(npc.position),
+                    bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0,
+                    nomadic: npc.disposition === "mad",
+                });
                 addComponent(world, ent, AI, {});
 
                 // NPC personality seeded from their name + game seed
@@ -163,7 +169,7 @@ export const Social = {
 
         // Intent arbiter (before movement/search — they read intent)
         const intentRng = seedFromString(state.seed + ":npc:intent:" + currentTick);
-        intentSystem(world, intentRng);
+        intentSystem(world, intentRng, undefined, state.tick);
 
         // Movement (only for explore/seek_rest/wander_mad intents)
         const moveRng = seedFromString(state.seed + ":npc:move:" + currentTick);
@@ -211,10 +217,16 @@ export const Social = {
         }
     },
 
-    /** Dawn hook — resurrect dead NPCs. Position sync is per-tick now. */
+    /** Lights-out hook — NPCs at rest areas claim beds and fall asleep. */
+    onLightsOut() {
+        if (world) sleepOnsetSystem(world);
+    },
+
+    /** Dawn hook — resolve sleep effects, resurrect dead NPCs, reset needs. */
     onDawn() {
         if (!world) return;
-        // ECS handles resurrection (ident.alive = true) and resets needs for resurrected NPCs
+        const currentTick = (state.day - 1) * 240 + state.tick;
+        sleepWakeSystem(world, currentTick);
         resetNeedsAtDawn(world);
         // Sync ECS resurrection back to state.npcs
         if (state.npcs) {
@@ -481,7 +493,7 @@ export const Social = {
         const entity = playerEntity;
         if (entity === null) return [];
         const rng = seedFromString(state.seed + ":actions:" + state.tick);
-        return getAvailableBehaviors(world, entity, rng);
+        return getAvailableBehaviors(world, entity, rng, state.tick);
     },
 
     /**

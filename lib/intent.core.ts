@@ -22,12 +22,14 @@
 import type { Entity, World } from "./ecs.core.ts";
 import { getComponent, hasComponent, query } from "./ecs.core.ts";
 import {
-    IDENTITY, PSYCHOLOGY, PLAYER,
+    POSITION, IDENTITY, PSYCHOLOGY, PLAYER,
     deriveDisposition,
-    type Identity, type Psychology,
+    type Position, type Identity, type Psychology,
 } from "./social.core.ts";
 import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { NEEDS, type Needs } from "./needs.core.ts";
+import { SLEEP, type Sleep } from "./sleep.core.ts";
+import { LIGHTS_ON_TICKS } from "./tick.core.ts";
 
 // --- Behavior type ---
 
@@ -36,6 +38,7 @@ export const BEHAVIORS = [
     "explore",
     "seek_rest",
     "search",
+    "return_home",
     "wander_mad",
 ] as const;
 
@@ -65,6 +68,12 @@ export interface ScorerContext {
     personality: Personality | null;
     intent: Intent;
     rng: Rng;
+    /** Current position (for distance calculations). */
+    position: Position | null;
+    /** Sleep component (for home rest area). */
+    sleep: Sleep | null;
+    /** Current tick within the day (0–239). */
+    tick: number;
 }
 
 interface Rng {
@@ -100,6 +109,7 @@ export const DEFAULT_INTENT: IntentConfig = {
         search: 8,
         explore: 10,
         seek_rest: 5,
+        return_home: 8,
     },
     defaultCooldown: 5,
 };
@@ -159,6 +169,40 @@ const scorers: Record<string, BehaviorScorer> = {
     },
 
     /**
+     * Return home: head back to home rest area as evening approaches.
+     * Score ramps from tick 120 (~8pm) toward lights-out (tick 160).
+     * Drops off if too far from home (they'll go to nearest rest area instead).
+     * Already at home → no need to return.
+     */
+    return_home(ctx) {
+        if (!ctx.sleep || !ctx.position || ctx.sleep.nomadic) return -Infinity;
+
+        const distToHome = Math.abs(ctx.position.position - ctx.sleep.homeRestArea);
+
+        // Already at home rest area — no need
+        if (distToHome === 0) return -Infinity;
+
+        // Too far from home — nearest rest area via seek_rest is better
+        // "Too far" = more than 20 segments (2 full rest-area spans)
+        if (distToHome > 20) return -Infinity;
+
+        // Time pressure: ramps from tick 120 to LIGHTS_ON_TICKS (160)
+        // Before tick 120: no urgency
+        const eveningStart = 120; // ~8:00 PM
+        if (ctx.tick < eveningStart) return -Infinity;
+
+        const timeUrgency = Math.min(1, (ctx.tick - eveningStart) / (LIGHTS_ON_TICKS - eveningStart));
+
+        // Base score scales with time urgency: 0.4 (early evening) → 1.8 (near lights-out)
+        let score = 0.4 + timeUrgency * 1.4;
+
+        // Closer to home = slightly higher score (worth the trip)
+        score += (1 - distToHome / 20) * 0.3;
+
+        return score;
+    },
+
+    /**
      * Wander mad: erratic movement. Only scores for mad disposition.
      * Returns -Infinity otherwise — this is disposition-gated.
      */
@@ -191,6 +235,9 @@ export function evaluateIntent(
     rng: Rng,
     config: IntentConfig = DEFAULT_INTENT,
     behaviorScorers: Record<string, BehaviorScorer> = scorers,
+    position: Position | null = null,
+    sleep: Sleep | null = null,
+    tick: number = 0,
 ): { behavior: Behavior; cooldown: number } | null {
     const disposition = deriveDisposition(psych, alive);
 
@@ -211,6 +258,7 @@ export function evaluateIntent(
 
     const ctx: ScorerContext = {
         psych, alive, disposition, needs, personality, intent, rng,
+        position, sleep, tick,
     };
 
     let bestBehavior: Behavior = "idle";
@@ -257,6 +305,7 @@ export function getAvailableBehaviors(
     world: World,
     entity: Entity,
     rng: Rng,
+    tick: number = 0,
     config: IntentConfig = DEFAULT_INTENT,
     behaviorScorers: Record<string, BehaviorScorer> = scorers,
 ): ScoredBehavior[] {
@@ -267,12 +316,15 @@ export function getAvailableBehaviors(
 
     const needs = getComponent<Needs>(world, entity, NEEDS);
     const personality = getComponent<Personality>(world, entity, PERSONALITY);
+    const position = getComponent<Position>(world, entity, POSITION);
+    const sleep = getComponent<Sleep>(world, entity, SLEEP);
     const disposition = deriveDisposition(psych, ident.alive);
 
     const ctx: ScorerContext = {
         psych, alive: ident.alive, disposition,
         needs: needs ?? null, personality: personality ?? null,
         intent, rng,
+        position: position ?? null, sleep: sleep ?? null, tick,
     };
 
     const results: ScoredBehavior[] = [];
@@ -300,6 +352,7 @@ export function intentSystem(
     world: World,
     rng: Rng,
     config: IntentConfig = DEFAULT_INTENT,
+    tick: number = 0,
 ): void {
     const entities = query(world, [INTENT, IDENTITY, PSYCHOLOGY]);
 
@@ -318,9 +371,12 @@ export function intentSystem(
 
         const needs = getComponent<Needs>(world, entity, NEEDS);
         const personality = getComponent<Personality>(world, entity, PERSONALITY);
+        const position = getComponent<Position>(world, entity, POSITION);
+        const sleep = getComponent<Sleep>(world, entity, SLEEP);
 
         const result = evaluateIntent(
             intent, psych, ident.alive, needs, personality, rng, config,
+            undefined, position, sleep, tick,
         );
 
         if (result) {
