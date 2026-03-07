@@ -15,14 +15,14 @@ export function detectEvents(prev, curr) {
         const old = prevById.get(npc.id);
         if (!old) continue;
 
-        // Death
-        if (old.alive && !npc.alive) {
+        // Death (but not if they escaped — that's a separate event)
+        if (old.alive && !npc.alive && !npc.free) {
             events.push({ tick: curr.tick, day: curr.day, type: "death",
                 text: npc.name + " died." });
         }
 
-        // Resurrection
-        if (!old.alive && npc.alive) {
+        // Resurrection (skip FREE entities — they don't come back)
+        if (!old.alive && npc.alive && !npc.free) {
             events.push({ tick: curr.tick, day: curr.day, type: "resurrection",
                 text: npc.name + " returned at dawn." });
         }
