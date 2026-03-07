@@ -271,22 +271,22 @@ function setupDOM() {
         '<span id="gm-day">Day 0</span>' +
         '<span id="gm-tick">0:00</span>' +
         '<div class="gm-ctrl-sep"></div>' +
-        '<button id="gm-play"><kbd>\u2423</kbd>\u25B6</button>' +
-        '<button id="gm-step"><kbd>.</kbd>+1</button>' +
+        '<button id="gm-play" title="Play / Pause (Space)"><kbd>\u2423</kbd>\u25B6</button>' +
+        '<button id="gm-step" title="Advance 1 tick (.)"><kbd>.</kbd>+1</button>' +
         '<div class="gm-ctrl-sep"></div>' +
-        '<div class="gm-speed-wrap">' +
+        '<div class="gm-speed-wrap" title="Simulation speed ([ slower, ] faster)">' +
             '<kbd>[</kbd>' +
             '<input type="range" id="gm-speed-slider" min="' + SPEED_MIN + '" max="' + SPEED_MAX.toFixed(2) + '" step="0.01" value="0">' +
             '<kbd>]</kbd>' +
             '<span id="gm-speed-label">1x</span>' +
         '</div>' +
         '<div class="gm-ctrl-sep"></div>' +
-        '<button id="gm-skip-dawn"><kbd>d</kbd>\u263C</button>' +
-        '<button id="gm-skip-night"><kbd>n</kbd>\u263E</button>' +
-        '<button id="gm-skip-day"><kbd>D</kbd>+1d</button>' +
-        '<input type="number" id="gm-ff-input" min="1" placeholder="ticks" title="Type ticks, Enter to skip">' +
+        '<button id="gm-skip-dawn" title="Skip to dawn (d)"><kbd>d</kbd>\u263C</button>' +
+        '<button id="gm-skip-night" title="Skip to nightfall (n)"><kbd>n</kbd>\u263E</button>' +
+        '<button id="gm-skip-day" title="Skip 1 full day (D)"><kbd>D</kbd>+1d</button>' +
+        '<input type="number" id="gm-ff-input" min="1" placeholder="ticks" title="Type ticks, Enter to fast-forward">' +
         '<div class="gm-ctrl-sep"></div>' +
-        '<span id="gm-zoom">1x</span>' +
+        '<span id="gm-zoom" title="Zoom level (scroll wheel, +/-)">1x</span>' +
         '<span id="gm-status"></span>';
     mapWrap.appendChild(controls);
 
@@ -461,6 +461,27 @@ export const Godmode = {
         GodmodeMap.init(canvas, state);
         GodmodePanel.init();
         setupInput(canvas);
+
+        // Apply URL params: &gmZoom=3 &gmX=50 &gmY=100 &gmSide=west|east
+        const params = new URLSearchParams(window.location.search);
+        const gmZoom = params.get("gmZoom");
+        if (gmZoom) GodmodeMap.setZoom(parseFloat(gmZoom));
+        const gmX = params.get("gmX");
+        const gmY = params.get("gmY");
+        if (gmX !== null || gmY !== null) {
+            GodmodeMap.setViewport(
+                gmX !== null ? parseFloat(gmX) : undefined,
+                gmY !== null ? parseFloat(gmY) : undefined
+            );
+        }
+        const gmSide = params.get("gmSide");
+        if (gmSide === "west") { GodmodeMap.setSide(0); }
+        else if (gmSide === "east") { GodmodeMap.setSide(1); }
+        const gmTicks = params.get("gmTicks");
+        if (gmTicks) {
+            const n = parseInt(gmTicks, 10);
+            for (let i = 0; i < n; i++) tickOnce();
+        }
 
         render();
         lastFrame = performance.now();
