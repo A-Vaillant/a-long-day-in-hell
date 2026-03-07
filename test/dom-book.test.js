@@ -81,7 +81,7 @@ describe("DOM: book rendering", () => {
         const win = game.window;
         const pageRng = win.PRNG.fork("pageopen:" + game.state.tick);
         const expectedPage = pageRng.nextInt(win.Book.PAGES_PER_BOOK) + 1;
-        assert.ok(expectedPage >= 1 && expectedPage <= 11, "random page in valid range");
+        assert.ok(expectedPage >= 1 && expectedPage <= 410, "random page in valid range");
     });
 
     it("book naming persists in header", () => {

@@ -12,8 +12,8 @@ describe("constants", () => {
     it("CHARS_PER_PAGE is 3200", () => {
         assert.strictEqual(CHARS_PER_PAGE, 3200);
     });
-    it("CHARS_PER_BOOK is 35200", () => {
-        assert.strictEqual(CHARS_PER_BOOK, 35_200);
+    it("CHARS_PER_BOOK is 1312000", () => {
+        assert.strictEqual(CHARS_PER_BOOK, 1_312_000);
     });
 });
 
