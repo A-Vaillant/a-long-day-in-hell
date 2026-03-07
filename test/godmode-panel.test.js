@@ -43,7 +43,7 @@ describe("GodmodePanel — NPC list", () => {
     });
 
     it("shows NPC list when no one is selected", () => {
-        GodmodePanel.update(makeSnap(), null);
+        GodmodePanel.update(makeSnap(), null, true);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.querySelector(".gm-npc-list"));
         assert.ok(pane.innerHTML.includes("Soren"));
@@ -55,13 +55,13 @@ describe("GodmodePanel — NPC list", () => {
             makeNpc({ id: 1, name: "Rachel" }),
             makeNpc({ id: 2, name: "Omar" }),
         ]);
-        GodmodePanel.update(snap, null);
+        GodmodePanel.update(snap, null, true);
         const rows = document.querySelectorAll(".gm-npc-row");
         assert.strictEqual(rows.length, 3);
     });
 
     it("shows mini bars for lucidity and hope", () => {
-        GodmodePanel.update(makeSnap(), null);
+        GodmodePanel.update(makeSnap(), null, true);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.innerHTML.includes("gm-mini-bar"));
         assert.ok(pane.innerHTML.includes("luc"));
@@ -69,7 +69,7 @@ describe("GodmodePanel — NPC list", () => {
     });
 
     it("shows location for each NPC", () => {
-        GodmodePanel.update(makeSnap(), null);
+        GodmodePanel.update(makeSnap(), null, true);
         const loc = document.querySelector(".gm-npc-row-loc");
         assert.ok(loc);
         assert.ok(loc.textContent.includes("W"));
@@ -77,7 +77,7 @@ describe("GodmodePanel — NPC list", () => {
     });
 
     it("dead NPCs are marked", () => {
-        GodmodePanel.update(makeSnap([makeNpc({ alive: false })]), null);
+        GodmodePanel.update(makeSnap([makeNpc({ alive: false })]), null, true);
         assert.ok(document.querySelector(".gm-npc-row-dead"));
     });
 
@@ -87,7 +87,7 @@ describe("GodmodePanel — NPC list", () => {
             makeNpc({ id: 1, name: "Mad", disposition: "mad" }),
             makeNpc({ id: 2, name: "Dead", disposition: "calm", alive: false }),
         ]);
-        GodmodePanel.update(snap, null);
+        GodmodePanel.update(snap, null, true);
         const names = [...document.querySelectorAll(".gm-npc-row-name")].map(el => el.textContent);
         assert.strictEqual(names[0], "Mad");
         assert.strictEqual(names[2], "Dead");
@@ -96,7 +96,7 @@ describe("GodmodePanel — NPC list", () => {
     it("fires onSelect callback when row clicked", () => {
         let selected = null;
         GodmodePanel.init({ onSelect: (id) => { selected = id; } });
-        GodmodePanel.update(makeSnap(), null);
+        GodmodePanel.update(makeSnap(), null, true);
         const row = document.querySelector(".gm-npc-row");
         row.click();
         assert.strictEqual(selected, 0);
@@ -105,7 +105,7 @@ describe("GodmodePanel — NPC list", () => {
     it("fires onCenter callback when location clicked", () => {
         let centered = null;
         GodmodePanel.init({ onCenter: (id) => { centered = id; } });
-        GodmodePanel.update(makeSnap(), null);
+        GodmodePanel.update(makeSnap(), null, true);
         const loc = document.querySelector(".gm-npc-row-loc");
         loc.click();
         assert.strictEqual(centered, 0);
@@ -119,34 +119,34 @@ describe("GodmodePanel — NPC detail", () => {
     });
 
     it("shows detail view when NPC selected", () => {
-        GodmodePanel.update(makeSnap(), 0);
+        GodmodePanel.update(makeSnap(), 0, true);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.querySelector(".gm-interior"));
         assert.ok(pane.innerHTML.includes("Soren"));
     });
 
     it("shows back button", () => {
-        GodmodePanel.update(makeSnap(), 0);
+        GodmodePanel.update(makeSnap(), 0, true);
         assert.ok(document.getElementById("gm-npc-back"));
     });
 
     it("fires onDeselect when back clicked", () => {
         let deselected = false;
         GodmodePanel.init({ onDeselect: () => { deselected = true; } });
-        GodmodePanel.update(makeSnap(), 0);
+        GodmodePanel.update(makeSnap(), 0, true);
         document.getElementById("gm-npc-back").click();
         assert.ok(deselected);
     });
 
     it("shows psychology bars", () => {
-        GodmodePanel.update(makeSnap(), 0);
+        GodmodePanel.update(makeSnap(), 0, true);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.innerHTML.includes("lucidity"));
         assert.ok(pane.innerHTML.includes("hope"));
     });
 
     it("shows personality traits", () => {
-        GodmodePanel.update(makeSnap(), 0);
+        GodmodePanel.update(makeSnap(), 0, true);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.innerHTML.includes("openness"));
         assert.ok(pane.innerHTML.includes("temperament"));
@@ -161,7 +161,7 @@ describe("GodmodePanel — NPC detail", () => {
                 relationships: { bonds },
             },
         })]);
-        GodmodePanel.update(snap, 0);
+        GodmodePanel.update(snap, 0, true);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.innerHTML.includes("Rachel"));
     });
@@ -173,7 +173,7 @@ describe("GodmodePanel — NPC detail", () => {
                 mysticism: { aura: 0.42, alignment: "chaotic" },
             },
         })]);
-        GodmodePanel.update(snap, 0);
+        GodmodePanel.update(snap, 0, true);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.innerHTML.includes("mysticism"), "section title");
         assert.ok(pane.innerHTML.includes("aura"), "numeric field");
@@ -183,7 +183,7 @@ describe("GodmodePanel — NPC detail", () => {
     it("shows clickable location", () => {
         let centered = null;
         GodmodePanel.init({ onCenter: (id) => { centered = id; } });
-        GodmodePanel.update(makeSnap(), 0);
+        GodmodePanel.update(makeSnap(), 0, true);
         const loc = document.querySelector(".gm-loc-link");
         assert.ok(loc);
         loc.click();
