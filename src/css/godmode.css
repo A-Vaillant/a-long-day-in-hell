@@ -533,6 +533,11 @@ body.godmode {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
+.gm-bar-num.gm-tip:hover::after {
+    left: auto;
+    right: 0;
+}
+
 .gm-loc-inline {
     color: #6a6050;
     font-size: 11px;
