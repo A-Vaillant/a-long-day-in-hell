@@ -106,7 +106,7 @@ export function movementSystem(
             mov.targetPosition = nearestRestArea(pos.position);
         } else if (behavior === "return_home") {
             const sleep = getComponent<Sleep>(world, entity, SLEEP);
-            mov.targetPosition = sleep ? sleep.homeRestArea : nearestRestArea(pos.position);
+            mov.targetPosition = sleep ? sleep.home.position : nearestRestArea(pos.position);
         } else {
             mov.targetPosition = null;
         }
