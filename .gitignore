@@ -34,6 +34,7 @@ src/img/
 
 # Test artifacts
 test/screenshots/
+test-results/
 
 # Simulation metrics output
 metrics/

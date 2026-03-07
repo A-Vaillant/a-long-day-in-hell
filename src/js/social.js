@@ -20,7 +20,7 @@ import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts"
 import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
 import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
-import { SEARCHING, searchSystem } from "../../lib/search.core.ts";
+import { SEARCHING, searchSystem, scoreFromSeed } from "../../lib/search.core.ts";
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
 import { KNOWLEDGE, createKnowledge, grantVision as applyVision } from "../../lib/knowledge.core.ts";
@@ -185,8 +185,10 @@ export const Social = {
         // Book searching (only for search intent)
         const searchRng = seedFromString(state.seed + ":npc:search:" + currentTick);
         const pageSampler = (side, position, floor, bookIndex, pageIndex) =>
-            generateBookPage(side, position, floor, bookIndex, pageIndex, state.seed);
-        searchSystem(world, searchRng, pageSampler);
+            generateBookPage(side, position, floor, bookIndex, pageIndex, state.seed, 400);
+        const fastScorer = (side, position, floor, bookIndex, pageIndex) =>
+            scoreFromSeed(state.seed, side, position, floor, bookIndex, pageIndex);
+        searchSystem(world, searchRng, pageSampler, undefined, fastScorer);
 
         // Sync ECS positions back to state.npcs (every tick now, not just dawn)
         for (const npc of state.npcs) {
