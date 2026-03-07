@@ -364,6 +364,8 @@ function setupDOM() {
         '<input type="number" id="gm-ff-input" min="1" placeholder="ticks" title="Type ticks, Enter to fast-forward">' +
         '<div class="gm-ctrl-sep"></div>' +
         '<span id="gm-zoom" title="Zoom level (scroll wheel, +/-)">1x</span>' +
+        '<span id="gm-pos" title="Viewport center (segment, floor)"></span>' +
+        '<button id="gm-home" title="Reset view to start (H)"><kbd>H</kbd>\u2302</button>' +
         '<span id="gm-status"></span>';
     mapWrap.appendChild(controls);
 
@@ -415,6 +417,11 @@ function setupInput(canvas) {
 
     document.getElementById("gm-skip-dawn").addEventListener("click", skipToDawn);
     document.getElementById("gm-skip-night").addEventListener("click", skipToNight);
+    document.getElementById("gm-home").addEventListener("click", function () {
+        GodmodeMap.goHome();
+        followMode = false;
+        render(true);
+    });
     document.getElementById("gm-skip-day").addEventListener("click", function () { skipDays(1); });
     document.getElementById("gm-skip-week").addEventListener("click", function () { skipDays(7); });
     document.getElementById("gm-skip-year").addEventListener("click", function () { skipDays(365); });

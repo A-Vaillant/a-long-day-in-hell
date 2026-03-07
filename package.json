@@ -5,12 +5,15 @@
   "scripts": {
     "test": "node --test 'test/!(browser).test.js'",
     "test:browser": "bash test/browser.sh",
+    "test:e2e": "npx playwright test",
     "test:all": "node --test 'test/**/*.test.js'",
     "build": "bash build.sh"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "esbuild": "^0.27.3",
     "jsdom": "^28.1.0",
+    "serve": "^14.2.6",
     "typescript": "^5.9.3"
   }
 }

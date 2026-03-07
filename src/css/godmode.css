@@ -91,6 +91,16 @@ body.godmode {
     font-size: 12px;
 }
 
+#gm-pos {
+    color: #4a4030;
+    font-size: 11px;
+}
+
+#gm-home {
+    font-size: 11px;
+    padding: 2px 5px;
+}
+
 #gm-status {
     margin-left: auto;
     color: #8a7a60;
