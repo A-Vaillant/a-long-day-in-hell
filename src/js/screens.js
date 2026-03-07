@@ -327,6 +327,28 @@ function bookLabel(bk) {
 
 /* ---------- Shelf Open Book ---------- */
 
+/** Fit 80×40 monospace grid into the book page's content area.
+ *  Measures ch-width at a reference size, then derives font-size and line-height. */
+function fitBookText(el) {
+    const probe = document.createElement("span");
+    probe.style.cssText = "font-family:var(--font-mono);font-size:20px;position:absolute;visibility:hidden;white-space:pre";
+    probe.textContent = "M";
+    document.body.appendChild(probe);
+    const chAt20 = probe.getBoundingClientRect().width;
+    document.body.removeChild(probe);
+
+    const style = getComputedStyle(el);
+    const padH = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    const padV = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const availW = el.clientWidth - padH;
+    const availH = el.clientHeight - padV;
+
+    const fs = (availW / (80 * chAt20)) * 20;
+    const lh = availH / (40 * fs);
+    el.style.fontSize = fs + "px";
+    el.style.lineHeight = lh;
+}
+
 Engine.register("Shelf Open Book", {
     kind: "state",
     render() {
@@ -405,6 +427,8 @@ Engine.register("Shelf Open Book", {
         } else {
             el.className = "book-single book-page-symbols";
             el.textContent = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);
+            // Size font so 80 monospace chars fit the content width exactly
+            fitBookText(el);
         }
 
         // Book naming UI
