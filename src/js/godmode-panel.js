@@ -8,6 +8,7 @@ let callbacks = {};
 let lastHtml = "";
 let possessCallback = null;
 let jumpCallback = null;
+let visionCallback = null;
 let lastRenderTime = 0;
 const RENDER_THROTTLE_MS = 400;
 
@@ -109,7 +110,7 @@ function bar(value, max, color) {
 // Each renderer: (comp, npc, snap) => html string (a gm-section)
 // Order array controls display order; unlisted components render last via fallback.
 
-const COMPONENT_ORDER = ["psychology", "intent", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation"];
+const COMPONENT_ORDER = ["psychology", "intent", "knowledge", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation"];
 
 const componentRenderers = {
     psychology(comp) {
@@ -189,6 +190,7 @@ const componentRenderers = {
             search: "Searching books",
             return_home: "Heading home",
             wander_mad: "Wandering (mad)",
+            pilgrimage: "Pilgrimage",
         };
         const BEHAVIOR_COLORS = {
             idle: "#888",
@@ -197,6 +199,7 @@ const componentRenderers = {
             search: "#6a8a5a",
             return_home: "#c49530",
             wander_mad: "#9a2a2a",
+            pilgrimage: "#d4a0e0",
         };
         const label = BEHAVIOR_LABELS[comp.behavior] || comp.behavior;
         const color = BEHAVIOR_COLORS[comp.behavior] || "#888";
@@ -207,6 +210,40 @@ const componentRenderers = {
         if (comp.cooldown > 0) {
             html += '<div class="gm-stat"><span class="gm-tip" data-tip="Ticks before the arbiter can switch behaviors.">cooldown</span>';
             html += '<span class="gm-bar-num">' + comp.cooldown + '</span></div>';
+        }
+        html += '</div>';
+        return html;
+    },
+
+    knowledge(comp, npc) {
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">knowledge</div>';
+        // Book location
+        const bc = comp.lifeStory && comp.lifeStory.bookCoords;
+        if (bc) {
+            const bookLoc = (bc.side === 0 ? 'W' : 'E') + ' f' + bc.floor + ' s' + bc.position + ' #' + bc.bookIndex;
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Where this NPC\'s book actually is.">book</span>';
+            html += '<span class="gm-bar-num">' + esc(bookLoc) + '</span></div>';
+            // Distance
+            const dFloor = Math.abs(npc.floor - bc.floor);
+            const dPos = Math.abs(npc.position - bc.position);
+            const sameSide = npc.side === bc.side;
+            const dist = dPos + dFloor + (sameSide ? 0 : dFloor + 1);
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Approximate travel distance in moves (position + floor + chasm crossing).">distance</span>';
+            html += '<span class="gm-bar-num">' + dist + ' moves</span></div>';
+        }
+        // Vision status
+        if (comp.bookVision) {
+            const vl = (comp.bookVision.side === 0 ? 'W' : 'E') + ' f' + comp.bookVision.floor + ' s' + comp.bookVision.position;
+            const color = comp.visionAccurate ? "#6a8a5a" : "#9a2a2a";
+            const label = comp.visionAccurate ? "divine vision" : "false vision";
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Revealed destination. Green = accurate, red = false.">' + label + '</span>';
+            html += '<span class="gm-bar-num" style="color:' + color + '">' + esc(vl) + '</span></div>';
+        } else {
+            html += '<div class="gm-stat"><span>vision</span><span class="gm-bar-num" style="color:#666">none</span></div>';
+        }
+        if (comp.escaped) {
+            html += '<div class="gm-stat"><span>status</span><span class="gm-bar-num" style="color:#6a8a5a">escaped!</span></div>';
         }
         html += '</div>';
         return html;
@@ -384,6 +421,7 @@ function narrate(npc) {
         else if (intent.behavior === "return_home") parts.push("They are heading home for the night.");
         else if (intent.behavior === "seek_rest") parts.push("They need to rest.");
         else if (intent.behavior === "wander_mad") parts.push("They are wandering erratically.");
+        else if (intent.behavior === "pilgrimage") parts.push("They are on a pilgrimage to find their book.");
     }
 
     // Sleep
@@ -460,12 +498,16 @@ function renderDetail(npc, snap, pane) {
         (npc.side === 0 ? 'west' : 'east') + ' \u00B7 seg ' + npc.position + ' \u00B7 floor ' + npc.floor + '</span></div>';
     html += '</div>';
 
-    // Possess / Jump buttons
+    // Possess / Jump / Vision buttons
     html += '<div class="gm-section gm-actions">';
     if (npc.alive) {
         html += '<button class="gm-btn" id="gm-possess" data-npc-id="' + npc.id + '">possess</button>';
         if (npc.floor > 0 && !npc.falling) {
             html += '<button class="gm-btn" id="gm-npc-jump" data-npc-id="' + npc.id + '">push into chasm</button>';
+        }
+        const k = npc.components && npc.components.knowledge;
+        if (k && !k.bookVision && !k.escaped) {
+            html += '<button class="gm-btn" id="gm-grant-vision" data-npc-id="' + npc.id + '">grant vision</button>';
         }
     }
     html += '</div>';
@@ -515,6 +557,7 @@ export const GodmodePanel = {
         lastHtml = "";
         possessCallback = cbs.onPossess || null;
         jumpCallback = cbs.onJump || null;
+        visionCallback = cbs.onVision || null;
 
         // Event delegation — survives innerHTML rebuilds
         const pane = document.getElementById("gm-npc-pane");
@@ -537,6 +580,13 @@ export const GodmodePanel = {
                 if (ev.target.closest("#gm-npc-jump")) {
                     const id = parseInt(ev.target.closest("#gm-npc-jump").dataset.npcId, 10);
                     if (jumpCallback) jumpCallback(id);
+                    return;
+                }
+
+                // Grant vision button
+                if (ev.target.closest("#gm-grant-vision")) {
+                    const id = parseInt(ev.target.closest("#gm-grant-vision").dataset.npcId, 10);
+                    if (visionCallback) visionCallback(id);
                     return;
                 }
 

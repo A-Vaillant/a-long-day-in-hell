@@ -136,6 +136,7 @@ const LOG_COLORS = {
     death: "#9a2a2a",
     resurrection: "#6a8a5a",
     group: "#7a8ab8",
+    pilgrimage: "#d4a0e0",
 };
 
 function renderLog() {
@@ -724,6 +725,10 @@ export const Godmode = {
             },
             onJump(id) {
                 npcJump(id);
+            },
+            onVision(id) {
+                Social.grantVision(id);
+                render(true);
             },
         });
         setupInput(canvas);

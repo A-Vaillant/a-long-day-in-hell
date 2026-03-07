@@ -78,6 +78,14 @@ export function detectEvents(prev, curr) {
             }
         }
 
+        // Started pilgrimage
+        const oldIntent = old.components && old.components.intent;
+        const newIntent = npc.components && npc.components.intent;
+        if (oldIntent && newIntent && oldIntent.behavior !== "pilgrimage" && newIntent.behavior === "pilgrimage") {
+            events.push({ tick: curr.tick, day: curr.day, type: "pilgrimage",
+                text: npc.name + " began a pilgrimage." });
+        }
+
         // New bond (familiarity crossed 1.0 threshold) — deduplicate by pair
         const oldBondNames = new Set(old.bonds.filter(b => b.familiarity >= 1).map(b => b.name));
         for (const bond of npc.bonds) {
