@@ -157,7 +157,12 @@ const scorers: Record<string, BehaviorScorer> = {
         const exhaustUrgency = Math.max(0, ctx.needs.exhaustion - 40) / 60;
         const maxUrgency = Math.max(hungerUrgency, thirstUrgency, exhaustUrgency);
         if (maxUrgency <= 0) return -Infinity;
-        // Scales from 0.6 (mildly hungry) to 2.0+ (starving)
+        // Scales from 0.6 (mildly hungry) to 2.0 (very hungry).
+        // Above 85% need, survival panic kicks in — score spikes to 3.0+,
+        // overriding pilgrimage (2.5) and everything except madness.
+        if (maxUrgency >= 0.7) {
+            return 2.0 + (maxUrgency - 0.7) / 0.3 * 1.5;
+        }
         return 0.6 + maxUrgency * 1.4;
     },
 
@@ -337,10 +342,22 @@ export function evaluateIntent(
         return null;
     }
 
-    // Forced: mad → wander_mad, bypass scoring and cooldown
+    // Mad: normally forced to wander_mad, but survival panic
+    // can override when needs are critical enough to outscore 3.0.
     if (disposition === "mad") {
-        if (intent.behavior !== "wander_mad") return { behavior: "wander_mad", cooldown: 0 };
-        return null;
+        if (needs) {
+            const hungerUrg = Math.max(0, needs.hunger - 50) / 50;
+            const thirstUrg = Math.max(0, needs.thirst - 50) / 50;
+            if (Math.max(hungerUrg, thirstUrg) >= 0.7) {
+                // Fall through to normal scoring — seek_rest can compete
+            } else {
+                if (intent.behavior !== "wander_mad") return { behavior: "wander_mad", cooldown: 0 };
+                return null;
+            }
+        } else {
+            if (intent.behavior !== "wander_mad") return { behavior: "wander_mad", cooldown: 0 };
+            return null;
+        }
     }
 
     // Sticky: don't re-evaluate until cooldown expires

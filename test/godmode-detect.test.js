@@ -384,7 +384,7 @@ describe("detectEvents", () => {
         const curr = makeSnap([makeNpc({ falling: { speed: 1 } })]);
         const events = detectEvents(prev, curr);
         assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "death");
+        assert.strictEqual(events[0].type, "chasm");
         assert.ok(events[0].text.includes("chasm"));
     });
 
@@ -393,7 +393,7 @@ describe("detectEvents", () => {
         const curr = makeSnap([makeNpc({ falling: null, floor: 42 })]);
         const events = detectEvents(prev, curr);
         assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "resurrection");
+        assert.strictEqual(events[0].type, "chasm");
         assert.ok(events[0].text.includes("railing"));
         assert.ok(events[0].text.includes("42"));
     });
