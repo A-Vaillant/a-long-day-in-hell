@@ -15,6 +15,7 @@ import { Engine } from "./engine.js";
 import { GodmodeMap } from "./godmode-map.js";
 import { GodmodePanel } from "./godmode-panel.js";
 import { GodmodeLog } from "./godmode-log.js";
+import { GodmodeTrends } from "./godmode-trends.js";
 import { detectEvents } from "./godmode-detect.js";
 import { narrateEvents } from "./godmode-narrative.js";
 import { getComponent } from "../../lib/ecs.core.ts";
@@ -26,7 +27,7 @@ let lastFrame = 0;
 let accumulator = 0;
 let selectedNpcId = null;
 let followMode = false;
-let activeTab = "log"; // "log" | "npc" | "grp"
+let activeTab = "log"; // "log" | "npc" | "grp" | "trend"
 let prevSnap = null;
 let ffBusy = false;     // true during async fast-forward
 let possessing = false; // true while controlling an NPC
@@ -44,6 +45,7 @@ function tickOnce() {
     const events = detectEvents(before, after);
     for (const ev of events) GodmodeLog.push(ev);
     if (events.length > 0) narrateEvents(events, after);
+    GodmodeTrends.record(after);
     prevSnap = after;
 }
 
@@ -146,8 +148,8 @@ function renderLog() {
 
 function switchTab(tab) {
     activeTab = tab;
-    const panes = { log: "gm-log-pane", npc: "gm-npc-pane", grp: "gm-grp-pane" };
-    const tabs = { log: "gm-tab-log", npc: "gm-tab-npc", grp: "gm-tab-grp" };
+    const panes = { log: "gm-log-pane", npc: "gm-npc-pane", grp: "gm-grp-pane", trend: "gm-trend-pane" };
+    const tabs = { log: "gm-tab-log", npc: "gm-tab-npc", grp: "gm-tab-grp", trend: "gm-tab-trend" };
     for (const key in panes) {
         const p = document.getElementById(panes[key]);
         const t = document.getElementById(tabs[key]);
@@ -162,6 +164,7 @@ function render(forcePanel) {
     GodmodePanel.update(snap, selectedNpcId, forcePanel);
     if (activeTab === "log") renderLog();
     if (activeTab === "grp") GodmodePanel.updateGroups(snap);
+    if (activeTab === "trend") GodmodeTrends.renderTo(document.getElementById("gm-trend-pane"));
 }
 
 function cancelFF() {
@@ -181,6 +184,7 @@ function tickBatch(n) {
     const events = detectEvents(before, after);
     for (const ev of events) GodmodeLog.push(ev);
     if (events.length > 0) narrateEvents(events, after);
+    GodmodeTrends.record(after);
     prevSnap = after;
 }
 
@@ -363,7 +367,8 @@ function setupDOM() {
     tabBar.innerHTML =
         '<button id="gm-tab-log" class="gm-tab gm-tab-active">log</button>' +
         '<button id="gm-tab-npc" class="gm-tab">npc</button>' +
-        '<button id="gm-tab-grp" class="gm-tab">grp</button>';
+        '<button id="gm-tab-grp" class="gm-tab">grp</button>' +
+        '<button id="gm-tab-trend" class="gm-tab">trend</button>';
     panel.appendChild(tabBar);
 
     const logPane = document.createElement("div");
@@ -383,6 +388,12 @@ function setupDOM() {
     grpPane.className = "gm-pane";
     grpPane.innerHTML = '<div class="gm-panel-empty">No groups yet.</div>';
     panel.appendChild(grpPane);
+
+    const trendPane = document.createElement("div");
+    trendPane.id = "gm-trend-pane";
+    trendPane.className = "gm-pane";
+    trendPane.innerHTML = '<div class="gm-panel-empty">Collecting data...</div>';
+    panel.appendChild(trendPane);
 
     container.appendChild(mapWrap);
     container.appendChild(panel);
@@ -435,6 +446,7 @@ function setupInput(canvas) {
     document.getElementById("gm-tab-log").addEventListener("click", function () { switchTab("log"); });
     document.getElementById("gm-tab-npc").addEventListener("click", function () { switchTab("npc"); });
     document.getElementById("gm-tab-grp").addEventListener("click", function () { switchTab("grp"); });
+    document.getElementById("gm-tab-trend").addEventListener("click", function () { switchTab("trend"); });
 
     // Log filter toggles (event delegation)
     GodmodeLog.wireFilterClicks(document.getElementById("gm-log-pane"));
@@ -556,7 +568,7 @@ function setupInput(canvas) {
             followMode = false;
             render();
         } else if (ev.key === "e") {
-            const order = ["log", "npc", "grp"];
+            const order = ["log", "npc", "grp", "trend"];
             switchTab(order[(order.indexOf(activeTab) + 1) % order.length]);
         } else if (ev.key === "Tab") {
             ev.preventDefault();
@@ -692,6 +704,14 @@ export const Godmode = {
     /** Called by Engine.init() after shared world setup. Replaces DOM and starts observation loop. */
     start() {
         GodmodeLog.init();
+        GodmodeTrends.init(function (id) {
+            selectedNpcId = id;
+            followMode = false;
+            const npc = state.npcs && state.npcs.find(n => n.id === id);
+            if (npc) GodmodeMap.setSide(npc.side);
+            switchTab("npc");
+            render(true);
+        });
         const canvas = setupDOM();
         GodmodeMap.init(canvas, state);
         GodmodePanel.init({
@@ -730,6 +750,7 @@ export const Godmode = {
             },
         });
         setupInput(canvas);
+        GodmodeTrends.wireClicks(document.getElementById("gm-trend-pane"));
 
         // Apply URL params: &gmZoom=3 &gmX=50 &gmY=100 &gmSide=west|east
         const params = new URLSearchParams(window.location.search);
@@ -746,6 +767,8 @@ export const Godmode = {
         const gmSide = params.get("gmSide");
         if (gmSide === "west") { GodmodeMap.setSide(0); }
         else if (gmSide === "east") { GodmodeMap.setSide(1); }
+        const gmTab = params.get("gmTab");
+        if (gmTab && ["log", "npc", "grp", "trend"].includes(gmTab)) switchTab(gmTab);
         const gmTicks = params.get("gmTicks");
         if (gmTicks) {
             const n = parseInt(gmTicks, 10);

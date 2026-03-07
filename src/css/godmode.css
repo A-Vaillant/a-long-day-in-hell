@@ -224,18 +224,23 @@ body.godmode {
 }
 
 .gm-tab {
-    flex: 1;
+    flex: 1 1 0%;
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #5a5040;
+    color: #6a6050;
     font-family: inherit;
     font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 2.5px;
-    padding: 11px 0 9px;
+    letter-spacing: 1px;
+    padding: 10px 0 8px;
     cursor: pointer;
     transition: color 0.15s, border-color 0.15s;
+    min-width: 0;
+    width: 0;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .gm-tab:hover {
@@ -856,4 +861,108 @@ body.godmode {
 .gm-grp-member:hover {
     background: #14120e;
     border-left-color: #3a3428;
+}
+
+/* --- Trends pane --- */
+
+
+.gm-trend-summary {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    margin-bottom: 8px;
+    color: #9a8a68;
+}
+
+.gm-trend-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin: 6px 0 2px;
+    color: #6a6050;
+}
+
+.gm-trend-val {
+    color: #9a8a68;
+}
+
+.gm-trend-stance-legend {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 10px;
+    margin-bottom: 4px;
+}
+
+.gm-trend-legend {
+    font-size: 10px;
+    color: #6a6050;
+    margin-bottom: 6px;
+}
+
+.gm-trend-npc-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background 0.1s;
+}
+
+.gm-trend-npc-row:hover {
+    background: #14120e;
+    border-left-color: #3a3428;
+}
+
+.gm-trend-npc-name {
+    width: 70px;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gm-trend-sides {
+    display: flex;
+    gap: 10px;
+}
+
+.gm-trend-side {
+    flex: 1;
+    min-width: 0;
+}
+
+.gm-trend-side-head {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8a7a60;
+    margin-bottom: 4px;
+}
+
+.gm-trend-side-stances {
+    display: flex;
+    height: 14px;
+    margin-top: 4px;
+    font-size: 9px;
+    line-height: 14px;
+    text-align: center;
+    overflow: hidden;
+}
+
+.gm-trend-side-bar {
+    display: inline-block;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.gm-trend-side-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #5a5040;
+    margin: 8px 0 2px;
+    border-bottom: 1px solid #1a1610;
+    padding-bottom: 2px;
 }
