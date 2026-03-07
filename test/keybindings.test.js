@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { bootGame } from "./dom-harness.js";
+import { getComponent } from "../lib/ecs.core.ts";
 
 function pressKey(game, key) {
     const ev = new game.window.KeyboardEvent("keydown", { key, bubbles: true });
@@ -776,5 +777,145 @@ describe("Keybindings: Escape menu return", () => {
         pressKey(game, "Escape");
         assert.strictEqual(game.state.screen, "Menu");
         assert.strictEqual(game.state._menuReturn, "Life Story");
+    });
+});
+
+/* --------------------------------------------------------
+ * Talk screen keybindings
+ * -------------------------------------------------------- */
+
+function placeNpcHere(game, npcIndex) {
+    const npc = game.state.npcs[npcIndex];
+    npc.side = game.state.side;
+    npc.position = game.state.position;
+    npc.floor = game.state.floor;
+    npc.alive = true;
+    game.Social.syncNpcPositions();
+    return npc;
+}
+
+function placeNpcWithBonds(game, npcIndex) {
+    const npc = placeNpcHere(game, npcIndex);
+    const world = game.Social.getWorld();
+    const playerEnt = game.Social.getPlayerEntity();
+    const npcEnt = game.Social.getNpcEntity(npc.id);
+    const playerRels = getComponent(world, playerEnt, "relationships");
+    const npcRels = getComponent(world, npcEnt, "relationships");
+    playerRels.bonds.set(npcEnt, {
+        familiarity: 25, affinity: 20,
+        firstContact: 0, lastContact: 100, encounters: 5,
+    });
+    npcRels.bonds.set(playerEnt, {
+        familiarity: 25, affinity: 20,
+        firstContact: 0, lastContact: 100, encounters: 5,
+    });
+    return npc;
+}
+
+function openTalkWith(game, npc) {
+    game.state._talkTarget = npc;
+    game.Engine.goto("Talk");
+    assert.strictEqual(game.state.screen, "Talk");
+}
+
+describe("Keybindings: Talk screen", () => {
+    it("1 triggers kind approach", () => {
+        const game = bootGame();
+        const npc = placeNpcHere(game, 0);
+        openTalkWith(game, npc);
+        pressKey(game, "1");
+        assert.strictEqual(game.state.screen, "Talk Result");
+    });
+
+    it("2 triggers neutral approach", () => {
+        const game = bootGame();
+        const npc = placeNpcHere(game, 0);
+        openTalkWith(game, npc);
+        pressKey(game, "2");
+        assert.strictEqual(game.state.screen, "Talk Result");
+    });
+
+    it("3 triggers dismissive approach", () => {
+        const game = bootGame();
+        const npc = placeNpcHere(game, 0);
+        openTalkWith(game, npc);
+        pressKey(game, "3");
+        assert.strictEqual(game.state.screen, "Talk Result");
+    });
+
+    it("w triggers spend time when available", () => {
+        const game = bootGame();
+        const npc = placeNpcWithBonds(game, 0);
+        openTalkWith(game, npc);
+        pressKey(game, "w");
+        assert.strictEqual(game.state.screen, "Spend Time Result");
+    });
+
+    it("i triggers recruit when available", () => {
+        const game = bootGame();
+        const npc = placeNpcWithBonds(game, 0);
+        openTalkWith(game, npc);
+        pressKey(game, "i");
+        assert.strictEqual(game.state.screen, "Recruit Result");
+    });
+
+    it("q returns to Corridor from Talk", () => {
+        const game = bootGame();
+        const npc = placeNpcHere(game, 0);
+        openTalkWith(game, npc);
+        pressKey(game, "q");
+        assert.strictEqual(game.state.screen, "Corridor");
+    });
+
+    it("Enter continues from Talk Result back to Talk", () => {
+        const game = bootGame();
+        const npc = placeNpcHere(game, 0);
+        openTalkWith(game, npc);
+        pressKey(game, "1");
+        assert.strictEqual(game.state.screen, "Talk Result");
+        pressKey(game, "Enter");
+        assert.strictEqual(game.state.screen, "Talk");
+    });
+
+    it("Escape from Talk Result returns to Corridor", () => {
+        const game = bootGame();
+        const npc = placeNpcHere(game, 0);
+        openTalkWith(game, npc);
+        pressKey(game, "1");
+        assert.strictEqual(game.state.screen, "Talk Result");
+        pressKey(game, "Escape");
+        assert.strictEqual(game.state.screen, "Corridor");
+    });
+
+    it("Enter continues from Spend Time Result back to Talk", () => {
+        const game = bootGame();
+        const npc = placeNpcWithBonds(game, 0);
+        openTalkWith(game, npc);
+        pressKey(game, "w");
+        assert.strictEqual(game.state.screen, "Spend Time Result");
+        pressKey(game, "Enter");
+        assert.strictEqual(game.state.screen, "Talk");
+    });
+
+    it("can talk multiple times: Talk → 1 → Enter → 1 → Enter", () => {
+        const game = bootGame();
+        const npc = placeNpcHere(game, 0);
+        openTalkWith(game, npc);
+
+        // First conversation
+        pressKey(game, "1");
+        assert.strictEqual(game.state.screen, "Talk Result", "first talk result");
+        pressKey(game, "Enter");
+        assert.strictEqual(game.state.screen, "Talk", "back to talk");
+
+        // Second conversation (NPC stays pinned from first talk)
+        pressKey(game, "2");
+        assert.strictEqual(game.state.screen, "Talk Result", "second talk result");
+        pressKey(game, "Enter");
+        assert.strictEqual(game.state.screen, "Talk", "back to talk again");
+
+        // Third — dismissive
+        pressKey(game, "3");
+        assert.strictEqual(game.state.screen, "Talk Result", "third talk result");
     });
 });

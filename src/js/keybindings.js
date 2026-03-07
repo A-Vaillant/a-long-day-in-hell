@@ -258,11 +258,11 @@ document.addEventListener("keydown", function (ev) {
                 return;
             case "3":
                 ev.preventDefault();
-                { const btn = document.getElementById("talk-dismissive"); if (btn) btn.click(); }
+                { const btn = document.getElementById("talk-dismiss"); if (btn) btn.click(); }
                 return;
             case "w":
                 ev.preventDefault();
-                { const btn = document.getElementById("talk-spend-time"); if (btn) btn.click(); }
+                { const btn = document.getElementById("talk-spend"); if (btn) btn.click(); }
                 return;
             case "i":
                 ev.preventDefault();

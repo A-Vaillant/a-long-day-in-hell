@@ -28,7 +28,7 @@
       "The kiosk gives you anything. Anything at all. That's something.",
       "I keep thinking I'll find a pattern. I won't. But I keep thinking it.",
       "Someone told me they found a whole sentence once. A real one. Wept for an hour.",
-      "You get used to it. That's the worst part.",
+      "The worst part is knowing it could go on like this forever.",
       "Have you tried the stairs? Same thing up there. Same thing everywhere."
     ],
     "anxious": [
@@ -87,33 +87,33 @@
     ],
 
     "talk_calm": [
-      "They listen. Nod slowly. \"It's good to talk to someone.\"",
-      "\"I forget sometimes that other people are here. That I'm not the only one.\"",
-      "A pause. \"I used to count the days. I stopped. It didn't help.\"",
-      "\"You know, I had a conversation like this once. Years ago. Or yesterday. Hard to tell.\"",
-      "\"Thank you. For stopping.\"",
-      "They look at you properly. \"You're still trying, aren't you. I can tell.\""
+      "They listen. Nod slowly. “It's good to talk to someone.”",
+      "“I forget sometimes that other people are here. That I'm not the only one.”",
+      "A pause. “I keep looking for a system. Some way to narrow it down. There isn't one.”",
+      "“You know, we could be here a very long time. I try not to think about it.”",
+      "“Thank you. For stopping.”",
+      "They look at you properly. “You're still trying, aren't you. I can tell.”"
     ],
     "talk_anxious": [
-      "They flinch when you speak. Then relax, slightly. \"Sorry. I'm — sorry.\"",
-      "\"Do you think — no. Never mind. It doesn't matter.\"",
-      "Rapid breathing. \"I'm fine. I'm fine. Talk to me. Please.\"",
-      "\"I keep thinking I hear something. In the shelves. Behind me.\"",
-      "\"Don't leave yet. Just — not yet.\"",
-      "They grab your arm, then let go. \"Sorry. I just needed to know you were real.\""
+      "They flinch when you speak. Then relax, slightly. “Sorry. I'm — sorry.”",
+      "“Do you think — no. Never mind. It doesn't matter.”",
+      "Rapid breathing. “I'm fine. I'm fine. Talk to me. Please.”",
+      "“I keep thinking I hear something. In the shelves. Behind me.”",
+      "“Don't leave yet. Just — not yet.”",
+      "They grab your arm, then let go. “Sorry. I just needed to know you were real.”"
     ],
     "talk_mad": [
-      "They stare through you. \"You — YOU understand. The PATTERN.\"",
-      "\"The books told me. They TOLD me. You're part of it.\"",
+      "They stare through you. “You — YOU understand. The PATTERN.”",
+      "“The books told me. They TOLD me. You're part of it.”",
       "Wild eyes. Words tumbling. Nothing connects to nothing.",
-      "They laugh. It goes on too long. \"Sorry. What were you saying?\"",
-      "\"I know what you are. I KNOW.\" They don't.",
+      "They laugh. It goes on too long. “Sorry. What were you saying?”",
+      "“I know what you are. I KNOW.” They don't.",
       "A torrent of words. Fragments of theology, mathematics, rage."
     ],
     "talk_catatonic": [
       "Nothing. Their eyes are open but they're not looking at anything.",
       "A faint tremor. That's all.",
-      "\"...\" Their lips move. No sound comes out.",
+      "“...” Their lips move. No sound comes out.",
       "They blink. Once. Slowly. They don't respond."
     ],
 
@@ -148,21 +148,21 @@
     ],
 
     "recruit_accept": [
-      "They look at you for a long moment. Then nod. \"Okay. I'll come with you.\"",
-      "\"Together? Yeah. Yeah, I'd like that.\"",
-      "\"I was hoping you'd ask.\"",
-      "A long breath. \"Alright. Lead the way.\"",
-      "\"Better than being alone. Anything is better than being alone.\""
+      "They look at you for a long moment. Then nod. “Okay. I'll come with you.”",
+      "“Together? Yeah. Yeah, I'd like that.”",
+      "“I was hoping you'd ask.”",
+      "A long breath. “Alright. Lead the way.”",
+      "“Better than being alone. Anything is better than being alone.”"
     ],
     "recruit_refuse_unfamiliar": [
-      "They shake their head. \"I don't know you well enough for that.\"",
-      "\"Who are you, exactly? I'm not going anywhere with a stranger.\"",
-      "\"Maybe. But not yet. I need to know you better.\""
+      "They shake their head. “I don't know you well enough for that.”",
+      "“Who are you, exactly? I'm not going anywhere with a stranger.”",
+      "“Maybe. But not yet. I need to know you better.”"
     ],
     "recruit_refuse_affinity": [
-      "They look away. \"I don't think so.\"",
-      "\"I'd rather be alone than with someone who doesn't care.\"",
-      "\"No. I don't trust you enough for that.\""
+      "They look away. “I don't think so.”",
+      "“I'd rather be alone than with someone who doesn't care.”",
+      "“No. I don't trust you enough for that.”"
     ],
     "recruit_refuse_disposition": [
       "They're not capable of understanding what you're asking.",

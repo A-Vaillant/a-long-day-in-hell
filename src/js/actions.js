@@ -195,11 +195,23 @@ function resolveFallWait() {
     return { resolved: true, screen: "Falling" };
 }
 
+/** Pin an NPC to the player's position (they don't wander off mid-conversation). */
+function pinNpc(npcId) {
+    const npc = state.npcs && state.npcs.find(function (n) { return n.id === npcId; });
+    if (npc) {
+        npc.side = state.side;
+        npc.position = state.position;
+        npc.floor = state.floor;
+        Social.syncNpcPositions();
+    }
+}
+
 function resolveTalk(npcId, approach) {
     if (state.dead) return { resolved: false };
     const result = Social.talk(npcId, approach);
     if (!result.success) return { resolved: false, data: result };
     Tick.advance(2);
+    pinNpc(npcId);
     return { resolved: true, data: result };
 }
 
@@ -208,6 +220,7 @@ function resolveSpendTime(npcId) {
     const result = Social.spendTimeWith(npcId);
     if (!result.success) return { resolved: false, data: result };
     Tick.advance(result.ticksSpent);
+    pinNpc(npcId);
     return { resolved: true, data: result };
 }
 
