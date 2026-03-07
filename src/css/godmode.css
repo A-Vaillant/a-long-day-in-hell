@@ -381,6 +381,23 @@ body.godmode {
     font-size: 14px;
 }
 
+/* Narrative history */
+
+.gm-narrative {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.gm-narrative-entry {
+    font-family: 'IM Fell English', serif;
+    font-size: 12px;
+    color: #8a7a60;
+    line-height: 1.5;
+    margin: 3px 0;
+    padding-left: 4px;
+    border-left: 1px solid #2a2418;
+}
+
 /* Location */
 
 .gm-location {
