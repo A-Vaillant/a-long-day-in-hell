@@ -3,8 +3,9 @@
  * stateless group IDs and fluctuating familiarity.
  */
 
-const reportedBonds = new Set();   // "id1:id2" pairs (lower id first)
-const reportedGroups = new Set();  // "id1,id2,..." sorted member sets
+const reportedBonds = new Set();        // "id1:id2" pairs (lower id first)
+const reportedGroups = new Set();       // "id1,id2,..." sorted member sets
+const reportedDissolutions = new Set(); // "id1,id2,..." sorted member sets
 
 export function detectEvents(prev, curr) {
     if (!prev || !curr) return [];
@@ -43,6 +44,7 @@ export function detectEvents(prev, curr) {
                 const memberKey = [npc.id, ...mates.map(m => m.id)].sort((a, b) => a - b).join(",");
                 if (!reportedGroups.has(memberKey)) {
                     reportedGroups.add(memberKey);
+                    reportedDissolutions.delete(memberKey); // allow future dissolution report
                     const names = [npc.name, ...mates.map(m => m.name)];
                     const ids = [npc.id, ...mates.map(m => m.id)];
                     events.push({ tick: curr.tick, day: curr.day, type: "group",
@@ -51,7 +53,7 @@ export function detectEvents(prev, curr) {
             }
         }
 
-        // Group dissolved (had a groupId, now null) — only emit once per group
+        // Group dissolved (had a groupId, now null) — deduped
         if (old.groupId !== null && npc.groupId === null) {
             const formerMates = prev.npcs.filter(n =>
                 n.id !== npc.id && n.groupId === old.groupId
@@ -64,10 +66,16 @@ export function detectEvents(prev, curr) {
                     return currM && currM.groupId === null;
                 });
                 if (disbanded.length > 0) {
-                    const names = [npc.name, ...disbanded.map(m => m.name)];
-                    const ids = [npc.id, ...disbanded.map(m => m.id)];
-                    events.push({ tick: curr.tick, day: curr.day, type: "group",
-                        text: names.join(" and ") + "\u2019s group broke apart.", npcIds: ids });
+                    const memberKey = [npc.id, ...disbanded.map(m => m.id)].sort((a, b) => a - b).join(",");
+                    // Only report if this group was previously reported as formed,
+                    // and hasn't already been reported as dissolved
+                    if (reportedGroups.has(memberKey) && !reportedDissolutions.has(memberKey)) {
+                        reportedDissolutions.add(memberKey);
+                        const names = [npc.name, ...disbanded.map(m => m.name)];
+                        const ids = [npc.id, ...disbanded.map(m => m.id)];
+                        events.push({ tick: curr.tick, day: curr.day, type: "group",
+                            text: names.join(" and ") + "\u2019s group broke apart.", npcIds: ids });
+                    }
                 }
             }
         }
@@ -146,4 +154,5 @@ export function detectEvents(prev, curr) {
 export function resetDetectState() {
     reportedBonds.clear();
     reportedGroups.clear();
+    reportedDissolutions.clear();
 }

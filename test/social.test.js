@@ -814,7 +814,7 @@ describe("groupFormationSystem", () => {
         assert.strictEqual(getComponent(w, b, GROUP), undefined);
     });
 
-    it("clears previous group assignments on re-run", () => {
+    it("group persists briefly when member moves away", () => {
         const w = createWorld();
         const a = makeEntity(w, { name: "A" });
         const b = makeEntity(w, { name: "B" });
@@ -827,11 +827,35 @@ describe("groupFormationSystem", () => {
         groupFormationSystem(w);
         assert.ok(getComponent(w, a, GROUP));
 
-        // Move B away and re-run
+        // Move B away — group should persist (separation tolerance)
         getComponent(w, b, POSITION).position = 999;
         groupFormationSystem(w);
-        assert.strictEqual(getComponent(w, a, GROUP), undefined);
-        assert.strictEqual(getComponent(w, b, GROUP), undefined);
+        assert.ok(getComponent(w, a, GROUP), "group persists after 1 tick of separation");
+        assert.ok(getComponent(w, b, GROUP), "B still in group");
+    });
+
+    it("group dissolves after exceeding separation tolerance", () => {
+        const tolerance = 3;
+        const config = { familiarityThreshold: 10, affinityThreshold: 5, separationTolerance: tolerance };
+        const w = createWorld();
+        const a = makeEntity(w, { name: "A" });
+        const b = makeEntity(w, { name: "B" });
+
+        const relsA = getComponent(w, a, RELATIONSHIPS);
+        const relsB = getComponent(w, b, RELATIONSHIPS);
+        relsA.bonds.set(b, { familiarity: 20, affinity: 10, lastContact: 0 });
+        relsB.bonds.set(a, { familiarity: 20, affinity: 10, lastContact: 0 });
+
+        groupFormationSystem(w, config);
+        assert.ok(getComponent(w, a, GROUP));
+
+        // Move B away and tick past tolerance
+        getComponent(w, b, POSITION).position = 999;
+        for (let i = 0; i <= tolerance; i++) {
+            groupFormationSystem(w, config);
+        }
+        assert.strictEqual(getComponent(w, a, GROUP), undefined, "A removed after tolerance");
+        assert.strictEqual(getComponent(w, b, GROUP), undefined, "B removed after tolerance");
     });
 });
 

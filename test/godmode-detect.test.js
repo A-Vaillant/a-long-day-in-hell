@@ -229,7 +229,34 @@ describe("detectEvents", () => {
 
     // --- Group dissolution ---
 
-    it("detects group dissolution", () => {
+    it("detects group dissolution after formation was reported", () => {
+        // First: form the group
+        const before = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: null }),
+            makeNpc({ id: 1, name: "Bob", groupId: null }),
+        ]);
+        const formed = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: 5 }),
+            makeNpc({ id: 1, name: "Bob", groupId: 5 }),
+        ]);
+        const formEvents = detectEvents(before, formed);
+        assert.strictEqual(formEvents.filter(e => e.type === "group").length, 1, "formation reported");
+
+        // Then: dissolve
+        const dissolved = makeSnap([
+            makeNpc({ id: 0, name: "Alice", groupId: null }),
+            makeNpc({ id: 1, name: "Bob", groupId: null }),
+        ]);
+        const events = detectEvents(formed, dissolved);
+        const groupEvents = events.filter(e => e.type === "group");
+        assert.strictEqual(groupEvents.length, 1);
+        assert.ok(groupEvents[0].text.includes("broke apart"));
+        assert.ok(groupEvents[0].text.includes("Alice"));
+        assert.ok(groupEvents[0].text.includes("Bob"));
+    });
+
+    it("does not emit dissolution without prior formation", () => {
+        // Group exists in prev but was never reported as formed
         const prev = makeSnap([
             makeNpc({ id: 0, name: "Alice", groupId: 5 }),
             makeNpc({ id: 1, name: "Bob", groupId: 5 }),
@@ -239,40 +266,60 @@ describe("detectEvents", () => {
             makeNpc({ id: 1, name: "Bob", groupId: null }),
         ]);
         const events = detectEvents(prev, curr);
-        const groupEvents = events.filter(e => e.type === "group");
-        assert.strictEqual(groupEvents.length, 1);
-        assert.ok(groupEvents[0].text.includes("broke apart"));
-        assert.ok(groupEvents[0].text.includes("Alice"));
-        assert.ok(groupEvents[0].text.includes("Bob"));
+        const groupEvents = events.filter(e => e.type === "group" && e.text.includes("broke apart"));
+        assert.strictEqual(groupEvents.length, 0, "no dissolution without prior formation");
     });
 
     it("does not duplicate dissolution (only lowest id emits)", () => {
-        const prev = makeSnap([
-            makeNpc({ id: 3, name: "Charlie", groupId: 2 }),
-            makeNpc({ id: 1, name: "Alice", groupId: 2 }),
-        ]);
-        const curr = makeSnap([
-            makeNpc({ id: 3, name: "Charlie", groupId: null }),
-            makeNpc({ id: 1, name: "Alice", groupId: null }),
-        ]);
-        const events = detectEvents(prev, curr);
+        // Form first
+        detectEvents(
+            makeSnap([
+                makeNpc({ id: 1, name: "Alice", groupId: null }),
+                makeNpc({ id: 3, name: "Charlie", groupId: null }),
+            ]),
+            makeSnap([
+                makeNpc({ id: 1, name: "Alice", groupId: 2 }),
+                makeNpc({ id: 3, name: "Charlie", groupId: 2 }),
+            ])
+        );
+        // Then dissolve
+        const events = detectEvents(
+            makeSnap([
+                makeNpc({ id: 3, name: "Charlie", groupId: 2 }),
+                makeNpc({ id: 1, name: "Alice", groupId: 2 }),
+            ]),
+            makeSnap([
+                makeNpc({ id: 3, name: "Charlie", groupId: null }),
+                makeNpc({ id: 1, name: "Alice", groupId: null }),
+            ])
+        );
         const groupEvents = events.filter(e => e.type === "group");
         assert.strictEqual(groupEvents.length, 1, "only one dissolution event");
     });
 
     it("does not emit dissolution when only one member leaves", () => {
-        const prev = makeSnap([
-            makeNpc({ id: 0, name: "Alice", groupId: 5 }),
-            makeNpc({ id: 1, name: "Bob", groupId: 5 }),
-        ]);
-        // Alice leaves but Bob stays in a group (maybe with others)
-        const curr = makeSnap([
-            makeNpc({ id: 0, name: "Alice", groupId: null }),
-            makeNpc({ id: 1, name: "Bob", groupId: 5 }),
-        ]);
-        const events = detectEvents(prev, curr);
-        // Alice left but Bob didn't — not a full breakup from Alice's perspective
-        // She was the only one who left, and she has the lower id, but Bob's group is intact
+        // Form first
+        detectEvents(
+            makeSnap([
+                makeNpc({ id: 0, name: "Alice", groupId: null }),
+                makeNpc({ id: 1, name: "Bob", groupId: null }),
+            ]),
+            makeSnap([
+                makeNpc({ id: 0, name: "Alice", groupId: 5 }),
+                makeNpc({ id: 1, name: "Bob", groupId: 5 }),
+            ])
+        );
+        // Alice leaves but Bob stays
+        const events = detectEvents(
+            makeSnap([
+                makeNpc({ id: 0, name: "Alice", groupId: 5 }),
+                makeNpc({ id: 1, name: "Bob", groupId: 5 }),
+            ]),
+            makeSnap([
+                makeNpc({ id: 0, name: "Alice", groupId: null }),
+                makeNpc({ id: 1, name: "Bob", groupId: 5 }),
+            ])
+        );
         const groupEvents = events.filter(e => e.type === "group" && e.text.includes("broke apart"));
         assert.strictEqual(groupEvents.length, 0);
     });
