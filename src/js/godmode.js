@@ -162,22 +162,12 @@ const LOG_FILTER_LABELS = {
     escape: "escape",
 };
 
-// Filter state: which event types to show. Search off by default.
-const logFilters = {
-    death: true,
-    resurrection: true,
-    disposition: true,
-    bond: true,
-    group: true,
-    search: false,
-    pilgrimage: true,
-    escape: true,
-};
+// Filters now live in GodmodeLog
 
 function renderLogFilters() {
     let html = '<div class="gm-log-filters">';
     for (const type in LOG_FILTER_LABELS) {
-        const active = logFilters[type];
+        const active = GodmodeLog.isFilterOn(type);
         const color = LOG_COLORS[type] || "#b8a878";
         html += '<button class="gm-log-filter' + (active ? ' gm-log-filter-on' : '') +
             '" data-filter="' + type + '" style="color:' + (active ? color : '#3a3428') +
@@ -191,11 +181,10 @@ function renderLog() {
     const el = document.getElementById("gm-log-pane");
     if (!el) return;
 
-    const recent = GodmodeLog.getRecent(100);
+    const recent = GodmodeLog.getFiltered(100);
     let html = renderLogFilters();
     let count = 0;
     for (const ev of recent) {
-        if (!logFilters[ev.type]) continue;
         const color = LOG_COLORS[ev.type] || "#b8a878";
         const mins = (ev.tick / 240) * 24 * 60 + 6 * 60;
         const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
@@ -503,7 +492,7 @@ function setupInput(canvas) {
         const btn = ev.target.closest("[data-filter]");
         if (!btn) return;
         const type = btn.getAttribute("data-filter");
-        logFilters[type] = !logFilters[type];
+        GodmodeLog.toggleFilter(type);
         renderLog();
     });
 
