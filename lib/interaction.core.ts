@@ -370,8 +370,9 @@ export function recruit(
 // --- NPC socialize system ---
 
 /**
- * Run NPC-to-NPC socialization. Pairs up co-located entities with
- * socialize intent and runs talkTo between them (neutral approach).
+ * Run NPC-to-NPC socialization. Pairs up co-located bonded entities
+ * and runs talkTo between them (neutral approach). Works regardless
+ * of intent — NPCs chat in passing while exploring, searching, etc.
  * Each entity socializes with at most one partner per tick.
  */
 export function socializeSystem(
@@ -379,27 +380,29 @@ export function socializeSystem(
     currentTick: number,
     config: TalkConfig = DEFAULT_TALK,
 ): void {
-    // Gather all socializing entities grouped by position
+    // Gather all alive entities grouped by position
     const byPos = new Map<string, Entity[]>();
-    const entities = query(world, [INTENT, POSITION, IDENTITY]);
+    const entities = query(world, [POSITION, IDENTITY]);
     for (const tuple of entities) {
         const entity = tuple[0] as Entity;
-        const intent = tuple[1] as Intent;
-        const pos = tuple[2] as Position;
-        const ident = tuple[3] as Identity;
-        if (intent.behavior !== "socialize" || !ident.alive) continue;
+        const pos = tuple[1] as Position;
+        const ident = tuple[2] as Identity;
+        if (!ident.alive) continue;
         const key = `${pos.side}:${pos.position}:${pos.floor}`;
         if (!byPos.has(key)) byPos.set(key, []);
         byPos.get(key)!.push(entity);
     }
 
-    // Pair up and talk
+    // Pair up bonded co-located entities
     const talked = new Set<Entity>();
     for (const group of byPos.values()) {
+        if (group.length < 2) continue;
         for (let i = 0; i < group.length; i++) {
             if (talked.has(group[i])) continue;
             for (let j = i + 1; j < group.length; j++) {
                 if (talked.has(group[j])) continue;
+                // Only chat if they have a mutual bond
+                if (!hasMutualBond(world, group[i], group[j])) continue;
                 talkTo(world, group[i], group[j], "neutral", currentTick, config);
                 talked.add(group[i]);
                 talked.add(group[j]);

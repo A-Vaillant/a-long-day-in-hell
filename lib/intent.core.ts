@@ -242,6 +242,11 @@ const scorers: Record<string, BehaviorScorer> = {
             score += (1 - ctx.personality.pace) * 0.3;  // patient → socialize
             score += ctx.personality.openness * 0.2;     // open → socialize
         }
+        // Diminishing returns: score decays the longer they've been socializing
+        // Halves every 8 ticks of continuous socializing
+        if (ctx.intent.behavior === "socialize" && ctx.intent.elapsed > 0) {
+            score *= Math.pow(0.5, ctx.intent.elapsed / 8);
+        }
         // Small jitter
         score += (ctx.rng.next() - 0.5) * 0.2;
         return score;
