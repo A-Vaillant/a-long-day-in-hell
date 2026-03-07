@@ -218,7 +218,8 @@ const componentRenderers = {
             html += '<span class="gm-bar-num" style="color:#c49530">nomadic</span></div>';
         } else {
             html += '<div class="gm-stat"><span class="gm-tip" data-tip="Rest area this NPC returns to each night.">home</span>';
-            html += '<span class="gm-bar-num">seg ' + comp.homeRestArea + '</span></div>';
+            const h = comp.home;
+            html += '<span class="gm-bar-num">' + (h.side === 0 ? 'W' : 'E') + ' f' + h.floor + ' s' + h.position + '</span></div>';
             if (comp.awayStreak > 0) {
                 html += '<div class="gm-stat"><span class="gm-tip" data-tip="Nights slept away from home. Home shifts after ' + 3 + '.">away streak</span>';
                 html += '<span class="gm-bar-num">' + comp.awayStreak + '</span></div>';
