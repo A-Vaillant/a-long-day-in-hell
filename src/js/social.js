@@ -72,6 +72,24 @@ export const Social = {
             hasBook: false,
             searchedSegments: new Set(),
         });
+        addComponent(world, playerEntity, NEEDS, {
+            hunger: state.hunger || 0,
+            thirst: state.thirst || 0,
+            exhaustion: state.exhaustion || 0,
+        });
+        const playerHeadingRng = seedFromString(state.seed + ":player:heading");
+        addComponent(world, playerEntity, MOVEMENT, {
+            targetPosition: null,
+            heading: playerHeadingRng.next() < 0.5 ? 1 : -1,
+        });
+        addComponent(world, playerEntity, SEARCHING, {
+            bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0,
+        });
+        addComponent(world, playerEntity, SLEEP, {
+            home: { side: state.side, position: nearestRestArea(state.position), floor: state.floor },
+            bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0,
+            nomadic: false,
+        });
 
         // Spawn NPC entities
         if (state.npcs) {
@@ -120,7 +138,7 @@ export const Social = {
         }
     },
 
-    /** Sync player position from game state into ECS. Call before tick systems. */
+    /** Sync player state from game state into ECS. Call before tick systems. */
     syncPlayerPosition() {
         if (!world || playerEntity === null) return;
         const pos = getComponent(world, playerEntity, POSITION);
@@ -132,6 +150,13 @@ export const Social = {
         // Keep player alive status in sync
         const ident = getComponent(world, playerEntity, IDENTITY);
         if (ident) ident.alive = !state.dead;
+        // Sync needs from state → ECS (survival.js is source of truth for player)
+        const needs = getComponent(world, playerEntity, NEEDS);
+        if (needs) {
+            needs.hunger = state.hunger || 0;
+            needs.thirst = state.thirst || 0;
+            needs.exhaustion = state.exhaustion || 0;
+        }
 
         // When possessing, sync player state back to the possessed NPC
         if (state._possessedNpcId != null) {
@@ -244,6 +269,16 @@ export const Social = {
                     "needs:", needs ? {h:Math.round(needs.hunger), t:Math.round(needs.thirst), e:Math.round(needs.exhaustion)} : "none",
                     "tick="+state.tick, "day="+state.day);
                 npc.alive = false;
+            }
+        }
+
+        // Sync player needs from ECS → state (ECS is authority)
+        if (playerEntity !== null) {
+            const pNeeds = getComponent(world, playerEntity, NEEDS);
+            if (pNeeds) {
+                state.hunger = pNeeds.hunger;
+                state.thirst = pNeeds.thirst;
+                state.exhaustion = pNeeds.exhaustion;
             }
         }
     },

@@ -139,6 +139,22 @@ export function applyMoveTick(stats: SurvivalStats): SurvivalStats {
 }
 
 /**
+ * Apply morale/mortality effects from current need levels.
+ * Does NOT accumulate needs — use when ECS needsSystem handles accumulation.
+ */
+export function applyMoraleTick(stats: SurvivalStats): SurvivalStats {
+    let { morale, despairing } = stats;
+
+    if (stats.hunger     >= STAT_MAX) morale = clamp(morale - 2);
+    if (stats.thirst     >= STAT_MAX) morale = clamp(morale - 4);
+    if (stats.exhaustion >= STAT_MAX) morale = clamp(morale - 1);
+
+    if (morale <= STAT_MIN) despairing = true;
+
+    return applyMortality({ ...stats, morale, despairing });
+}
+
+/**
  * Apply effects of one sleep-hour.
  * Called once per TICKS_PER_HOUR ticks of sleep.
  *

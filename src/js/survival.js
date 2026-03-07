@@ -1,7 +1,7 @@
 /* Survival wrapper — hunger, thirst, exhaustion, morale, mortality. */
 
 import {
-    defaultStats, applyMoveTick, applySleep, applyResurrection, applyEat, applyDrink,
+    defaultStats, applyMoraleTick, applySleep, applyResurrection, applyEat, applyDrink,
     applyAlcohol, severity, getWarnings, showMortality, describeFromTable, canSleep,
 } from "../../lib/survival.core.ts";
 import { Despair } from "./despairing.js";
@@ -27,7 +27,7 @@ export const Surv = {
         state.dead       = d.dead;
     },
     onMove() {
-        Object.assign(state, applyMoveTick(statsFromState()));
+        Object.assign(state, applyMoraleTick(statsFromState()));
         Despair.applyAmbientDrain();
     },
     onSleep() {
