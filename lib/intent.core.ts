@@ -177,14 +177,19 @@ const scorers: Record<string, BehaviorScorer> = {
     return_home(ctx) {
         if (!ctx.sleep || !ctx.position || ctx.sleep.nomadic) return -Infinity;
 
-        const distToHome = Math.abs(ctx.position.position - ctx.sleep.homeRestArea);
+        const home = ctx.sleep.home;
+        const pos = ctx.position;
+        const posDist = Math.abs(pos.position - home.position);
+        const floorDist = Math.abs(pos.floor - home.floor);
+        const sideDiff = pos.side !== home.side ? 1 : 0;
+        // Rough travel distance: position segments + floor changes + side crossing
+        const distToHome = posDist + floorDist * 5 + sideDiff * 10;
 
         // Already at home rest area — no need
-        if (distToHome === 0) return -Infinity;
+        if (posDist === 0 && floorDist === 0 && sideDiff === 0) return -Infinity;
 
         // Too far from home — nearest rest area via seek_rest is better
-        // "Too far" = more than 20 segments (2 full rest-area spans)
-        if (distToHome > 20) return -Infinity;
+        if (distToHome > 30) return -Infinity;
 
         // Time pressure: ramps from tick 120 to LIGHTS_ON_TICKS (160)
         // Before tick 120: no urgency
@@ -197,7 +202,7 @@ const scorers: Record<string, BehaviorScorer> = {
         let score = 0.4 + timeUrgency * 1.4;
 
         // Closer to home = slightly higher score (worth the trip)
-        score += (1 - distToHome / 20) * 0.3;
+        score += (1 - distToHome / 30) * 0.3;
 
         return score;
     },

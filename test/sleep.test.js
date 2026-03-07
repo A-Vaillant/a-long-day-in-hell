@@ -14,7 +14,7 @@ function spawnSleeper(world, overrides = {}) {
     addComponent(world, ent, IDENTITY, { name: "Test", alive: true, ...overrides.identity });
     addComponent(world, ent, PSYCHOLOGY, { lucidity: 80, hope: 50, ...overrides.psychology });
     addComponent(world, ent, SLEEP, {
-        homeRestArea: pos.position,
+        home: { side: pos.side || 0, position: pos.position, floor: pos.floor || 0 },
         bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false,
         ...overrides.sleep,
     });
@@ -110,7 +110,7 @@ describe("sleepOnsetSystem", () => {
         const world = createWorld();
         const a = spawnSleeper(world, { position: { position: 10 }, identity: { name: "A" } });
         const b = spawnSleeper(world, { position: { position: 20 }, identity: { name: "B" },
-            sleep: { homeRestArea: 20, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false } });
+            sleep: { home: { side: 0, position: 20, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false } });
         sleepOnsetSystem(world);
 
         const sleepA = getComponent(world, a, SLEEP);
@@ -242,7 +242,7 @@ describe("sleepWakeSystem", () => {
         const ent = spawnSleeper(world, {
             position: { position: 20 }, // at rest area 20
             sleep: {
-                homeRestArea: 10, // home is rest area 10
+                home: { side: 0, position: 10, floor: 0 }, // home is rest area 10
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: DEFAULT_SLEEP.homeShiftThreshold - 1,
             },
@@ -253,7 +253,9 @@ describe("sleepWakeSystem", () => {
         sleep.coSleepers = [];
 
         sleepWakeSystem(world, 100);
-        assert.strictEqual(sleep.homeRestArea, 20, "home should shift to current rest area");
+        assert.strictEqual(sleep.home.position, 20, "home should shift to current rest area");
+        assert.strictEqual(sleep.home.side, 0);
+        assert.strictEqual(sleep.home.floor, 0);
         assert.strictEqual(sleep.awayStreak, 0, "away streak should reset");
     });
 
@@ -262,7 +264,7 @@ describe("sleepWakeSystem", () => {
         const ent = spawnSleeper(world, {
             position: { position: 10 },
             sleep: {
-                homeRestArea: 10,
+                home: { side: 0, position: 10, floor: 0 },
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: 2,
             },

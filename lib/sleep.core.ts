@@ -26,9 +26,15 @@ import { isRestArea } from "./library.core.ts";
 
 export const SLEEP = "sleep";
 
+export interface HomeLocation {
+    side: number;
+    position: number;
+    floor: number;
+}
+
 export interface Sleep {
-    /** Rest area position this NPC considers home. */
-    homeRestArea: number;
+    /** Full coordinates of this NPC's home rest area. */
+    home: HomeLocation;
     /** Bed index (0–6) if currently sleeping, null otherwise. */
     bedIndex: number | null;
     /** Whether currently asleep. */
@@ -213,10 +219,15 @@ export function sleepWakeSystem(
         psych.hope = Math.max(0, Math.min(100, psych.hope + hopeChange));
 
         // Home shift: if sleeping at a different rest area, track streak (not nomadic)
-        if (!sleep.nomadic && isRestArea(pos.position) && pos.position !== sleep.homeRestArea) {
+        const atHome = isRestArea(pos.position) &&
+            pos.side === sleep.home.side &&
+            pos.position === sleep.home.position &&
+            pos.floor === sleep.home.floor;
+
+        if (!sleep.nomadic && isRestArea(pos.position) && !atHome) {
             sleep.awayStreak++;
             if (sleep.awayStreak >= config.homeShiftThreshold) {
-                sleep.homeRestArea = pos.position;
+                sleep.home = { side: pos.side, position: pos.position, floor: pos.floor };
                 sleep.awayStreak = 0;
             }
         } else {
@@ -228,7 +239,7 @@ export function sleepWakeSystem(
             name: ident.name,
             hopeChange,
             coSleepers: coSleeperNames,
-            atHome: pos.position === sleep.homeRestArea,
+            atHome,
         });
 
         // Reset sleep state for next day
