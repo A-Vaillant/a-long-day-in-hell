@@ -141,6 +141,7 @@ function setupDOM() {
         '<button id="gm-play">\u25B6</button>' +
         '<button id="gm-step">\u23ED</button>' +
         '<button id="gm-speed">1x</button>' +
+        '<span id="gm-zoom">1x</span>' +
         '<span id="gm-status"></span>';
     mapWrap.appendChild(controls);
 
@@ -172,19 +173,50 @@ function setupInput(canvas) {
         this.textContent = speed + "x";
     });
 
-    canvas.addEventListener("click", function (ev) {
+    // Drag to pan
+    canvas.addEventListener("mousedown", function (ev) {
+        GodmodeMap.dragStart(ev.clientX - canvas.getBoundingClientRect().left,
+                             ev.clientY - canvas.getBoundingClientRect().top);
+        canvas.style.cursor = "grabbing";
+    });
+
+    window.addEventListener("mousemove", function (ev) {
+        const rect = canvas.getBoundingClientRect();
+        GodmodeMap.dragMove(ev.clientX - rect.left, ev.clientY - rect.top);
+        render();
+    });
+
+    window.addEventListener("mouseup", function (ev) {
         const rect = canvas.getBoundingClientRect();
         const x = ev.clientX - rect.left;
         const y = ev.clientY - rect.top;
-        const hit = GodmodeMap.hitTest(x, y);
-        if (hit !== null) {
-            selectedNpcId = hit;
-            followMode = true;
-        } else {
-            followMode = false;
+        const wasDrag = GodmodeMap.dragEnd(x, y);
+        canvas.style.cursor = "crosshair";
+
+        // Only select NPC on click (not drag)
+        if (!wasDrag && x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
+            const hit = GodmodeMap.hitTest(x, y);
+            if (hit !== null) {
+                selectedNpcId = hit;
+                followMode = true;
+            } else {
+                followMode = false;
+            }
         }
         render();
     });
+
+    // Scroll to zoom
+    canvas.addEventListener("wheel", function (ev) {
+        ev.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const px = ev.clientX - rect.left;
+        const py = ev.clientY - rect.top;
+        const delta = ev.deltaY < 0 ? 1 : -1;
+        GodmodeMap.zoom(delta, px, py);
+        followMode = false;
+        render();
+    }, { passive: false });
 
     document.addEventListener("keydown", function (ev) {
         if (ev.key === " ") {
@@ -200,6 +232,7 @@ function setupInput(canvas) {
             render();
         } else {
             GodmodeMap.handleKey(ev.key);
+            if (ev.key !== " ") followMode = false;
             render();
         }
     });

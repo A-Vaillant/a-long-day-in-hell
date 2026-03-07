@@ -5,19 +5,36 @@
  * Viewport scrolls to follow selected NPC or pans manually.
  */
 
-const CELL_W = 12;
-const CELL_H = 8;
-const CHASM_W = 40;   // pixels between the two corridor columns
-const REST_EVERY = 10; // rest areas every 10 segments
+const BASE_CELL_W = 12;
+const BASE_CELL_H = 8;
+const BASE_CHASM_W = 40;
+const REST_EVERY = 10;
 
-// Viewport in world coords (position, floor)
-let vpX = 0;       // leftmost position visible
-let vpY = 0;       // bottom floor visible
-let vpCols = 40;   // segments visible
-let vpRows = 30;   // floors visible
+// Zoom
+const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
+let zoomIndex = 3;  // start at 1x
+let zoom = 1;
+
+// Derived from zoom
+let CELL_W = BASE_CELL_W;
+let CELL_H = BASE_CELL_H;
+let CHASM_W = BASE_CHASM_W;
+
+// Viewport in world coords (position, floor) — fractional for smooth pan
+let vpX = 0;
+let vpY = 0;
+let vpCols = 40;
+let vpRows = 30;
 let canvas = null;
 let ctx = null;
 let startFloor = 0;
+
+// Mouse drag state
+let dragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragVpX = 0;
+let dragVpY = 0;
 
 // NPC hit targets for click detection
 let hitTargets = []; // { id, x, y, r }
@@ -47,10 +64,82 @@ export const GodmodeMap = {
         if (!wrap) return;
         canvas.width = wrap.clientWidth;
         canvas.height = wrap.clientHeight;
-        // Recalculate visible cells based on canvas size
+        this._recalcCells();
+    },
+
+    _recalcCells() {
+        CELL_W = Math.round(BASE_CELL_W * zoom);
+        CELL_H = Math.round(BASE_CELL_H * zoom);
+        CHASM_W = Math.round(BASE_CHASM_W * zoom);
+        if (!canvas) return;
         const usableW = (canvas.width - CHASM_W) / 2;
-        vpCols = Math.max(10, Math.floor(usableW / CELL_W));
-        vpRows = Math.max(10, Math.floor(canvas.height / CELL_H));
+        vpCols = Math.max(4, Math.ceil(usableW / CELL_W) + 1);
+        vpRows = Math.max(4, Math.ceil(canvas.height / CELL_H) + 1);
+    },
+
+    /** Zoom in/out, centering on the given pixel coords (or canvas center). */
+    zoom(delta, pivotX, pivotY) {
+        if (pivotX === undefined) { pivotX = canvas.width / 2; pivotY = canvas.height / 2; }
+
+        // World coords under pivot before zoom
+        const colW = vpCols * CELL_W;
+        const worldPosBefore = this._pixelToWorld(pivotX, pivotY);
+
+        const oldIndex = zoomIndex;
+        zoomIndex = Math.max(0, Math.min(ZOOM_LEVELS.length - 1, zoomIndex + delta));
+        if (zoomIndex === oldIndex) return;
+        zoom = ZOOM_LEVELS[zoomIndex];
+        this._recalcCells();
+
+        // World coords under pivot after zoom — adjust vpX/vpY to keep same world point under cursor
+        const worldPosAfter = this._pixelToWorld(pivotX, pivotY);
+        vpX += worldPosBefore.pos - worldPosAfter.pos;
+        vpY += worldPosBefore.floor - worldPosAfter.floor;
+    },
+
+    /** Convert pixel coords to world (position, floor). */
+    _pixelToWorld(px, py) {
+        const colW = vpCols * CELL_W;
+        // Determine which side/column the pixel is in
+        let localCol;
+        if (px < colW) {
+            localCol = px / CELL_W;
+        } else if (px >= colW + CHASM_W) {
+            localCol = (px - colW - CHASM_W) / CELL_W;
+        } else {
+            localCol = vpCols / 2; // chasm center
+        }
+        const pos = vpX + localCol;
+        const row = py / CELL_H;
+        const floor = vpY + (vpRows - 1) - row;
+        return { pos, floor };
+    },
+
+    /** Start a drag-pan. */
+    dragStart(px, py) {
+        dragging = true;
+        dragStartX = px;
+        dragStartY = py;
+        dragVpX = vpX;
+        dragVpY = vpY;
+    },
+
+    /** Continue drag-pan. */
+    dragMove(px, py) {
+        if (!dragging) return;
+        const dx = px - dragStartX;
+        const dy = py - dragStartY;
+        vpX = dragVpX - dx / CELL_W;
+        vpY = dragVpY + dy / CELL_H;  // screen Y is inverted from world floor
+    },
+
+    /** End drag-pan. Returns true if there was meaningful drag (to suppress click). */
+    dragEnd(px, py) {
+        if (!dragging) return false;
+        dragging = false;
+        const dx = Math.abs(px - dragStartX);
+        const dy = Math.abs(py - dragStartY);
+        return dx > 3 || dy > 3;  // threshold to distinguish drag from click
     },
 
     draw(snap, selectedId, follow) {
@@ -85,7 +174,7 @@ export const GodmodeMap = {
 
         // Draw grid lines and rest areas
         for (let row = 0; row < vpRows; row++) {
-            const floor = vpY + vpRows - 1 - row;
+            const floor = Math.floor(vpY) + vpRows - 1 - row;
             const y = row * CELL_H;
 
             // Floor line
@@ -99,7 +188,7 @@ export const GodmodeMap = {
             ctx.stroke();
 
             for (let col = 0; col < vpCols; col++) {
-                const pos = vpX + col;
+                const pos = Math.floor(vpX + col);
                 if (pos < 0) continue;
 
                 // Rest area highlight
@@ -119,15 +208,15 @@ export const GodmodeMap = {
 
         // Draw NPCs
         for (const npc of snap.npcs) {
-            const col = npc.position - vpX;
-            const row = vpRows - 1 - (npc.floor - vpY);
+            const col = npc.position - Math.floor(vpX);
+            const row = vpRows - 1 - (npc.floor - Math.floor(vpY));
 
             if (col < 0 || col >= vpCols || row < 0 || row >= vpRows) continue;
 
             const baseX = npc.side === 0 ? westX : eastX;
             const cx = baseX + col * CELL_W + CELL_W / 2;
             const cy = row * CELL_H + CELL_H / 2;
-            const r = 3;
+            const r = Math.max(2, Math.round(3 * zoom));
 
             // Dot
             ctx.fillStyle = DISP_COLORS[npc.disposition] || DISP_COLORS.calm;
@@ -168,6 +257,10 @@ export const GodmodeMap = {
             tickEl.textContent = String(hours).padStart(2, "0") + ":" + String(mins).padStart(2, "0");
         }
 
+        // Zoom display
+        const zoomEl = document.getElementById("gm-zoom");
+        if (zoomEl) zoomEl.textContent = zoom + "x";
+
         // Status
         const statusEl = document.getElementById("gm-status");
         if (statusEl) {
@@ -187,13 +280,15 @@ export const GodmodeMap = {
     },
 
     handleKey(key) {
-        const step = 3;
+        const step = Math.max(1, Math.round(3 / zoom));
         if (key === "ArrowLeft" || key === "h") vpX -= step;
         else if (key === "ArrowRight" || key === "l") vpX += step;
         else if (key === "ArrowUp" || key === "k") vpY += step;
         else if (key === "ArrowDown" || key === "j") vpY -= step;
-        // Clamp
-        if (vpX < 0) vpX = 0;
-        if (vpY < 0) vpY = 0;
+        else if (key === "+" || key === "=") this.zoom(1);
+        else if (key === "-" || key === "_") this.zoom(-1);
     },
+
+    /** Current zoom level for display. */
+    getZoom() { return zoom; },
 };
