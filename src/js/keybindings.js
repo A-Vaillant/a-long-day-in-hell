@@ -20,6 +20,7 @@ const VI_MOVE = {
 
 document.addEventListener("keydown", function (ev) {
     if (ev.target.tagName === "INPUT" || ev.target.tagName === "TEXTAREA") return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
 
     // Possession mode: Esc releases NPC back to godmode (not player — Esc opens Menu)
     if (Godmode.isPossessing() && !Godmode.isPossessingPlayer() && ev.key === "Escape") {
