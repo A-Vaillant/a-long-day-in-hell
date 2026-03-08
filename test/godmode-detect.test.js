@@ -32,15 +32,8 @@ describe("detectEvents", () => {
         assert.deepStrictEqual(detectEvents(makeSnap([]), null), []);
     });
 
-    it("detects death", () => {
-        const prev = makeSnap([makeNpc({ alive: true })]);
-        const curr = makeSnap([makeNpc({ alive: false })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "death");
-        assert.ok(events[0].text.includes("Alice"));
-        assert.ok(events[0].text.includes("died"));
-    });
+    // death/disposition/chasm/search/escape are now emitted directly from social.js,
+    // not inferred from snapshot diffs, to avoid batch-tick event loss.
 
     it("detects resurrection", () => {
         const prev = makeSnap([makeNpc({ alive: false })]);
@@ -51,20 +44,11 @@ describe("detectEvents", () => {
         assert.ok(events[0].text.includes("dawn"));
     });
 
-    it("detects disposition change", () => {
-        const prev = makeSnap([makeNpc({ disposition: "calm" })]);
-        const curr = makeSnap([makeNpc({ disposition: "anxious" })]);
+    it("does not emit resurrection for free NPC", () => {
+        const prev = makeSnap([makeNpc({ alive: false, free: true })]);
+        const curr = makeSnap([makeNpc({ alive: true, free: true })]);
         const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "disposition");
-        assert.ok(events[0].text.includes("anxious"));
-    });
-
-    it("does not emit disposition change for dead NPCs", () => {
-        const prev = makeSnap([makeNpc({ disposition: "calm", alive: false })]);
-        const curr = makeSnap([makeNpc({ disposition: "dead", alive: false })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 0);
+        assert.strictEqual(events.filter(e => e.type === "resurrection").length, 0);
     });
 
     it("detects new bond (familiarity crosses 1.0)", () => {
@@ -138,18 +122,17 @@ describe("detectEvents", () => {
 
     it("handles multiple events in one tick", () => {
         const prev = makeSnap([
-            makeNpc({ id: 0, name: "Alice", disposition: "calm", alive: true, bonds: [] }),
+            makeNpc({ id: 0, name: "Alice", alive: false, bonds: [] }),
             makeNpc({ id: 1, name: "Bob", alive: true }),
         ]);
         const curr = makeSnap([
-            makeNpc({ id: 0, name: "Alice", disposition: "anxious", alive: true,
+            makeNpc({ id: 0, name: "Alice", alive: true,
                 bonds: [{ name: "Bob", familiarity: 2, affinity: 1 }] }),
-            makeNpc({ id: 1, name: "Bob", alive: false }),
+            makeNpc({ id: 1, name: "Bob", alive: true }),
         ]);
         const events = detectEvents(prev, curr);
         const types = events.map(e => e.type);
-        assert.ok(types.includes("disposition"), "has disposition event");
-        assert.ok(types.includes("death"), "has death event");
+        assert.ok(types.includes("resurrection"), "has resurrection event");
         assert.ok(types.includes("bond"), "has bond event");
     });
 
@@ -327,8 +310,8 @@ describe("detectEvents", () => {
     // --- npcIds field ---
 
     it("events include npcIds array", () => {
-        const prev = makeSnap([makeNpc({ id: 7, name: "Alice", alive: true })]);
-        const curr = makeSnap([makeNpc({ id: 7, name: "Alice", alive: false })]);
+        const prev = makeSnap([makeNpc({ id: 7, name: "Alice", alive: false })]);
+        const curr = makeSnap([makeNpc({ id: 7, name: "Alice", alive: true })]);
         const events = detectEvents(prev, curr);
         assert.strictEqual(events.length, 1);
         assert.deepStrictEqual(events[0].npcIds, [7]);
@@ -377,77 +360,6 @@ describe("detectEvents", () => {
             "bond should fire again after reset");
     });
 
-    // --- Chasm events ---
-
-    it("detects NPC jumping into chasm", () => {
-        const prev = makeSnap([makeNpc({ falling: null })]);
-        const curr = makeSnap([makeNpc({ falling: { speed: 1 } })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "chasm");
-        assert.ok(events[0].text.includes("chasm"));
-    });
-
-    it("detects NPC catching a railing", () => {
-        const prev = makeSnap([makeNpc({ falling: { speed: 10 }, floor: 50 })]);
-        const curr = makeSnap([makeNpc({ falling: null, floor: 42 })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "chasm");
-        assert.ok(events[0].text.includes("railing"));
-        assert.ok(events[0].text.includes("42"));
-    });
-
-    it("does not emit railing event for dead NPC", () => {
-        const prev = makeSnap([makeNpc({ falling: { speed: 10 }, alive: true })]);
-        const curr = makeSnap([makeNpc({ falling: null, alive: false })]);
-        const events = detectEvents(prev, curr);
-        // Should get death event but not railing
-        const types = events.map(e => e.type);
-        assert.ok(types.includes("death"));
-        assert.ok(!events.some(e => e.text.includes("railing")));
-    });
-
-    it("death and resurrection are not deduplicated", () => {
-        const prev1 = makeSnap([makeNpc({ alive: true })]);
-        const curr1 = makeSnap([makeNpc({ alive: false })]);
-        detectEvents(prev1, curr1); // first death
-
-        const prev2 = makeSnap([makeNpc({ alive: false })]);
-        const curr2 = makeSnap([makeNpc({ alive: true })]);
-        detectEvents(prev2, curr2); // resurrection
-
-        // Second death should still fire
-        const events = detectEvents(prev1, curr1);
-        assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "death");
-    });
-
-    // --- Free (escape) events ---
-
-    it("does not emit death for free NPC", () => {
-        const prev = makeSnap([makeNpc({ alive: true, free: true })]);
-        const curr = makeSnap([makeNpc({ alive: false, free: true })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.filter(e => e.type === "death").length, 0);
-    });
-
-    it("does not emit resurrection for free NPC", () => {
-        const prev = makeSnap([makeNpc({ alive: false, free: true })]);
-        const curr = makeSnap([makeNpc({ alive: true, free: true })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.filter(e => e.type === "resurrection").length, 0);
-    });
-
-    it("detects escape (free transition)", () => {
-        const prev = makeSnap([makeNpc({ free: false })]);
-        const curr = makeSnap([makeNpc({ free: true })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "escape");
-        assert.ok(events[0].text.includes("FREE"));
-    });
-
     // --- Pilgrimage events ---
 
     it("detects pilgrimage start", () => {
@@ -489,88 +401,39 @@ describe("detectEvents", () => {
         assert.ok(events[0].text.includes("found their book"));
     });
 
-    // --- Search events ---
+    // --- All event types have correct shape ---
 
-    it("does not emit event when no words found", () => {
-        const prev = makeSnap([makeNpc({
-            components: { searching: { active: false, bestScore: 0 } },
-        })]);
-        const curr = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 0 } },
-        })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 0, "no words found = no event");
-    });
-
-    it("detects word find (bestScore increases)", () => {
-        const prev = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 0, bestWords: [] } },
-        })]);
-        const curr = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 1, bestWords: ["hope"] } },
-        })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "search");
-        assert.ok(events[0].text.includes("\u201chope\u201d"));
-    });
-
-    it("reports multiple words", () => {
-        const prev = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 1, bestWords: ["hope"] } },
-        })]);
-        const curr = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 3, bestWords: ["hell", "fire", "dark"] } },
-        })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 1);
-        assert.ok(events[0].text.includes("\u201chell fire dark\u201d"));
-    });
-
-    it("does not emit when bestScore unchanged", () => {
-        const prev = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 2 } },
-        })]);
-        const curr = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 2 } },
-        })]);
-        const events = detectEvents(prev, curr);
-        assert.strictEqual(events.filter(e => e.type === "search").length, 0);
-    });
-
-    // --- All event types have correct type field ---
-
-    it("all events have day, tick, type, text fields", () => {
+    it("all events have day, tick, type, text, npcIds fields", () => {
         const prev = makeSnap([
-            makeNpc({ id: 0, name: "Alice", alive: true, disposition: "calm", free: false,
+            makeNpc({ id: 0, name: "Alice", alive: true,
                 bonds: [], groupId: null,
                 components: {
-                    searching: { active: false, bestScore: 0 },
                     intent: { behavior: "explore" },
                     knowledge: { hasBook: false },
                 },
             }),
         ], { day: 3, tick: 50 });
         const curr = makeSnap([
-            makeNpc({ id: 0, name: "Alice", alive: false, disposition: "anxious", free: false,
+            makeNpc({ id: 0, name: "Alice", alive: true,
                 bonds: [{ name: "Bob", familiarity: 2, affinity: 1 }],
                 groupId: null,
                 components: {
-                    searching: { active: true, bestScore: 0.2 },
                     intent: { behavior: "pilgrimage" },
                     knowledge: { hasBook: true },
                 },
             }),
         ], { day: 3, tick: 50 });
         const events = detectEvents(prev, curr);
+        // Expect: bond + pilgrimage_start + pilgrimage_found = 3 events
+        assert.ok(events.length >= 2, "expected at least 2 events, got " + events.length);
         for (const ev of events) {
             assert.ok("day" in ev, "event missing day: " + JSON.stringify(ev));
             assert.ok("tick" in ev, "event missing tick: " + JSON.stringify(ev));
             assert.ok("type" in ev, "event missing type: " + JSON.stringify(ev));
             assert.ok("text" in ev, "event missing text: " + JSON.stringify(ev));
+            assert.ok("npcIds" in ev, "event missing npcIds: " + JSON.stringify(ev));
             assert.strictEqual(ev.day, 3);
             assert.strictEqual(ev.tick, 50);
         }
-        assert.ok(events.length >= 4, "expected at least 4 events, got " + events.length);
     });
 });

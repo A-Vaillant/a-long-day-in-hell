@@ -16,22 +16,11 @@ export function detectEvents(prev, curr) {
         const old = prevById.get(npc.id);
         if (!old) continue;
 
-        // Death (but not if they escaped — that's a separate event)
-        if (old.alive && !npc.alive && !npc.free) {
-            events.push({ tick: curr.tick, day: curr.day, type: "death",
-                text: npc.name + " died.", npcIds: [npc.id] });
-        }
-
         // Resurrection (skip FREE entities — they don't come back)
+        // NOTE: death/disposition/chasm/search/escape are emitted directly from social.js
         if (!old.alive && npc.alive && !npc.free) {
             events.push({ tick: curr.tick, day: curr.day, type: "resurrection",
                 text: npc.name + " returned at dawn.", npcIds: [npc.id] });
-        }
-
-        // Disposition change
-        if (old.disposition !== npc.disposition && old.alive && npc.alive) {
-            events.push({ tick: curr.tick, day: curr.day, type: "disposition",
-                text: npc.name + " became " + npc.disposition + ".", npcIds: [npc.id] });
         }
 
         // Group formed (gained a groupId) — deduplicate by member set
@@ -80,29 +69,6 @@ export function detectEvents(prev, curr) {
             }
         }
 
-        // Started falling (jumped into chasm — not death, endless freefall)
-        if (!old.falling && npc.falling) {
-            events.push({ tick: curr.tick, day: curr.day, type: "chasm",
-                text: npc.name + " jumped into the chasm.", npcIds: [npc.id] });
-        }
-
-        // Stopped falling (grabbed railing or landed)
-        if (old.falling && !npc.falling && npc.alive) {
-            events.push({ tick: curr.tick, day: curr.day, type: "chasm",
-                text: npc.name + " caught a railing at floor " + npc.floor + ".", npcIds: [npc.id] });
-        }
-
-        // Search progress — report when NPC finds words in a book
-        const oldSearch = old.components && old.components.searching;
-        const newSearch = npc.components && npc.components.searching;
-        if (oldSearch && newSearch && newSearch.bestScore > oldSearch.bestScore) {
-            const wordStr = newSearch.bestWords && newSearch.bestWords.length > 0
-                ? '\u201c' + newSearch.bestWords.join(" ") + '\u201d'
-                : (newSearch.bestScore === 1 ? "a word" : newSearch.bestScore + " words");
-            events.push({ tick: curr.tick, day: curr.day, type: "search",
-                text: npc.name + " found " + wordStr + " in a book!", npcIds: [npc.id] });
-        }
-
         // Started pilgrimage
         const oldIntent = old.components && old.components.intent;
         const newIntent = npc.components && npc.components.intent;
@@ -117,12 +83,6 @@ export function detectEvents(prev, curr) {
         if (oldKnow && newKnow && !oldKnow.hasBook && newKnow.hasBook) {
             events.push({ tick: curr.tick, day: curr.day, type: "pilgrimage",
                 text: npc.name + " found their book!", npcIds: [npc.id] });
-        }
-
-        // Escaped (submitted book — FREE)
-        if (!old.free && npc.free) {
-            events.push({ tick: curr.tick, day: curr.day, type: "escape",
-                text: npc.name + " submitted their book and is FREE.", npcIds: [npc.id] });
         }
 
         // New bond (familiarity crossed 1.0 threshold) — deduplicate by pair

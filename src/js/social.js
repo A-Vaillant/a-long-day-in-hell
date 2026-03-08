@@ -38,6 +38,7 @@ import {
     DEFAULT_MEMORY_CONFIG,
     createMemory, addMemory, hasRecentMemory, witnessSystem, memoryDecaySystem,
 } from "../../lib/memory.core.ts";
+import { appendEvents } from "./event-log.js";
 import { state } from "./state.js";
 
 let world = null;
@@ -402,6 +403,59 @@ export const Social = {
         witnessSystem(world, witnessEvents, currentTick, prebuilt);
         memoryDecaySystem(world, undefined, n);
 
+        // Emit directly to objective log — avoids batch-tick snapshot-diff blindspots
+        const logEntries = [];
+        for (const ev of witnessEvents) {
+            // Resolve entity → npc id + name for the log
+            let npcId = null;
+            let npcName = null;
+            const subjectIdent = getComponent(world, ev.subject, IDENTITY);
+            if (subjectIdent) npcName = subjectIdent.name;
+            // Find npc id by reverse-lookup
+            for (const [id, ent] of npcEntities) {
+                if (ent === ev.subject) { npcId = id; break; }
+            }
+            if (npcId === null) continue; // player or unknown entity — skip
+
+            const pos = ev.position;
+            const locStr = pos ? " (s" + pos.position + " f" + pos.floor + ")" : "";
+            switch (ev.type) {
+                case MEMORY_TYPES.WITNESS_ESCAPE:
+                    logEntries.push({ tick: currentTick, day: state.day, type: "escape",
+                        text: npcName + " submitted their book and is FREE.", npcIds: [npcId], position: pos });
+                    break;
+                case MEMORY_TYPES.WITNESS_CHASM:
+                    logEntries.push({ tick: currentTick, day: state.day, type: "chasm",
+                        text: npcName + " jumped into the chasm" + locStr + ".", npcIds: [npcId], position: pos });
+                    break;
+                case MEMORY_TYPES.WITNESS_MADNESS:
+                    logEntries.push({ tick: currentTick, day: state.day, type: "disposition",
+                        text: npcName + " went mad.", npcIds: [npcId], position: pos });
+                    break;
+                case MEMORY_TYPES.FOUND_BODY:
+                    logEntries.push({ tick: currentTick, day: state.day, type: "death",
+                        text: npcName + " died" + locStr + ".", npcIds: [npcId], position: pos });
+                    break;
+                // COMPANION_DIED, COMPANION_MAD, WITNESS_ESCAPE(bonded) — skip, duplicates above
+            }
+        }
+        if (searchEvents && searchEvents.length > 0) {
+            for (const se of searchEvents) {
+                if (!se.words || se.words.length === 0) continue;
+                const ident = getComponent(world, se.entity, IDENTITY);
+                if (!ident || !ident.alive) continue;
+                let npcId = null;
+                for (const [id, ent] of npcEntities) {
+                    if (ent === se.entity) { npcId = id; break; }
+                }
+                if (npcId === null) continue;
+                const wordStr = "\u201c" + se.words.join(" ") + "\u201d";
+                logEntries.push({ tick: currentTick, day: state.day, type: "search",
+                    text: ident.name + " found " + wordStr + " in a book!", npcIds: [npcId] });
+            }
+        }
+        if (logEntries.length > 0) appendEvents(logEntries);
+
         // Sync player needs from ECS → state (ECS is authority)
         if (playerEntity !== null) {
             const pNeeds = getComponent(world, playerEntity, NEEDS);
@@ -656,6 +710,11 @@ export const Social = {
                         const ident = getComponent(world, ent, IDENTITY);
                         if (ident) ident.alive = false;
                     }
+                    const tick = (state.day - 1) * 240 + state.tick;
+                    appendEvents([{ tick, day: state.day, type: "death",
+                        text: npc.name + " hit the ground at floor " + npc.floor + ".",
+                        npcIds: [npc.id],
+                        position: { side: npc.side, position: npc.position, floor: npc.floor } }]);
                 }
                 continue;
             }
@@ -671,6 +730,11 @@ export const Social = {
                     const grabResult = attemptGrab(npc.falling.speed, grabRng, qBonus);
                     if (grabResult.success) {
                         npc.falling = null;
+                        const tick = (state.day - 1) * 240 + state.tick;
+                        appendEvents([{ tick, day: state.day, type: "chasm",
+                            text: npc.name + " caught a railing at floor " + npc.floor + ".",
+                            npcIds: [npc.id],
+                            position: { side: npc.side, position: npc.position, floor: npc.floor } }]);
                     } else {
                         npc.falling.speed = grabResult.speedAfter;
                         // Mortality damage — NPCs don't track mortality, just kill on bad hits
@@ -682,6 +746,11 @@ export const Social = {
                                 const ident = getComponent(world, ent, IDENTITY);
                                 if (ident) ident.alive = false;
                             }
+                            const tick = (state.day - 1) * 240 + state.tick;
+                            appendEvents([{ tick, day: state.day, type: "death",
+                                text: npc.name + " died from impact at floor " + npc.floor + ".",
+                                npcIds: [npc.id],
+                                position: { side: npc.side, position: npc.position, floor: npc.floor } }]);
                         }
                     }
                 }
