@@ -623,11 +623,9 @@ body.godmode {
     background: #16140e;
 }
 
-.gm-log-filter-sep {
-    width: 1px;
-    background: #2a2418;
-    margin: 0 2px;
-    align-self: stretch;
+.gm-log-time-filters {
+    padding-top: 0;
+    margin-top: -4px;
 }
 
 .gm-log-empty {

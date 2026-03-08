@@ -211,7 +211,7 @@ function snapshot() {
 }
 
 function renderLog() {
-    GodmodeLog.renderTo(document.getElementById("gm-log-pane"), state.npcs, { day: state.day, tick: state.tick });
+    GodmodeLog.renderTo(document.getElementById("gm-log-pane"), state.npcs, state.day);
 }
 
 function switchTab(tab) {
@@ -531,7 +531,7 @@ function setupInput(canvas) {
     document.getElementById("gm-tab-trend").addEventListener("click", function () { switchTab("trend"); });
 
     // Log filter toggles (event delegation)
-    GodmodeLog.wireFilterClicks(document.getElementById("gm-log-pane"), () => ({ day: state.day, tick: state.tick }));
+    GodmodeLog.wireFilterClicks(document.getElementById("gm-log-pane"));
 
     // Drag to pan
     canvas.addEventListener("mousedown", function (ev) {

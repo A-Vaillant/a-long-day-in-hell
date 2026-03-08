@@ -9,6 +9,8 @@ const MAX_EVENTS = 200;
 let events = [];
 let onSelectNpc = null;  // callback(id) when NPC name clicked
 let lastHtml = "";
+let timeWindow = 0;  // 0 = all, >0 = last N days
+let lastDay = 1;     // last known currentDay, for re-renders from click handlers
 
 // Filter state: which event types to show. Search off by default.
 const filters = {
@@ -23,25 +25,18 @@ const filters = {
     chasm: true,
 };
 
-// Time filter: how far back to show events.
-// Values are in ticks (10 ticks/hour, 240 ticks/day). 0 = no limit.
-const TIME_FILTER_OPTIONS = {
-    "1h":    10,
-    "4h":    40,
-    "today": -1,   // special: same day only
-    "all":   0,
-};
-const TIME_FILTER_LABELS = ["1h", "4h", "today", "all"];
-let timeFilter = "all";
-
-function passesTimeFilter(ev, now) {
-    if (timeFilter === "all") return true;
-    if (timeFilter === "today") return ev.day === now.day;
-    const limit = TIME_FILTER_OPTIONS[timeFilter] || 0;
-    if (limit <= 0) return true;
-    const evAbs = (ev.day - 1) * 240 + ev.tick;
-    const nowAbs = (now.day - 1) * 240 + now.tick;
-    return (nowAbs - evAbs) <= limit;
+/**
+ * Generate adaptive time breakpoints based on how many days have elapsed.
+ * Returns array of { days, label } where days=0 means "all".
+ */
+function timeBreakpoints(currentDay) {
+    const breaks = [{ days: 1, label: "1d" }];
+    if (currentDay > 5) breaks.push({ days: 5, label: "5d" });
+    if (currentDay > 25) breaks.push({ days: 25, label: "25d" });
+    if (currentDay > 100) breaks.push({ days: 100, label: "100d" });
+    if (currentDay > 1000) breaks.push({ days: 1000, label: "1000d" });
+    breaks.push({ days: 0, label: "all" });
+    return breaks;
 }
 
 export const LOG_COLORS = {
@@ -73,6 +68,7 @@ export const GodmodeLog = {
         events = [];
         onSelectNpc = selectCallback || null;
         lastHtml = "";
+        timeWindow = 0;
         filters.death = true;
         filters.resurrection = true;
         filters.disposition = true;
@@ -82,7 +78,6 @@ export const GodmodeLog = {
         filters.pilgrimage = true;
         filters.escape = true;
         filters.chasm = true;
-        timeFilter = "all";
     },
 
     push(event) {
@@ -98,17 +93,14 @@ export const GodmodeLog = {
         return events.slice(start).reverse();
     },
 
-    /** Get most recent n events that pass current filters, newest first.
-     *  @param {number} n
-     *  @param {{ day: number, tick: number }} [now] — current time for time filtering
-     */
-    getFiltered(n, now) {
+    /** Get most recent n events that pass current filters and time window, newest first. */
+    getFiltered(n, currentDay) {
+        const minDay = timeWindow > 0 && currentDay ? currentDay - timeWindow : 0;
         const filtered = [];
         for (let i = events.length - 1; i >= 0 && filtered.length < n; i--) {
             const ev = events[i];
-            if (!filters[ev.type]) continue;
-            if (now && !passesTimeFilter(ev, now)) continue;
-            filtered.push(ev);
+            if (ev.day < minDay) break; // events are chronological, can stop early
+            if (filters[ev.type]) filtered.push(ev);
         }
         return filtered;
     },
@@ -136,26 +128,15 @@ export const GodmodeLog = {
         return { ...filters };
     },
 
-    /** Set time filter. Returns new value. */
-    setTimeFilter(value) {
-        if (value in TIME_FILTER_OPTIONS) timeFilter = value;
-        return timeFilter;
-    },
-
-    /** Get current time filter value. */
-    getTimeFilter() {
-        return timeFilter;
-    },
-
     get length() {
         return events.length;
     },
 
     /**
-     * Render filter bar HTML.
+     * Render filter bar HTML (type filters + time window).
      * Reads current filter state from this module.
      */
-    renderFilters() {
+    renderFilters(currentDay) {
         let html = '<div class="gm-log-filters">';
         for (const type in LOG_FILTER_LABELS) {
             const active = filters[type];
@@ -164,12 +145,17 @@ export const GodmodeLog = {
                 '" data-filter="' + type + '" style="color:' + (active ? color : '#3a3428') +
                 '" title="' + type + '">' + LOG_FILTER_LABELS[type] + '</button>';
         }
-        html += '<span class="gm-log-filter-sep"></span>';
-        for (const label of TIME_FILTER_LABELS) {
-            const active = timeFilter === label;
-            html += '<button class="gm-log-filter gm-log-time-filter' + (active ? ' gm-log-filter-on' : '') +
-                '" data-time-filter="' + label + '" style="color:' + (active ? '#b8a878' : '#3a3428') +
-                '">' + label + '</button>';
+        html += '</div>';
+
+        // Time window filters — adaptive to elapsed time
+        const breaks = timeBreakpoints(currentDay || 1);
+        html += '<div class="gm-log-filters gm-log-time-filters">';
+        for (const b of breaks) {
+            const active = timeWindow === b.days;
+            html += '<button class="gm-log-filter' + (active ? ' gm-log-filter-on' : '') +
+                '" data-timewindow="' + b.days +
+                '" style="color:' + (active ? '#b8a878' : '#3a3428') +
+                '">' + b.label + '</button>';
         }
         html += '</div>';
         return html;
@@ -180,9 +166,9 @@ export const GodmodeLog = {
      * Writes directly to the element with id "gm-log-pane".
      * @param {HTMLElement} el
      * @param {Array} [npcs] — current NPC list for name→id mapping
-     * @param {{ day: number, tick: number }} [now] — current time for time filtering
+     * @param {number} [currentDay] — current day for time window filtering
      */
-    renderTo(el, npcs, now) {
+    renderTo(el, npcs, currentDay) {
         if (!el) return;
         // Build name→id map for clickable names
         const nameToId = new Map();
@@ -190,8 +176,9 @@ export const GodmodeLog = {
             for (const n of npcs) nameToId.set(n.name, n.id);
         }
 
-        const recent = this.getFiltered(100, now);
-        let html = this.renderFilters();
+        if (currentDay) lastDay = currentDay;
+        const recent = this.getFiltered(100, lastDay);
+        let html = this.renderFilters(lastDay);
         let count = 0;
         for (const ev of recent) {
             const color = LOG_COLORS[ev.type] || "#b8a878";
@@ -235,21 +222,25 @@ export const GodmodeLog = {
      * replaces innerHTML every frame — if the element is destroyed
      * between mousedown and mouseup, the click event never fires.
      */
-    wireFilterClicks(el, getNow) {
+    wireFilterClicks(el) {
         el.addEventListener("mousedown", function (ev) {
-            const timeBtn = ev.target.closest("[data-time-filter]");
-            if (timeBtn) {
+            const btn = ev.target.closest("[data-timewindow]");
+            if (btn) {
                 ev.preventDefault();
-                GodmodeLog.setTimeFilter(timeBtn.getAttribute("data-time-filter"));
-                GodmodeLog.renderTo(el, null, getNow ? getNow() : undefined);
+                timeWindow = parseInt(btn.getAttribute("data-timewindow"), 10);
+                lastHtml = ""; // force re-render
+                GodmodeLog.renderTo(el);
                 return;
             }
+        });
+        el.addEventListener("mousedown", function (ev) {
             const btn = ev.target.closest("[data-filter]");
             if (!btn) return;
             ev.preventDefault();
             const type = btn.getAttribute("data-filter");
             GodmodeLog.toggleFilter(type);
-            GodmodeLog.renderTo(el, null, getNow ? getNow() : undefined);
+            lastHtml = ""; // force re-render
+            GodmodeLog.renderTo(el);
         });
         // NPC name clicks in log entries
         el.addEventListener("mousedown", function (ev) {
