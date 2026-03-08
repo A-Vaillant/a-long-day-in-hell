@@ -14,6 +14,7 @@ let lastRenderTime = 0;
 const RENDER_THROTTLE_MS = 400;
 let powersOpen = false;
 let lastSnap = null;
+let lastSelectedId = undefined;
 const distCache = new Map(); // npcId → "123 moves" or "456 moves (damned)"
 
 // Powers registry: { key, label, available(npc), action(npcId) }
@@ -662,6 +663,7 @@ export const GodmodePanel = {
         lastHtml = "";
         lastGrpHtml = "";
         powersOpen = false;
+        lastSelectedId = undefined;
         distCache.clear();
 
         // Build powers registry from callbacks
@@ -816,8 +818,11 @@ export const GodmodePanel = {
         if (!force && now - lastRenderTime < RENDER_THROTTLE_MS) return;
         lastRenderTime = now;
 
-        // Clear distance cache each render so stale values don't persist after NPC movement
-        distCache.clear();
+        // Clear distance cache when selection changes so stale values don't persist after NPC movement
+        if (selectedId !== lastSelectedId) {
+            distCache.clear();
+            lastSelectedId = selectedId;
+        }
 
         if (selectedId === null) {
             renderList(snap, pane);
