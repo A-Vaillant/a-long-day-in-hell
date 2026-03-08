@@ -30,6 +30,7 @@ let followMode = false;
 let activeTab = "log"; // "log" | "npc" | "grp" | "trend"
 let prevSnap = null;
 let ffBusy = false;     // true during async fast-forward
+let ffInput = null;    // the fast-forward text input (set in setupDOM)
 let possessing = false; // true while controlling an NPC
 let godmodeDOM = null;  // saved godmode container for restoration
 
@@ -558,7 +559,7 @@ function setupInput(canvas) {
     document.getElementById("gm-skip-week").addEventListener("click", function () { skipDays(7); });
     document.getElementById("gm-skip-year").addEventListener("click", function () { skipDays(365); });
 
-    const ffInput = document.getElementById("gm-ff-input");
+    ffInput = document.getElementById("gm-ff-input");
     ffInput.addEventListener("keydown", function (ev) {
         ev.stopPropagation(); // don't let godmode keys fire while typing
         if (ev.key === "Enter") {
