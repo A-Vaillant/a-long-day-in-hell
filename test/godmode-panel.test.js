@@ -308,6 +308,84 @@ describe("GodmodePanel — Searching section", () => {
     });
 });
 
+// Helper: NPC with a knowledge component containing a life story
+function makeNpcWithKnowledge(storyText, bookCoords, npcOverrides) {
+    const bc = bookCoords || { side: 0, position: 100n, floor: 5n, bookIndex: 3 };
+    return makeNpc({
+        ...npcOverrides,
+        components: {
+            psychology: { lucidity: 80, hope: 60 },
+            personality: { temperament: 0.5, pace: 0.3, openness: 0.7, outlook: 0.6 },
+            knowledge: {
+                lifeStory: {
+                    name: "Test NPC",
+                    storyText: storyText,
+                    bookCoords: bc,
+                },
+                bookVision: null,
+                visionAccurate: false,
+                hasBook: false,
+            },
+        },
+    });
+}
+
+describe("GodmodePanel — Damnation", () => {
+    beforeEach(() => {
+        makeDOM();
+        GodmodePanel.init({});
+    });
+    afterEach(() => { delete global.document; });
+
+    it("shows [?] button when NPC has knowledge component", () => {
+        const npc = makeNpcWithKnowledge("Short text.");
+        GodmodePanel.update(makeSnap([npc]), 0, true);
+        const btn = document.querySelector(".gm-calc-dist");
+        assert.ok(btn, "should have [?] button");
+        assert.strictEqual(btn.textContent, "[?]");
+    });
+
+    it("clicking [?] with damned NPC shows DAMNED message", () => {
+        const prose = "Your name was Rosa Ingram. You were a librarian, from Portland. You died of heart failure. Before you died, you were thinking about the garden.";
+        const npc = makeNpcWithKnowledge(prose);
+        GodmodePanel.update(makeSnap([npc]), 0, true);
+        const btn = document.querySelector(".gm-calc-dist");
+        btn.click();
+        assert.ok(btn.textContent.includes("DAMNED"), `expected DAMNED, got: ${btn.textContent}`);
+        assert.ok(btn.textContent.includes("edge"));
+    });
+
+    it("clicking [?] with in-bounds NPC shows distance in moves", () => {
+        const shortText = "You were born.";
+        const bc = { side: 0, position: 200n, floor: 10n, bookIndex: 0 };
+        const npc = makeNpcWithKnowledge(shortText, bc, { side: 0, position: 100n, floor: 5n });
+        GodmodePanel.update(makeSnap([npc]), 0, true);
+        const btn = document.querySelector(".gm-calc-dist");
+        btn.click();
+        assert.ok(btn.textContent.includes("moves"), `expected moves, got: ${btn.textContent}`);
+        assert.ok(!btn.textContent.includes("DAMNED"));
+    });
+
+    it("in-bounds distance is correct arithmetic", () => {
+        const shortText = "You were born.";
+        const bc = { side: 0, position: 200n, floor: 10n, bookIndex: 0 };
+        const npc = makeNpcWithKnowledge(shortText, bc, { side: 0, position: 100n, floor: 5n });
+        GodmodePanel.update(makeSnap([npc]), 0, true);
+        const btn = document.querySelector(".gm-calc-dist");
+        btn.click();
+        assert.ok(btn.textContent.includes("105"), `expected 105, got: ${btn.textContent}`);
+    });
+
+    it("[?] becomes non-clickable after calculation", () => {
+        const prose = "Your name was Rosa Ingram. You were a librarian, from Portland. You died of heart failure.";
+        const npc = makeNpcWithKnowledge(prose);
+        GodmodePanel.update(makeSnap([npc]), 0, true);
+        const btn = document.querySelector(".gm-calc-dist");
+        btn.click();
+        assert.strictEqual(btn.style.cursor, "default");
+    });
+});
+
 describe("GodmodePanel — Groups tab", () => {
     beforeEach(() => {
         makeDOM();
