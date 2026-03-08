@@ -968,6 +968,7 @@ button:disabled {
 
 #kiosk-view {
     max-width: 480px;
+    font-weight: normal;
 }
 
 #kiosk-view a {
