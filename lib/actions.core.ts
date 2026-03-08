@@ -25,6 +25,7 @@ import {
     HABITUATION, type Habituation, type ShockConfig, DEFAULT_SHOCKS,
     applyShock as applyHabituatedShock,
 } from "./psych.core.ts";
+import { PERSONALITY, type Personality } from "./personality.core.ts";
 
 export interface Rng {
     next(): number;
@@ -155,6 +156,12 @@ export function invite(
  * Voluntarily leave a companion. Source walks away from target.
  *
  * Asymmetric affinity impact: the one being left takes a bigger hit.
+ * Personality scales the damage:
+ * - Target openness amplifies hurt (they let you in, you left)
+ * - Target temperament modulates reaction (volatile = rage, withdrawn = despair)
+ * - Source openness amplifies guilt
+ *
+ * Also removes target from their group if they share one with source.
  */
 export function dismiss(
     world: World,
@@ -170,20 +177,26 @@ export function dismiss(
     const srcRels = getComponent<Relationships>(world, source, RELATIONSHIPS);
     const tgtRels = getComponent<Relationships>(world, target, RELATIONSHIPS);
     const tgtPsych = getComponent<Psychology>(world, target, PSYCHOLOGY);
+    const srcPers = getComponent<Personality>(world, source, PERSONALITY);
+    const tgtPers = getComponent<Personality>(world, target, PERSONALITY);
 
-    // Source: mild guilt
+    // Source: guilt scaled by openness (empathetic people feel it more)
+    const srcOpenness = srcPers ? srcPers.openness : 0.5;
+    const guiltBase = 2 + srcOpenness * 3; // 2–5
     if (srcRels) {
         const bond = srcRels.bonds.get(target);
         if (bond) {
-            bond.affinity = Math.max(bondConfig.minAffinity, bond.affinity - 3);
+            bond.affinity = Math.max(bondConfig.minAffinity, bond.affinity - guiltBase);
         }
     }
 
-    // Target: sharper hit — being left hurts
+    // Target: hurt scaled by openness (they let you in) and familiarity (they knew you)
+    const tgtOpenness = tgtPers ? tgtPers.openness : 0.5;
     if (tgtRels) {
         const bond = tgtRels.bonds.get(source);
         if (bond) {
-            const loss = 5 + Math.floor(bond.familiarity / 10); // worse if they knew you well
+            const famPenalty = Math.floor(bond.familiarity / 8); // worse if they knew you well
+            const loss = 4 + tgtOpenness * 6 + famPenalty; // 4–16+
             bond.affinity = Math.max(bondConfig.minAffinity, bond.affinity - loss);
         }
     }
@@ -192,6 +205,14 @@ export function dismiss(
     if (tgtPsych) {
         const tgtHabit = getComponent<Habituation>(world, target, HABITUATION);
         applyHabituatedShock(tgtPsych, tgtHabit, "beingDismissed");
+    }
+
+    // Remove target from group if they share one with source
+    const srcGroup = getComponent(world, source, GROUP) as { groupId: number } | undefined;
+    const tgtGroup = getComponent(world, target, GROUP) as { groupId: number } | undefined;
+    if (srcGroup && tgtGroup && srcGroup.groupId === tgtGroup.groupId) {
+        const groupMap = world.components.get(GROUP) as Map<Entity, any> | undefined;
+        if (groupMap) groupMap.delete(target);
     }
 
     return ok();

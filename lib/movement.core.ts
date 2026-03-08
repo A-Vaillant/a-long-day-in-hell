@@ -23,6 +23,8 @@ import { NEEDS, type Needs } from "./needs.core.ts";
 import { INTENT, type Intent } from "./intent.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
 import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
+import { GROUP, type Group } from "./social.core.ts";
+import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { isRestArea } from "./library.core.ts";
 
 // --- Component ---
@@ -162,15 +164,33 @@ export function movementSystem(
                     pos.floor = Math.max(0, pos.floor);
                 }
             } else {
-                // Explore: walk in current heading
-                pos.position += mov.heading;
+                // Explore: walk in current heading, biased toward group leader
+                const group = getComponent<Group>(world, entity, GROUP);
+                const leaderPos = group?.leaderId != null && group.leaderId !== entity
+                    ? getComponent<Position>(world, group.leaderId, POSITION) : null;
+                const followingLeader = leaderPos && leaderPos.side === pos.side && leaderPos.floor === pos.floor
+                    && leaderPos.position !== pos.position;
+
+                if (followingLeader) {
+                    // Bias toward leader — patient NPCs follow more closely
+                    const pers = getComponent<Personality>(world, entity, PERSONALITY);
+                    const patience = pers ? 1.0 - pers.pace : 0.5; // 0=restless, 1=patient
+                    const followChance = 0.5 + patience * 0.4; // 0.5–0.9
+                    if (rng.next() < followChance) {
+                        pos.position += stepToward(pos.position, leaderPos!.position);
+                    } else {
+                        pos.position += mov.heading;
+                    }
+                } else {
+                    pos.position += mov.heading;
+                }
                 if (isRestArea(pos.position)) {
                     // Chance to reverse
                     if (rng.next() < config.exploreReverseChance) {
                         mov.heading = -mov.heading;
                     }
-                    // Chance to change floor
-                    if (rng.next() < config.exploreFloorChance) {
+                    // Chance to change floor — suppressed when following a leader
+                    if (!followingLeader && rng.next() < config.exploreFloorChance) {
                         pos.floor += rng.next() < 0.5 ? 1 : -1;
                         pos.floor = Math.max(0, pos.floor);
                     }
@@ -232,18 +252,27 @@ export function movementSystem(
                     }
                 }
             } else {
-                // Explore batch: walk n steps in heading, reversing at rest areas
-                // Simplified: net displacement is n in heading direction,
-                // minus reversals. Approximate with heading * n, then apply
-                // floor changes at landing position.
-                pos.position += mov.heading * n;
+                // Explore batch: walk n steps, biased toward group leader if applicable
+                const group = getComponent<Group>(world, entity, GROUP);
+                const leaderPos = group?.leaderId != null && group.leaderId !== entity
+                    ? getComponent<Position>(world, group.leaderId, POSITION) : null;
+                const followingLeader = leaderPos && leaderPos.side === pos.side && leaderPos.floor === pos.floor;
+
+                if (followingLeader) {
+                    // Move toward leader position in batch
+                    const dist = leaderPos!.position - pos.position;
+                    const step = Math.min(Math.abs(dist), n);
+                    pos.position += Math.sign(dist) * step;
+                } else {
+                    pos.position += mov.heading * n;
+                }
                 // Check if we crossed any rest areas — approximate floor changes
                 const restsCrossed = Math.floor(Math.abs(n) / 10);
                 for (let i = 0; i < restsCrossed; i++) {
                     if (rng.next() < config.exploreReverseChance) {
                         mov.heading = -mov.heading;
                     }
-                    if (rng.next() < config.exploreFloorChance) {
+                    if (!followingLeader && rng.next() < config.exploreFloorChance) {
                         pos.floor += rng.next() < 0.5 ? 1 : -1;
                         pos.floor = Math.max(0, pos.floor);
                     }
