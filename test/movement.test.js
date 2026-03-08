@@ -5,6 +5,7 @@ import { POSITION, IDENTITY, PSYCHOLOGY } from "../lib/social.core.ts";
 import { NEEDS } from "../lib/needs.core.ts";
 import { MOVEMENT, movementSystem, DEFAULT_MOVEMENT } from "../lib/movement.core.ts";
 import { INTENT } from "../lib/intent.core.ts";
+import { KNOWLEDGE, markSearched } from "../lib/knowledge.core.ts";
 
 function makeRng(values) {
     let i = 0;
@@ -12,16 +13,23 @@ function makeRng(values) {
 }
 
 function makeNpc(world, {
-    position = 0, floor = 0, alive = true,
-    behavior = "explore", heading = 1,
+    position = 0, floor = 0, side = 0, alive = true,
+    behavior = "explore", heading = 1, withKnowledge = false,
 } = {}) {
     const e = spawn(world);
     addComponent(world, e, IDENTITY, { name: "Test", alive });
-    addComponent(world, e, POSITION, { side: 0, position, floor });
+    addComponent(world, e, POSITION, { side, position, floor });
     addComponent(world, e, PSYCHOLOGY, { lucidity: 100, hope: 100 });
     addComponent(world, e, NEEDS, { hunger: 0, thirst: 0, exhaustion: 0 });
     addComponent(world, e, MOVEMENT, { targetPosition: null, heading });
     addComponent(world, e, INTENT, { behavior, cooldown: 0, elapsed: 0 });
+    if (withKnowledge) {
+        addComponent(world, e, KNOWLEDGE, {
+            lifeStory: null, bookVision: null,
+            visionAccurate: true, hasBook: false,
+            searchedSegments: new Set(),
+        });
+    }
     return e;
 }
 
@@ -199,5 +207,80 @@ describe("movementSystem", () => {
         movementSystem(w, makeRng([0.3, 0.7]), undefined, 10);
         const pos = getComponent(w, e, POSITION);
         assert.equal(pos.position, 50);
+    });
+
+    // --- Knowledge-aware exploration ---
+
+    it("explore reverses when forward span is fully searched", () => {
+        const w = createWorld();
+        // At pos 9 heading +1 → lands on rest area 10
+        const e = makeNpc(w, { position: 9, heading: 1, behavior: "explore", withKnowledge: true });
+        const k = getComponent(w, e, KNOWLEDGE);
+        // Mark all 10 segments ahead (11–20) as searched
+        for (let i = 1; i <= 10; i++) markSearched(k, 0, 10 + i, 0);
+        // Behind (1–9) not searched
+        movementSystem(w, makeRng([0.5]));
+        const mov = getComponent(w, e, MOVEMENT);
+        assert.equal(mov.heading, -1, "should reverse away from exhausted span");
+    });
+
+    it("explore keeps heading when forward span has unsearched segments", () => {
+        const w = createWorld();
+        const e = makeNpc(w, { position: 9, heading: 1, behavior: "explore", withKnowledge: true });
+        const k = getComponent(w, e, KNOWLEDGE);
+        // Mark backward span (1–9) searched, forward has work
+        for (let i = 1; i <= 9; i++) markSearched(k, 0, i, 0);
+        movementSystem(w, makeRng([0.5]));
+        const mov = getComponent(w, e, MOVEMENT);
+        assert.equal(mov.heading, 1, "should keep heading toward unsearched span");
+    });
+
+    it("explore prefers floor change when both spans exhausted", () => {
+        const w = createWorld();
+        // At pos 9, floor 2, heading +1 → lands on rest area 10
+        const e = makeNpc(w, { position: 9, floor: 2, heading: 1, behavior: "explore", withKnowledge: true });
+        const k = getComponent(w, e, KNOWLEDGE);
+        // Exhaust both spans on floor 2
+        for (let i = 1; i <= 10; i++) {
+            markSearched(k, 0, 10 + i, 2);
+            markSearched(k, 0, 10 - i, 2);
+        }
+        // rng: first for direction (both exhausted, 0.5 > 0.3 so no reverse),
+        //       then 0.2 < 0.5 (exhausted floor change chance) → floor change
+        //       floor 3 has work, floor 1 has work → random: 0.3 < 0.5 → +1
+        movementSystem(w, makeRng([0.5, 0.2, 0.3]));
+        const pos = getComponent(w, e, POSITION);
+        assert.equal(pos.floor, 3, "should change floor when local area exhausted");
+    });
+
+    it("explore prefers unsearched floor direction", () => {
+        const w = createWorld();
+        const e = makeNpc(w, { position: 9, floor: 2, heading: 1, behavior: "explore", withKnowledge: true });
+        const k = getComponent(w, e, KNOWLEDGE);
+        // Exhaust both spans on floor 2
+        for (let i = 1; i <= 10; i++) {
+            markSearched(k, 0, 10 + i, 2);
+            markSearched(k, 0, 10 - i, 2);
+        }
+        // Also exhaust floor 3 (both spans)
+        for (let i = 1; i <= 10; i++) {
+            markSearched(k, 0, 10 + i, 3);
+            markSearched(k, 0, 10 - i, 3);
+        }
+        // Floor 1 still has work
+        // rng: direction (0.5), floor roll (0.2 < 0.5), floor preference → down
+        movementSystem(w, makeRng([0.5, 0.2, 0.8]));
+        const pos = getComponent(w, e, POSITION);
+        assert.equal(pos.floor, 1, "should prefer floor with unsearched territory");
+    });
+
+    it("explore without knowledge falls back to random behavior", () => {
+        const w = createWorld();
+        // No withKnowledge — original behavior
+        const e = makeNpc(w, { position: 9, heading: 1, behavior: "explore" });
+        // rng: 0.1 < 0.3 → reverse
+        movementSystem(w, makeRng([0.1, 0.9]));
+        const mov = getComponent(w, e, MOVEMENT);
+        assert.equal(mov.heading, -1, "should use random reversal without knowledge");
     });
 });

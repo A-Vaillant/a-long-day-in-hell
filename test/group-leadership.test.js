@@ -172,6 +172,7 @@ describe("Group movement bias", () => {
         const startPos = 40;
         let moved = 0;
         for (let i = 0; i < 100; i++) {
+            getComponent(world, leader, POSITION).position = 50;
             const pos = getComponent(world, follower, POSITION);
             pos.position = startPos;
             const tickRng = seedFromString("follow:" + i);
