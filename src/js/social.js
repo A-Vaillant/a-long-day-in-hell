@@ -443,6 +443,26 @@ export const Social = {
     getPlayerEntity() { return playerEntity; },
     getNpcEntity(npcId) { return npcEntities.get(npcId); },
 
+    /** Resolve an ECS entity to a display name. */
+    getEntityName(entity) {
+        if (!world) return null;
+        const ident = getComponent(world, entity, IDENTITY);
+        return ident ? ident.name : null;
+    },
+
+    /** Get player memory component (for introspection screen). */
+    getPlayerMemory() {
+        if (!world || playerEntity === null) return null;
+        return getComponent(world, playerEntity, MEMORY);
+    },
+
+    /** Get NPC memory component (for godmode / narrative). */
+    getNpcMemory(npcId) {
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined || !world) return null;
+        return getComponent(world, ent, MEMORY);
+    },
+
     /** Get player psychology (for sidebar/UI). */
     getPlayerPsych() {
         if (!world || playerEntity === null) return null;

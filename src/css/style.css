@@ -389,6 +389,20 @@ button:disabled {
 }
 .sb-home::before { content: "home: "; font-style: italic; }
 
+.sb-actions {
+    margin-bottom: 0.2rem;
+}
+.sb-actions a {
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.9em;
+    cursor: pointer;
+    display: block;
+    padding: 0.1rem 0;
+}
+.sb-actions a:hover { color: var(--text); }
+
 .sb-menu a {
     color: var(--text-dim);
     text-transform: uppercase;
@@ -959,6 +973,42 @@ button:disabled {
 #submission-view {
     max-width: 480px;
 }
+
+/* === MEMORY SCREEN === */
+
+.memory-view {
+    max-width: 520px;
+}
+
+.memory-entry {
+    margin: 0.6rem 0;
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.6;
+}
+
+.memory-entry:last-of-type {
+    border-bottom: none;
+}
+
+.memory-prose {
+    color: var(--text);
+}
+
+.memory-subject {
+    color: #b8a878;
+}
+
+.memory-meta {
+    font-size: 0.85em;
+    color: var(--text-dim);
+    margin-left: 0.4em;
+}
+
+.memory-vivid .memory-prose   { color: var(--text); }
+.memory-clear .memory-prose   { color: #a09070; }
+.memory-fading .memory-prose  { color: #7a6a50; }
+.memory-distant .memory-prose { color: #5a4e38; }
 
 /* === DEATH SCREEN === */
 

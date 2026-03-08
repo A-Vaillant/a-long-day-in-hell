@@ -1209,6 +1209,113 @@ Engine.register("Falling", {
     },
 });
 
+/* ---------- Memory ---------- */
+
+const MEMORY_TYPE_PROSE = {
+    witnessChasm:    "memory_witness_chasm",
+    foundBody:       "memory_found_body",
+    companionDied:   "memory_companion_died",
+    groupDissolved:  "memory_group_dissolved",
+    witnessEscape:   "memory_witness_escape",
+    foundWords:      "memory_found_words",
+    witnessMadness:  "memory_witness_madness",
+    companionMad:    "memory_companion_mad",
+};
+
+function memoryVividness(weight, initialWeight) {
+    if (initialWeight <= 0) return "";
+    const r = weight / initialWeight;
+    if (r >= 0.8) return "vivid";
+    if (r >= 0.5) return "clear";
+    if (r >= 0.25) return "fading";
+    return "distant";
+}
+
+function memoryAgeStr(tick, currentTick) {
+    const age = currentTick - tick;
+    const days = Math.floor(age / 240);
+    if (days === 0) return "today";
+    if (days === 1) return "yesterday";
+    return days + " days ago";
+}
+
+Engine.register("Memory", {
+    kind: "state",
+    render() {
+        const mem = Social.getPlayerMemory();
+        const currentTick = (state.day - 1) * 240 + state.tick;
+
+        let html = '<div class="memory-view">';
+        html += '<p class="location-header">Memory</p>';
+
+        if (!mem || mem.entries.length === 0) {
+            html += '<p>' + esc(TEXT.screens.memory_empty) + '</p>';
+        } else {
+            // Sort by weight descending (most vivid first)
+            const sorted = mem.entries.slice().sort((a, b) => b.weight - a.weight);
+            for (const entry of sorted) {
+                const proseKey = MEMORY_TYPE_PROSE[entry.type];
+                const prose = proseKey && TEXT.screens[proseKey] ? TEXT.screens[proseKey] : entry.type;
+                const vividness = memoryVividness(entry.weight, entry.initialWeight);
+                const age = memoryAgeStr(entry.tick, currentTick);
+                const name = entry.subject != null ? Social.getEntityName(entry.subject) : null;
+
+                html += '<div class="memory-entry memory-' + vividness + '">';
+                html += '<span class="memory-prose">' + esc(prose) + '</span>';
+                if (name) html += ' <span class="memory-subject">' + esc(name) + '.</span>';
+                html += ' <span class="memory-meta">' + esc(age);
+                if (entry.permanent) html += ' \u00b7 permanent';
+                html += '</span>';
+                html += '</div>';
+            }
+        }
+
+        html += '<p class="key-hint"><a data-goto="Corridor"><kbd>q</kbd> Back</a></p>';
+        html += '</div>';
+        return html;
+    },
+});
+
+/**
+ * Ambient memory: return a line of prose if the player has a relevant memory
+ * for the current location/context. Returns null if nothing fires.
+ *
+ * TODO: wire into corridor render — call this and append to room description
+ * when it returns a non-null string. Deliberately not wired yet.
+ *
+ * @param {string} context — "chasm", "body", "escape", "madness"
+ */
+export function getAmbientMemoryProse(context) {
+    const mem = Social.getPlayerMemory();
+    if (!mem || mem.entries.length === 0) return null;
+
+    const CONTEXT_TYPES = {
+        chasm:   ["witnessChasm"],
+        body:    ["foundBody", "companionDied"],
+        escape:  ["witnessEscape"],
+        madness: ["witnessMadness", "companionMad"],
+    };
+
+    const relevant = CONTEXT_TYPES[context];
+    if (!relevant) return null;
+
+    // Find strongest relevant memory above threshold (weight > 1)
+    let best = null;
+    for (const entry of mem.entries) {
+        if (!relevant.includes(entry.type)) continue;
+        if (entry.weight <= 1) continue;
+        if (!best || entry.weight > best.weight) best = entry;
+    }
+    if (!best) return null;
+
+    const proseKey = "ambient_memory_" + context;
+    const options = TEXT.screens[proseKey];
+    if (!options || !options.length) return null;
+
+    // Deterministic pick based on memory ID so it's stable across renders
+    return options[best.id % options.length];
+}
+
 /* ---------- Death ---------- */
 
 Engine.register("Death", {

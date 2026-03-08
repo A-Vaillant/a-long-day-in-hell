@@ -230,6 +230,9 @@ export const Engine = {
         }
 
         html += '<div class="sb-divider"></div>';
+        html += '<div class="sb-actions">';
+        html += '<a data-goto="Memory">memory <kbd>m</kbd></a>';
+        html += '</div>';
         html += '<div class="sb-menu"><a id="sidebar-menu" data-goto="Menu">menu <kbd>esc</kbd></a></div>';
         html += '</div>';
         cap.innerHTML = html;
