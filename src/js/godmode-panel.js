@@ -525,7 +525,10 @@ function renderNpcFilters() {
 }
 
 function npcPassesFilter(npc) {
-    if (npc.isPlayer) return pcFilter !== "exclude";
+    if (pcFilter === "include") return npc.isPlayer;
+    if (pcFilter === "exclude") return !npc.isPlayer && (npc.alive ? npcFilters[npc.disposition] !== false : npcFilters.dead);
+    // ignored: player always shown, others filtered normally
+    if (npc.isPlayer) return true;
     if (!npc.alive) return npcFilters.dead;
     return npcFilters[npc.disposition] !== false;
 }
@@ -549,9 +552,7 @@ function renderList(snap, pane) {
         count++;
         const dispClass = "gm-disp-" + npc.disposition;
         const dead = npc.alive ? "" : " gm-npc-row-dead";
-        const pcMod = npc.isPlayer
-            ? (pcFilter === "include" ? " gm-npc-row-player-include" : " gm-npc-row-player-ignored")
-            : "";
+        const pcMod = npc.isPlayer ? " gm-npc-row-player-include" : "";
         html += '<div class="gm-npc-row' + dead + pcMod + '" data-npc-id="' + npc.id + '">';
         html += '<div class="gm-npc-row-top">';
         html += '<span class="gm-npc-row-name">' + esc(npc.name) + '</span>';

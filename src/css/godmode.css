@@ -498,10 +498,6 @@ body.godmode {
     opacity: 0.5;
 }
 
-.gm-npc-row-player-ignored {
-    opacity: 0.4;
-}
-
 .gm-npc-row-player-include {
     background: #0d1e2a;
     border-left: 2px solid #7ab8e0;

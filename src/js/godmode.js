@@ -762,9 +762,6 @@ function setupInput(canvas) {
         // Don't handle godmode keys during possession — normal keybindings take over
         if (possessing) return;
 
-        // Don't handle keys when typing in the FF input
-        if (document.activeElement === ffInput) return;
-
         // Cancel fast-forward on Escape or Space
         if (ffBusy && (ev.key === "Escape" || ev.key === " ")) {
             ev.preventDefault();
