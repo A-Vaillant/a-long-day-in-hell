@@ -14,6 +14,7 @@ import { seedFromString, type Xoshiro128ss } from "./prng.core.ts";
 import { BOOKS_PER_GALLERY, isRestArea } from "./library.core.ts";
 import { PAGES_PER_BOOK } from "./book.core.ts";
 import { bigAbs } from "./bigint-utils.core.ts";
+import { textToAddress, addressToCoords, computeBookAddress, LIBRARY_MAX, PLAYABLE_ADDRESS_MAX } from "./invertible.core.ts";
 
 export interface BookCoords {
     side: number;
@@ -31,6 +32,10 @@ export interface StartLocation {
 export interface LifeStoryOptions {
     placement?: "gaussian" | "random";
     startLoc?: StartLocation;
+    /** Raw textToAddress of the player's storyText. Required for NPCs; omit for the player. */
+    playerRawAddress?: bigint;
+    /** Random origin for the coordinate system, in [0, LIBRARY_MAX]. Derived from game seed. */
+    randomOrigin?: bigint;
 }
 
 export interface LifeStory {
@@ -45,6 +50,10 @@ export interface LifeStory {
     bookCoords: BookCoords;
     /** Where the player wakes up — derived from bookCoords, not the origin. */
     playerStart: StartLocation;
+    /** textToAddress(storyText) with no early-exit limit. Cached for coordinate system anchoring. */
+    rawBookAddress: bigint;
+    /** Offset address in the anchored coordinate system. In [0, LIBRARY_MAX] iff not damned. */
+    bookAddress: bigint;
 }
 
 // Template pools
@@ -153,7 +162,7 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const firstName = pick(FIRST_NAMES);
     const lastName  = pick(LAST_NAMES);
 
-    const story: StoryFields & { storyText?: string; targetPage?: number; placement?: string; bookCoords?: BookCoords; playerStart?: StartLocation } = {
+    const story: StoryFields & { storyText?: string; targetPage?: number; placement?: string; bookCoords?: BookCoords; playerStart?: StartLocation; rawBookAddress?: bigint; bookAddress?: bigint } = {
         name:         `${firstName} ${lastName}`,
         occupation:   pick(OCCUPATIONS),
         hometown:     pick(HOMETOWNS),
@@ -168,18 +177,32 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     // Which page of the target book holds the life story (0-indexed)
     story.targetPage = rng.nextInt(PAGES_PER_BOOK);
 
-    // Book coordinates: derived from story text itself.
-    // The content determines where the book lives in the library.
-    const coordRng: Xoshiro128ss = seedFromString("coords:" + story.storyText);
+    // Book coordinates: derived from storyText via the address system.
+    //
+    // rawBookAddress = textToAddress(storyText) with no early-exit — the true base-95
+    // interpretation of this soul's life story prose.
+    //
+    // bookAddress = rawAddress - playerRawAddress + randomOrigin.
+    // For the player: rawAddress IS playerRawAddress, so bookAddress = randomOrigin (in bounds).
+    // For NPCs: big - big + small; usually still huge → damned.
+    //
+    // bookCoords = addressToCoords(bookAddress % LIBRARY_MAX) — always a valid shelf location,
+    // but only meaningful (reachable) when bookAddress <= LIBRARY_MAX.
+    const rawBookAddress: bigint = textToAddress(story.storyText, undefined);
+    story.rawBookAddress = rawBookAddress;
 
-    let side: number, position: bigint, floor: bigint, bookIndex: number;
+    const playerRawAddress: bigint = (opts && opts.playerRawAddress != null) ? opts.playerRawAddress : rawBookAddress;
+    const randomOrigin: bigint = (opts && opts.randomOrigin != null) ? opts.randomOrigin : PLAYABLE_ADDRESS_MAX / 2n;
+    const bookAddress: bigint = computeBookAddress(rawBookAddress, playerRawAddress, randomOrigin);
+    story.bookAddress = bookAddress;
 
-    // Book is placed randomly anywhere in the library.
-    // Player start is derived from book coords via stone-throw + power-law ring.
-    side      = coordRng.nextInt(2);
-    position  = BigInt(coordRng.nextInt(10_000_000_000) - 5_000_000_000);
-    floor     = BigInt(coordRng.nextInt(10_000));
-    bookIndex = coordRng.nextInt(BOOKS_PER_GALLERY);
+    // Derive coords by mapping bookAddress into the playable range.
+    // For in-bounds souls bookAddress is already within [0, PLAYABLE_ADDRESS_MAX].
+    // For damned souls we still derive coords (for display), wrapping into range.
+    const addrForCoords: bigint = ((bookAddress % PLAYABLE_ADDRESS_MAX) + PLAYABLE_ADDRESS_MAX) % PLAYABLE_ADDRESS_MAX;
+    const { side, position: rawPosition, floor: rawFloor, bookIndex } = addressToCoords(addrForCoords, BOOKS_PER_GALLERY);
+    let position: bigint = rawPosition;
+    let floor: bigint = rawFloor;
 
     // Rest areas have no shelves — nudge to nearest gallery
     if (isRestArea(position)) position += 1n;
@@ -198,7 +221,7 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const ringR  = Math.floor(stoneR * Math.pow(66, powerU));
     const dir    = spawnRng.next() < 0.5 ? 1n : -1n;
     const floorOffset = BigInt(Math.floor(spawnRng.next() * 61) - 30);
-    const playerSide  = coordRng.nextInt(2);
+    const playerSide  = spawnRng.nextInt(2);
     const playerPos   = position + dir * BigInt(ringR);
     const playerFloor = floor + floorOffset < 0n ? 0n : floor + floorOffset;
 
@@ -216,6 +239,7 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     story.placement = placement;
     story.bookCoords = { side, position, floor, bookIndex };
     story.playerStart = playerStart;
+    // rawBookAddress and bookAddress already set above
 
     return story as LifeStory;
 }
@@ -234,9 +258,14 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
  * @param {string} globalSeed
  * @returns {LifeStory}
  */
-export function generateNPCLifeStory(npcId: number, globalSeed: string): LifeStory {
+export function generateNPCLifeStory(
+    npcId: number,
+    globalSeed: string,
+    playerRawAddress: bigint,
+    randomOrigin: bigint,
+): LifeStory {
     const seed = `npc:${npcId}:${globalSeed}`;
-    return generateLifeStory(seed, { placement: "random" });
+    return generateLifeStory(seed, { placement: "random", playerRawAddress, randomOrigin });
 }
 
 /**

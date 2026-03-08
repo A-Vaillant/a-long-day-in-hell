@@ -5,12 +5,22 @@ import { generateBookPage, PAGES_PER_BOOK } from "../lib/book.core.ts";
 import { isRestArea } from "../lib/library.core.ts";
 import { spawnNPCs } from "../lib/npc.core.ts";
 import { seedFromString } from "../lib/prng.core.ts";
+import { PLAYABLE_ADDRESS_MAX, addressToCoords } from "../lib/invertible.core.ts";
 
 const SEED = "test-seed-42";
 
+// Shared player anchors for tests — simulate what engine.js sets up at new game.
+const PLAYER_STORY = generateLifeStory(SEED);
+const PLAYER_RAW = PLAYER_STORY.rawBookAddress;
+const RANDOM_ORIGIN = PLAYABLE_ADDRESS_MAX / 2n;
+
+function npcStory(id) {
+    return generateNPCLifeStory(id, SEED, PLAYER_RAW, RANDOM_ORIGIN);
+}
+
 describe("generateNPCLifeStory", () => {
     it("returns a valid life story for an NPC", () => {
-        const story = generateNPCLifeStory(0, SEED);
+        const story = npcStory(0);
         assert.ok(story.name, "has a name");
         assert.ok(story.occupation, "has an occupation");
         assert.ok(story.hometown, "has a hometown");
@@ -25,15 +35,15 @@ describe("generateNPCLifeStory", () => {
     });
 
     it("is deterministic — same id + seed = same story", () => {
-        const a = generateNPCLifeStory(7, SEED);
-        const b = generateNPCLifeStory(7, SEED);
+        const a = npcStory(7);
+        const b = npcStory(7);
         assert.deepStrictEqual(a, b);
     });
 
     it("different NPC ids produce different stories", () => {
         const stories = [];
         for (let i = 0; i < 10; i++) {
-            stories.push(generateNPCLifeStory(i, SEED));
+            stories.push(npcStory(i));
         }
         const names = stories.map(s => s.name);
         const coords = stories.map(s => `${s.bookCoords.side}:${s.bookCoords.position}:${s.bookCoords.floor}:${s.bookCoords.bookIndex}`);
@@ -45,7 +55,7 @@ describe("generateNPCLifeStory", () => {
 
     it("NPC book coords never land on rest areas", () => {
         for (let i = 0; i < 20; i++) {
-            const story = generateNPCLifeStory(i, SEED);
+            const story = npcStory(i);
             assert.ok(
                 !isRestArea(story.bookCoords.position),
                 `NPC ${i} book at rest area position ${story.bookCoords.position}`,
@@ -58,9 +68,9 @@ describe("generateNPCLifeStory", () => {
         const playerStory = generateLifeStory(SEED);
         const playerCoords = coordKey(playerStory.bookCoords);
         for (let i = 0; i < 20; i++) {
-            const npcStory = generateNPCLifeStory(i, SEED);
+            const ns = npcStory(i);
             assert.notStrictEqual(
-                coordKey(npcStory.bookCoords),
+                coordKey(ns.bookCoords),
                 playerCoords,
                 `NPC ${i} book collides with player book`,
             );
@@ -69,14 +79,14 @@ describe("generateNPCLifeStory", () => {
 
     it("NPC book coords have non-negative floor", () => {
         for (let i = 0; i < 20; i++) {
-            const story = generateNPCLifeStory(i, SEED);
+            const story = npcStory(i);
             assert.ok(story.bookCoords.floor >= 0n, `NPC ${i} floor < 0`);
         }
     });
 
     it("NPC book index is within gallery bounds", () => {
         for (let i = 0; i < 20; i++) {
-            const story = generateNPCLifeStory(i, SEED);
+            const story = npcStory(i);
             assert.ok(story.bookCoords.bookIndex >= 0, "bookIndex >= 0");
             assert.ok(story.bookCoords.bookIndex < 192, "bookIndex < BOOKS_PER_GALLERY");
         }
@@ -85,7 +95,7 @@ describe("generateNPCLifeStory", () => {
 
 describe("NPC target book page contains their story", () => {
     it("the target page of an NPC book is their story text, not random ASCII", () => {
-        const story = generateNPCLifeStory(3, SEED);
+        const story = npcStory(3);
         // The story text should contain their name and occupation
         assert.ok(story.storyText.includes(story.name), "story mentions NPC name");
         assert.ok(story.storyText.includes(story.occupation), "story mentions occupation");
@@ -95,7 +105,7 @@ describe("NPC target book page contains their story", () => {
     });
 
     it("non-target pages are random ASCII (not story text)", () => {
-        const story = generateNPCLifeStory(3, SEED);
+        const story = npcStory(3);
         const { side, position, floor, bookIndex } = story.bookCoords;
         // Pick a page that is NOT the target page
         const otherPage = (story.targetPage + 1) % PAGES_PER_BOOK;
@@ -110,7 +120,7 @@ describe("NPC target book page contains their story", () => {
     it("every NPC has a unique target page story", () => {
         const stories = [];
         for (let i = 0; i < 10; i++) {
-            stories.push(generateNPCLifeStory(i, SEED));
+            stories.push(npcStory(i));
         }
         const texts = stories.map(s => s.storyText);
         assert.strictEqual(new Set(texts).size, texts.length,
@@ -118,9 +128,58 @@ describe("NPC target book page contains their story", () => {
     });
 });
 
+describe("player book address system", () => {
+    it("player bookAddress is within playable range (never damned)", () => {
+        for (let i = 0; i < 50; i++) {
+            const story = generateLifeStory("pd-" + i);
+            assert.ok(story.bookAddress >= 0n && story.bookAddress <= PLAYABLE_ADDRESS_MAX,
+                `seed pd-${i}: player bookAddress ${story.bookAddress} out of playable range`);
+        }
+    });
+
+    it("player bookAddress equals PLAYABLE_ADDRESS_MAX/2 by default (no anchors)", () => {
+        // When no playerRawAddress/randomOrigin are passed,
+        // rawBookAddress IS playerRawAddress, so bookAddress = randomOrigin = PLAYABLE_ADDRESS_MAX/2.
+        const story = generateLifeStory("default-origin-test");
+        assert.strictEqual(story.bookAddress, PLAYABLE_ADDRESS_MAX / 2n);
+    });
+
+    it("player bookCoords match addressToCoords(bookAddress), modulo rest-area nudge", () => {
+        const story = generateLifeStory("coords-derive-test");
+        const derived = addressToCoords(story.bookAddress, 192);
+        assert.strictEqual(derived.side, story.bookCoords.side);
+        assert.strictEqual(derived.floor, story.bookCoords.floor);
+        assert.strictEqual(derived.bookIndex, story.bookCoords.bookIndex);
+        // position may be nudged +1 if it landed on a rest area
+        const pos = story.bookCoords.position;
+        assert.ok(pos === derived.position || pos === derived.position + 1n,
+            `position ${pos} should be derived.position (${derived.position}) or +1`);
+    });
+
+    it("player storyText is on their target page", () => {
+        const story = generateLifeStory("story-page-test");
+        assert.ok(story.storyText.length > 100, "has substantial storyText");
+        assert.ok(story.targetPage >= 0 && story.targetPage < PAGES_PER_BOOK, "targetPage in range");
+        assert.ok(story.storyText.includes(story.name), "storyText contains player name");
+    });
+
+    it("different randomOrigins produce different player book locations", () => {
+        // randomOrigin drives the player's book location; varying it gives varied coords.
+        const coordKey = s => `${s.bookCoords.side}:${s.bookCoords.position}:${s.bookCoords.floor}`;
+        const keys = new Set();
+        const baseStory = generateLifeStory("uniq-player-base");
+        for (let i = 0; i < 20; i++) {
+            const origin = PLAYABLE_ADDRESS_MAX / 20n * BigInt(i) + BigInt(i * 7919);
+            const story = generateLifeStory("uniq-player-base", { randomOrigin: origin });
+            keys.add(coordKey(story));
+        }
+        assert.ok(keys.size > 15, `expected varied player locations, got ${keys.size}/20`);
+    });
+});
+
 describe("distanceToBook", () => {
     it("distance is 0 when NPC is at their book", () => {
-        const story = generateNPCLifeStory(0, SEED);
+        const story = npcStory(0);
         const loc = {
             side: story.bookCoords.side,
             position: story.bookCoords.position,
@@ -149,7 +208,7 @@ describe("distanceToBook", () => {
         const origin = { side: 0, position: 0n, floor: 0n };
         const distances = [];
         for (let i = 0; i < 20; i++) {
-            const story = generateNPCLifeStory(i, SEED);
+            const story = npcStory(i);
             distances.push(distanceToBook(origin, story.bookCoords));
         }
         const avgDist = distances.reduce((a, b) => a + b, 0n) / BigInt(distances.length);
@@ -211,7 +270,7 @@ describe("spawn distribution", () => {
             // NPC spawns near player; their books are randomly placed — cosmically far.
             const playerLoc = { side: 0, position: 5_000_000_000n, floor: 50n };
             for (let i = 0; i < 16; i++) {
-                const story = generateNPCLifeStory(i, SEED);
+                const story = npcStory(i);
                 const dist = distanceToBook(playerLoc, story.bookCoords);
                 // Book is randomly placed: at least sometimes billions of segments away.
                 // We just assert it's never 0 (NPC never spawns on their own book).
@@ -222,7 +281,7 @@ describe("spawn distribution", () => {
         it("NPC books are broadly distributed (not all near origin)", () => {
             const positions = [];
             for (let i = 0; i < 30; i++) {
-                const story = generateNPCLifeStory(i, SEED);
+                const story = npcStory(i);
                 positions.push(story.bookCoords.position);
             }
             const min = positions.reduce((a, b) => a < b ? a : b);

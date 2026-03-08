@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 
 import { GodmodePanel } from "../src/js/godmode-panel.js";
+import { PLAYABLE_ADDRESS_MAX } from "../lib/invertible.core.ts";
+
+const IN_BOUNDS_ADDRESS = PLAYABLE_ADDRESS_MAX / 2n;        // clearly in bounds
+const OUT_OF_BOUNDS_ADDRESS = PLAYABLE_ADDRESS_MAX * 1000n; // clearly damned
 
 function makeDOM() {
     const dom = new JSDOM(`<!DOCTYPE html><html><body>
@@ -309,7 +313,8 @@ describe("GodmodePanel — Searching section", () => {
 });
 
 // Helper: NPC with a knowledge component containing a life story
-function makeNpcWithKnowledge(storyText, bookCoords, npcOverrides) {
+// bookAddress: bigint used for damnation check (in-bounds iff <= LIBRARY_MAX)
+function makeNpcWithKnowledge(bookAddress, bookCoords, npcOverrides) {
     const bc = bookCoords || { side: 0, position: 100n, floor: 5n, bookIndex: 3 };
     return makeNpc({
         ...npcOverrides,
@@ -319,8 +324,8 @@ function makeNpcWithKnowledge(storyText, bookCoords, npcOverrides) {
             knowledge: {
                 lifeStory: {
                     name: "Test NPC",
-                    storyText: storyText,
                     bookCoords: bc,
+                    bookAddress: bookAddress,
                 },
                 bookVision: null,
                 visionAccurate: false,
@@ -338,7 +343,7 @@ describe("GodmodePanel — Damnation", () => {
     afterEach(() => { delete global.document; });
 
     it("shows [?] button when NPC has knowledge component", () => {
-        const npc = makeNpcWithKnowledge("Short text.");
+        const npc = makeNpcWithKnowledge(IN_BOUNDS_ADDRESS);
         GodmodePanel.update(makeSnap([npc]), 0, true);
         const btn = document.querySelector(".gm-calc-dist");
         assert.ok(btn, "should have [?] button");
@@ -346,24 +351,20 @@ describe("GodmodePanel — Damnation", () => {
     });
 
     it("clicking [?] with damned NPC shows damned label", () => {
-        const prose = "Your name was Rosa Ingram. You were a librarian, from Portland. You died of heart failure. Before you died, you were thinking about the garden.";
-        const npc = makeNpcWithKnowledge(prose);
+        const npc = makeNpcWithKnowledge(OUT_OF_BOUNDS_ADDRESS);
         const snap = makeSnap([npc]);
         GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
         btn.click();
-        // Re-render to see cached result
         GodmodePanel.update(snap, 0, true);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(pane.innerHTML.includes("damned"), `expected damned in pane`);
-        // Should NOT show book coordinates
         assert.ok(!pane.innerHTML.includes("s100"), "should not reveal book location for damned NPC");
     });
 
     it("clicking [?] with in-bounds NPC reveals location and distance", () => {
-        const shortText = "You were born.";
         const bc = { side: 0, position: 200n, floor: 10n, bookIndex: 0 };
-        const npc = makeNpcWithKnowledge(shortText, bc, { side: 0, position: 100n, floor: 5n });
+        const npc = makeNpcWithKnowledge(IN_BOUNDS_ADDRESS, bc, { side: 0, position: 100n, floor: 5n });
         const snap = makeSnap([npc]);
         GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
@@ -375,9 +376,8 @@ describe("GodmodePanel — Damnation", () => {
     });
 
     it("in-bounds distance is correct arithmetic", () => {
-        const shortText = "You were born.";
         const bc = { side: 0, position: 200n, floor: 10n, bookIndex: 0 };
-        const npc = makeNpcWithKnowledge(shortText, bc, { side: 0, position: 100n, floor: 5n });
+        const npc = makeNpcWithKnowledge(IN_BOUNDS_ADDRESS, bc, { side: 0, position: 100n, floor: 5n });
         const snap = makeSnap([npc]);
         GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
@@ -388,8 +388,7 @@ describe("GodmodePanel — Damnation", () => {
     });
 
     it("[?] disappears after calculation (replaced by cached result)", () => {
-        const shortText = "You were born.";
-        const npc = makeNpcWithKnowledge(shortText);
+        const npc = makeNpcWithKnowledge(IN_BOUNDS_ADDRESS);
         const snap = makeSnap([npc]);
         GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");

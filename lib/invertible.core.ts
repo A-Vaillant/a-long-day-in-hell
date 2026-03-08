@@ -49,21 +49,98 @@ export const LIBRARY_MAX: bigint = 95n ** 66n;
  * @param limit - stop and return current value if it exceeds this
  * @returns the address (may exceed limit if text is in bounds)
  */
-export function textToAddress(text: string, limit: bigint = LIBRARY_MAX): bigint {
+export function textToAddress(text: string, limit: bigint | undefined = LIBRARY_MAX): bigint {
     let addr = 0n;
     for (let i = 0; i < text.length; i++) {
         addr = addr * 95n + BigInt(text.charCodeAt(i) - 32);
-        if (addr > limit) return addr;
+        if (limit !== undefined && addr > limit) return addr;
     }
     return addr;
 }
 
 /**
- * Returns true if the book's text maps to an address within the library.
- * False means the book's true location is beyond the edge — the NPC is damned.
+ * Returns true if a book address is within the library.
+ * False means the book's true location is beyond the edge — the soul is damned.
  */
 export function isInBounds(text: string): boolean {
     return textToAddress(text) <= LIBRARY_MAX;
+}
+
+/**
+ * Compute a soul's book address in the coordinate system anchored to the player.
+ *
+ * The library's "origin" is arbitrary. We pick it by anchoring to the player:
+ *   bookAddress = rawAddress - playerRawAddress + randomOrigin
+ *
+ * For the player themselves: rawAddress - rawAddress + randomOrigin = randomOrigin,
+ * which is always within LIBRARY_MAX by construction.
+ *
+ * For NPCs: big number - big number + small number. Usually still enormous → damned.
+ * By cosmic coincidence, an NPC whose rawAddress is close to the player's lands
+ * within the library — their book genuinely exists here.
+ *
+ * @param rawAddress - textToAddress(storyText) for this soul, no early-exit limit
+ * @param playerRawAddress - textToAddress(playerStoryText), no early-exit limit
+ * @param randomOrigin - a bigint in [0, LIBRARY_MAX], derived from game seed
+ * @returns bookAddress — use isAddressInBounds() to check damnation
+ */
+export function computeBookAddress(
+    rawAddress: bigint,
+    playerRawAddress: bigint,
+    randomOrigin: bigint,
+): bigint {
+    return rawAddress - playerRawAddress + randomOrigin;
+}
+
+/**
+ * Returns true if a precomputed book address maps to a reachable library location.
+ * Use this (not isInBounds) when you already have the address.
+ */
+export function isAddressInBounds(bookAddress: bigint): boolean {
+    return bookAddress >= 0n && bookAddress <= PLAYABLE_ADDRESS_MAX;
+}
+
+/**
+ * Maximum position index used in addressToCoords decomposition.
+ * Positions range from 0 to MAX_BOOK_POSITION - 1 (non-negative corridor segment index).
+ * Chosen to cover ±5 billion segments from origin — comfortably within playable space.
+ */
+export const MAX_BOOK_POSITION: bigint = 10_000_000_000n; // 10B segments total (±5B)
+
+/**
+ * The maximum address that maps to a sensible (walkable) library location.
+ * randomOrigin should be drawn from [0, PLAYABLE_ADDRESS_MAX].
+ */
+export const PLAYABLE_ADDRESS_MAX: bigint =
+    MAX_BOOK_POSITION * 2n * 100_000n * 192n; // position * sides * floors * booksPerGallery
+
+/**
+ * Decompose a book address into library coordinates.
+ * The address must be within [0, PLAYABLE_ADDRESS_MAX].
+ *
+ * Layout (innermost first):
+ *   bookIndex : [0, booksPerGallery)
+ *   floor     : [0, 99999]           — 100_000 floors
+ *   side      : 0 or 1
+ *   position  : [0, MAX_BOOK_POSITION)
+ *
+ * @param addr - a bigint in [0, PLAYABLE_ADDRESS_MAX]
+ * @param booksPerGallery - e.g. 192
+ * @returns BookCoords
+ */
+export function addressToCoords(addr: bigint, booksPerGallery: number): { side: number; position: bigint; floor: bigint; bookIndex: number } {
+    const bpg = BigInt(booksPerGallery);
+    const bookIndex = Number(addr % bpg);
+    addr = addr / bpg;
+
+    const FLOORS = 100_000n;
+    const floor = addr % FLOORS;
+    addr = addr / FLOORS;
+
+    const side = Number(addr % 2n);
+    const position = addr / 2n; // [0, MAX_BOOK_POSITION)
+
+    return { side, position, floor, bookIndex };
 }
 
 /** LCG parameters (mod 2^32). Multiplier from Numerical Recipes. */
