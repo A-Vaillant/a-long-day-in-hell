@@ -98,6 +98,14 @@ const TIPS = {
     endurance: "Physical resilience. Slows hunger, thirst, exhaustion. 3d6 (3–18).",
     influence: "Social force. Scales pressure, companion restoration, affinity gain. 3d6 (3–18).",
     quickness: "Speed. Movement probability, search speed, grab chance. 3d6 (3–18).",
+    witnessChasm: "Saw someone fall into the chasm. Permanent scar.",
+    foundBody: "Stumbled on a body. Numbs with repetition.",
+    companionDied: "Someone close died. Lingers.",
+    groupDissolved: "Their group fell apart. Decays over days.",
+    witnessEscape: "Saw someone escape. Hopeful. Fades slowly.",
+    foundWords: "Found words in a book. Brief wonder.",
+    witnessMadness: "Watched someone lose their mind. Permanent floor.",
+    companionMad: "Someone close went mad. Permanent scar.",
 };
 
 function tip(label) {
@@ -124,7 +132,7 @@ function bar(value, max, color) {
 // Each renderer: (comp, npc, snap) => html string (a gm-section)
 // Order array controls display order; unlisted components render last via fallback.
 
-const COMPONENT_ORDER = ["psychology", "stats", "intent", "knowledge", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation"];
+const COMPONENT_ORDER = ["psychology", "stats", "intent", "knowledge", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation", "memory"];
 
 const componentRenderers = {
     psychology(comp) {
@@ -361,6 +369,32 @@ const componentRenderers = {
         for (const mate of groupMates) {
             html += '<div class="gm-group-member gm-disp-' + mate.disposition + '">' +
                 esc(mate.name) + '</div>';
+        }
+        html += '</div>';
+        return html;
+    },
+
+    memory(comp, npc, snap) {
+        if (!comp.entries || comp.entries.length === 0) return "";
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">memories</div>';
+        // Sort by weight descending
+        const sorted = comp.entries.slice().sort((a, b) => b.weight - a.weight);
+        for (const e of sorted) {
+            const pct = Math.max(0, Math.min(100, (e.weight / (e.initialWeight || 1)) * 100));
+            const color = e.permanent ? "#9a6a4a" : "#6a6050";
+            const age = snap ? (((snap.day - 1) * 240 + snap.tick) - e.tick) : 0;
+            const ageDays = Math.floor(age / 240);
+            const ageStr = ageDays > 0 ? " · " + ageDays + "d ago" : "";
+            const subjStr = e.subjectName ? " · " + e.subjectName : "";
+            const permStr = e.permanent ? " ·\u202fperm" : "";
+            html += '<div class="gm-memory-entry">';
+            html += '<div class="gm-memory-header">';
+            html += '<span class="gm-tip" data-tip="' + esc(TIPS[e.type] || "") + '">' + esc(e.type) + '</span>';
+            html += '<span class="gm-memory-meta">' + esc(subjStr + ageStr + permStr) + '</span>';
+            html += '</div>';
+            html += '<div class="gm-mini-bar"><div class="gm-mini-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
+            html += '</div>';
         }
         html += '</div>';
         return html;

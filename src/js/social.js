@@ -254,7 +254,33 @@ export const Social = {
             generateBookPage(side, position, floor, bookIndex, pageIndex, state.seed, 400);
         const fastWordFinder = (side, position, floor, bookIndex, pageIndex) =>
             findWordsFromSeed(state.seed, side, position, floor, bookIndex, pageIndex);
-        searchSystem(world, searchRng, pageSampler, undefined, fastWordFinder);
+        const searchEvents = searchSystem(world, searchRng, pageSampler, undefined, fastWordFinder);
+
+        // FOUND_WORDS is self-witnessed — apply memory directly to the finder
+        if (searchEvents && searchEvents.length > 0) {
+            for (const se of searchEvents) {
+                if (!se.words || se.words.length === 0) continue;
+                const ent = se.entity;
+                const ident = getComponent(world, ent, IDENTITY);
+                if (!ident || !ident.alive) continue;
+                let mem = getComponent(world, ent, MEMORY);
+                if (!mem) { mem = createMemory(); addComponent(world, ent, MEMORY, mem); }
+                if (!hasRecentMemory(mem, MEMORY_TYPES.FOUND_WORDS, ent, currentTick, DEFAULT_MEMORY_CONFIG.dedupWindow)) {
+                    const tc = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.FOUND_WORDS];
+                    mem.entries.push({
+                        id: mem.nextId++,
+                        type: MEMORY_TYPES.FOUND_WORDS,
+                        tick: currentTick,
+                        weight: tc.initialWeight,
+                        initialWeight: tc.initialWeight,
+                        permanent: tc.permanent,
+                        subject: ent,
+                        contagious: tc.contagious,
+                    });
+                    // foundWords has no acute shockKey — hope boost is handled by searchSystem
+                }
+            }
+        }
 
         // NPC-to-NPC socialization (share knowledge, build bonds)
         socializeSystem(world, currentTick);

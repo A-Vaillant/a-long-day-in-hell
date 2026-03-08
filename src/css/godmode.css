@@ -884,6 +884,24 @@ body.godmode {
     border-left-color: #3a3428;
 }
 
+/* --- Memory component --- */
+
+.gm-memory-entry {
+    margin: 4px 0;
+    font-size: 12px;
+}
+
+.gm-memory-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.gm-memory-meta {
+    color: #6a5a40;
+    font-size: 11px;
+}
+
 /* --- Trends pane --- */
 
 

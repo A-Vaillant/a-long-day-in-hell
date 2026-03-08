@@ -101,6 +101,26 @@ function snapshot() {
                         }
                     }
                     components[key] = { exposures };
+                } else if (key === "memory") {
+                    // Serialize memory entries — resolve subject entity → name
+                    const entries = (comp.entries || []).map(e => {
+                        let subjectName = null;
+                        if (e.subject != null) {
+                            const subjIdent = getComponent(world, e.subject, "identity");
+                            subjectName = subjIdent ? subjIdent.name : String(e.subject);
+                        }
+                        return {
+                            id: e.id,
+                            type: e.type,
+                            tick: e.tick,
+                            weight: e.weight,
+                            initialWeight: e.initialWeight,
+                            permanent: e.permanent,
+                            contagious: e.contagious,
+                            subjectName,
+                        };
+                    });
+                    components[key] = { entries, capacity: comp.capacity };
                 } else {
                     // Shallow copy plain data components
                     components[key] = { ...comp };
@@ -182,6 +202,21 @@ function snapshot() {
                         }
                     }
                     pComponents[key] = { exposures };
+                } else if (key === "memory") {
+                    const entries = (comp.entries || []).map(e => {
+                        let subjectName = null;
+                        if (e.subject != null) {
+                            const subjIdent = getComponent(world, e.subject, "identity");
+                            subjectName = subjIdent ? subjIdent.name : String(e.subject);
+                        }
+                        return {
+                            id: e.id, type: e.type, tick: e.tick,
+                            weight: e.weight, initialWeight: e.initialWeight,
+                            permanent: e.permanent, contagious: e.contagious,
+                            subjectName,
+                        };
+                    });
+                    pComponents[key] = { entries, capacity: comp.capacity };
                 } else {
                     pComponents[key] = { ...comp };
                 }
