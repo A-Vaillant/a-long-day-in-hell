@@ -22,7 +22,7 @@ import {
 import { NEEDS, type Needs } from "./needs.core.ts";
 import { INTENT, type Intent } from "./intent.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
-import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
+import { KNOWLEDGE, type Knowledge, isSearched } from "./knowledge.core.ts";
 import { isRestArea } from "./library.core.ts";
 
 // --- Component ---
@@ -62,6 +62,20 @@ interface Rng {
 /** Nearest rest area position from current position. */
 function nearestRestArea(position: number): number {
     return Math.round(position / 10) * 10;
+}
+
+/** Check if the span from a rest area in a direction has any unsearched segments. */
+function spanHasUnsearched(knowledge: Knowledge, side: number, restPos: number, dir: number, floor: number): boolean {
+    for (let i = 1; i <= 10; i++) {
+        if (!isSearched(knowledge, side, restPos + dir * i, floor)) return true;
+    }
+    return false;
+}
+
+/** Check if the spans in both directions from a rest area are fully searched. */
+function localExhausted(knowledge: Knowledge, side: number, restPos: number, floor: number): boolean {
+    return !spanHasUnsearched(knowledge, side, restPos, 1, floor) &&
+           !spanHasUnsearched(knowledge, side, restPos, -1, floor);
 }
 
 /** Direction to step toward a target. Returns -1, 0, or 1. */
@@ -162,17 +176,53 @@ export function movementSystem(
                     pos.floor = Math.max(0, pos.floor);
                 }
             } else {
-                // Explore: walk in current heading
+                // Explore: walk in current heading, preferring unsearched territory
                 pos.position += mov.heading;
                 if (isRestArea(pos.position)) {
-                    // Chance to reverse
-                    if (rng.next() < config.exploreReverseChance) {
-                        mov.heading = -mov.heading;
-                    }
-                    // Chance to change floor
-                    if (rng.next() < config.exploreFloorChance) {
-                        pos.floor += rng.next() < 0.5 ? 1 : -1;
-                        pos.floor = Math.max(0, pos.floor);
+                    const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
+                    if (knowledge) {
+                        // Check which direction has unsearched spans (rest area to rest area)
+                        const fwdHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, mov.heading, pos.floor);
+                        const bwdHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, -mov.heading, pos.floor);
+                        if (!fwdHasWork && bwdHasWork) {
+                            // Ahead is exhausted, behind has work — reverse
+                            mov.heading = -mov.heading;
+                        } else if (fwdHasWork && !bwdHasWork) {
+                            // Ahead has work — keep going
+                        } else {
+                            // Both exhausted or both have work — random reversal
+                            if (rng.next() < config.exploreReverseChance) {
+                                mov.heading = -mov.heading;
+                            }
+                        }
+                        // Floor change: if both spans on this floor are exhausted, move floors
+                        const exhausted = !fwdHasWork && !bwdHasWork;
+                        const floorChangeChance = exhausted ? 0.5 : config.exploreFloorChance;
+                        if (rng.next() < floorChangeChance) {
+                            // Prefer floor with unsearched territory
+                            const upHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor + 1) ||
+                                              spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor + 1);
+                            const downHasWork = pos.floor > 0 && (
+                                spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor - 1) ||
+                                spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor - 1));
+                            if (upHasWork && !downHasWork) {
+                                pos.floor++;
+                            } else if (!upHasWork && downHasWork && pos.floor > 0) {
+                                pos.floor--;
+                            } else {
+                                pos.floor += rng.next() < 0.5 ? 1 : -1;
+                                pos.floor = Math.max(0, pos.floor);
+                            }
+                        }
+                    } else {
+                        // No knowledge component — original random behavior
+                        if (rng.next() < config.exploreReverseChance) {
+                            mov.heading = -mov.heading;
+                        }
+                        if (rng.next() < config.exploreFloorChance) {
+                            pos.floor += rng.next() < 0.5 ? 1 : -1;
+                            pos.floor = Math.max(0, pos.floor);
+                        }
                     }
                 }
             }
