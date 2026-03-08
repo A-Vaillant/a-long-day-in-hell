@@ -46,6 +46,10 @@ let dragVpY = 0;
 // NPC hit targets for click detection
 let hitTargets = []; // { id, x, y, r }
 
+// Generic overlay system — keyed map of { draw(ctx, view) } objects.
+// view: { worldToPixelX, worldToPixelY, scatter, zoom, viewSide, CELL_W, CELL_H, LABEL_GUTTER, gridH }
+const overlays = new Map();
+
 const DISP_COLORS = {
     calm:      "#d4c898",
     anxious:   "#e0b040",
@@ -501,6 +505,14 @@ export const GodmodeMap = {
             }
         }
 
+        // --- Overlays (rendered behind NPCs) ---
+        if (overlays.size > 0) {
+            const view = { worldToPixelX, worldToPixelY, scatter, zoom, viewSide, CELL_W, CELL_H, LABEL_GUTTER, gridH };
+            for (const ov of overlays.values()) {
+                ov.draw(ctx, view);
+            }
+        }
+
         // --- NPC rendering (shared between modes) ---
 
         const dotR = Math.max(2, Math.round(4.5 * zoom));
@@ -751,4 +763,20 @@ export const GodmodeMap = {
             floor: Math.round(vpY + vpRows / 2),
         };
     },
+
+    /** Set a named overlay. overlay must have a draw(ctx, view) method. */
+    setOverlay(key, overlay) { overlays.set(key, overlay); },
+
+    /** Remove a named overlay. */
+    removeOverlay(key) { overlays.delete(key); },
+
+    /** Toggle a named overlay — returns true if now showing. */
+    toggleOverlay(key, overlay) {
+        if (overlays.has(key)) { overlays.delete(key); return false; }
+        overlays.set(key, overlay);
+        return true;
+    },
+
+    /** Check if overlay with key exists. */
+    hasOverlay(key) { return overlays.has(key); },
 };
