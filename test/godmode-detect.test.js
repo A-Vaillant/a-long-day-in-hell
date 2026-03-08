@@ -504,27 +504,27 @@ describe("detectEvents", () => {
 
     it("detects word find (bestScore increases)", () => {
         const prev = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 0 } },
+            components: { searching: { active: true, bestScore: 0, bestWords: [] } },
         })]);
         const curr = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 1 } },
+            components: { searching: { active: true, bestScore: 1, bestWords: ["hope"] } },
         })]);
         const events = detectEvents(prev, curr);
         assert.strictEqual(events.length, 1);
         assert.strictEqual(events[0].type, "search");
-        assert.ok(events[0].text.includes("a word"));
+        assert.ok(events[0].text.includes("\u201chope\u201d"));
     });
 
     it("reports multiple words", () => {
         const prev = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 1 } },
+            components: { searching: { active: true, bestScore: 1, bestWords: ["hope"] } },
         })]);
         const curr = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 3 } },
+            components: { searching: { active: true, bestScore: 3, bestWords: ["hell", "fire", "dark"] } },
         })]);
         const events = detectEvents(prev, curr);
         assert.strictEqual(events.length, 1);
-        assert.ok(events[0].text.includes("3 words"));
+        assert.ok(events[0].text.includes("\u201chell fire dark\u201d"));
     });
 
     it("does not emit when bestScore unchanged", () => {

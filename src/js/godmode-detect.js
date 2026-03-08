@@ -96,10 +96,11 @@ export function detectEvents(prev, curr) {
         const oldSearch = old.components && old.components.searching;
         const newSearch = npc.components && npc.components.searching;
         if (oldSearch && newSearch && newSearch.bestScore > oldSearch.bestScore) {
-            const words = newSearch.bestScore;
-            const desc = words === 1 ? "a word" : words + " words";
+            const wordStr = newSearch.bestWords && newSearch.bestWords.length > 0
+                ? '\u201c' + newSearch.bestWords.join(" ") + '\u201d'
+                : (newSearch.bestScore === 1 ? "a word" : newSearch.bestScore + " words");
             events.push({ tick: curr.tick, day: curr.day, type: "search",
-                text: npc.name + " found " + desc + " in a book!", npcIds: [npc.id] });
+                text: npc.name + " found " + wordStr + " in a book!", npcIds: [npc.id] });
         }
 
         // Started pilgrimage

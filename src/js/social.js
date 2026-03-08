@@ -21,7 +21,7 @@ import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
 import { STATS, generateStats, quicknessMod } from "../../lib/stats.core.ts";
 import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
-import { SEARCHING, searchSystem, countWordsFromSeed } from "../../lib/search.core.ts";
+import { SEARCHING, searchSystem, findWordsFromSeed } from "../../lib/search.core.ts";
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
 import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment } from "../../lib/knowledge.core.ts";
@@ -85,7 +85,7 @@ export const Social = {
             heading: playerHeadingRng.next() < 0.5 ? 1 : -1,
         });
         addComponent(world, playerEntity, SEARCHING, {
-            bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0,
+            bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0, bestWords: [],
         });
         addComponent(world, playerEntity, SLEEP, {
             home: { side: state.side, position: nearestRestArea(state.position), floor: state.floor },
@@ -234,9 +234,9 @@ export const Social = {
         const searchRng = seedFromString(state.seed + ":npc:search:" + currentTick);
         const pageSampler = (side, position, floor, bookIndex, pageIndex) =>
             generateBookPage(side, position, floor, bookIndex, pageIndex, state.seed, 400);
-        const fastWordCounter = (side, position, floor, bookIndex, pageIndex) =>
-            countWordsFromSeed(state.seed, side, position, floor, bookIndex, pageIndex);
-        searchSystem(world, searchRng, pageSampler, undefined, fastWordCounter);
+        const fastWordFinder = (side, position, floor, bookIndex, pageIndex) =>
+            findWordsFromSeed(state.seed, side, position, floor, bookIndex, pageIndex);
+        searchSystem(world, searchRng, pageSampler, undefined, fastWordFinder);
 
         // NPC-to-NPC socialization (share knowledge, build bonds)
         socializeSystem(world, currentTick);

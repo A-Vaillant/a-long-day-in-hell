@@ -136,10 +136,7 @@ export function narrateEvents(events, snap) {
                 break;
 
             case "search":
-                // Only narrate legible finds, not "started searching"
-                if (ev.text.includes("legible")) {
-                    add(npc.id, d, t, npc.name + " found a partially legible book at " + locStr(npc) + ".");
-                }
+                add(npc.id, d, t, npc.name + " found words in a book at " + locStr(npc) + ".");
                 break;
         }
     }

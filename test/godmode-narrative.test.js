@@ -145,18 +145,11 @@ describe("narrateEvents", () => {
         assert.ok(story[0].text.includes("free"));
     });
 
-    it("search legible find generates narrative", () => {
+    it("search word find generates narrative", () => {
         const snap = makeSnap([makeNpc()]);
-        narrateEvents([{ tick: 10, day: 1, type: "search", text: "Alice found something legible (15% coherent)." }], snap);
+        narrateEvents([{ tick: 10, day: 1, type: "search", text: "Alice found a word in a book!" }], snap);
         const story = getNpcNarrative(0);
-        assert.ok(story[0].text.includes("legible"));
-    });
-
-    it("search start does not generate narrative", () => {
-        const snap = makeSnap([makeNpc()]);
-        narrateEvents([{ tick: 10, day: 1, type: "search", text: "Alice started searching bookshelves." }], snap);
-        const story = getNpcNarrative(0);
-        assert.strictEqual(story.length, 0);
+        assert.ok(story[0].text.includes("found words"));
     });
 
     it("accumulates multiple events chronologically", () => {

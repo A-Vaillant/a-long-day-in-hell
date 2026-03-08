@@ -318,15 +318,17 @@ const componentRenderers = {
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">searching</div>';
         if (comp.active) {
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Currently examining a book for legible text.">status</span>';
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Currently examining a book for words.">status</span>';
             html += '<span class="gm-bar-num" style="color:#6a8a5a">reading book ' + comp.bookIndex + '</span></div>';
             html += '<div class="gm-stat">' + tip("patience") +
                 bar(comp.ticksSearched, comp.patience, "#b8a878") + '</div>';
         }
         if (comp.bestScore > 0) {
-            const pct = Math.round(comp.bestScore * 100);
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Best legibility score found. English prose scores ~35-55%.">best find</span>';
-            html += '<span class="gm-bar-num">' + pct + '% coherent</span></div>';
+            const wordStr = comp.bestWords && comp.bestWords.length > 0
+                ? '"' + comp.bestWords.join(" ") + '"'
+                : (comp.bestScore === 1 ? "1 word" : comp.bestScore + " words");
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Best words found on a single page.">best find</span>';
+            html += '<span class="gm-bar-num">' + wordStr + '</span></div>';
         }
         html += '</div>';
         return html;
