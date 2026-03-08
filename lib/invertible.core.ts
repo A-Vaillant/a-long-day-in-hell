@@ -27,6 +27,45 @@ const CHARSET_LEN: number = 95;
 const CHARS_PER_LINE: number = 80;
 const LINES_PER_PAGE: number = 40;
 
+/**
+ * The library's address space: 95^66.
+ * Any book whose text-as-base-95-number exceeds this is beyond the library's
+ * edge — its location does not exist within the finite (but vast) library.
+ *
+ * 95^66 ≈ 3.4 × 10^130. For comparison, atoms in the observable universe ≈ 10^80.
+ * Most random book texts vastly exceed this within their first ~66 characters.
+ */
+export const LIBRARY_MAX: bigint = 95n ** 66n;
+
+/**
+ * Interpret a book's text as a base-95 number and return its true address.
+ * Characters are treated as digits in [0, 94] (codepoint - 32).
+ *
+ * Exits early if the running value exceeds `limit` — since most texts blow
+ * past LIBRARY_MAX within the first 66 characters, this is nearly free
+ * for out-of-bounds books.
+ *
+ * @param text - the book's full text (or as much as needed)
+ * @param limit - stop and return current value if it exceeds this
+ * @returns the address (may exceed limit if text is in bounds)
+ */
+export function textToAddress(text: string, limit: bigint = LIBRARY_MAX): bigint {
+    let addr = 0n;
+    for (let i = 0; i < text.length; i++) {
+        addr = addr * 95n + BigInt(text.charCodeAt(i) - 32);
+        if (addr > limit) return addr;
+    }
+    return addr;
+}
+
+/**
+ * Returns true if the book's text maps to an address within the library.
+ * False means the book's true location is beyond the edge — the NPC is damned.
+ */
+export function isInBounds(text: string): boolean {
+    return textToAddress(text) <= LIBRARY_MAX;
+}
+
 /** LCG parameters (mod 2^32). Multiplier from Numerical Recipes. */
 const LCG_A: number = 1664525;
 const LCG_C: number = 1013904223;

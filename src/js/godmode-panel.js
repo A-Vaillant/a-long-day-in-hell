@@ -5,6 +5,7 @@
  */
 
 import { getNpcNarrative } from "./godmode-narrative.js";
+import { isInBounds } from "../../lib/invertible.core.ts";
 
 let callbacks = {};
 let lastHtml = "";
@@ -246,21 +247,16 @@ const componentRenderers = {
     knowledge(comp, npc) {
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">knowledge</div>';
-        // Book location
+        // Book location + damnation check (lazy — click [?] to compute)
         const bc = comp.lifeStory && comp.lifeStory.bookCoords;
         if (bc) {
             const bookLoc = (bc.side === 0 ? 'W' : 'E') + ' f' + bc.floor + ' s' + bc.position + ' #' + bc.bookIndex;
             html += '<div class="gm-stat"><span class="gm-tip" data-tip="Computed from story text. The NPC does not know this.">book</span>';
             html += '<span class="gm-bar-num">' + esc(bookLoc) + '</span></div>';
-            // Distance
-            const dfRaw = npc.floor - bc.floor;
-            const dFloor = dfRaw < 0n ? -dfRaw : dfRaw;
-            const dpRaw = npc.position - bc.position;
-            const dPos = dpRaw < 0n ? -dpRaw : dpRaw;
-            const sameSide = npc.side === bc.side;
-            const dist = dPos + dFloor + (sameSide ? 0n : dFloor + 1n);
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Approximate travel distance in moves (position + floor + chasm crossing).">distance</span>';
-            html += '<span class="gm-bar-num">' + dist + ' moves</span></div>';
+            // Distance / damnation — computed on demand
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Click to compute: distance to book, or whether it lies beyond the library edge.">distance</span>';
+            const storyText = comp.lifeStory ? comp.lifeStory.storyText : '';
+            html += '<span class="gm-bar-num"><a class="gm-calc-dist" data-npc-id="' + npc.id + '" data-story-text="' + esc(storyText) + '" data-npc-pos="' + npc.position + '" data-npc-floor="' + npc.floor + '" data-npc-side="' + npc.side + '" data-bc-side="' + bc.side + '" data-bc-pos="' + bc.position + '" data-bc-floor="' + bc.floor + '" style="cursor:pointer;color:#aaa">[?]</a></span></div>';
         }
         // Vision status
         if (comp.bookVision) {
@@ -748,6 +744,31 @@ export const GodmodePanel = {
                 if (locEl) {
                     const id = parseInt(locEl.dataset.centerId, 10);
                     if (callbacks.onCenter) callbacks.onCenter(id);
+                    return;
+                }
+
+                // Distance / damnation calculator
+                const calcBtn = ev.target.closest(".gm-calc-dist");
+                if (calcBtn) {
+                    const storyText = calcBtn.dataset.storyText || '';
+                    if (isInBounds(storyText)) {
+                        const npcPos   = BigInt(calcBtn.dataset.npcPos);
+                        const npcFloor = BigInt(calcBtn.dataset.npcFloor);
+                        const npcSide  = parseInt(calcBtn.dataset.npcSide, 10);
+                        const bcSide   = parseInt(calcBtn.dataset.bcSide, 10);
+                        const bcPos    = BigInt(calcBtn.dataset.bcPos);
+                        const bcFloor  = BigInt(calcBtn.dataset.bcFloor);
+                        const dPos   = npcPos > bcPos ? npcPos - bcPos : bcPos - npcPos;
+                        const dFloor = npcFloor > bcFloor ? npcFloor - bcFloor : bcFloor - npcFloor;
+                        const cross  = npcSide !== bcSide ? npcFloor + bcFloor : 0n;
+                        const dist   = dPos + dFloor + cross;
+                        calcBtn.textContent = dist.toLocaleString() + ' moves';
+                        calcBtn.style.color = '#aaa';
+                    } else {
+                        calcBtn.textContent = 'DAMNED — beyond the edge';
+                        calcBtn.style.color = '#9a2a2a';
+                    }
+                    calcBtn.style.cursor = 'default';
                     return;
                 }
 
