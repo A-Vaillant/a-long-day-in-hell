@@ -201,10 +201,10 @@ export function movementSystem(
                     // Not at rest area: head toward nearest rest area to change floor/side
                     pos.position += stepToward(pos.position, nearestRestArea(pos.position));
                 } else if (followingLeader) {
-                    // Same floor+side: bias toward leader
+                    // Same floor+side: strongly bias toward leader
                     const pers = getComponent<Personality>(world, entity, PERSONALITY);
                     const patience = pers ? 1.0 - pers.pace : 0.5; // 0=restless, 1=patient
-                    const followChance = 0.5 + patience * 0.4; // 0.5–0.9
+                    const followChance = 0.8 + patience * 0.18; // 0.8–0.98
                     if (rng.next() < followChance) {
                         pos.position += stepToward(pos.position, leaderPos!.position);
                     } else {

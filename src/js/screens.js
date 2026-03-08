@@ -106,7 +106,7 @@ function renderCorridorDark(loc, moves) {
         html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
     }
     if (seg.restArea) {
-        html += '<a data-goto="Bedroom">bedroom</a>';
+        html += ' <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a>';
     }
     html += '</div>';
 

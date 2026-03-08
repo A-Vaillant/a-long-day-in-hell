@@ -229,16 +229,21 @@ export function applyAlcohol(stats: SurvivalStats): SurvivalStats {
  * @param {number} value
  * @returns {Severity}
  */
-/** Minimum exhaustion required to voluntarily sleep. */
-export const SLEEP_EXHAUSTION_THRESHOLD: number = 50;
+/** Minimum exhaustion required to voluntarily sleep during the day. */
+export const SLEEP_EXHAUSTION_THRESHOLD: number = 30;
+
+/** Tick at which "near bedtime" begins (1 hour before lights out). */
+export const NEAR_BEDTIME_TICK: number = 150; // 9:00 PM
 
 /**
  * Whether the player can sleep voluntarily.
  * Always allowed when lights are off (it's dark, nothing else to do).
+ * Always allowed in the hour before lights out (tick 150–159).
  * During the day, requires sufficient exhaustion.
  */
-export function canSleep(exhaustion: number, lightsOn: boolean = true): boolean {
+export function canSleep(exhaustion: number, lightsOn: boolean = true, tick: number = 0): boolean {
     if (!lightsOn) return true;
+    if (tick >= NEAR_BEDTIME_TICK) return true;
     return exhaustion >= SLEEP_EXHAUSTION_THRESHOLD;
 }
 

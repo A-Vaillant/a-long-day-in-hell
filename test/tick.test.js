@@ -8,7 +8,7 @@ import {
 import {
     defaultStats, applyMoveTick, applySleep, applyEat, applyDrink, applyAlcohol,
     applyResurrection, showMortality, getWarnings, canSleep,
-    STAT_MIN, STAT_MAX, SLEEP_EXHAUSTION_THRESHOLD,
+    STAT_MIN, STAT_MAX, SLEEP_EXHAUSTION_THRESHOLD, NEAR_BEDTIME_TICK,
 } from "../lib/survival.core.ts";
 
 // --- tick.core ---
@@ -250,6 +250,14 @@ describe("canSleep", () => {
     it("still requires exhaustion when lights on", () => {
         assert.strictEqual(canSleep(0, true), false);
         assert.strictEqual(canSleep(SLEEP_EXHAUSTION_THRESHOLD, true), true);
+    });
+    it("allows sleep near bedtime regardless of exhaustion", () => {
+        assert.strictEqual(canSleep(0, true, NEAR_BEDTIME_TICK), true);
+        assert.strictEqual(canSleep(0, true, NEAR_BEDTIME_TICK + 5), true);
+    });
+    it("blocks sleep before bedtime window without exhaustion", () => {
+        assert.strictEqual(canSleep(0, true, NEAR_BEDTIME_TICK - 1), false);
+        assert.strictEqual(canSleep(0, true, 0), false);
     });
 });
 

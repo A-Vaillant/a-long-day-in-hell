@@ -213,6 +213,20 @@ export const Engine = {
                 html += '<div class="sb-companion sb-disp-' + m.disposition + '">' +
                     m.name.replace(/&/g,"&amp;").replace(/</g,"&lt;") + '</div>';
             }
+            var home = Social.getGroupHome();
+            if (home) {
+                var parts = [];
+                if (home.side !== state.side) parts.push('across the chasm');
+                var df = home.floor - state.floor;
+                if (df > 0) parts.push(df + (df === 1 ? ' floor up' : ' floors up'));
+                else if (df < 0) parts.push((-df) + (df === -1 ? ' floor down' : ' floors down'));
+                var dp = home.position - state.position;
+                if (Math.abs(dp) > 20) parts.push(dp > 0 ? 'far right' : 'far left');
+                else if (Math.abs(dp) > 5) parts.push(dp > 0 ? 'right' : 'left');
+                else if (dp !== 0) parts.push(dp > 0 ? 'just right' : 'just left');
+                var desc = parts.length > 0 ? parts.join(', ') : 'here';
+                html += '<div class="sb-home">' + desc + '</div>';
+            }
         }
 
         html += '<div class="sb-divider"></div>';

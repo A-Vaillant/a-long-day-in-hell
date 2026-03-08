@@ -526,4 +526,19 @@ describe("DOM: Group UI indicators", () => {
         assert.strictEqual(tags.length, 0, "no companion tag for ungrouped NPC");
     });
 
+    it("getGroupHome returns null when not in a group", () => {
+        const game = bootGame();
+        assert.strictEqual(game.Social.getGroupHome(), null);
+    });
+
+    it("getGroupHome returns leader home after recruiting", () => {
+        const game = bootGame();
+        recruitNpc(game, 0);
+        const home = game.Social.getGroupHome();
+        assert.ok(home, "group home exists after recruit");
+        assert.ok(typeof home.side === "number", "home has side");
+        assert.ok(typeof home.position === "number", "home has position");
+        assert.ok(typeof home.floor === "number", "home has floor");
+    });
+
 });
