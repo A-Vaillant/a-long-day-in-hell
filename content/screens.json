@@ -66,7 +66,13 @@
   "falling_landed_fatal": "You hit the bottom. The impact is absolute.",
   "chasm_jump_confirm": "The chasm yawns below. Jump?",
 
-  "sign_body": "Welcome to Hell. This Hell is based upon a short story by Jorge Luis Borges called \u201cThe Library of Babel.\u201d Here you will find all the books that can possibly be written. Each book is 410 pages long, 40 lines of 80 characters \u2014 about 95 possible characters per position, for a total of 95^1,312,000 books. When you are ready to leave, find the book describing your earthly life story (without errors, e.g., in spelling, grammar, etc.) and submit the story through the slot below this sign. If the story is accepted, you will be admitted into a glorious heaven filled with wonders and joys beyond your imagination. The food kiosk will provide whatever you would like to eat. Just ask for it. We would ask that you please follow a few simple rules during your stay in Hell:",
+  "sign_body": [
+    "Welcome to Hell.",
+    "This Hell is based upon a short story by Jorge Luis Borges called \u201cThe Library of Babel.\u201d Here you will find all the books that can possibly be written. Each book is 410 pages long, 40 lines of 80 characters \u2014 about 95 possible characters per position, for a total of 95^1,312,000 books.",
+    "When you are ready to leave, find the book describing your earthly life story (without errors, e.g., in spelling, grammar, etc.) and submit it through the slot below this sign. If the story is accepted, you will be admitted into a glorious heaven filled with wonders and joys beyond your imagination.",
+    "The food kiosk will provide whatever you would like to eat. Just ask for it.",
+    "We would ask that you please follow a few simple rules during your stay in Hell:"
+  ],
   "sign_rules": [
     "Please be kind. Treat others as you would like to be treated. Failure to do this will bring unhappiness and misery to you and your fellow citizens.",
     "Do not get discouraged. Remember nothing lasts forever. Someday this will be a distant memory.",
