@@ -24,7 +24,6 @@ export interface NPC {
     daysMet: number;
     lastSeenDay: number;
     alive: boolean;
-    bookCoords?: { side: number; position: bigint; floor: bigint; bookIndex: number };
 }
 
 /** Dialogue table: keyed by disposition + "dead". */

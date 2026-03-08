@@ -204,7 +204,7 @@ const componentRenderers = {
         const bc = comp.lifeStory && comp.lifeStory.bookCoords;
         if (bc) {
             const bookLoc = (bc.side === 0 ? 'W' : 'E') + ' f' + bc.floor + ' s' + bc.position + ' #' + bc.bookIndex;
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Where this NPC\'s book actually is.">book</span>';
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Computed from story text. The NPC does not know this.">book</span>';
             html += '<span class="gm-bar-num">' + esc(bookLoc) + '</span></div>';
             // Distance
             const dfRaw = npc.floor - bc.floor;

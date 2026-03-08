@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { generateLifeStory, generateNPCLifeStory, distanceToBook } from "../lib/lifestory.core.ts";
 import { generateBookPage, PAGES_PER_BOOK } from "../lib/book.core.ts";
 import { isRestArea } from "../lib/library.core.ts";
+import { spawnNPCs } from "../lib/npc.core.ts";
+import { seedFromString } from "../lib/prng.core.ts";
 
 const SEED = "test-seed-42";
 
@@ -141,17 +143,93 @@ describe("distanceToBook", () => {
         assert.strictEqual(distanceToBook(loc, book), 0n + 10n + 10n + 20n);
     });
 
-    it("NPCs are generally far from their books", () => {
-        // NPCs spawn near player (position ~0, floor ~10)
-        // Books are placed randomly (position ±5000, floor 0-99)
+    it("NPC books are cosmically far from origin (random placement)", () => {
+        // NPC books use random placement — position ±5B segments.
+        // Any NPC spawned near origin should be billions of segments from their book.
+        const origin = { side: 0, position: 0n, floor: 0n };
         const distances = [];
         for (let i = 0; i < 20; i++) {
             const story = generateNPCLifeStory(i, SEED);
-            const npcLoc = { side: 0, position: 0n, floor: 10n };
-            distances.push(distanceToBook(npcLoc, story.bookCoords));
+            distances.push(distanceToBook(origin, story.bookCoords));
         }
         const avgDist = distances.reduce((a, b) => a + b, 0n) / BigInt(distances.length);
-        assert.ok(avgDist > 100n,
-            `average distance should be large (got ${avgDist})`);
+        assert.ok(avgDist > 1_000_000n,
+            `average NPC book distance should be >1M segments from origin (got ${avgDist})`);
+    });
+});
+
+describe("spawn distribution", () => {
+    describe("player spawn (random mode)", () => {
+        it("player is always at least 666,666 segments from their book", () => {
+            for (let i = 0; i < 50; i++) {
+                const story = generateLifeStory("spawn-dist-" + i, { placement: "random" });
+                const dist = story.playerStart.position - story.bookCoords.position;
+                const absDist = dist < 0n ? -dist : dist;
+                assert.ok(absDist >= 666_666n,
+                    `seed ${i}: player only ${absDist} segments from book`);
+            }
+        });
+
+        it("player spawn is spread across a wide range (not all clustered)", () => {
+            const positions = [];
+            for (let i = 0; i < 30; i++) {
+                const story = generateLifeStory("spread-" + i, { placement: "random" });
+                positions.push(story.playerStart.position);
+            }
+            const min = positions.reduce((a, b) => a < b ? a : b);
+            const max = positions.reduce((a, b) => a > b ? a : b);
+            const range = max - min;
+            // Across 30 samples the range should be substantial — at least 10M segments
+            assert.ok(range > 10_000_000n,
+                `player spawn range too narrow: ${range} segments across 30 samples`);
+        });
+
+        it("player spawn floors are non-negative", () => {
+            for (let i = 0; i < 50; i++) {
+                const story = generateLifeStory("floor-" + i, { placement: "random" });
+                assert.ok(story.playerStart.floor >= 0n,
+                    `seed ${i}: playerStart.floor ${story.playerStart.floor} negative`);
+            }
+        });
+    });
+
+    describe("NPC spawn", () => {
+        it("NPCs spawn near player position (within ~100 segments)", () => {
+            const playerLoc = { side: 0, position: 5_000_000_000n, floor: 50n };
+            const rng = seedFromString("npc-spawn-test");
+            const names = ["A","B","C","D","E","F","G","H"];
+            const npcs = spawnNPCs(playerLoc, 8, names, rng);
+            for (const npc of npcs) {
+                const dist = npc.position - playerLoc.position;
+                const absDist = dist < 0n ? -dist : dist;
+                assert.ok(absDist < 200n,
+                    `NPC ${npc.name} spawned ${absDist} segments from player (expected <200)`);
+            }
+        });
+
+        it("NPCs books are far from their spawn location", () => {
+            // NPC spawns near player; their books are randomly placed — cosmically far.
+            const playerLoc = { side: 0, position: 5_000_000_000n, floor: 50n };
+            for (let i = 0; i < 16; i++) {
+                const story = generateNPCLifeStory(i, SEED);
+                const dist = distanceToBook(playerLoc, story.bookCoords);
+                // Book is randomly placed: at least sometimes billions of segments away.
+                // We just assert it's never 0 (NPC never spawns on their own book).
+                assert.ok(dist > 0n, `NPC ${i} spawned exactly on their book`);
+            }
+        });
+
+        it("NPC books are broadly distributed (not all near origin)", () => {
+            const positions = [];
+            for (let i = 0; i < 30; i++) {
+                const story = generateNPCLifeStory(i, SEED);
+                positions.push(story.bookCoords.position);
+            }
+            const min = positions.reduce((a, b) => a < b ? a : b);
+            const max = positions.reduce((a, b) => a > b ? a : b);
+            const range = max - min;
+            assert.ok(range > 100_000_000n,
+                `NPC book range too narrow: ${range} across 30 NPCs`);
+        });
     });
 });

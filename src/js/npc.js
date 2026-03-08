@@ -3,7 +3,6 @@
 import {
     DISPOSITIONS, SPAWN_CONFIG, spawnNPCs, getNPCsAt, interactText,
 } from "../../lib/npc.core.ts";
-import { generateNPCLifeStory } from "../../lib/lifestory.core.ts";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
 
@@ -55,13 +54,6 @@ export const Npc = {
             }
             allNpcs.push(...wave);
             id += sc.npcsPerWave;
-        }
-
-        // Assign each NPC their book coordinates from their life story
-        const globalSeed = PRNG.getSeed();
-        for (const npc of allNpcs) {
-            const story = generateNPCLifeStory(npc.id, globalSeed);
-            npc.bookCoords = story.bookCoords;
         }
 
         state.npcs = allNpcs;
