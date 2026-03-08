@@ -328,6 +328,7 @@ body.godmode {
     align-items: center;
     gap: 6px;
     margin: 3px 0;
+    position: relative;
 }
 
 .gm-stat > span:first-child {
@@ -667,9 +668,12 @@ body.godmode {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
-.gm-bar-num.gm-tip:hover::after {
-    left: auto;
-    right: 0;
+.gm-stat .gm-tip {
+    position: static;
+}
+.gm-stat .gm-tip:hover::after {
+    left: 0;
+    right: auto;
 }
 
 .gm-loc-inline {
