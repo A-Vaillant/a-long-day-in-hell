@@ -233,12 +233,12 @@ export function applyAlcohol(stats: SurvivalStats): SurvivalStats {
 export const SLEEP_EXHAUSTION_THRESHOLD: number = 50;
 
 /**
- * Whether the player is tired enough to sleep voluntarily.
- *
- * @param {number} exhaustion
- * @returns {boolean}
+ * Whether the player can sleep voluntarily.
+ * Always allowed when lights are off (it's dark, nothing else to do).
+ * During the day, requires sufficient exhaustion.
  */
-export function canSleep(exhaustion: number): boolean {
+export function canSleep(exhaustion: number, lightsOn: boolean = true): boolean {
+    if (!lightsOn) return true;
     return exhaustion >= SLEEP_EXHAUSTION_THRESHOLD;
 }
 
