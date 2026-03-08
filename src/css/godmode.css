@@ -207,8 +207,8 @@ body.godmode {
 /* --- Panel (tabbed) --- */
 
 #godmode-panel {
-    width: 340px;
-    min-width: 340px;
+    width: 280px;
+    min-width: 280px;
     display: flex;
     flex-direction: column;
     border-left: 1px solid #1a1610;
@@ -986,4 +986,94 @@ body.godmode {
     margin: 8px 0 2px;
     border-bottom: 1px solid #1a1610;
     padding-bottom: 2px;
+}
+
+/* --- Godmode canvas touch --- */
+
+#godmode-canvas {
+    touch-action: none; /* prevent browser zoom/scroll, we handle it */
+}
+
+/* --- Mobile responsive godmode --- */
+
+@media (max-width: 640px) {
+    #godmode-container {
+        flex-direction: column;
+    }
+
+    #godmode-map-wrap {
+        height: 60vh;
+        min-height: 200px;
+    }
+
+    #godmode-panel {
+        width: 100%;
+        min-width: 0;
+        height: 40vh;
+        border-left: none;
+        border-top: 1px solid #1a1610;
+    }
+
+    /* Larger tap targets for godmode buttons */
+    #godmode-controls button {
+        min-height: 36px;
+        min-width: 36px;
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+
+    .gm-tab {
+        min-height: 36px;
+        padding: 8px 0;
+        font-size: 12px;
+    }
+
+    .gm-log-filter {
+        min-height: 32px;
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    /* Speed slider: larger thumb for touch */
+    #gm-speed-slider {
+        height: 10px;
+    }
+    #gm-speed-slider::-webkit-slider-thumb {
+        width: 22px;
+        height: 22px;
+    }
+    #gm-speed-slider::-moz-range-thumb {
+        width: 22px;
+        height: 22px;
+    }
+
+    /* Possess banner: larger unpossess button */
+    #unpossess-btn {
+        min-height: 36px;
+        padding: 6px 14px;
+        font-size: 13px;
+    }
+
+    /* Controls bar wraps more on mobile */
+    #godmode-controls {
+        gap: 4px;
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    /* Hide kbd hints on mobile (no keyboard) */
+    #godmode-controls kbd {
+        display: none;
+    }
+
+    /* NPC rows: larger tap targets */
+    .gm-npc-row {
+        padding: 12px 10px 12px 14px;
+    }
+
+    .gm-btn {
+        min-height: 36px;
+        padding: 8px 14px;
+        font-size: 11px;
+    }
 }

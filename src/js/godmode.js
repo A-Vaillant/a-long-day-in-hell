@@ -602,6 +602,119 @@ function setupInput(canvas) {
         render();
     }, { passive: false });
 
+    // --- Touch events for mobile ---
+    let touchState = null; // { id, startX, startY } for single-finger pan
+    let pinchDist = null;  // distance between two fingers for pinch zoom
+
+    function getTouchDist(t1, t2) {
+        const dx = t1.clientX - t2.clientX;
+        const dy = t1.clientY - t2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function getTouchCenter(t1, t2, rect) {
+        return {
+            x: (t1.clientX + t2.clientX) / 2 - rect.left,
+            y: (t1.clientY + t2.clientY) / 2 - rect.top,
+        };
+    }
+
+    canvas.addEventListener("touchstart", function (ev) {
+        ev.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        if (ev.touches.length === 2) {
+            // Start pinch
+            pinchDist = getTouchDist(ev.touches[0], ev.touches[1]);
+            touchState = null; // cancel pan
+        } else if (ev.touches.length === 1) {
+            const t = ev.touches[0];
+            const x = t.clientX - rect.left;
+            const y = t.clientY - rect.top;
+            touchState = { id: t.identifier, startX: x, startY: y, curX: x, curY: y };
+            GodmodeMap.dragStart(x, y);
+        }
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", function (ev) {
+        ev.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        if (ev.touches.length === 2 && pinchDist !== null) {
+            // Pinch zoom
+            const newDist = getTouchDist(ev.touches[0], ev.touches[1]);
+            const center = getTouchCenter(ev.touches[0], ev.touches[1], rect);
+            const ratio = newDist / pinchDist;
+            if (ratio > 1.15) {
+                GodmodeMap.zoom(1, center.x, center.y);
+                pinchDist = newDist;
+                render();
+            } else if (ratio < 0.85) {
+                GodmodeMap.zoom(-1, center.x, center.y);
+                pinchDist = newDist;
+                render();
+            }
+        } else if (ev.touches.length === 1 && touchState !== null) {
+            const t = ev.touches[0];
+            const x = t.clientX - rect.left;
+            const y = t.clientY - rect.top;
+            touchState.curX = x;
+            touchState.curY = y;
+            GodmodeMap.dragMove(x, y);
+            render();
+        }
+    }, { passive: false });
+
+    canvas.addEventListener("touchend", function (ev) {
+        ev.preventDefault();
+        if (ev.touches.length === 0) {
+            if (pinchDist !== null) {
+                // End pinch — don't select NPC
+                pinchDist = null;
+                touchState = null;
+                return;
+            }
+            if (touchState !== null) {
+                const rect = canvas.getBoundingClientRect();
+                const x = touchState.curX;
+                const y = touchState.curY;
+                const wasDrag = GodmodeMap.dragEnd(x, y);
+
+                if (wasDrag) followMode = false;
+
+                // Tap (not drag) → select NPC
+                if (!wasDrag && x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) {
+                    const hit = GodmodeMap.hitTest(x, y);
+                    if (hit !== null) {
+                        selectedNpcId = hit;
+                        followMode = false;
+                        const npc = state.npcs && state.npcs.find(n => n.id === hit);
+                        if (npc) GodmodeMap.setSide(npc.side);
+                        switchTab("npc");
+                    } else {
+                        selectedNpcId = null;
+                        followMode = false;
+                    }
+                }
+                touchState = null;
+                render();
+            }
+        } else if (ev.touches.length === 1) {
+            // Went from 2 fingers to 1 — restart pan from remaining finger
+            pinchDist = null;
+            const rect = canvas.getBoundingClientRect();
+            const t = ev.touches[0];
+            const x = t.clientX - rect.left;
+            const y = t.clientY - rect.top;
+            touchState = { id: t.identifier, startX: x, startY: y, curX: x, curY: y };
+            GodmodeMap.dragStart(x, y);
+        }
+    }, { passive: false });
+
+    canvas.addEventListener("touchcancel", function () {
+        touchState = null;
+        pinchDist = null;
+        GodmodeMap.dragEnd(0, 0);
+    });
+
     document.addEventListener("keydown", function (ev) {
         // Don't handle godmode keys during possession — normal keybindings take over
         if (possessing) return;
