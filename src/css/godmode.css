@@ -622,6 +622,11 @@ body.godmode {
     background: #16140e;
 }
 
+.gm-log-time-filters {
+    padding-top: 0;
+    margin-top: -4px;
+}
+
 .gm-log-empty {
     color: #4a4030;
     font-style: italic;
