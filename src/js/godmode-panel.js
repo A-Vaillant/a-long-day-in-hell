@@ -91,7 +91,7 @@ const TIPS = {
     inspired: "Divinely inspired. On a pilgrimage to find their book.",
     witnessChasm: "Saw someone fall into the chasm. Devastating at first, permanent scar.",
     beingKilled: "Died and came back. Terrifying, then routine.",
-    companionMad: "A companion went mad. Personal. Slow to numb.",
+    companionMad: "A companion went mad. Personal. Permanent scar.",
     beingDismissed: "Abandoned or rejected. Pure hope damage.",
     witnessAttack: "Saw violence. Goes numb fastest.",
     committingViolence: "Killed someone. Costs clarity and hope.",
@@ -104,7 +104,6 @@ const TIPS = {
     witnessEscape: "Saw someone escape. Hopeful. Fades slowly.",
     foundWords: "Found words in a book. Brief wonder.",
     witnessMadness: "Watched someone lose their mind. Permanent floor.",
-    companionMad: "Someone close went mad. Permanent scar.",
 };
 
 function tip(label) {
