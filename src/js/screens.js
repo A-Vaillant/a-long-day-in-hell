@@ -750,8 +750,20 @@ Engine.register("Menu", {
         let html = '<div id="menu-view">';
         html += '<p class="location-header">Menu</p>';
 
+        // Save slot summary
+        let saveLabel = "No save";
+        if (state._savedAt) {
+            const d = new Date(state._savedAt);
+            const dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+                " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+            const evCount = state._savedLogCount != null ? state._savedLogCount + " events" : "";
+            saveLabel = "Day " + state.day + " · " + Tick.getTimeString() + " · " + dateStr;
+            if (evCount) saveLabel += " · " + evCount;
+        }
+        html += '<p class="menu-save-slot">' + esc(saveLabel) + '</p>';
+
         if (state._menuSaved) {
-            html += '<p class="menu-confirm">Game saved. (Day ' + state.day + ', ' + Tick.getTimeString() + ')</p>';
+            html += '<p class="menu-confirm">Saved.</p>';
         }
 
         if (state._menuConfirmNew) {

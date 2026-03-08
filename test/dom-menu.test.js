@@ -74,7 +74,7 @@ describe("Menu screen", () => {
         saveLink.click();
 
         const html = document.getElementById("passage").innerHTML;
-        assert.ok(html.includes("Game saved"), "should show save confirmation");
+        assert.ok(html.includes("Saved"), "should show save confirmation");
         assert.ok(html.includes("Day " + state.day), "should show current day");
     });
 

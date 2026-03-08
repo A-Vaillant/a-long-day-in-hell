@@ -422,6 +422,13 @@ button:disabled {
 #menu-view p {
     margin: 0.5rem 0;
 }
+.menu-save-slot {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    border-left: 2px solid var(--text-dim);
+    padding-left: 0.7em;
+    margin-bottom: 1rem !important;
+}
 .menu-confirm {
     color: var(--text-dim);
     font-style: italic;

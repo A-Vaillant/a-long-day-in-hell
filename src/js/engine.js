@@ -14,6 +14,7 @@ import { Npc } from "./npc.js";
 import { Social } from "./social.js";
 import { createBoundaryRegistry, processTime } from "../../lib/engine.core.ts";
 import { Godmode } from "./godmode.js";
+import { saveLog, loadLog, clearLog, count as logCount } from "./event-log.js";
 
 export { state };
 
@@ -266,7 +267,11 @@ export const Engine = {
             var cur = this._screens[state.screen];
             if (cur && cur.kind === "transition") return; // never save on a transition
             if (state._possessedNpcId != null) return; // don't save during possession
+            // Embed log metadata in state for save-slot display (not the full log)
+            state._savedLogCount = logCount();
+            state._savedAt = Date.now();
             localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+            saveLog();
         } catch (e) {
             if (e instanceof DOMException && e.name === "QuotaExceededError") return;
             console.error("Save failed:", e);
@@ -281,6 +286,7 @@ export const Engine = {
     },
     clearSave() {
         localStorage.removeItem(SAVE_KEY);
+        clearLog();
     },
 
     init() {
@@ -292,6 +298,7 @@ export const Engine = {
         if (saved && saved.seed != null && !hasSeedParam && !isDebugGoto) {
             Object.assign(state, saved);
             PRNG.seed(state.seed);
+            loadLog();
             // Migrate missing fields from older saves
             if (state.mortality === undefined) state.mortality = 100;
             if (state.despairing === undefined) state.despairing = false;
