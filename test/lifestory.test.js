@@ -106,6 +106,55 @@ describe("generateLifeStory prose", () => {
     });
 });
 
+describe("playerStart", () => {
+    it("playerStart has valid shape", () => {
+        for (let i = 0; i < 20; i++) {
+            const story = generateLifeStory("ps-shape-" + i);
+            const ps = story.playerStart;
+            assert.ok(ps !== null && typeof ps === "object", "playerStart missing");
+            assert.ok(ps.side === 0 || ps.side === 1, "playerStart.side invalid");
+            assert.ok(typeof ps.position === "bigint", "playerStart.position not bigint");
+            assert.ok(typeof ps.floor === "bigint", "playerStart.floor not bigint");
+        }
+    });
+
+    it("playerStart floor is non-negative", () => {
+        for (let i = 0; i < 100; i++) {
+            const story = generateLifeStory("ps-floor-" + i);
+            assert.ok(story.playerStart.floor >= 0n,
+                `seed ps-floor-${i}: playerStart.floor ${story.playerStart.floor} is negative`);
+        }
+    });
+
+    it("random mode: playerStart is at least 666,666 segments from book", () => {
+        for (let i = 0; i < 20; i++) {
+            const story = generateLifeStory("ps-dist-" + i, { placement: "random" });
+            const dist = story.playerStart.position - story.bookCoords.position;
+            const absDist = dist < 0n ? -dist : dist;
+            assert.ok(absDist >= 666_666n,
+                `seed ps-dist-${i}: playerStart only ${absDist} segments from book`);
+        }
+    });
+
+    it("gaussian mode: playerStart is within 500 segments of book", () => {
+        for (let i = 0; i < 50; i++) {
+            const story = generateLifeStory("ps-easy-" + i, { placement: "gaussian" });
+            const dist = story.playerStart.position - story.bookCoords.position;
+            const absDist = dist < 0n ? -dist : dist;
+            assert.ok(absDist < 500n,
+                `seed ps-easy-${i}: playerStart ${absDist} segments from book (expected <500)`);
+        }
+    });
+
+    it("deterministic: same seed produces same playerStart", () => {
+        const a = generateLifeStory("ps-det");
+        const b = generateLifeStory("ps-det");
+        assert.strictEqual(a.playerStart.side, b.playerStart.side);
+        assert.strictEqual(a.playerStart.position, b.playerStart.position);
+        assert.strictEqual(a.playerStart.floor, b.playerStart.floor);
+    });
+});
+
 describe("formatLifeStory", () => {
     it("returns string containing name and occupation", () => {
         const story = generateLifeStory("format-test");
