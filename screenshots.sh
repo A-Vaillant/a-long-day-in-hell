@@ -53,7 +53,7 @@ snap() {
 snap "01_life_story"       "Life Story"      "#lifestory-view"
 snap "02_corridor_rest"    "Corridor"        "#corridor-view"
 snap "03_corridor_gallery" "Corridor"        "#corridor-view" \
-    "state.position=1; Engine.goto('Corridor');"
+    "state.position=1n; Engine.goto('Corridor');"
 
 # --- Book views ---
 snap_url "04_book_cover" "${BASE}/?seed=${SEED}&vohu=Shelf%20Open%20Book&openBook=0,0,10,0" "#book-view"
@@ -69,25 +69,25 @@ snap "06a_sign"              "Sign"            "#sign-view"
 
 # --- Muttering (nearby NPC not co-located) ---
 snap "06b_corridor_muttering" "Corridor"       "#corridor-view" \
-    "state.position=3;
+    "state.position=3n;
      state.npcs[0].side = state.side;
-     state.npcs[0].position = state.position + 1;
+     state.npcs[0].position = state.position + 1n;
      state.npcs[0].floor = state.floor;
      state.npcs[1].side = state.side;
-     state.npcs[1].position = state.position + 2;
+     state.npcs[1].position = state.position + 2n;
      state.npcs[1].floor = state.floor;
      Social.syncNpcPositions();
      Engine.goto('Corridor');"
 
 # --- Event visible in corridor (force an event) ---
 snap "09_corridor_event"   "Corridor"        "#corridor-view" \
-    "state.position=1;
+    "state.position=1n;
      state.lastEvent = { text: TEXT.events[0].text, type: TEXT.events[0].type };
      Engine.goto('Corridor');"
 
 # --- NPC encounter (place an NPC at player location) ---
 snap "10_corridor_npc"     "Corridor"        "#corridor-view" \
-    "state.position=1;
+    "state.position=1n;
      state.npcs[0].side = state.side;
      state.npcs[0].position = state.position;
      state.npcs[0].floor = state.floor;
@@ -96,7 +96,7 @@ snap "10_corridor_npc"     "Corridor"        "#corridor-view" \
 
 # --- NPC anxious + mad (multiple NPCs, different dispositions) ---
 snap "11_corridor_npcs_mixed" "Corridor"     "#corridor-view" \
-    "state.position=1;
+    "state.position=1n;
      state.npcs[0].side = state.side;
      state.npcs[0].position = state.position;
      state.npcs[0].floor = state.floor;
@@ -114,31 +114,31 @@ snap "11_corridor_npcs_mixed" "Corridor"     "#corridor-view" \
 
 # --- Survival pressure (high stats, warnings showing) ---
 snap "12_corridor_stressed" "Corridor"       "#corridor-view" \
-    "state.position=1;
+    "state.position=1n;
      state.hunger=85; state.thirst=92; state.exhaustion=70; state.morale=15;
      Engine.goto('Corridor');"
 
 # --- Dying (mortality visible) ---
 snap "13_corridor_dying"    "Corridor"       "#corridor-view" \
-    "state.position=1;
+    "state.position=1n;
      state.hunger=100; state.thirst=100; state.mortality=23; state.morale=5;
      state.despairing=true;
      Engine.goto('Corridor');"
 
 # --- Held book + submission ---
 snap "14_submission_held"   "Submission Slot" "#submission-view" \
-    "state.heldBook = { side:0, position:1, floor:10, bookIndex:42 };
+    "state.heldBook = { side:0, position:1n, floor:10n, bookIndex:42 };
      Engine.goto('Submission Slot');"
 
 # --- Bridge corridor (cross available) ---
 snap "15_corridor_bridge"   "Corridor"        "#corridor-view" \
-    "state.position=0; state.floor=0;
+    "state.position=0n; state.floor=0n;
      Engine.goto('Corridor');"
 
 # --- Dim lighting ---
 snap "16_corridor_dim"      "Corridor"        "#corridor-view" \
     "var found = false;
-     for (var p = 1; p < 200 && !found; p++) {
+     for (var p = 1n; p < 200n && !found; p++) {
          var seg = Lib.getSegment(state.side, p, state.floor);
          if (seg.lightLevel === 'dim') {
              state.position = p;

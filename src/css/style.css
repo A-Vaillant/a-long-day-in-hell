@@ -938,6 +938,12 @@ button:disabled {
     margin: 1.5rem 0;
 }
 
+.mercy-hint {
+    font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 0.9em;
+    color: #999;
+}
+
 @keyframes story-fade {
     from { opacity: 0.6; }
     to   { opacity: 1; }

@@ -545,6 +545,10 @@ function renderSignBody(body) {
 
 /* ---------- Life Story ---------- */
 
+function commas(n) {
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 function mercyDistanceText(playerLoc, targetBook) {
     const segDist = playerLoc.position > targetBook.position
         ? playerLoc.position - targetBook.position
@@ -561,17 +565,17 @@ function mercyDistanceText(playerLoc, targetBook) {
 
     let distStr;
     if (days < 2n) {
-        distStr = segDist + " segment" + (segDist === 1n ? "" : "s");
+        distStr = commas(segDist) + " segment" + (segDist === 1n ? "" : "s");
     } else if (days < 365n) {
-        distStr = days + " days' walk";
+        distStr = commas(days) + " days' walk";
     } else {
         const years = days / 365n;
-        distStr = years + " year" + (years === 1n ? "" : "s") + " of walking";
+        distStr = commas(years) + " year" + (years === 1n ? "" : "s") + " of walking";
     }
 
     let location = distStr + " " + segDir;
     if (!sameSide) location += ", on the other side";
-    if (floorDist > 0n) location += ", " + floorDist + " floor" + (floorDist === 1n ? "" : "s") + " " + floorDir;
+    if (floorDist > 0n) location += ", " + commas(floorDist) + " floor" + (floorDist === 1n ? "" : "s") + " " + floorDir;
 
     return location;
 }
