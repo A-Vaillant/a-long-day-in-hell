@@ -54,34 +54,56 @@ export function generatePersonality(rng: Rng): Personality {
 // --- Side biasing ---
 
 /**
- * Configuration for personality biasing by corridor side.
- * Player side gets negative bias (calmer), other side gets positive (chaotic).
- * Widen pushes values away from 0.5 toward extremes.
+ * Side personality profiles — not a mirror, two distinct populations.
+ *
+ * Player side (WEST) — the settlers. Stayed close to where they woke up.
+ * Patient, accepting, guarded. Form stable insular groups. Monastics.
+ * Target: low temperament, low pace, low openness, low outlook.
+ *
+ * Far side (EAST) — the seekers. Crossed the chasm to search harder.
+ * Restless, volatile, open. Form intense bonds that burn and fracture. Zealots.
+ * Target: high temperament, high pace, high openness, high outlook.
+ *
+ * `pull` = how strongly traits are dragged toward the side's center.
+ * `spread` = variance multiplier (>1 widens, <1 narrows the distribution).
  */
-export const SIDE_BIAS_CONFIG = {
-    bias: 0.15,                // base bias magnitude (negated for player side)
-    widen: 1.4,                // variance widening factor (1.0 = no change)
-    temperamentWeight: 1.0,    // how strongly bias affects temperament
-    paceWeight: 0.7,           // how strongly bias affects pace
-    opennessWeight: -0.5,      // negative = bias reduces openness (guarded under chaos)
-    outlookWeight: 1.0,        // how strongly bias affects outlook
+export const SIDE_PROFILES = {
+    /** Settlers: patient, guarded, accepting */
+    player: {
+        temperament: { center: 0.25, spread: 0.8 },
+        pace:        { center: 0.20, spread: 0.7 },
+        openness:    { center: 0.30, spread: 0.9 },
+        outlook:     { center: 0.20, spread: 0.7 },
+    },
+    /** Seekers: volatile, restless, open, resistant */
+    far: {
+        temperament: { center: 0.75, spread: 0.8 },
+        pace:        { center: 0.80, spread: 0.7 },
+        openness:    { center: 0.70, spread: 0.9 },
+        outlook:     { center: 0.80, spread: 0.7 },
+    },
+    pull: 0.6,  // interpolation strength toward center (0 = no effect, 1 = snap to center)
 };
 
 /**
- * Apply side-based personality biasing. Mutates the personality in place.
- * `isPlayerSide` true → calmer (negative bias), false → more chaotic (positive bias).
+ * Apply side-based personality shaping. Mutates the personality in place.
+ *
+ * Instead of a simple bias flip, pulls each trait toward the side's target center
+ * then applies per-trait spread to control variance around that center.
  */
 export function applySideBias(pers: Personality, isPlayerSide: boolean): void {
-    const cfg = SIDE_BIAS_CONFIG;
-    const sign = isPlayerSide ? -1 : 1;
-    const bias = cfg.bias * sign;
+    const profile = isPlayerSide ? SIDE_PROFILES.player : SIDE_PROFILES.far;
+    const pull = SIDE_PROFILES.pull;
     const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-    const widen = (v: number) => { const d = (v - 0.5) * cfg.widen; return clamp01(0.5 + d); };
 
-    pers.temperament = widen(clamp01(pers.temperament + bias * cfg.temperamentWeight));
-    pers.pace = widen(clamp01(pers.pace + bias * cfg.paceWeight));
-    pers.openness = widen(clamp01(pers.openness + bias * cfg.opennessWeight));
-    pers.outlook = widen(clamp01(pers.outlook + bias * cfg.outlookWeight));
+    for (const trait of ["temperament", "pace", "openness", "outlook"] as const) {
+        const { center, spread } = profile[trait];
+        // Pull toward side center
+        let v = pers[trait] + (center - pers[trait]) * pull;
+        // Spread around the center (compress or widen variance)
+        v = center + (v - center) * spread;
+        pers[trait] = clamp01(v);
+    }
 }
 
 // --- Compatibility ---
