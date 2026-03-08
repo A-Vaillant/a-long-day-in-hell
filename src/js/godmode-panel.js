@@ -4,7 +4,7 @@
  * Callbacks: onSelect(id), onCenter(id), onDeselect()
  */
 
-import { getNpcNarrative } from "./godmode-narrative.js";
+import { getForNpc } from "./event-log.js";
 
 let callbacks = {};
 let lastHtml = "";
@@ -656,15 +656,15 @@ function renderDetail(npc, snap, pane) {
     html += '<div class="gm-thought">' + esc(narrate(npc)) + '</div>';
     html += '</div>';
 
-    // Narrative history
-    const narrative = getNpcNarrative(npc.id);
-    if (narrative.length > 0) {
+    // Event history (objective log, filtered to this NPC)
+    const history = getForNpc(npc.id);
+    if (history.length > 0) {
         html += '<div class="gm-section">';
-        html += '<div class="gm-section-title">story</div>';
+        html += '<div class="gm-section-title">history</div>';
         html += '<div class="gm-narrative">';
         // Show newest first
-        for (let i = narrative.length - 1; i >= 0; i--) {
-            const entry = narrative[i];
+        for (let i = history.length - 1; i >= 0; i--) {
+            const entry = history[i];
             const mins = (entry.tick / 240) * 24 * 60 + 6 * 60;
             const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
             const mm = String(Math.floor(mins % 60)).padStart(2, "0");
