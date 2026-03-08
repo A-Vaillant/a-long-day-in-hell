@@ -387,7 +387,7 @@ test.describe("godmode mobile log filters", () => {
     });
 
     test("time filter buttons are tappable", async ({ page }) => {
-        const btn = page.locator('[data-time-filter]').first();
+        const btn = page.locator('[data-timewindow]').first();
         await expect(btn).toBeVisible();
         await btn.tap();
     });
