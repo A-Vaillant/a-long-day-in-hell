@@ -840,9 +840,6 @@ Engine.register("Talk", {
         } else if (bond && bond.familiarity >= 10) {
             html += '<a id="talk-recruit"><kbd>i</kbd> Invite to travel together</a><br>';
         }
-        if (Social.isInPlayerGroup(npc.id)) {
-            html += '<a id="talk-group-dismiss"><kbd>d</kbd> Ask to leave your group</a><br>';
-        }
         html += '<a data-goto="Corridor"><kbd>q</kbd> Leave</a>';
         html += '</div>';
         html += '</div>';
