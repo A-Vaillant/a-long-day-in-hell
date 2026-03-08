@@ -93,7 +93,6 @@ const TIPS = {
     endurance: "Physical resilience. Slows hunger, thirst, exhaustion. 3d6 (3–18).",
     influence: "Social force. Scales pressure, companion restoration, affinity gain. 3d6 (3–18).",
     quickness: "Speed. Movement probability, search speed, grab chance. 3d6 (3–18).",
-    witnessChasm: "Saw someone fall into the chasm. Permanent scar.",
     foundBody: "Stumbled on a body. Numbs with repetition.",
     companionDied: "Someone close died. Lingers.",
     groupDissolved: "Their group fell apart. Decays over days.",

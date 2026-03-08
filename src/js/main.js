@@ -17,6 +17,7 @@ import { Chasm } from "./chasm.js";
 import { Debug } from "./debug.js";
 import { GodmodeMap } from "./godmode-map.js";
 import { doMove } from "./screens.js";
+import * as EventLog from "./event-log.js";
 import "./keybindings.js";
 
 // Expose globals for debug console, shot-scraper, and saved game restore
@@ -36,8 +37,9 @@ window.T        = T;
 window.Chasm    = Chasm;
 window.Debug    = Debug;
 window.GodmodeMap = GodmodeMap;
-window.Godmode  = Godmode;
-window.doMove   = doMove;
+window.Godmode   = Godmode;
+window.doMove    = doMove;
+window.EventLog  = EventLog;
 
 // Boot when DOM is ready
 if (document.readyState === "loading") {
