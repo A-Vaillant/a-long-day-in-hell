@@ -26,6 +26,12 @@ export interface BookCoords {
 
 /* ---------- Life story ---------- */
 
+export interface StartLocation {
+    side: number;
+    position: bigint;
+    floor: bigint;
+}
+
 export interface LifeStory {
     name: string;
     occupation: string;
@@ -36,6 +42,7 @@ export interface LifeStory {
     targetPage: number;
     placement: string;
     bookCoords: BookCoords;
+    playerStart: StartLocation;
 }
 
 /* ---------- Game state ---------- */
