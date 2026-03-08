@@ -104,6 +104,7 @@ const TIPS = {
     witnessEscape: "Saw someone escape. Hopeful. Fades slowly.",
     foundWords: "Found words in a book. Brief wonder.",
     witnessMadness: "Watched someone lose their mind. Permanent floor.",
+    metSomeone: "Got to know someone. Fades, but leaves warmth.",
 };
 
 function tip(label) {

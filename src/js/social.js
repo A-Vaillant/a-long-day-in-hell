@@ -230,6 +230,20 @@ export const Social = {
             if (g) prevGroups.set(playerEntity, g.groupId);
         }
 
+        // Snapshot bond familiarity before relationship system (for MET_SOMEONE detection)
+        // Map: entity → Map<otherEntity, familiarity>
+        const BOND_THRESHOLD = 1.0;
+        const prevFamiliarity = new Map();
+        const allEntities = [...npcEntities.values()];
+        if (playerEntity !== null) allEntities.push(playerEntity);
+        for (const ent of allEntities) {
+            const rels = getComponent(world, ent, RELATIONSHIPS);
+            if (!rels) continue;
+            const snap = new Map();
+            for (const [other, bond] of rels.bonds) snap.set(other, bond.familiarity);
+            prevFamiliarity.set(ent, snap);
+        }
+
         // Core systems — order matters
         relationshipSystem(world, currentTick, undefined, prebuilt, n);
         psychologyDecaySystem(world, undefined, n);
@@ -300,6 +314,35 @@ export const Social = {
 
         // Collect witness events from escape/chasm/falling/disposition changes
         const witnessEvents = [];
+
+        // Detect new bonds (familiarity crossed threshold) — emit MET_SOMEONE via witnessSystem
+        // Deduplicate by only emitting from the lower-entity-id side of each pair.
+        const reportedBonds = new Set(); // "minEnt:maxEnt" to avoid double-emit
+        for (const ent of allEntities) {
+            const rels = getComponent(world, ent, RELATIONSHIPS);
+            if (!rels) continue;
+            const prev = prevFamiliarity.get(ent);
+            if (!prev) continue;
+            const ident = getComponent(world, ent, IDENTITY);
+            if (!ident || !ident.alive) continue;
+            for (const [other, bond] of rels.bonds) {
+                const prevFam = prev.get(other) ?? 0;
+                if (prevFam < BOND_THRESHOLD && bond.familiarity >= BOND_THRESHOLD) {
+                    const pairKey = Math.min(ent, other) + ":" + Math.max(ent, other);
+                    if (reportedBonds.has(pairKey)) continue;
+                    reportedBonds.add(pairKey);
+                    const pos = getComponent(world, ent, POSITION);
+                    if (!pos) continue;
+                    witnessEvents.push({
+                        type: MEMORY_TYPES.MET_SOMEONE,
+                        subject: other,  // who was met
+                        position: { side: pos.side, position: pos.position, floor: pos.floor },
+                        bondedOnly: false,
+                        range: "colocated",
+                    });
+                }
+            }
+        }
 
         // Detect group dissolutions: self-witnessed by the entity that lost their group
         for (const [ent, prevGroupId] of prevGroups) {
@@ -435,6 +478,10 @@ export const Social = {
                 case MEMORY_TYPES.FOUND_BODY:
                     logEntries.push({ tick: currentTick, day: state.day, type: "death",
                         text: npcName + " died" + locStr + ".", npcIds: [npcId], position: pos });
+                    break;
+                case MEMORY_TYPES.MET_SOMEONE:
+                    logEntries.push({ tick: currentTick, day: state.day, type: "bond",
+                        text: npcName + " became known.", npcIds: [npcId], position: pos });
                     break;
                 // COMPANION_DIED, COMPANION_MAD, WITNESS_ESCAPE(bonded) — skip, duplicates above
             }
