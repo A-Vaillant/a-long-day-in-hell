@@ -63,6 +63,8 @@ function resolve(action) {
             return resolveSpendTime(action.npcId);
         case "recruit":
             return resolveRecruit(action.npcId);
+        case "dismiss":
+            return resolveDismiss(action.npcId);
         default:
             return { resolved: false };
     }
@@ -227,6 +229,14 @@ function resolveSpendTime(npcId) {
 function resolveRecruit(npcId) {
     if (state.dead) return { resolved: false };
     const result = Social.recruit(npcId);
+    if (!result.success) return { resolved: false, data: result };
+    Tick.advance(1);
+    return { resolved: true, data: result };
+}
+
+function resolveDismiss(npcId) {
+    if (state.dead) return { resolved: false };
+    const result = Social.dismissFromGroup(npcId);
     if (!result.success) return { resolved: false, data: result };
     Tick.advance(1);
     return { resolved: true, data: result };

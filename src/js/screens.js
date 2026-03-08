@@ -830,6 +830,9 @@ Engine.register("Talk", {
         if (bond && bond.familiarity >= 10) {
             html += '<a id="talk-recruit"><kbd>i</kbd> Invite to travel together</a><br>';
         }
+        if (Social.isInPlayerGroup(npc.id)) {
+            html += '<a id="talk-group-dismiss"><kbd>d</kbd> Ask to leave your group</a><br>';
+        }
         html += '<a data-goto="Corridor"><kbd>q</kbd> Leave</a>';
         html += '</div>';
         html += '</div>';
@@ -878,6 +881,17 @@ Engine.register("Talk", {
                 state._recruitResult = result.data || result;
                 state._recruitResult._npcName = npc.name;
                 Engine.goto("Recruit Result");
+            });
+        }
+
+        var dismissGroupBtn = document.getElementById("talk-group-dismiss");
+        if (dismissGroupBtn) {
+            dismissGroupBtn.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                var result = Actions.resolve({ type: "dismiss", npcId: npc.id });
+                state._dismissResult = result.data || result;
+                state._dismissResult._npcName = npc.name;
+                Engine.goto("Dismiss Result");
             });
         }
     },
@@ -964,6 +978,29 @@ Engine.register("Recruit Result", {
         html += '<p class="key-hint"><a data-goto="Corridor"><kbd>\u23ce</kbd> Continue</a></p>';
         html += '</div>';
         state._recruitResult = null;
+        return html;
+    },
+});
+
+Engine.register("Dismiss Result", {
+    kind: "transition",
+    render() {
+        const r = state._dismissResult;
+        if (!r) {
+            setTimeout(function () { Engine.goto("Corridor"); }, 0);
+            return "";
+        }
+        const name = r._npcName || "them";
+        let html = '<div id="dismiss-result-view">';
+        if (r.success) {
+            html += '<p>You tell <strong>' + esc(name) + '</strong> it\'s time to part ways.</p>';
+            html += '<p>They leave without a word.</p>';
+        } else {
+            html += '<p>You can\'t do that right now.</p>';
+        }
+        html += '<p class="key-hint"><a data-goto="Corridor"><kbd>\u23ce</kbd> Continue</a></p>';
+        html += '</div>';
+        state._dismissResult = null;
         return html;
     },
 });

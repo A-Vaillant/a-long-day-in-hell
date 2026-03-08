@@ -334,3 +334,151 @@ describe("DOM: Talk advances time", () => {
         assert.ok(spendCost > talkCost, "spend time costs more ticks than talk");
     });
 });
+
+/** Recruit an NPC into the player's group via the full UI flow. */
+function recruitNpc(game, npcIndex) {
+    const npc = placeNpcWithBonds(game, npcIndex);
+    game.state._talkTarget = npc;
+    game.Engine.goto("Talk");
+    const recruitBtn = game.document.getElementById("talk-recruit");
+    assert.ok(recruitBtn, "recruit button exists for setup");
+    recruitBtn.click();
+    // Should be on Recruit Result — go back to corridor
+    game.Engine.goto("Corridor");
+    return npc;
+}
+
+describe("DOM: Dismiss from group", () => {
+    it("dismiss option hidden when NPC is not in player group", () => {
+        const game = bootGame();
+        const npc = placeNpcWithBonds(game, 0);
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const dismissBtn = game.document.getElementById("talk-group-dismiss");
+        assert.strictEqual(dismissBtn, null, "dismiss not visible when NPC not in group");
+    });
+
+    it("dismiss option visible when NPC is in player group", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+
+        // Verify NPC is in player group
+        assert.ok(game.Social.isInPlayerGroup(npc.id), "NPC should be in player group after recruit");
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const dismissBtn = game.document.getElementById("talk-group-dismiss");
+        assert.ok(dismissBtn, "dismiss option visible for grouped NPC");
+    });
+
+    it("clicking dismiss opens Dismiss Result screen", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const dismissBtn = game.document.getElementById("talk-group-dismiss");
+        dismissBtn.click();
+
+        assert.strictEqual(game.state.screen, "Dismiss Result");
+    });
+
+    it("Dismiss Result shows success message with NPC name", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const dismissBtn = game.document.getElementById("talk-group-dismiss");
+        dismissBtn.click();
+
+        const passage = game.document.getElementById("passage");
+        assert.ok(passage.textContent.includes(npc.name), "shows NPC name");
+        assert.ok(passage.textContent.includes("part ways"), "shows parting message");
+    });
+
+    it("NPC is no longer in player group after dismiss", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+        assert.ok(game.Social.isInPlayerGroup(npc.id), "NPC in group before dismiss");
+
+        // Move NPC away so tick advance doesn't re-form the group
+        npc.side = 1;
+        npc.position = 99;
+        game.Social.syncNpcPositions();
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const dismissBtn = game.document.getElementById("talk-group-dismiss");
+        assert.ok(dismissBtn, "dismiss button exists");
+        dismissBtn.click();
+
+        assert.strictEqual(game.state.screen, "Dismiss Result", "navigated to dismiss result");
+        assert.ok(!game.Social.isInPlayerGroup(npc.id), "NPC removed from player group");
+    });
+
+    it("'d' key triggers dismiss from Talk screen", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        // Verify dismiss button exists before pressing key
+        const dismissBtn = game.document.getElementById("talk-group-dismiss");
+        assert.ok(dismissBtn, "dismiss button present");
+
+        game.document.dispatchEvent(new game.window.KeyboardEvent("keydown", { key: "d" }));
+        assert.strictEqual(game.state.screen, "Dismiss Result", "'d' key opens dismiss result");
+    });
+
+    it("Enter key from Dismiss Result returns to Corridor", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const dismissBtn = game.document.getElementById("talk-group-dismiss");
+        dismissBtn.click();
+        assert.strictEqual(game.state.screen, "Dismiss Result");
+
+        game.document.dispatchEvent(new game.window.KeyboardEvent("keydown", { key: "Enter" }));
+        assert.strictEqual(game.state.screen, "Corridor", "Enter returns to Corridor");
+    });
+
+    it("Escape key from Dismiss Result returns to Corridor", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const dismissBtn = game.document.getElementById("talk-group-dismiss");
+        dismissBtn.click();
+        assert.strictEqual(game.state.screen, "Dismiss Result");
+
+        game.document.dispatchEvent(new game.window.KeyboardEvent("keydown", { key: "Escape" }));
+        assert.strictEqual(game.state.screen, "Corridor", "Escape returns to Corridor");
+    });
+
+    it("dismiss advances tick", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const tickBefore = game.state.tick;
+        const dismissBtn = game.document.getElementById("talk-group-dismiss");
+        dismissBtn.click();
+
+        assert.ok(game.state.tick > tickBefore, "tick advanced after dismiss");
+    });
+});
