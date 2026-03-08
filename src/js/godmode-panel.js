@@ -394,11 +394,11 @@ function showSearchMap(npcId) {
     // Compute bounds across all segments + NPC position + book vision
     const allPos = parsed.map(p => p.pos);
     const allFloor = parsed.map(p => p.floor);
-    allPos.push(npc.position);
-    allFloor.push(npc.floor);
+    allPos.push(Number(npc.position));
+    allFloor.push(Number(npc.floor));
     if (k.bookVision) {
-        allPos.push(k.bookVision.position);
-        allFloor.push(k.bookVision.floor);
+        allPos.push(Number(k.bookVision.position));
+        allFloor.push(Number(k.bookVision.floor));
     }
     if (k.lifeStory && k.lifeStory.bookCoords) {
         allPos.push(k.lifeStory.bookCoords.position);
@@ -500,8 +500,8 @@ function showSearchMap(npcId) {
 
         // NPC position
         if (npc.side === sideIdx) {
-            const nx = offsetX + (npc.position - minPos) * CELL + CELL / 2;
-            const ny = (maxFloor - npc.floor) * CELL + CELL / 2;
+            const nx = offsetX + (Number(npc.position) - minPos) * CELL + CELL / 2;
+            const ny = (maxFloor - Number(npc.floor)) * CELL + CELL / 2;
             ctx.fillStyle = "#d4c898";
             ctx.beginPath();
             ctx.arc(nx, ny, Math.max(2, CELL / 2.5), 0, Math.PI * 2);
@@ -521,8 +521,8 @@ function showSearchMap(npcId) {
 
         // Vision location (if different from book)
         if (k.bookVision && k.bookVision.side === sideIdx) {
-            const vx = offsetX + (k.bookVision.position - minPos) * CELL + CELL / 2;
-            const vy = (maxFloor - k.bookVision.floor) * CELL + CELL / 2;
+            const vx = offsetX + (Number(k.bookVision.position) - minPos) * CELL + CELL / 2;
+            const vy = (maxFloor - Number(k.bookVision.floor)) * CELL + CELL / 2;
             ctx.strokeStyle = k.visionAccurate ? "#60d060" : "#d04040";
             ctx.lineWidth = 1.5;
             const r = Math.max(2, CELL / 2.5);
