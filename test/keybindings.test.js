@@ -364,6 +364,15 @@ describe("Keybindings: Shelf Open Book", () => {
         assert.strictEqual(game.state.screen, "Corridor");
     });
 
+    it("H jumps to front cover", () => {
+        const game = bootGame();
+        openBook(game);
+        assert.strictEqual(game.state.openPage, 5);
+        pressKey(game, "H");
+        assert.strictEqual(game.state.openPage, 0);
+        assert.strictEqual(game.state.screen, "Shelf Open Book");
+    });
+
     it("Escape closes the book", () => {
         const game = bootGame();
         openBook(game);

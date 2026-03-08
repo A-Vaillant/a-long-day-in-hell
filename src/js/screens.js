@@ -33,6 +33,7 @@ Engine.action("move-down",  function () { doMove("down"); });
 Engine.action("move-cross", function () { doMove("cross"); });
 Engine.action("page-prev",  function () { state.openPage -= 1; });
 Engine.action("page-next",  function () { state.openPage += 1; });
+Engine.action("page-front", function () { state.openPage = 0; });
 Engine.action("drop-book",  function () { Actions.resolve({ type: "drop_book" }); });
 
 function debugPanelHTML() {
@@ -419,6 +420,7 @@ Engine.register("Shelf Open Book", {
         html += '<div id="book-controls">';
         html += '<div id="page-nav">';
         if (pg > 0) html += '<a data-goto="Shelf Open Book" data-action="page-prev"><kbd>h</kbd> prev</a> ';
+        if (pg > 0) html += '<a data-goto="Shelf Open Book" data-action="page-front"><kbd>H</kbd> front</a> ';
         if (pg < maxPage) html += '<a data-goto="Shelf Open Book" data-action="page-next">next <kbd>l</kbd></a>';
         html += '</div>';
 
@@ -454,10 +456,18 @@ Engine.register("Shelf Open Book", {
         const el = document.getElementById("book-single");
         if (!el) return;
 
-        if (pg === 0) {
-            el.className = "book-single book-page-cover";
-        } else if (pg === Book.PAGES_PER_BOOK + 1) {
-            el.className = "book-single book-page-cover book-page-back";
+        if (pg === 0 || pg === Book.PAGES_PER_BOOK + 1) {
+            el.className = pg === 0
+                ? "book-single book-page-cover"
+                : "book-single book-page-cover book-page-back";
+            // Tint cover to match this book's spine color
+            const rng = seedFromString("spine:" + PRNG.getSeed() + ":" + bk.side + ":" + bk.position + ":" + bk.floor + ":" + bk.bookIndex);
+            const h = Math.floor(rng.next() * 30);
+            const s = 15 + Math.floor(rng.next() * 20);
+            const l = 12 + Math.floor(rng.next() * 14);
+            el.style.setProperty("--cover-h", h);
+            el.style.setProperty("--cover-s", s + "%");
+            el.style.setProperty("--cover-l", l + "%");
         } else {
             el.className = "book-single book-page-symbols";
             el.textContent = Book.getPage(bk.side, bk.position, bk.floor, bk.bookIndex, pg - 1);

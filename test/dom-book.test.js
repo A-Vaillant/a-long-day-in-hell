@@ -71,17 +71,35 @@ describe("DOM: book rendering", () => {
         assert.ok(el.classList.contains("book-page-cover"), "has cover class");
     });
 
-    it("morale < 80 opens to random page (not cover)", () => {
+    it("books always open to cover regardless of morale", () => {
         const game = bootGame();
         game.state.position = 1n;
-        game.state.morale = 50;
+        game.state.morale = 10;
         game.Engine.goto("Corridor");
 
-        // Simulate spine click by setting openBook with morale-gated page
-        const win = game.window;
-        const pageRng = win.PRNG.fork("pageopen:" + game.state.tick);
-        const expectedPage = pageRng.nextInt(win.Book.PAGES_PER_BOOK) + 1;
-        assert.ok(expectedPage >= 1 && expectedPage <= 410, "random page in valid range");
+        // Click a book spine to trigger resolveReadBook
+        const spine = game.document.querySelector(".book-spine:not(.book-gap)");
+        assert.ok(spine, "a clickable spine exists");
+        spine.click();
+        assert.strictEqual(game.state.screen, "Shelf Open Book", "book opened");
+        assert.strictEqual(game.state.openPage, 0, "opens to cover even at low morale");
+    });
+
+    it("cover element gets spine-matching color CSS variables", () => {
+        const game = bootGame();
+        game.state.position = 1;
+        game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 5 };
+        game.state.openPage = 0;
+        game.Engine.goto("Shelf Open Book");
+
+        const el = game.document.getElementById("book-single");
+        assert.ok(el.classList.contains("book-page-cover"), "has cover class");
+        const h = el.style.getPropertyValue("--cover-h");
+        const s = el.style.getPropertyValue("--cover-s");
+        const l = el.style.getPropertyValue("--cover-l");
+        assert.ok(h !== "", "--cover-h is set");
+        assert.ok(s.endsWith("%"), "--cover-s is a percentage");
+        assert.ok(l.endsWith("%"), "--cover-l is a percentage");
     });
 
     it("book naming persists in header", () => {

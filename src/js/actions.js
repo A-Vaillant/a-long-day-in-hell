@@ -129,12 +129,7 @@ function resolveReadBook(bookIndex) {
         side: state.side, position: state.position,
         floor: state.floor, bookIndex: bookIndex,
     };
-    if (state.morale >= 80) {
-        state.openPage = 1;
-    } else {
-        const pageRng = PRNG.fork("pageopen:" + state.tick);
-        state.openPage = pageRng.nextInt(Book.PAGES_PER_BOOK) + 1;
-    }
+    state.openPage = 0;
     return { resolved: true, screen: "Shelf Open Book" };
 }
 
