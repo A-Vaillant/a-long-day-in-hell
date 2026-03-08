@@ -191,7 +191,9 @@ Engine.register("Corridor", {
                 if (pool && pool.length > 0) {
                     const rng = seedFromString("mutter:" + m.id + ":" + state.tick);
                     const line = pool[rng.nextInt(pool.length)];
-                    html += '<p class="muttering muttering-' + m.disposition + '">' + esc(line) + '</p>';
+                    const dirLabel = m.direction === "left" ? "\u2190" : m.direction === "right" ? "\u2192" : "";
+                    const dirSpan = dirLabel ? '<span class="muttering-dir">' + dirLabel + '</span> ' : '';
+                    html += '<p class="muttering muttering-' + m.disposition + '">' + dirSpan + esc(line) + '</p>';
                 }
             }
         }

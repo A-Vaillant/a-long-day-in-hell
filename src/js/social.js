@@ -753,7 +753,10 @@ export const Social = {
                 const disp = psych ? deriveDisposition(psych, true) : "calm";
                 // Catatonic NPCs don't mutter
                 if (disp === "catatonic") continue;
-                result.push({ name: npc.name, disposition: disp, distance: dist, id: npc.id });
+                const dir = npcPos.position > playerPos.position ? "right"
+                           : npcPos.position < playerPos.position ? "left"
+                           : "here";
+                result.push({ name: npc.name, disposition: disp, distance: dist, id: npc.id, direction: dir });
             }
         }
         result.sort((a, b) => a.distance - b.distance);
