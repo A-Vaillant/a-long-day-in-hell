@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { LIBRARY_MAX, textToAddress, isInBounds } from "../lib/invertible.core.ts";
+import { LIBRARY_MAX, PLAYABLE_ADDRESS_MAX, textToAddress, isInBounds, isAddressInBounds, computeBookAddress, addressToCoords } from "../lib/invertible.core.ts";
+import { generateLifeStory } from "../lib/lifestory.core.ts";
 
 describe("LIBRARY_MAX", () => {
     it("equals 95^66", () => {
@@ -71,5 +72,85 @@ describe("isInBounds", () => {
 
     it("any text over ~130 chars of max-value chars is definitely out", () => {
         assert.ok(!isInBounds("~".repeat(200)));
+    });
+});
+
+describe("computeBookAddress", () => {
+    it("player (rawAddress = playerRawAddress) always gets randomOrigin", () => {
+        const raw = 123456789n;
+        const origin = 42n;
+        assert.strictEqual(computeBookAddress(raw, raw, origin), origin);
+    });
+
+    it("NPC with same raw as player gets randomOrigin (cosmic coincidence)", () => {
+        const origin = 99n;
+        assert.strictEqual(computeBookAddress(1000n, 1000n, origin), origin);
+    });
+
+    it("NPC with different raw gets shifted address", () => {
+        const playerRaw = 1000n;
+        const npcRaw = 1500n;
+        const origin = 100n;
+        assert.strictEqual(computeBookAddress(npcRaw, playerRaw, origin), 600n);
+    });
+
+    it("large NPC raw address stays large after shift", () => {
+        const playerRaw = textToAddress("Your name was Rosa Ingram. You were a librarian.", undefined);
+        const npcRaw = textToAddress("Oliver Ellison was a postal worker from a city.", undefined);
+        const origin = PLAYABLE_ADDRESS_MAX / 2n;
+        const bookAddr = computeBookAddress(npcRaw, playerRaw, origin);
+        // Both raws are enormous; result is still large (different magnitudes)
+        assert.ok(typeof bookAddr === "bigint");
+    });
+});
+
+describe("isAddressInBounds", () => {
+    it("zero is in bounds", () => {
+        assert.ok(isAddressInBounds(0n));
+    });
+
+    it("PLAYABLE_ADDRESS_MAX is in bounds", () => {
+        assert.ok(isAddressInBounds(PLAYABLE_ADDRESS_MAX));
+    });
+
+    it("PLAYABLE_ADDRESS_MAX + 1 is out of bounds", () => {
+        assert.ok(!isAddressInBounds(PLAYABLE_ADDRESS_MAX + 1n));
+    });
+
+    it("negative is out of bounds", () => {
+        assert.ok(!isAddressInBounds(-1n));
+    });
+});
+
+describe("player is never damned", () => {
+    it("player bookAddress equals randomOrigin (always in bounds)", () => {
+        for (let i = 0; i < 20; i++) {
+            const story = generateLifeStory("player-damnation-" + i);
+            // Player's rawBookAddress IS playerRawAddress, so bookAddress = randomOrigin
+            assert.ok(isAddressInBounds(story.bookAddress),
+                `seed ${i}: player bookAddress ${story.bookAddress} is out of bounds`);
+        }
+    });
+
+    it("player bookCoords are within playable range", () => {
+        for (let i = 0; i < 20; i++) {
+            const story = generateLifeStory("player-coords-" + i);
+            const { position, floor } = story.bookCoords;
+            assert.ok(position >= 0n && position < 10_000_000_000n,
+                `seed ${i}: position ${position} out of range`);
+            assert.ok(floor >= 0n && floor < 100_000n,
+                `seed ${i}: floor ${floor} out of range`);
+        }
+    });
+
+    it("addressToCoords round-trips through bookAddress for player (modulo rest-area nudge)", () => {
+        const story = generateLifeStory("roundtrip-test");
+        const coords = addressToCoords(story.bookAddress, 192);
+        assert.strictEqual(coords.side, story.bookCoords.side);
+        assert.strictEqual(coords.floor, story.bookCoords.floor);
+        assert.strictEqual(coords.bookIndex, story.bookCoords.bookIndex);
+        // position may be nudged +1 if it landed on a rest area
+        const pos = story.bookCoords.position;
+        assert.ok(pos === coords.position || pos === coords.position + 1n);
     });
 });

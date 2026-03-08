@@ -2,6 +2,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { KNOWLEDGE, createKnowledge, generateNpcLifeStory, grantVision, isAtBookSegment } from "../lib/knowledge.core.ts";
+import { generateLifeStory } from "../lib/lifestory.core.ts";
+import { PLAYABLE_ADDRESS_MAX } from "../lib/invertible.core.ts";
+
+// Shared anchors for knowledge tests
+const _playerStory = generateLifeStory("knowledge-test-seed");
+const TEST_PLAYER_RAW = _playerStory.rawBookAddress;
+const TEST_RANDOM_ORIGIN = PLAYABLE_ADDRESS_MAX / 2n;
 import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
 import { POSITION, IDENTITY, PSYCHOLOGY } from "../lib/social.core.ts";
 import { PERSONALITY } from "../lib/personality.core.ts";
@@ -18,7 +25,7 @@ function makeRng(val = 0.5) {
 
 describe("knowledge.core", () => {
     it("generateNpcLifeStory returns a life story with book coords", () => {
-        const story = generateNpcLifeStory("test-seed", 0, { side: 0, position: 0n, floor: 10n });
+        const story = generateNpcLifeStory("test-seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         assert.ok(story.name);
         assert.ok(story.storyText);
         assert.ok(story.bookCoords);
@@ -29,22 +36,22 @@ describe("knowledge.core", () => {
     });
 
     it("different NPC IDs produce different life stories", () => {
-        const s1 = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n });
-        const s2 = generateNpcLifeStory("seed", 1, { side: 0, position: 0n, floor: 10n });
+        const s1 = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        const s2 = generateNpcLifeStory("seed", 1, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         // Names should differ (extremely high probability with 25x25 pool)
         assert.notEqual(s1.name, s2.name);
     });
 
     it("same seed + NPC ID is deterministic", () => {
-        const s1 = generateNpcLifeStory("seed", 5, { side: 0, position: 0n, floor: 10n });
-        const s2 = generateNpcLifeStory("seed", 5, { side: 0, position: 0n, floor: 10n });
+        const s1 = generateNpcLifeStory("seed", 5, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        const s2 = generateNpcLifeStory("seed", 5, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         assert.equal(s1.name, s2.name);
         assert.equal(s1.storyText, s2.storyText);
         assert.deepEqual(s1.bookCoords, s2.bookCoords);
     });
 
     it("createKnowledge starts with no vision", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         assert.equal(k.bookVision, null);
         assert.equal(k.visionAccurate, true);
         assert.equal(k.hasBook, false);
@@ -52,7 +59,7 @@ describe("knowledge.core", () => {
     });
 
     it("createKnowledge initializes lifetime best find fields", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         assert.equal(k.bestScore, 0);
         assert.deepEqual(k.bestWords, []);
         assert.ok(k.searchedSegments instanceof Set);
@@ -60,14 +67,14 @@ describe("knowledge.core", () => {
     });
 
     it("grantVision (accurate) sets bookVision to actual coords", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         grantVision(k, true);
         assert.deepEqual(k.bookVision, k.lifeStory.bookCoords);
         assert.equal(k.visionAccurate, true);
     });
 
     it("grantVision (false) sets bogus coords", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         const bogus = { side: 1, position: 999n, floor: 50n, bookIndex: 42 };
         grantVision(k, false, bogus);
         assert.deepEqual(k.bookVision, bogus);
@@ -101,7 +108,7 @@ describe("pilgrimage intent scorer", () => {
     it("pilgrimage excluded when no vision", () => {
         const world = createWorld();
         const entity = makeEntity(world);
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         addComponent(world, entity, KNOWLEDGE, k);
         const results = getAvailableBehaviors(world, entity, makeRng());
         const pilgrim = results.find(r => r.behavior === "pilgrimage");
@@ -111,7 +118,7 @@ describe("pilgrimage intent scorer", () => {
     it("pilgrimage scores high when vision is set", () => {
         const world = createWorld();
         const entity = makeEntity(world);
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         grantVision(k, true);
         addComponent(world, entity, KNOWLEDGE, k);
         const results = getAvailableBehaviors(world, entity, makeRng());
@@ -125,7 +132,7 @@ describe("pilgrimage intent scorer", () => {
 
     it("pilgrimage excluded when already at book location", () => {
         const world = createWorld();
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         grantVision(k, true);
         // Place entity at the vision's book location
         const entity = makeEntity(world, {
@@ -146,7 +153,7 @@ describe("pilgrimage intent scorer", () => {
         const ident = getComponent(world, entity, "identity");
         ident.alive = false;
         ident.free = true;
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         grantVision(k, true);
         addComponent(world, entity, KNOWLEDGE, k);
         // evaluateIntent forces idle for dead entities — pilgrimage never activates
@@ -174,7 +181,7 @@ describe("pilgrimage movement", () => {
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
         addComponent(world, entity, INTENT, { behavior: "pilgrimage", cooldown: 20, elapsed: 0 });
         addComponent(world, entity, MOVEMENT, { targetPosition: null, heading: 1 });
-        const k = createKnowledge("seed", 0, npcPos);
+        const k = createKnowledge("seed", 0, npcPos, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         k.bookVision = { ...visionCoords };
         k.visionAccurate = true;
         addComponent(world, entity, KNOWLEDGE, k);
@@ -243,7 +250,7 @@ describe("pilgrimage movement", () => {
 describe("escape resolution", () => {
     it("isAtBookSegment returns true at matching segment", () => {
 
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         grantVision(k, true);
         const at = isAtBookSegment(k, {
             side: k.bookVision.side,
@@ -255,14 +262,14 @@ describe("escape resolution", () => {
 
     it("isAtBookSegment returns false at wrong position", () => {
 
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         grantVision(k, true);
         assert.equal(isAtBookSegment(k, { side: k.bookVision.side, position: k.bookVision.position + 1n, floor: k.bookVision.floor }), false);
     });
 
     it("isAtBookSegment returns false without vision", () => {
 
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         assert.equal(isAtBookSegment(k, { side: 0, position: 5n, floor: 10n }), false);
     });
 
@@ -275,7 +282,7 @@ describe("escape resolution", () => {
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
         addComponent(world, entity, INTENT, { behavior: "pilgrimage", cooldown: 20, elapsed: 0 });
         addComponent(world, entity, MOVEMENT, { targetPosition: null, heading: 1 });
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n });
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         grantVision(k, true);
         k.hasBook = true;
         addComponent(world, entity, KNOWLEDGE, k);

@@ -3,6 +3,7 @@
 
 import { PRNG } from "./prng.js";
 import { seedFromString } from "../../lib/prng.core.ts";
+import { PLAYABLE_ADDRESS_MAX } from "../../lib/invertible.core.ts";
 import { state } from "./state.js";
 import { Lib } from "./library.js";
 import { Book } from "./book.js";
@@ -356,6 +357,14 @@ export const Engine = {
             const story = LifeStory.generate(seed, { placement });
             state.lifeStory  = story;
             state.targetBook = story.bookCoords;
+            // Anchor the coordinate system: randomOrigin is a small in-bounds offset
+            // derived from the seed. playerRawAddress anchors all NPC addresses relative
+            // to the player — cached here so NPCs can use them at init time.
+            const originRng = seedFromString("origin:" + seed);
+            const originLo = BigInt(originRng.nextInt(0x100000000));
+            const originHi = BigInt(originRng.nextInt(0x100000000));
+            state.randomOrigin = (originHi * 0x100000000n + originLo) % PLAYABLE_ADDRESS_MAX;
+            state.playerRawAddress = story.rawBookAddress;
             // Player wakes up cosmically far from their book (or nearby in gaussian/easy mode)
             state.side     = story.playerStart.side;
             state.position = story.playerStart.position;

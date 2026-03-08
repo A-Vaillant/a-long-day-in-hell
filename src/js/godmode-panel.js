@@ -5,7 +5,7 @@
  */
 
 import { getForNpc } from "./event-log.js";
-import { isInBounds } from "../../lib/invertible.core.ts";
+import { isAddressInBounds } from "../../lib/invertible.core.ts";
 
 let callbacks = {};
 let lastHtml = "";
@@ -222,9 +222,9 @@ const componentRenderers = {
                     html += '<span class="gm-bar-num">' + esc(cached.text) + '</span></div>';
                 }
             } else {
-                const storyText = comp.lifeStory ? comp.lifeStory.storyText : '';
-                html += '<div class="gm-stat"><span class="gm-tip" data-tip="Click to compute: book location and distance, or whether the NPC is damned.">book</span>';
-                html += '<span class="gm-bar-num"><a class="gm-calc-dist" data-npc-id="' + npc.id + '" data-story-text="' + esc(storyText) + '" data-npc-pos="' + npc.position + '" data-npc-floor="' + npc.floor + '" data-npc-side="' + npc.side + '" data-bc-side="' + bc.side + '" data-bc-pos="' + bc.position + '" data-bc-floor="' + bc.floor + '" style="cursor:pointer;color:#aaa">[?]</a></span></div>';
+                const bookAddress = comp.lifeStory && comp.lifeStory.bookAddress != null ? comp.lifeStory.bookAddress : null;
+                html += '<div class="gm-stat"><span class="gm-tip" data-tip="Click to compute: book location and distance, or whether the soul is damned.">book</span>';
+                html += '<span class="gm-bar-num"><a class="gm-calc-dist" data-npc-id="' + npc.id + '" data-book-address="' + (bookAddress != null ? bookAddress.toString() : '') + '" data-npc-pos="' + npc.position + '" data-npc-floor="' + npc.floor + '" data-npc-side="' + npc.side + '" data-bc-side="' + bc.side + '" data-bc-pos="' + bc.position + '" data-bc-floor="' + bc.floor + '" style="cursor:pointer;color:#aaa">[?]</a></span></div>';
             }
         }
         // Vision status
@@ -798,9 +798,10 @@ export const GodmodePanel = {
                 // Distance / damnation calculator
                 const calcBtn = ev.target.closest(".gm-calc-dist");
                 if (calcBtn) {
-                    const storyText = calcBtn.dataset.storyText || '';
                     const npcId = parseInt(calcBtn.dataset.npcId, 10);
-                    const damned = !isInBounds(storyText);
+                    const bookAddressStr = calcBtn.dataset.bookAddress || '';
+                    const bookAddress = bookAddressStr ? BigInt(bookAddressStr) : null;
+                    const damned = bookAddress == null || !isAddressInBounds(bookAddress);
                     if (damned) {
                         distCache.set(npcId, { text: '', damned: true });
                     } else {
