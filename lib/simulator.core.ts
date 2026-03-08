@@ -87,6 +87,7 @@ export interface LifeStory {
     targetPage: number;
     placement: string;
     bookCoords: BookCoords;
+    playerStart: { side: number; position: bigint; floor: bigint };
 }
 
 /** Read-only snapshot exposed to strategies. */
@@ -221,9 +222,9 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     const rng = seedFromString(seed);
 
     // Initialize life story + target book
-    const startLoc: Location = { side: 0, position: 0n, floor: 10n };
-    const lifeStory: LifeStory = LifeStoryCore.generateLifeStory(seed, { placement: placement as "gaussian" | "random", startLoc });
+    const lifeStory: LifeStory = LifeStoryCore.generateLifeStory(seed, { placement: placement as "gaussian" | "random" });
     const targetBook: BookCoords = lifeStory.bookCoords;
+    const startLoc: Location = lifeStory.playerStart;
 
     // Initialize game state
     const gs: InternalState = {

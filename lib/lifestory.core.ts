@@ -43,6 +43,8 @@ export interface LifeStory {
     targetPage: number;
     placement: string;
     bookCoords: BookCoords;
+    /** Where the player wakes up — derived from bookCoords, not the origin. */
+    playerStart: StartLocation;
 }
 
 // Template pools
@@ -151,7 +153,7 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const firstName = pick(FIRST_NAMES);
     const lastName  = pick(LAST_NAMES);
 
-    const story: StoryFields & { storyText?: string; targetPage?: number; placement?: string; bookCoords?: BookCoords } = {
+    const story: StoryFields & { storyText?: string; targetPage?: number; placement?: string; bookCoords?: BookCoords; playerStart?: StartLocation } = {
         name:         `${firstName} ${lastName}`,
         occupation:   pick(OCCUPATIONS),
         hometown:     pick(HOMETOWNS),
@@ -172,25 +174,48 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
 
     let side: number, position: bigint, floor: bigint, bookIndex: number;
 
-    if (placement === "random") {
-        side      = coordRng.nextInt(2);
-        position  = BigInt(coordRng.nextInt(10000) - 5000);
-        floor     = BigInt(coordRng.nextInt(100));
-        bookIndex = coordRng.nextInt(BOOKS_PER_GALLERY);
-    } else {
-        // Gaussian: centered on start, σ=200 segments, σ=2000 floors
-        side      = coordRng.nextInt(2);
-        position  = startLoc.position + BigInt(Math.round(gaussianSample(coordRng) * 200));
-        floor     = startLoc.floor + BigInt(Math.round(gaussianSample(coordRng) * 2000));
-        if (floor < 0n) floor = 0n;
-        bookIndex = coordRng.nextInt(BOOKS_PER_GALLERY);
-    }
+    // Book is placed randomly anywhere in the library.
+    // Player start is derived from book coords via stone-throw + power-law ring.
+    side      = coordRng.nextInt(2);
+    position  = BigInt(coordRng.nextInt(10_000_000_000) - 5_000_000_000);
+    floor     = BigInt(coordRng.nextInt(10_000));
+    bookIndex = coordRng.nextInt(BOOKS_PER_GALLERY);
 
     // Rest areas have no shelves — nudge to nearest gallery
     if (isRestArea(position)) position += 1n;
 
+    // Player start: stone-throw + power-law ring around book.
+    //
+    // Step 1 — stone throw: uniform distance in [666_666, 666_666_666] segments.
+    // Step 2 — power-law ring: additional offset = stoneR * 66^u, u∈[0,1).
+    //   Combined range: ~666k to ~44 billion segments from the book.
+    //   That's years to ~750,000 years of walking. Cosmologically lost.
+    //
+    // Floor offset: uniform ±30 (vertical search is brutal; keep it humane).
+    const spawnRng: Xoshiro128ss = seedFromString("spawn:" + story.storyText);
+    const stoneR = 666_666 + Math.floor(spawnRng.next() * (666_666_666 - 666_666));
+    const powerU = spawnRng.next();
+    const ringR  = Math.floor(stoneR * Math.pow(66, powerU));
+    const dir    = spawnRng.next() < 0.5 ? 1n : -1n;
+    const floorOffset = BigInt(Math.floor(spawnRng.next() * 61) - 30);
+    const playerSide  = coordRng.nextInt(2);
+    const playerPos   = position + dir * BigInt(ringR);
+    const playerFloor = floor + floorOffset < 0n ? 0n : floor + floorOffset;
+
+    // Gaussian "easy mode": override player start to near-book (for testing/accessibility).
+    let playerStart: StartLocation;
+    if (placement === "gaussian") {
+        const easyRng: Xoshiro128ss = seedFromString("easy:" + story.storyText);
+        const easyPos   = position + BigInt(Math.round(gaussianSample(easyRng) * 50));
+        const easyFloor = floor + BigInt(Math.round(gaussianSample(easyRng) * 15));
+        playerStart = { side: playerSide, position: easyPos, floor: easyFloor < 0n ? 0n : easyFloor };
+    } else {
+        playerStart = { side: playerSide, position: playerPos, floor: playerFloor };
+    }
+
     story.placement = placement;
     story.bookCoords = { side, position, floor, bookIndex };
+    story.playerStart = playerStart;
 
     return story as LifeStory;
 }

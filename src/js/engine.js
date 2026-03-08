@@ -339,11 +339,14 @@ export const Engine = {
             state.deaths      = 0;
             state.deathCause  = null;
 
-            const placement = params.get("placement") || "gaussian";
-            const startLoc = { side: state.side, position: state.position, floor: state.floor };
-            const story = LifeStory.generate(seed, { placement, startLoc });
+            const placement = params.get("placement") || "random";
+            const story = LifeStory.generate(seed, { placement });
             state.lifeStory  = story;
             state.targetBook = story.bookCoords;
+            // Player wakes up cosmically far from their book (or nearby in gaussian/easy mode)
+            state.side     = story.playerStart.side;
+            state.position = story.playerStart.position;
+            state.floor    = story.playerStart.floor;
 
             Surv.init();
             Tick.init();
