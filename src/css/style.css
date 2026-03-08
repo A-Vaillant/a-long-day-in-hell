@@ -410,6 +410,7 @@ button:disabled {
     font-size: 0.9em;
     cursor: pointer;
     display: block;
+    width: fit-content;
     padding: 0.1rem 0;
 }
 .sb-menu a:hover {
