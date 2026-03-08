@@ -2,6 +2,8 @@
  * Samples snapshot data periodically, renders aggregate and per-NPC graphs.
  */
 
+import { STANCES } from "../../lib/belief.core.ts";
+
 const SAMPLE_INTERVAL = 10;  // sample every N ticks
 let samples = [];             // [{ day, tick, avgHope, avgLuc, alive, dead, stances, npcs }]
 let lastSampleTick = -999;
@@ -20,7 +22,11 @@ const STANCE_COLORS = {
     holdout: "#b8a878",
 };
 
-const STANCE_ORDER = ["seeker", "holdout", "undecided", "nihilist", "direite"];
+// Display order: committed stances first, undecided last
+const STANCE_ORDER = [...STANCES].sort((a, b) => {
+    const priority = { seeker: 0, holdout: 1, direite: 2, nihilist: 3, undecided: 4 };
+    return (priority[a] ?? 99) - (priority[b] ?? 99);
+});
 
 function aggregateSide(alive, dead, escaped, side) {
     const a = alive.filter(n => n.side === side);
