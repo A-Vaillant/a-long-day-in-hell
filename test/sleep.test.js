@@ -370,8 +370,8 @@ describe("sleepWakeSystem group home alignment", () => {
         });
 
         // Put both in same group
-        addComponent(world, a, GROUP, { groupId: 42, separatedTicks: 0 });
-        addComponent(world, b, GROUP, { groupId: 42, separatedTicks: 0 });
+        addComponent(world, a, GROUP, { groupId: 42, separatedTicks: 0, leaderId: null });
+        addComponent(world, b, GROUP, { groupId: 42, separatedTicks: 0, leaderId: null });
 
         // Set up sleeping together
         const sleepA = getComponent(world, a, SLEEP);
@@ -442,8 +442,8 @@ describe("sleepWakeSystem group home alignment", () => {
         });
 
         // A is in group 42, B is in group 99 (different group)
-        addComponent(world, a, GROUP, { groupId: 42, separatedTicks: 0 });
-        addComponent(world, b, GROUP, { groupId: 99, separatedTicks: 0 });
+        addComponent(world, a, GROUP, { groupId: 42, separatedTicks: 0, leaderId: null });
+        addComponent(world, b, GROUP, { groupId: 99, separatedTicks: 0, leaderId: null });
 
         const sleepA = getComponent(world, a, SLEEP);
         sleepA.asleep = true;
@@ -477,8 +477,8 @@ describe("sleepWakeSystem group home alignment", () => {
             identity: { name: "B" },
         });
 
-        addComponent(world, a, GROUP, { groupId: 42, separatedTicks: 0 });
-        addComponent(world, b, GROUP, { groupId: 42, separatedTicks: 0 });
+        addComponent(world, a, GROUP, { groupId: 42, separatedTicks: 0, leaderId: null });
+        addComponent(world, b, GROUP, { groupId: 42, separatedTicks: 0, leaderId: null });
 
         const sleepA = getComponent(world, a, SLEEP);
         sleepA.asleep = true;

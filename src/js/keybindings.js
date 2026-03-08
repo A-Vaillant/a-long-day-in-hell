@@ -268,6 +268,10 @@ document.addEventListener("keydown", function (ev) {
                 ev.preventDefault();
                 { const btn = document.getElementById("talk-recruit"); if (btn) btn.click(); }
                 return;
+            case "d":
+                ev.preventDefault();
+                { const btn = document.getElementById("talk-group-dismiss"); if (btn) btn.click(); }
+                return;
             case "q": case "Escape":
                 ev.preventDefault();
                 Engine.goto("Corridor");
@@ -286,7 +290,7 @@ document.addEventListener("keydown", function (ev) {
             return;
         }
         return;
-    } else if (screen === "Recruit Result") {
+    } else if (screen === "Recruit Result" || screen === "Dismiss Result") {
         if (key === "Enter" || key === " " || key === "e" || key === "Escape") {
             ev.preventDefault();
             Engine.goto("Corridor");

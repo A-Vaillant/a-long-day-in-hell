@@ -12,7 +12,7 @@ import {
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, PLAYER, AI, GROUP,
     deriveDisposition, psychologyDecaySystem, relationshipSystem,
-    groupFormationSystem, socialPressureSystem, segmentDistance,
+    groupFormationSystem, socialPressureSystem, npcDismissSystem, segmentDistance,
     buildLocationIndex,
 } from "../../lib/social.core.ts";
 import { HABITUATION } from "../../lib/psych.core.ts";
@@ -28,6 +28,7 @@ import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment
 import {
     talkTo, spendTime as spendTimeCore, recruit as recruitCore, socializeSystem,
 } from "../../lib/interaction.core.ts";
+import { dismiss as dismissCore } from "../../lib/actions.core.ts";
 import { isRestArea } from "../../lib/library.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
@@ -214,6 +215,8 @@ export const Social = {
         relationshipSystem(world, currentTick, undefined, prebuilt, n);
         psychologyDecaySystem(world, undefined, n);
         groupFormationSystem(world, undefined, prebuilt);
+        const dismissRng = seedFromString(state.seed + ":npc:dismiss:" + currentTick);
+        npcDismissSystem(world, dismissRng);
         socialPressureSystem(world, undefined, undefined, undefined, n);
 
         // Needs (before intent evaluation — intent reads needs)
@@ -691,6 +694,29 @@ export const Social = {
         const currentTick = (state.day - 1) * 240 + state.tick;
         this.syncPlayerPosition();
         return recruitCore(world, playerEntity, ent, currentTick);
+    },
+
+    dismissFromGroup(npcId) {
+        if (!world || playerEntity === null) return { success: false, reason: "no_world" };
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined) return { success: false, reason: "not_found" };
+        const playerGroup = getComponent(world, playerEntity, GROUP);
+        const npcGroup = getComponent(world, ent, GROUP);
+        if (!playerGroup || !npcGroup || playerGroup.groupId !== npcGroup.groupId) {
+            return { success: false, reason: "not_in_group" };
+        }
+        dismissCore(world, playerEntity, ent);
+        return { success: true };
+    },
+
+    isInPlayerGroup(npcId) {
+        if (!world || playerEntity === null) return false;
+        const playerGroup = getComponent(world, playerEntity, GROUP);
+        if (!playerGroup) return false;
+        const ent = npcEntities.get(npcId);
+        if (ent === undefined) return false;
+        const npcGroup = getComponent(world, ent, GROUP);
+        return npcGroup && npcGroup.groupId === playerGroup.groupId;
     },
 
     getBond(npcId) {

@@ -24,6 +24,7 @@ import { BELIEF, type BeliefComponent, beliefDecayMod, evolveBelief, updateStanc
 import { NEEDS, type Needs, needsDecayMultiplier } from "./needs.core.ts";
 import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
 import { STATS, type Stats, influenceMod } from "./stats.core.ts";
+import { HABITUATION, type Habituation, applyShock as applyHabituatedShock } from "./psych.core.ts";
 
 // --- Component keys ---
 
@@ -70,6 +71,7 @@ export interface Relationships {
 export interface Group {
     groupId: number;
     separatedTicks: number;  // ticks since last co-location with a groupmate
+    leaderId: Entity | null; // entity with highest influence in the group
 }
 
 // --- RNG interface ---
@@ -818,7 +820,7 @@ export function groupFormationSystem(
                 const otherGroup = getComponent<Group>(world, other, GROUP);
                 if (otherGroup && hasMutualBond(world, e, other, config)) {
                     // Join the existing group
-                    addComponent<Group>(world, e, GROUP, { groupId: otherGroup.groupId, separatedTicks: 0 });
+                    addComponent<Group>(world, e, GROUP, { groupId: otherGroup.groupId, separatedTicks: 0, leaderId: null });
                     ungrouped.delete(e);
                     break;
                 }
@@ -839,7 +841,46 @@ export function groupFormationSystem(
         if (members.length < 2) continue;
         const groupId = root as number;
         for (const e of members) {
-            addComponent<Group>(world, e, GROUP, { groupId, separatedTicks: 0 });
+            addComponent<Group>(world, e, GROUP, { groupId, separatedTicks: 0, leaderId: null });
+        }
+    }
+
+    // --- Phase 3: Elect leaders ---
+    // Rebuild group membership after all formation/dissolution
+    electGroupLeaders(world);
+}
+
+/**
+ * Elect leaders for all groups. Leader = highest influence stat.
+ * Ties broken by entity id (deterministic). Updates leaderId on all members.
+ */
+export function electGroupLeaders(world: World): void {
+    const groupMap = world.components.get(GROUP) as Map<Entity, Group> | undefined;
+    if (!groupMap) return;
+
+    const groups = new Map<number, Entity[]>();
+    for (const [entity, group] of groupMap) {
+        const ident = getComponent<Identity>(world, entity, IDENTITY);
+        if (!ident?.alive) continue;
+        let list = groups.get(group.groupId);
+        if (!list) { list = []; groups.set(group.groupId, list); }
+        list.push(entity);
+    }
+
+    for (const [, members] of groups) {
+        let leader: Entity = members[0];
+        let bestInfluence = -1;
+        for (const e of members) {
+            const stats = getComponent<Stats>(world, e, STATS);
+            const inf = stats ? influenceMod(stats) : 1.0;
+            if (inf > bestInfluence || (inf === bestInfluence && (e as number) < (leader as number))) {
+                bestInfluence = inf;
+                leader = e;
+            }
+        }
+        for (const e of members) {
+            const g = getComponent<Group>(world, e, GROUP)!;
+            g.leaderId = leader;
         }
     }
 }
@@ -978,5 +1019,143 @@ export function socialPressureSystem(
             target.psych.lucidity = Math.max(0,
                 target.psych.lucidity - pressureRate * pressure * n);
         }
+    }
+}
+
+// --- NPC dismiss system ---
+
+export interface DismissConfig {
+    /** Base probability per tick of an NPC considering dismissing a groupmate. */
+    baseChance: number;
+    /** Affinity below this triggers dismiss consideration. */
+    affinityThreshold: number;
+}
+
+export const DEFAULT_DISMISS: DismissConfig = {
+    baseChance: 0.002,       // ~0.2% per tick → checked when affinity is low
+    affinityThreshold: 2,    // only consider dismissing when affinity drops below this
+};
+
+/**
+ * NPC-initiated group dismissal. Each tick, grouped NPCs with low affinity
+ * toward a groupmate may voluntarily leave.
+ *
+ * Probability modulated by personality:
+ * - Low openness → more likely to dismiss (guarded, self-protective)
+ * - High pace → more likely (restless, wants to move on)
+ * - High temperament → more likely (volatile, reactive)
+ *
+ * When an NPC dismisses, the worst-affinity groupmate is removed.
+ * Uses the same dismiss action (affinity hit + shock) as player dismiss.
+ */
+export function npcDismissSystem(
+    world: World,
+    rng: Rng,
+    config: DismissConfig = DEFAULT_DISMISS,
+): void {
+    const groupMap = world.components.get(GROUP) as Map<Entity, Group> | undefined;
+    if (!groupMap) return;
+
+    // Collect group members
+    const groups = new Map<number, Entity[]>();
+    for (const [entity, group] of groupMap) {
+        const ident = getComponent<Identity>(world, entity, IDENTITY);
+        if (!ident?.alive) continue;
+        let list = groups.get(group.groupId);
+        if (!list) { list = []; groups.set(group.groupId, list); }
+        list.push(entity);
+    }
+
+    const dismissed: Entity[] = [];
+
+    for (const [, members] of groups) {
+        for (const entity of members) {
+            if (dismissed.includes(entity)) continue;
+
+            const rels = getComponent<Relationships>(world, entity, RELATIONSHIPS);
+            if (!rels) continue;
+
+            // Find worst-affinity groupmate
+            let worstMate: Entity | undefined;
+            let worstAffinity = Infinity;
+            for (const other of members) {
+                if (other === entity) continue;
+                const bond = rels.bonds.get(other);
+                const aff = bond ? bond.affinity : 0;
+                if (aff < worstAffinity) {
+                    worstAffinity = aff;
+                    worstMate = other;
+                }
+            }
+
+            if (worstMate === undefined || worstAffinity >= config.affinityThreshold) continue;
+
+            // Personality modulates dismiss probability
+            const pers = getComponent<Personality>(world, entity, PERSONALITY);
+            let chance = config.baseChance;
+            if (pers) {
+                // Guarded (low openness) → more likely to cut ties
+                chance *= 1.0 + (1.0 - pers.openness) * 1.5;
+                // Restless (high pace) → wants to move on
+                chance *= 1.0 + pers.pace * 0.8;
+                // Volatile (high temperament) → reactive
+                chance *= 1.0 + pers.temperament * 0.5;
+            }
+
+            // Lower affinity → higher chance (exponential ramp)
+            const affinityFactor = Math.max(0, config.affinityThreshold - worstAffinity) / config.affinityThreshold;
+            chance *= 1.0 + affinityFactor * 3.0;
+
+            if (rng.next() < chance) {
+                // Remove the worst mate from the group
+                groupMap.delete(worstMate);
+                dismissed.push(worstMate);
+
+                // Apply affinity + shock via the relationship
+                const tgtPsych = getComponent<Psychology>(world, worstMate, PSYCHOLOGY);
+                const tgtRels = getComponent<Relationships>(world, worstMate, RELATIONSHIPS);
+                const tgtPers = getComponent<Personality>(world, worstMate, PERSONALITY);
+
+                // Dismisser guilt
+                const srcOpenness = pers ? pers.openness : 0.5;
+                const bond = rels.bonds.get(worstMate);
+                if (bond) {
+                    bond.affinity = Math.max(-100, bond.affinity - (2 + srcOpenness * 3));
+                }
+
+                // Target hurt
+                if (tgtRels) {
+                    const tgtBond = tgtRels.bonds.get(entity);
+                    if (tgtBond) {
+                        const tgtOpen = tgtPers ? tgtPers.openness : 0.5;
+                        const famPenalty = Math.floor(tgtBond.familiarity / 8);
+                        tgtBond.affinity = Math.max(-100, tgtBond.affinity - (4 + tgtOpen * 6 + famPenalty));
+                    }
+                }
+
+                // Hope shock
+                if (tgtPsych) {
+                    const tgtHabit = getComponent<Habituation>(world, worstMate, HABITUATION);
+                    applyHabituatedShock(tgtPsych, tgtHabit, "beingDismissed");
+                }
+            }
+        }
+    }
+
+    // Clean up groups that dropped below 2
+    if (dismissed.length > 0) {
+        const remaining = new Map<number, Entity[]>();
+        for (const [entity, group] of groupMap) {
+            let list = remaining.get(group.groupId);
+            if (!list) { list = []; remaining.set(group.groupId, list); }
+            list.push(entity);
+        }
+        for (const [, members] of remaining) {
+            if (members.length < 2) {
+                for (const e of members) groupMap.delete(e);
+            }
+        }
+        // Re-elect leaders after dismissals
+        if (dismissed.length > 0) electGroupLeaders(world);
     }
 }
