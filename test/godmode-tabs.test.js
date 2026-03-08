@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 
@@ -54,6 +54,7 @@ describe("Godmode tab DOM lifecycle", () => {
         doc = dom.window.document;
         global.document = doc;
     });
+    afterEach(() => { delete global.document; });
 
     it("tab bar survives NPC pane updates", () => {
         setupDOM();

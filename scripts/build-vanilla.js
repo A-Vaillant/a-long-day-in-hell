@@ -9,12 +9,17 @@ import { buildSync } from "esbuild";
 const __dir = dirname(fileURLToPath(import.meta.url));
 const ROOT  = resolve(__dir, "..");
 
+function readOrDie(path, label) {
+    try { return readFileSync(path, "utf8"); }
+    catch (e) { console.error(`Build error: cannot read ${label} (${path}): ${e.message}`); process.exit(1); }
+}
+
 // Read template
-let html = readFileSync(resolve(ROOT, "src/html/index.html"), "utf8");
+let html = readOrDie(resolve(ROOT, "src/html/index.html"), "HTML template");
 
 // Inline CSS (main + godmode)
-const css = readFileSync(resolve(ROOT, "src/css/style.css"), "utf8") +
-    "\n" + readFileSync(resolve(ROOT, "src/css/godmode.css"), "utf8");
+const css = readOrDie(resolve(ROOT, "src/css/style.css"), "main CSS") +
+    "\n" + readOrDie(resolve(ROOT, "src/css/godmode.css"), "godmode CSS");
 html = html.replace("/* INJECT:CSS */", css);
 
 // Bundle JS via esbuild
@@ -48,7 +53,10 @@ const contentMap = {
 };
 const TEXT = {};
 for (const [file, key] of Object.entries(contentMap)) {
-    const data = JSON.parse(readFileSync(resolve(contentDir, file), "utf8"));
+    const raw = readOrDie(resolve(contentDir, file), `content/${file}`);
+    let data;
+    try { data = JSON.parse(raw); }
+    catch (e) { console.error(`Build error: invalid JSON in content/${file}: ${e.message}`); process.exit(1); }
     if (key) {
         TEXT[key] = data;
     } else {
