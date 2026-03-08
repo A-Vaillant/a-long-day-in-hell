@@ -51,6 +51,14 @@ describe("knowledge.core", () => {
         assert.ok(k.lifeStory.bookCoords);
     });
 
+    it("createKnowledge initializes lifetime best find fields", () => {
+        const k = createKnowledge("seed", 0, { side: 0, position: 0, floor: 10 });
+        assert.equal(k.bestScore, 0);
+        assert.deepEqual(k.bestWords, []);
+        assert.ok(k.searchedSegments instanceof Set);
+        assert.equal(k.searchedSegments.size, 0);
+    });
+
     it("grantVision (accurate) sets bookVision to actual coords", () => {
         const k = createKnowledge("seed", 0, { side: 0, position: 0, floor: 10 });
         grantVision(k, true);

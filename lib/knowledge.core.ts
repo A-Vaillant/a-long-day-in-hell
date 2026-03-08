@@ -28,6 +28,10 @@ export interface Knowledge {
     hasBook: boolean;
     /** Segments already searched (key: "side:position:floor"). */
     searchedSegments: Set<string>;
+    /** Best word count found on any single page, ever. */
+    bestScore: number;
+    /** The actual words from the lifetime best find. */
+    bestWords: string[];
 }
 
 // --- Generation ---
@@ -65,6 +69,8 @@ export function createKnowledge(
         visionAccurate: true,
         hasBook: false,
         searchedSegments: new Set(),
+        bestScore: 0,
+        bestWords: [],
     };
 }
 

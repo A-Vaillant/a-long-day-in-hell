@@ -12,6 +12,7 @@ let lastGrpHtml = "";
 let lastRenderTime = 0;
 const RENDER_THROTTLE_MS = 400;
 let powersOpen = false;
+let lastSnap = null;
 
 // Powers registry: { key, label, available(npc), action(npcId) }
 // Populated in init() from callbacks.
@@ -275,9 +276,19 @@ const componentRenderers = {
         }
         // Searched segments
         const searched = comp.searchedSegments;
-        if (searched && searched.size > 0) {
+        const segCount = Array.isArray(searched) ? searched.length : 0;
+        if (segCount > 0) {
             html += '<div class="gm-stat"><span class="gm-tip" data-tip="Number of library segments this NPC has finished searching. Shared via conversation.">searched</span>';
-            html += '<span class="gm-bar-num">' + searched.size + ' segment' + (searched.size !== 1 ? 's' : '') + '</span></div>';
+            html += '<span class="gm-bar-num">' + segCount + ' segment' + (segCount !== 1 ? 's' : '') +
+                ' <button class="gm-btn gm-search-map-btn" data-npc-id="' + npc.id + '">map</button></span></div>';
+        }
+        // Lifetime best find
+        if (comp.bestScore > 0) {
+            const wordStr = comp.bestWords && comp.bestWords.length > 0
+                ? '"' + comp.bestWords.join(" ") + '"'
+                : (comp.bestScore === 1 ? "1 word" : comp.bestScore + " words");
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Best words found on a single page across all searches.">best find</span>';
+            html += '<span class="gm-bar-num" style="color:#6a8a5a">' + wordStr + '</span></div>';
         }
         html += '</div>';
         return html;
@@ -313,23 +324,14 @@ const componentRenderers = {
     },
 
     searching(comp) {
-        // Hide if never searched and not active
-        if (!comp.active && comp.bestScore <= 0 && comp.ticksSearched <= 0) return "";
+        // Only show when actively reading
+        if (!comp.active) return "";
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">searching</div>';
-        if (comp.active) {
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Currently examining a book for words.">status</span>';
-            html += '<span class="gm-bar-num" style="color:#6a8a5a">reading book ' + comp.bookIndex + '</span></div>';
-            html += '<div class="gm-stat">' + tip("patience") +
-                bar(comp.ticksSearched, comp.patience, "#b8a878") + '</div>';
-        }
-        if (comp.bestScore > 0) {
-            const wordStr = comp.bestWords && comp.bestWords.length > 0
-                ? '"' + comp.bestWords.join(" ") + '"'
-                : (comp.bestScore === 1 ? "1 word" : comp.bestScore + " words");
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Best words found on a single page.">best find</span>';
-            html += '<span class="gm-bar-num">' + wordStr + '</span></div>';
-        }
+        html += '<div class="gm-stat"><span class="gm-tip" data-tip="Currently examining a book for words.">status</span>';
+        html += '<span class="gm-bar-num" style="color:#6a8a5a">reading book ' + comp.bookIndex + '</span></div>';
+        html += '<div class="gm-stat">' + tip("patience") +
+            bar(comp.ticksSearched, comp.patience, "#b8a878") + '</div>';
         html += '</div>';
         return html;
     },
@@ -387,6 +389,192 @@ const componentRenderers = {
         return html;
     },
 };
+
+// --- Search coverage map overlay ---
+
+function showSearchMap(npcId) {
+    const snap = lastSnap;
+    if (!snap) return;
+    const npc = snap.npcs.find(n => n.id === npcId);
+    if (!npc) return;
+    const k = npc.components && npc.components.knowledge;
+    if (!k) return;
+    const segs = k.searchedSegments || [];
+    if (segs.length === 0) return;
+
+    // Parse segment keys "side:position:floor"
+    const parsed = segs.map(s => {
+        const [side, pos, floor] = s.split(":").map(Number);
+        return { side, pos, floor };
+    });
+
+    // Separate by side
+    const bySide = [
+        parsed.filter(p => p.side === 0),
+        parsed.filter(p => p.side === 1),
+    ];
+
+    // Compute bounds across all segments + NPC position + book vision
+    const allPos = parsed.map(p => p.pos);
+    const allFloor = parsed.map(p => p.floor);
+    allPos.push(npc.position);
+    allFloor.push(npc.floor);
+    if (k.bookVision) {
+        allPos.push(k.bookVision.position);
+        allFloor.push(k.bookVision.floor);
+    }
+    if (k.lifeStory && k.lifeStory.bookCoords) {
+        allPos.push(k.lifeStory.bookCoords.position);
+        allFloor.push(k.lifeStory.bookCoords.floor);
+    }
+
+    const minPos = Math.min(...allPos) - 2;
+    const maxPos = Math.max(...allPos) + 2;
+    const minFloor = Math.min(...allFloor) - 2;
+    const maxFloor = Math.max(...allFloor) + 2;
+
+    const cols = maxPos - minPos + 1;
+    const rows = maxFloor - minFloor + 1;
+
+    // Build sets for fast lookup
+    const searchedSets = [new Set(), new Set()];
+    for (const p of parsed) {
+        searchedSets[p.side].add(p.pos + ":" + p.floor);
+    }
+
+    // Create overlay
+    const pane = document.getElementById("gm-npc-pane");
+    if (!pane) return;
+
+    const overlay = document.createElement("div");
+    overlay.className = "gm-search-map-overlay";
+
+    // Header
+    const header = document.createElement("div");
+    header.className = "gm-search-map-header";
+    header.innerHTML = '<span>' + esc(npc.name) + ' — search coverage (' +
+        segs.length + ' segment' + (segs.length !== 1 ? 's' : '') + ')</span>' +
+        '<button class="gm-btn gm-search-map-close">\u00D7</button>';
+    overlay.appendChild(header);
+
+    // Determine if we show both sides or just one
+    const hasBoth = bySide[0].length > 0 && bySide[1].length > 0;
+    const sidesToShow = hasBoth ? [0, 1] : (bySide[0].length > 0 ? [0] : [1]);
+
+    // Canvas sizing
+    const CELL = Math.max(3, Math.min(12, Math.floor(280 / Math.max(cols, rows))));
+    const GAP = hasBoth ? 8 : 0;
+    const corridorW = cols * CELL;
+    const canvasW = hasBoth ? corridorW * 2 + GAP : corridorW;
+    const canvasH = rows * CELL;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    canvas.style.width = canvasW + "px";
+    canvas.style.height = canvasH + "px";
+    overlay.appendChild(canvas);
+
+    // Legend
+    const legend = document.createElement("div");
+    legend.className = "gm-search-map-legend";
+    legend.innerHTML =
+        '<span class="gm-sml-searched"></span> searched ' +
+        '<span class="gm-sml-npc"></span> location ' +
+        '<span class="gm-sml-book"></span> book';
+    overlay.appendChild(legend);
+
+    pane.appendChild(overlay);
+
+    // Render
+    const ctx = canvas.getContext("2d");
+
+    for (const sideIdx of sidesToShow) {
+        const offsetX = hasBoth && sideIdx === 1 ? corridorW + GAP : 0;
+        const searched = searchedSets[sideIdx];
+
+        // Background
+        ctx.fillStyle = "#0d0b08";
+        ctx.fillRect(offsetX, 0, corridorW, canvasH);
+
+        // Grid lines
+        ctx.strokeStyle = "#1a1710";
+        ctx.lineWidth = 0.5;
+        for (let c = 0; c <= cols; c++) {
+            const x = offsetX + c * CELL;
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+        }
+        for (let r = 0; r <= rows; r++) {
+            const y = r * CELL;
+            ctx.beginPath(); ctx.moveTo(offsetX, y); ctx.lineTo(offsetX + corridorW, y); ctx.stroke();
+        }
+
+        // Searched cells
+        ctx.fillStyle = "#3a5a3a";
+        for (let p = minPos; p <= maxPos; p++) {
+            for (let f = minFloor; f <= maxFloor; f++) {
+                if (searched.has(p + ":" + f)) {
+                    const cx = offsetX + (p - minPos) * CELL;
+                    const cy = (maxFloor - f) * CELL; // flip Y
+                    ctx.fillRect(cx, cy, CELL, CELL);
+                }
+            }
+        }
+
+        // NPC position
+        if (npc.side === sideIdx) {
+            const nx = offsetX + (npc.position - minPos) * CELL + CELL / 2;
+            const ny = (maxFloor - npc.floor) * CELL + CELL / 2;
+            ctx.fillStyle = "#d4c898";
+            ctx.beginPath();
+            ctx.arc(nx, ny, Math.max(2, CELL / 2.5), 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Book location
+        const bc = k.lifeStory && k.lifeStory.bookCoords;
+        if (bc && bc.side === sideIdx) {
+            const bx = offsetX + (bc.position - minPos) * CELL + CELL / 2;
+            const by = (maxFloor - bc.floor) * CELL + CELL / 2;
+            ctx.fillStyle = "#60d060";
+            ctx.beginPath();
+            ctx.arc(bx, by, Math.max(2, CELL / 2.5), 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Vision location (if different from book)
+        if (k.bookVision && k.bookVision.side === sideIdx) {
+            const vx = offsetX + (k.bookVision.position - minPos) * CELL + CELL / 2;
+            const vy = (maxFloor - k.bookVision.floor) * CELL + CELL / 2;
+            ctx.strokeStyle = k.visionAccurate ? "#60d060" : "#d04040";
+            ctx.lineWidth = 1.5;
+            const r = Math.max(2, CELL / 2.5);
+            ctx.beginPath();
+            ctx.moveTo(vx - r, vy - r); ctx.lineTo(vx + r, vy + r);
+            ctx.moveTo(vx + r, vy - r); ctx.lineTo(vx - r, vy + r);
+            ctx.stroke();
+        }
+
+        // Side label
+        if (hasBoth) {
+            ctx.fillStyle = "#6a6050";
+            ctx.font = "9px 'Share Tech Mono', monospace";
+            ctx.textAlign = "center";
+            ctx.fillText(sideIdx === 0 ? "W" : "E", offsetX + corridorW / 2, 9);
+        }
+    }
+
+    // Chasm gap
+    if (hasBoth) {
+        ctx.fillStyle = "#1a1408";
+        ctx.fillRect(corridorW, 0, GAP, canvasH);
+    }
+
+    // Close handler
+    overlay.querySelector(".gm-search-map-close").addEventListener("click", function () {
+        overlay.remove();
+    });
+}
 
 function renderComponentFallback(key, comp) {
     let html = '<div class="gm-section">';
@@ -741,6 +929,13 @@ export const GodmodePanel = {
                     return;
                 }
 
+                // Search map button
+                if (ev.target.closest(".gm-search-map-btn")) {
+                    const id = parseInt(ev.target.closest(".gm-search-map-btn").dataset.npcId, 10);
+                    showSearchMap(id);
+                    return;
+                }
+
                 // Location link (center on NPC)
                 const locEl = ev.target.closest("[data-center-id]");
                 if (locEl) {
@@ -765,6 +960,7 @@ export const GodmodePanel = {
     },
 
     update(snap, selectedId, force) {
+        lastSnap = snap;
         const pane = document.getElementById("gm-npc-pane");
         if (!pane) return;
 

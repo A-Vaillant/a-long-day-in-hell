@@ -195,6 +195,119 @@ describe("GodmodePanel — NPC detail", () => {
     });
 });
 
+describe("GodmodePanel — Knowledge section", () => {
+    beforeEach(() => {
+        makeDOM();
+        GodmodePanel.init({});
+    });
+    afterEach(() => { delete global.document; });
+
+    it("shows searched segment count with map button", () => {
+        const snap = makeSnap([makeNpc({
+            components: {
+                psychology: { lucidity: 80, hope: 60 },
+                knowledge: {
+                    lifeStory: { bookCoords: { side: 0, position: 20, floor: 60, bookIndex: 42 } },
+                    bookVision: null, visionAccurate: true, hasBook: false,
+                    searchedSegments: ["0:10:50", "0:11:50", "0:12:50"],
+                    bestScore: 0, bestWords: [],
+                },
+            },
+        })]);
+        GodmodePanel.update(snap, 0, true);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(pane.innerHTML.includes("3 segments"), "should show segment count");
+        assert.ok(pane.querySelector(".gm-search-map-btn"), "should have map button");
+    });
+
+    it("hides searched row when no segments searched", () => {
+        const snap = makeSnap([makeNpc({
+            components: {
+                psychology: { lucidity: 80, hope: 60 },
+                knowledge: {
+                    lifeStory: { bookCoords: { side: 0, position: 20, floor: 60, bookIndex: 42 } },
+                    bookVision: null, visionAccurate: true, hasBook: false,
+                    searchedSegments: [],
+                    bestScore: 0, bestWords: [],
+                },
+            },
+        })]);
+        GodmodePanel.update(snap, 0, true);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(!pane.innerHTML.includes("segment"), "should not show segment count");
+        assert.ok(!pane.querySelector(".gm-search-map-btn"), "should not have map button");
+    });
+
+    it("shows lifetime best find with words", () => {
+        const snap = makeSnap([makeNpc({
+            components: {
+                psychology: { lucidity: 80, hope: 60 },
+                knowledge: {
+                    lifeStory: { bookCoords: { side: 0, position: 20, floor: 60, bookIndex: 42 } },
+                    bookVision: null, visionAccurate: true, hasBook: false,
+                    searchedSegments: ["0:10:50"],
+                    bestScore: 3, bestWords: ["hope", "fire", "dark"],
+                },
+            },
+        })]);
+        GodmodePanel.update(snap, 0, true);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(pane.innerHTML.includes("best find"), "should show best find label");
+        assert.ok(pane.innerHTML.includes("hope fire dark"), "should show actual words");
+    });
+
+    it("hides best find when bestScore is 0", () => {
+        const snap = makeSnap([makeNpc({
+            components: {
+                psychology: { lucidity: 80, hope: 60 },
+                knowledge: {
+                    lifeStory: { bookCoords: { side: 0, position: 20, floor: 60, bookIndex: 42 } },
+                    bookVision: null, visionAccurate: true, hasBook: false,
+                    searchedSegments: [],
+                    bestScore: 0, bestWords: [],
+                },
+            },
+        })]);
+        GodmodePanel.update(snap, 0, true);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(!pane.innerHTML.includes("best find"), "should not show best find");
+    });
+});
+
+describe("GodmodePanel — Searching section", () => {
+    beforeEach(() => {
+        makeDOM();
+        GodmodePanel.init({});
+    });
+    afterEach(() => { delete global.document; });
+
+    it("shows searching section when actively reading", () => {
+        const snap = makeSnap([makeNpc({
+            components: {
+                psychology: { lucidity: 80, hope: 60 },
+                searching: { active: true, bookIndex: 42, ticksSearched: 3, patience: 10, bestScore: 0, bestWords: [] },
+            },
+        })]);
+        GodmodePanel.update(snap, 0, true);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(pane.innerHTML.includes("reading book 42"), "should show active book index");
+    });
+
+    it("hides searching section when not active", () => {
+        const snap = makeSnap([makeNpc({
+            components: {
+                psychology: { lucidity: 80, hope: 60 },
+                searching: { active: false, bookIndex: 0, ticksSearched: 0, patience: 10, bestScore: 2, bestWords: ["hope", "fire"] },
+            },
+        })]);
+        GodmodePanel.update(snap, 0, true);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(!pane.innerHTML.includes("reading book"), "should not show searching when inactive");
+        // Best find should NOT be in searching section (it's in knowledge now)
+        assert.ok(!pane.innerHTML.includes("hope fire"), "searching section should not show best find");
+    });
+});
+
 describe("GodmodePanel — Groups tab", () => {
     beforeEach(() => {
         makeDOM();

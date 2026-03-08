@@ -5,10 +5,11 @@ import {
     searchSystem, SEARCHING, DEFAULT_SEARCH,
     countWordsFromSeed,
 } from "../lib/search.core.ts";
-import { createWorld, spawn, addComponent } from "../lib/ecs.core.ts";
+import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
 import { POSITION, IDENTITY, PSYCHOLOGY } from "../lib/social.core.ts";
 import { PERSONALITY } from "../lib/personality.core.ts";
 import { INTENT } from "../lib/intent.core.ts";
+import { KNOWLEDGE } from "../lib/knowledge.core.ts";
 
 function makeRng(seed = 0.5) {
     let v = seed;
@@ -317,5 +318,77 @@ describe("searchSystem escalating hope", () => {
     });
 });
 
-// Need getComponent for assertions
-import { getComponent } from "../lib/ecs.core.ts";
+// --- lifetime best persisted to knowledge ---
+
+describe("searchSystem lifetime best", () => {
+    it("persists best find to KNOWLEDGE component", () => {
+        const world = createWorld();
+        const ent = spawnSearcher(world, {
+            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            psychology: { lucidity: 80, hope: 50 },
+        });
+        addComponent(world, ent, KNOWLEDGE, {
+            lifeStory: { name: "Test", bookCoords: { side: 0, position: 0, floor: 0, bookIndex: 0 } },
+            bookVision: null, visionAccurate: true, hasBook: false,
+            searchedSegments: new Set(), bestScore: 0, bestWords: [],
+        });
+
+        searchSystem(world, makeRng(), () => "", undefined, () => ["hope", "fire"]);
+
+        const k = getComponent(world, ent, KNOWLEDGE);
+        assert.strictEqual(k.bestScore, 2);
+        assert.deepStrictEqual(k.bestWords, ["hope", "fire"]);
+    });
+
+    it("lifetime best survives search session reset", () => {
+        const world = createWorld();
+        const ent = spawnSearcher(world, {
+            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            psychology: { lucidity: 80, hope: 50 },
+        });
+        addComponent(world, ent, KNOWLEDGE, {
+            lifeStory: { name: "Test", bookCoords: { side: 0, position: 0, floor: 0, bookIndex: 0 } },
+            bookVision: null, visionAccurate: true, hasBook: false,
+            searchedSegments: new Set(), bestScore: 0, bestWords: [],
+        });
+
+        // First session: find 2 words
+        searchSystem(world, makeRng(), () => "", undefined, () => ["hope", "fire"]);
+
+        // Switch intent away (ends session)
+        const intent = getComponent(world, ent, INTENT);
+        intent.behavior = "explore";
+        searchSystem(world, makeRng(), () => "", undefined, () => []);
+
+        // Switch back to search (new session — SEARCHING.bestScore resets)
+        intent.behavior = "search";
+        searchSystem(world, makeRng(), () => "", undefined, () => []);
+
+        // SEARCHING component resets, but KNOWLEDGE persists
+        const search = getComponent(world, ent, SEARCHING);
+        assert.strictEqual(search.bestScore, 0, "session best resets");
+        const k = getComponent(world, ent, KNOWLEDGE);
+        assert.strictEqual(k.bestScore, 2, "lifetime best persists");
+        assert.deepStrictEqual(k.bestWords, ["hope", "fire"]);
+    });
+
+    it("lifetime best only updates when beaten", () => {
+        const world = createWorld();
+        const ent = spawnSearcher(world, {
+            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            psychology: { lucidity: 80, hope: 50 },
+        });
+        addComponent(world, ent, KNOWLEDGE, {
+            lifeStory: { name: "Test", bookCoords: { side: 0, position: 0, floor: 0, bookIndex: 0 } },
+            bookVision: null, visionAccurate: true, hasBook: false,
+            searchedSegments: new Set(), bestScore: 5, bestWords: ["old", "best", "find", "from", "before"],
+        });
+
+        // Find only 2 words — should NOT overwrite
+        searchSystem(world, makeRng(), () => "", undefined, () => ["hope", "fire"]);
+
+        const k = getComponent(world, ent, KNOWLEDGE);
+        assert.strictEqual(k.bestScore, 5, "should not overwrite better lifetime best");
+        assert.deepStrictEqual(k.bestWords, ["old", "best", "find", "from", "before"]);
+    });
+});
