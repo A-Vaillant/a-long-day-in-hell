@@ -65,9 +65,19 @@ export const Engine = {
     _pendingGoto: null,
     _screenBeforeBatch: null,
     _boundary: createBoundaryRegistry(),
+    _sidebarActions: [], // { label, key, screen } — rendered in sb-actions, handled by keybindings
 
     register(name, fn) {
         this._screens[name] = fn;
+    },
+
+    /**
+     * Register a sidebar action button. Rendered automatically in the sidebar
+     * and dispatched by keybindings. Call from the screen's own module.
+     * @param {{ label: string, key: string, screen: string }} entry
+     */
+    registerSidebarAction(entry) {
+        this._sidebarActions.push(entry);
     },
     action(name, fn) {
         this._actions[name] = fn;
@@ -240,10 +250,15 @@ export const Engine = {
             }
         }
 
-        html += '<div class="sb-divider"></div>';
-        html += '<div class="sb-actions">';
-        html += '<a data-goto="Memory">memory <kbd>m</kbd></a>';
-        html += '</div>';
+        if (this._sidebarActions.length > 0) {
+            html += '<div class="sb-divider"></div>';
+            html += '<div class="sb-actions">';
+            for (var ai = 0; ai < this._sidebarActions.length; ai++) {
+                var sa = this._sidebarActions[ai];
+                html += '<a data-goto="' + sa.screen + '">' + sa.label + ' <kbd>' + sa.key + '</kbd></a>';
+            }
+            html += '</div>';
+        }
         html += '<div class="sb-menu"><a id="sidebar-menu" data-goto="Menu">menu <kbd>esc</kbd></a></div>';
         html += '</div>';
         cap.innerHTML = html;
@@ -380,6 +395,16 @@ export const Engine = {
         } else if (saved && saved.seed != null && !hasSeedParam && !isDebugGoto) {
             startScreen = state.screen || "Corridor";
         }
+
+        // Sidebar data-goto delegation (sb-actions, sb-menu links)
+        document.getElementById("story-caption").addEventListener("click", function (ev) {
+            const link = ev.target.closest("[data-goto]");
+            if (!link) return;
+            ev.preventDefault();
+            const actionName = link.getAttribute("data-action");
+            if (actionName && Engine._actions[actionName]) Engine._actions[actionName]();
+            Engine.goto(link.getAttribute("data-goto"));
+        });
 
         document.getElementById("passage").addEventListener("click", function (ev) {
             const npcLink = ev.target.closest("[data-npc-id]");

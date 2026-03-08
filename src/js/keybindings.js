@@ -382,9 +382,13 @@ document.addEventListener("keydown", function (ev) {
             if (state.heldBook !== null && state.lightsOn) Engine.goto("Read Held Book");
             break;
         }
-        case "m": {
-            ev.preventDefault();
-            Engine.goto("Memory");
+        default: {
+            // Sidebar action registry: dispatch registered keys automatically
+            const action = Engine._sidebarActions.find(a => a.key === key);
+            if (action) {
+                ev.preventDefault();
+                Engine.goto(action.screen);
+            }
             break;
         }
         case "s": {

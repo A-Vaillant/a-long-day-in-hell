@@ -139,7 +139,7 @@ export function bootGame(seed = "test-seed-42") {
     game.Tick.registerBoundaryHandlers();
 
     // Set up event delegation (mirrors Engine.init)
-    game.document.getElementById("passage").addEventListener("click", function (ev) {
+    function handleDataGoto(ev) {
         var link = ev.target.closest("[data-goto]");
         if (!link) return;
         ev.preventDefault();
@@ -148,7 +148,9 @@ export function bootGame(seed = "test-seed-42") {
             game.Engine._actions[actionName]();
         }
         game.Engine.goto(link.getAttribute("data-goto"));
-    });
+    }
+    game.document.getElementById("passage").addEventListener("click", handleDataGoto);
+    game.document.getElementById("story-caption").addEventListener("click", handleDataGoto);
 
     game.Engine.goto("Corridor");
     return game;

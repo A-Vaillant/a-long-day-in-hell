@@ -1251,6 +1251,8 @@ function memoryAgeStr(tick, currentTick) {
     return days + " days ago";
 }
 
+Engine.registerSidebarAction({ label: "memory", key: "m", screen: "Memory" });
+
 Engine.register("Memory", {
     kind: "state",
     render() {
