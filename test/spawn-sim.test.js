@@ -19,7 +19,7 @@ import {
     socialPressureSystem,
     buildLocationIndex,
 } from "../lib/social.core.ts";
-import { PERSONALITY, generatePersonality, applySideBias, SIDE_BIAS_CONFIG } from "../lib/personality.core.ts";
+import { PERSONALITY, generatePersonality, applySideBias, SIDE_PROFILES, compatibility } from "../lib/personality.core.ts";
 import { BELIEF, generateBelief } from "../lib/belief.core.ts";
 import { HABITUATION } from "../lib/psych.core.ts";
 import { NEEDS } from "../lib/needs.core.ts";
@@ -135,58 +135,43 @@ describe("Scenario: volatile personalities trend toward madness", () => {
             `should exceed calm total loss ${calmTotal.toFixed(1)} (luc=${calmLuc.toFixed(1)}, hope=${calmHope.toFixed(1)})`);
     });
 
-    it("extreme bias accelerates decay compared to no bias", () => {
-        const origBias = SIDE_BIAS_CONFIG.bias;
-        const origWiden = SIDE_BIAS_CONFIG.widen;
-        SIDE_BIAS_CONFIG.bias = 0.45;
-        SIDE_BIAS_CONFIG.widen = 2.0;
-
-        try {
-            const extremeWorld = createWorld();
-            const extremeEnts = [];
-            for (let i = 0; i < 20; i++) {
-                extremeEnts.push(makeNpc(extremeWorld, {
-                    name: "Extreme-" + i, id: i, seed: "extreme-bias",
-                    position: i * 100, // isolated
-                    biasPlayerSide: false,
-                }));
-            }
-
-            // Reset config for control group
-            SIDE_BIAS_CONFIG.bias = origBias;
-            SIDE_BIAS_CONFIG.widen = origWiden;
-
-            const controlWorld = createWorld();
-            const controlEnts = [];
-            for (let i = 0; i < 20; i++) {
-                controlEnts.push(makeNpc(controlWorld, {
-                    name: "Control-" + i, id: i, seed: "extreme-bias",
-                    position: i * 100,
-                    biasPlayerSide: null, // no bias at all
-                }));
-            }
-
-            // Re-apply extreme for the simulation (doesn't matter, already baked into personality)
-            const TICKS = 200000;
-            const BATCH = 2000;
-            for (let t = 0; t < TICKS; t += BATCH) {
-                psychologyDecaySystem(extremeWorld, undefined, BATCH);
-                psychologyDecaySystem(controlWorld, undefined, BATCH);
-            }
-
-            const avgLuc = (world, ents) =>
-                ents.reduce((s, e) => s + getPsych(world, e).lucidity, 0) / ents.length;
-
-            const extremeLuc = avgLuc(extremeWorld, extremeEnts);
-            const controlLuc = avgLuc(controlWorld, controlEnts);
-
-            assert.ok(extremeLuc < controlLuc,
-                `extreme-biased avg lucidity ${extremeLuc.toFixed(1)} should be lower than ` +
-                `unbiased ${controlLuc.toFixed(1)}`);
-        } finally {
-            SIDE_BIAS_CONFIG.bias = origBias;
-            SIDE_BIAS_CONFIG.widen = origWiden;
+    it("far-side (seeker) bias accelerates decay compared to no bias", () => {
+        const extremeWorld = createWorld();
+        const extremeEnts = [];
+        for (let i = 0; i < 20; i++) {
+            extremeEnts.push(makeNpc(extremeWorld, {
+                name: "Extreme-" + i, id: i, seed: "extreme-bias",
+                position: i * 100, // isolated
+                biasPlayerSide: false, // far side = seekers (volatile, restless)
+            }));
         }
+
+        const controlWorld = createWorld();
+        const controlEnts = [];
+        for (let i = 0; i < 20; i++) {
+            controlEnts.push(makeNpc(controlWorld, {
+                name: "Control-" + i, id: i, seed: "extreme-bias",
+                position: i * 100,
+                biasPlayerSide: null, // no bias at all
+            }));
+        }
+
+        const TICKS = 200000;
+        const BATCH = 2000;
+        for (let t = 0; t < TICKS; t += BATCH) {
+            psychologyDecaySystem(extremeWorld, undefined, BATCH);
+            psychologyDecaySystem(controlWorld, undefined, BATCH);
+        }
+
+        const avgLuc = (world, ents) =>
+            ents.reduce((s, e) => s + getPsych(world, e).lucidity, 0) / ents.length;
+
+        const extremeLuc = avgLuc(extremeWorld, extremeEnts);
+        const controlLuc = avgLuc(controlWorld, controlEnts);
+
+        assert.ok(extremeLuc < controlLuc,
+            `far-side avg lucidity ${extremeLuc.toFixed(1)} should be lower than ` +
+            `unbiased ${controlLuc.toFixed(1)}`);
     });
 });
 
@@ -394,7 +379,7 @@ describe("Scenario: isolation accelerates psychological breakdown", () => {
             `clustered ${cluLuc.toFixed(1)}`);
     });
 
-    it("isolated NPCs have lower average hope than clustered NPCs", () => {
+    it("isolated NPCs have lower hope than clustered NPCs", () => {
         const isoWorld = createWorld();
         const isolated = [];
         for (let i = 0; i < 10; i++) {
@@ -429,5 +414,133 @@ describe("Scenario: isolation accelerates psychological breakdown", () => {
 
         assert.ok(cluAvgHope > isoAvgHope,
             `clustered avg hope ${cluAvgHope.toFixed(1)} should be higher than isolated ${isoAvgHope.toFixed(1)}`);
+    });
+});
+
+// --- Scenario 5: Corridor personality divergence ---
+
+describe("Scenario: WEST settlers vs EAST seekers", () => {
+    function makePopulation(count, isPlayerSide) {
+        const pop = [];
+        for (let i = 0; i < count; i++) {
+            const rng = seedFromString("corridor-pop:" + i);
+            const pers = generatePersonality(rng);
+            applySideBias(pers, isPlayerSide);
+            pop.push(pers);
+        }
+        return pop;
+    }
+
+    function avg(pop, trait) {
+        return pop.reduce((s, p) => s + p[trait], 0) / pop.length;
+    }
+
+    it("settlers are calmer than seekers (lower temperament)", () => {
+        const settlers = makePopulation(50, true);
+        const seekers = makePopulation(50, false);
+        const settlerTemp = avg(settlers, "temperament");
+        const seekerTemp = avg(seekers, "temperament");
+        assert.ok(settlerTemp < seekerTemp,
+            `settler temperament ${settlerTemp.toFixed(2)} should be lower than seeker ${seekerTemp.toFixed(2)}`);
+        assert.ok(seekerTemp - settlerTemp > 0.2,
+            `gap should be substantial: ${(seekerTemp - settlerTemp).toFixed(2)}`);
+    });
+
+    it("settlers are more patient than seekers (lower pace)", () => {
+        const settlers = makePopulation(50, true);
+        const seekers = makePopulation(50, false);
+        const settlerPace = avg(settlers, "pace");
+        const seekerPace = avg(seekers, "pace");
+        assert.ok(settlerPace < seekerPace,
+            `settler pace ${settlerPace.toFixed(2)} should be lower than seeker ${seekerPace.toFixed(2)}`);
+    });
+
+    it("seekers are more open than settlers", () => {
+        const settlers = makePopulation(50, true);
+        const seekers = makePopulation(50, false);
+        const settlerOpen = avg(settlers, "openness");
+        const seekerOpen = avg(seekers, "openness");
+        assert.ok(seekerOpen > settlerOpen,
+            `seeker openness ${seekerOpen.toFixed(2)} should exceed settler ${settlerOpen.toFixed(2)}`);
+    });
+
+    it("seekers are more resistant than settlers (higher outlook)", () => {
+        const settlers = makePopulation(50, true);
+        const seekers = makePopulation(50, false);
+        const settlerOut = avg(settlers, "outlook");
+        const seekerOut = avg(seekers, "outlook");
+        assert.ok(seekerOut > settlerOut,
+            `seeker outlook ${seekerOut.toFixed(2)} should exceed settler ${settlerOut.toFixed(2)}`);
+    });
+
+    it("same-side compatibility higher than cross-side", () => {
+        const settlers = makePopulation(30, true);
+        const seekers = makePopulation(30, false);
+
+        // Same-side compatibility (settlers with settlers)
+        let sameSideSum = 0, sameSideCount = 0;
+        for (let i = 0; i < settlers.length; i++) {
+            for (let j = i + 1; j < settlers.length; j++) {
+                sameSideSum += compatibility(settlers[i], settlers[j]);
+                sameSideCount++;
+            }
+        }
+
+        // Cross-side compatibility (settlers with seekers)
+        let crossSum = 0, crossCount = 0;
+        for (let i = 0; i < settlers.length; i++) {
+            for (let j = 0; j < seekers.length; j++) {
+                crossSum += compatibility(settlers[i], seekers[j]);
+                crossCount++;
+            }
+        }
+
+        const sameSideAvg = sameSideSum / sameSideCount;
+        const crossAvg = crossSum / crossCount;
+
+        assert.ok(sameSideAvg > crossAvg,
+            `same-side compat ${sameSideAvg.toFixed(3)} should exceed cross-side ${crossAvg.toFixed(3)}`);
+    });
+
+    it("corridors break differently: seekers lose lucidity, settlers lose hope", () => {
+        const seekerWorld = createWorld();
+        const settlerWorld = createWorld();
+        const COUNT = 20;
+        const seekerEnts = [];
+        const settlerEnts = [];
+
+        for (let i = 0; i < COUNT; i++) {
+            seekerEnts.push(makeNpc(seekerWorld, {
+                name: "Seeker-" + i, id: i, seed: "corridor",
+                position: i * 100, biasPlayerSide: false,
+            }));
+            settlerEnts.push(makeNpc(settlerWorld, {
+                name: "Settler-" + i, id: i, seed: "corridor",
+                position: i * 100, biasPlayerSide: true,
+            }));
+        }
+
+        const TICKS = 200000;
+        const BATCH = 2000;
+        for (let t = 0; t < TICKS; t += BATCH) {
+            psychologyDecaySystem(seekerWorld, undefined, BATCH);
+            psychologyDecaySystem(settlerWorld, undefined, BATCH);
+        }
+
+        const avgPsych = (world, ents) => {
+            const luc = ents.reduce((s, e) => s + getPsych(world, e).lucidity, 0) / ents.length;
+            const hope = ents.reduce((s, e) => s + getPsych(world, e).hope, 0) / ents.length;
+            return { luc, hope };
+        };
+
+        const seeker = avgPsych(seekerWorld, seekerEnts);
+        const settler = avgPsych(settlerWorld, settlerEnts);
+
+        // Seekers: volatile + resistant → lose lucidity faster (trend toward madness)
+        assert.ok(seeker.luc < settler.luc,
+            `seeker lucidity ${seeker.luc.toFixed(1)} should be lower than settler ${settler.luc.toFixed(1)}`);
+        // Settlers: withdrawn + patient → lose hope faster (trend toward catatonia)
+        assert.ok(settler.hope < seeker.hope,
+            `settler hope ${settler.hope.toFixed(1)} should be lower than seeker ${seeker.hope.toFixed(1)}`);
     });
 });
