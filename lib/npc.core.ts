@@ -51,8 +51,8 @@ export const SPAWN_CONFIG = {
     npcsPerWave: 6,            // NPCs spawned per wave
     baseSpread: 3,             // position spread for wave 0
     spreadPerWave: 8,          // additional position spread per wave index
-    baseFloorSpread: 2,        // floor spread for wave 0
-    floorSpreadPerWave: 3,     // additional floor spread per wave index
+    baseFloorSpread: 5,        // floor spread for wave 0
+    floorSpreadPerWave: 5,     // additional floor spread per wave index
     maxFloorSpread: 40,        // cap on floor spread
 };
 
