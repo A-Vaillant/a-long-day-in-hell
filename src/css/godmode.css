@@ -498,6 +498,16 @@ body.godmode {
     opacity: 0.5;
 }
 
+.gm-npc-row-player-ignored {
+    opacity: 0.4;
+}
+
+.gm-npc-row-player-include {
+    background: #0d1e2a;
+    border-left: 2px solid #7ab8e0;
+    padding-left: 6px;
+}
+
 .gm-npc-row-top {
     display: flex;
     align-items: baseline;
@@ -831,6 +841,25 @@ body.godmode {
     margin-bottom: 6px;
     border-bottom: 1px solid #1a1610;
     flex-wrap: wrap;
+}
+
+.gm-pc-filter-row {
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.gm-filter-label {
+    font-size: 10px;
+    color: #3a3428;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    user-select: none;
+}
+
+/* PC-exclude state: red border on the button */
+.gm-pc-filter-row .gm-log-filter[data-pc-filter] {
+    border: 1px solid transparent;
 }
 
 /* --- Groups pane --- */

@@ -22,6 +22,9 @@ const powers = [];
 // NPC list disposition filters — all on by default
 const npcFilters = { calm: true, anxious: true, mad: true, catatonic: true, inspired: true, dead: true };
 
+// PC filter: "ignored" (greyed), "include" (highlighted), "exclude" (hidden)
+let pcFilter = "ignored";
+
 const FAITH_LABELS = {
     mormon: "Mormon",
     catholic: "Catholic",
@@ -650,10 +653,24 @@ function renderNpcFilters() {
             '">' + key + '</button>';
     }
     html += '</div>';
+
+    // PC filter row: three-state toggle (ignored → include → exclude)
+    const pcLabel = pcFilter === "include" ? "PC" : pcFilter === "exclude" ? "PC [x]" : "PC";
+    const pcStyle =
+        pcFilter === "include" ? 'color:#7ab8e0;border-color:#7ab8e0' :
+        pcFilter === "exclude" ? 'color:#3a3428;border-color:#9a2a2a' :
+        'color:#3a3428';
+    const pcClass = pcFilter === "include" ? ' gm-log-filter-on' : '';
+    html += '<div class="gm-npc-filters gm-pc-filter-row">' +
+        '<span class="gm-filter-label">player</span>' +
+        '<button class="gm-log-filter' + pcClass + '" data-pc-filter="1" style="' + pcStyle + '">' + pcLabel + '</button>' +
+        '</div>';
+
     return html;
 }
 
 function npcPassesFilter(npc) {
+    if (npc.isPlayer) return pcFilter !== "exclude";
     if (!npc.alive) return npcFilters.dead;
     return npcFilters[npc.disposition] !== false;
 }
@@ -677,7 +694,10 @@ function renderList(snap, pane) {
         count++;
         const dispClass = "gm-disp-" + npc.disposition;
         const dead = npc.alive ? "" : " gm-npc-row-dead";
-        html += '<div class="gm-npc-row' + dead + '" data-npc-id="' + npc.id + '">';
+        const pcMod = npc.isPlayer
+            ? (pcFilter === "include" ? " gm-npc-row-player-include" : " gm-npc-row-player-ignored")
+            : "";
+        html += '<div class="gm-npc-row' + dead + pcMod + '" data-npc-id="' + npc.id + '">';
         html += '<div class="gm-npc-row-top">';
         html += '<span class="gm-npc-row-name">' + esc(npc.name) + '</span>';
         if (npc.isPlayer) html += '<span class="gm-player-tag">you</span>';
@@ -835,6 +855,13 @@ export const GodmodePanel = {
         const pane = document.getElementById("gm-npc-pane");
         if (pane) {
             pane.addEventListener("mousedown", function (ev) {
+                const pcBtn = ev.target.closest("[data-pc-filter]");
+                if (pcBtn) {
+                    ev.preventDefault();
+                    pcFilter = pcFilter === "ignored" ? "include" : pcFilter === "include" ? "exclude" : "ignored";
+                    lastHtml = "";
+                    return;
+                }
                 const btn = ev.target.closest("[data-npc-filter]");
                 if (!btn) return;
                 ev.preventDefault();
