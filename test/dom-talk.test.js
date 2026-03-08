@@ -482,3 +482,48 @@ describe("DOM: Dismiss from group", () => {
         assert.ok(game.state.tick > tickBefore, "tick advanced after dismiss");
     });
 });
+
+describe("DOM: Group UI indicators", () => {
+    it("recruit option hidden when NPC is already in player group", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const recruitBtn = game.document.getElementById("talk-recruit");
+        assert.strictEqual(recruitBtn, null, "invite hidden for grouped NPC");
+    });
+
+    it("Talk screen shows group status for grouped NPC", () => {
+        const game = bootGame();
+        const npc = recruitNpc(game, 0);
+
+        game.state._talkTarget = npc;
+        game.Engine.goto("Talk");
+
+        const passage = game.document.getElementById("passage");
+        assert.ok(passage.textContent.includes("Traveling with you"),
+            "shows traveling status for grouped NPC");
+    });
+
+    it("corridor marks grouped NPCs as companions", () => {
+        const game = bootGame();
+        recruitNpc(game, 0);
+        game.Engine.goto("Corridor");
+
+        const tags = game.document.querySelectorAll(".npc-companion-tag");
+        assert.ok(tags.length > 0, "companion tag visible in corridor");
+        assert.ok(tags[0].textContent.includes("companion"), "tag says companion");
+    });
+
+    it("corridor does not mark ungrouped NPCs as companions", () => {
+        const game = bootGame();
+        placeNpcHere(game, 0);
+        game.Engine.goto("Corridor");
+
+        const tags = game.document.querySelectorAll(".npc-companion-tag");
+        assert.strictEqual(tags.length, 0, "no companion tag for ungrouped NPC");
+    });
+
+});

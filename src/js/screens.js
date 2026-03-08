@@ -167,7 +167,12 @@ Engine.register("Corridor", {
                 if (!n.alive) {
                     html += '<span class="npc-name">' + esc(n.name) + '</span> ' + esc(T(TEXT.screens.dead_npc_at_location, "dead_npc:" + n.id));
                 } else {
-                    html += '<a class="npc-name npc-talk-link" data-npc-id="' + n.id + '">' + esc(n.name) + '</a> ';
+                    html += '<a class="npc-name npc-talk-link" data-npc-id="' + n.id + '">' + esc(n.name) + '</a>';
+                    if (Social.isInPlayerGroup(n.id)) {
+                        html += ' <span class="npc-companion-tag">(companion)</span> ';
+                    } else {
+                        html += ' ';
+                    }
                     html += '<span class="npc-dialogue">' + esc(Npc.talk(n)) + '</span>';
                 }
                 html += '</p>';
@@ -827,11 +832,11 @@ Engine.register("Talk", {
         if (bond && bond.familiarity >= 5) {
             html += '<a id="talk-spend"><kbd>w</kbd> Spend time together</a><br>';
         }
-        if (bond && bond.familiarity >= 10) {
-            html += '<a id="talk-recruit"><kbd>i</kbd> Invite to travel together</a><br>';
-        }
         if (Social.isInPlayerGroup(npc.id)) {
+            html += '<p class="talk-group-status">Traveling with you.</p>';
             html += '<a id="talk-group-dismiss"><kbd>d</kbd> Ask to leave your group</a><br>';
+        } else if (bond && bond.familiarity >= 10) {
+            html += '<a id="talk-recruit"><kbd>i</kbd> Invite to travel together</a><br>';
         }
         html += '<a data-goto="Corridor"><kbd>q</kbd> Leave</a>';
         html += '</div>';

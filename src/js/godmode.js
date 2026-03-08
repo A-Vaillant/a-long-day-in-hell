@@ -107,7 +107,14 @@ function snapshot() {
                 }
             }
 
-            if (components.group) groupId = components.group.groupId;
+            if (components.group) {
+                groupId = components.group.groupId;
+                // Resolve leaderId entity → name for display
+                if (components.group.leaderId != null) {
+                    const leaderIdent = getComponent(world, components.group.leaderId, "identity");
+                    components.group.leaderName = leaderIdent ? leaderIdent.name : null;
+                }
+            }
         }
 
         // Check identity.free from ECS
@@ -179,7 +186,13 @@ function snapshot() {
                     pComponents[key] = { ...comp };
                 }
             }
-            if (pComponents.group) pGroupId = pComponents.group.groupId;
+            if (pComponents.group) {
+                pGroupId = pComponents.group.groupId;
+                if (pComponents.group.leaderId != null) {
+                    const leaderIdent = getComponent(world, pComponents.group.leaderId, "identity");
+                    pComponents.group.leaderName = leaderIdent ? leaderIdent.name : null;
+                }
+            }
 
             const playerName = (state.lifeStory && state.lifeStory.name) || "Player";
             npcs.push({

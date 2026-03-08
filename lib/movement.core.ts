@@ -182,11 +182,26 @@ export function movementSystem(
                 const group = getComponent<Group>(world, entity, GROUP);
                 const leaderPos = group?.leaderId != null && group.leaderId !== entity
                     ? getComponent<Position>(world, group.leaderId, POSITION) : null;
-                const followingLeader = leaderPos && leaderPos.side === pos.side && leaderPos.floor === pos.floor
-                    && leaderPos.position !== pos.position;
+                const sameLevel = leaderPos && leaderPos.side === pos.side && leaderPos.floor === pos.floor;
+                const followingLeader = sameLevel && leaderPos!.position !== pos.position;
+                // Leader on different floor/side — navigate to rejoin
+                const chasingLeader = leaderPos && !sameLevel;
 
-                if (followingLeader) {
-                    // Bias toward leader — patient NPCs follow more closely
+                if (chasingLeader && isRestArea(pos.position)) {
+                    // At rest area: change floor or cross to reach leader
+                    if (pos.side !== leaderPos!.side && pos.floor === 0) {
+                        pos.side = leaderPos!.side;
+                    } else if (pos.side !== leaderPos!.side && pos.floor > 0) {
+                        pos.floor--;
+                    } else if (pos.floor !== leaderPos!.floor) {
+                        pos.floor += pos.floor < leaderPos!.floor ? 1 : -1;
+                        pos.floor = Math.max(0, pos.floor);
+                    }
+                } else if (chasingLeader) {
+                    // Not at rest area: head toward nearest rest area to change floor/side
+                    pos.position += stepToward(pos.position, nearestRestArea(pos.position));
+                } else if (followingLeader) {
+                    // Same floor+side: bias toward leader
                     const pers = getComponent<Personality>(world, entity, PERSONALITY);
                     const patience = pers ? 1.0 - pers.pace : 0.5; // 0=restless, 1=patient
                     const followChance = 0.5 + patience * 0.4; // 0.5–0.9
@@ -198,7 +213,8 @@ export function movementSystem(
                 } else {
                     pos.position += mov.heading;
                 }
-                if (isRestArea(pos.position) && !followingLeader) {
+                const hasLeader = followingLeader || chasingLeader;
+                if (isRestArea(pos.position) && !hasLeader) {
                     const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
                     if (knowledge) {
                         // Knowledge-aware: prefer unsearched territory
@@ -303,9 +319,46 @@ export function movementSystem(
                 const group = getComponent<Group>(world, entity, GROUP);
                 const leaderPos = group?.leaderId != null && group.leaderId !== entity
                     ? getComponent<Position>(world, group.leaderId, POSITION) : null;
-                const followingLeader = leaderPos && leaderPos.side === pos.side && leaderPos.floor === pos.floor;
+                const sameFloor = leaderPos && leaderPos.side === pos.side && leaderPos.floor === pos.floor;
 
-                if (followingLeader) {
+                if (leaderPos && !sameFloor) {
+                    // Leader on different floor/side — navigate to rejoin in batch
+                    let remaining = n;
+                    // Step 1: reach nearest rest area
+                    const restDist = Math.abs(pos.position - nearestRestArea(pos.position));
+                    if (restDist > 0) {
+                        const steps = Math.min(remaining, restDist);
+                        pos.position += stepToward(pos.position, nearestRestArea(pos.position)) * steps;
+                        remaining -= steps;
+                    }
+                    // Step 2: at rest area — change floors/cross to match leader
+                    if (remaining > 0 && isRestArea(pos.position)) {
+                        if (pos.side !== leaderPos!.side) {
+                            // Descend to floor 0
+                            const floorsDown = Math.min(pos.floor, remaining);
+                            pos.floor -= floorsDown;
+                            remaining -= floorsDown;
+                            // Cross bridge
+                            if (pos.floor === 0 && remaining > 0) {
+                                pos.side = leaderPos!.side;
+                                remaining--;
+                            }
+                        }
+                        if (pos.side === leaderPos!.side && pos.floor !== leaderPos!.floor && remaining > 0) {
+                            const floorDist = Math.abs(pos.floor - leaderPos!.floor);
+                            const floorSteps = Math.min(remaining, floorDist);
+                            pos.floor += (pos.floor < leaderPos!.floor ? 1 : -1) * floorSteps;
+                            remaining -= floorSteps;
+                        }
+                        pos.floor = Math.max(0, pos.floor);
+                    }
+                    // Step 3: same floor — walk toward leader
+                    if (remaining > 0 && pos.side === leaderPos!.side && pos.floor === leaderPos!.floor) {
+                        const dist = Math.abs(leaderPos!.position - pos.position);
+                        const steps = Math.min(remaining, dist);
+                        pos.position += stepToward(pos.position, leaderPos!.position) * steps;
+                    }
+                } else if (sameFloor) {
                     // Move toward leader position in batch
                     const dist = leaderPos!.position - pos.position;
                     const step = Math.min(Math.abs(dist), n);
@@ -319,7 +372,7 @@ export function movementSystem(
                     if (rng.next() < config.exploreReverseChance) {
                         mov.heading = -mov.heading;
                     }
-                    if (!followingLeader && rng.next() < config.exploreFloorChance) {
+                    if (!leaderPos && rng.next() < config.exploreFloorChance) {
                         pos.floor += rng.next() < 0.5 ? 1 : -1;
                         pos.floor = Math.max(0, pos.floor);
                     }

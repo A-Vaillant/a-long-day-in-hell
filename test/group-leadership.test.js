@@ -226,7 +226,7 @@ describe("Group movement bias", () => {
             "leader moves in own heading direction");
     });
 
-    it("follower on different floor is not biased", () => {
+    it("follower on different floor chases leader", () => {
         const world = createWorld();
         const leader = makeEntity(world, { name: "Leader", position: 50, floor: 5, influence: 18 });
         const follower = makeEntity(world, { name: "Follower", position: 40, floor: 3, influence: 5 });
@@ -237,9 +237,12 @@ describe("Group movement bias", () => {
 
         movementSystem(world, seedFromString("floor-test"));
 
-        // Different floor — follower uses own heading
-        assert.strictEqual(getComponent(world, follower, POSITION).position, 39,
-            "follower on different floor moves independently");
+        const fPos = getComponent(world, follower, POSITION);
+        // Follower is at rest area (40) — should change floor toward leader (floor 5)
+        assert.strictEqual(fPos.position, 40,
+            "follower stays at rest area to change floor");
+        assert.strictEqual(fPos.floor, 4,
+            "follower moves one floor toward leader");
     });
 
     it("ungrouped NPC is not biased", () => {
