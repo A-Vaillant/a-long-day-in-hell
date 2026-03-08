@@ -154,7 +154,7 @@ describe("Sidebar action registry", () => {
         const sidebar = document.getElementById("story-caption");
         assert.ok(sidebar, "sidebar element should exist");
         const html = sidebar.innerHTML;
-        assert.ok(html.includes("sb-actions"), "sidebar should have sb-actions div");
+        assert.ok(html.includes("sb-menu"), "sidebar should have sb-menu div");
         assert.ok(html.includes("Memory"), "memory action should appear in sidebar");
         assert.ok(html.includes("<kbd>m</kbd>"), "memory key hint should appear");
     });
