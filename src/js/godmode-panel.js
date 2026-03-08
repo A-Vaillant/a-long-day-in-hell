@@ -534,7 +534,7 @@ function renderList(snap, pane) {
         html += '<span class="gm-npc-row-label">hope</span>' + miniBar(npc.hope, 100, "#6a8a5a");
         html += '</div>';
         html += '<div class="gm-npc-row-loc" data-center-id="' + npc.id + '">';
-        html += (npc.side === 0 ? 'W' : 'E') + ' f' + npc.floor + ' s' + npc.position;
+        html += (npc.falling ? 'chasm' : (npc.side === 0 ? 'W' : 'E')) + ' f' + npc.floor + ' s' + npc.position;
         html += '</div>';
         html += '</div>';
     }
@@ -563,8 +563,9 @@ function renderDetail(npc, snap, pane) {
     if (!npc.alive) html += '<div class="gm-dead-tag" style="' + (isEscaped ? 'color:#60d060;font-style:normal' : '') + '">' + (isEscaped ? 'FREE' : 'dead') + '</div>';
     if (npc.falling) html += '<div class="gm-dead-tag" style="color:#e0b040">falling (spd ' + Math.round(npc.falling.speed) + ')</div>';
     // Location (right below name)
+    const locSide = npc.falling ? 'chasm' : (npc.side === 0 ? 'west' : 'east');
     html += '<div class="gm-loc-inline"><span class="gm-loc-link" data-center-id="' + npc.id + '">' +
-        (npc.side === 0 ? 'west' : 'east') + ' \u00B7 seg ' + npc.position + ' \u00B7 floor ' + npc.floor + '</span></div>';
+        locSide + ' \u00B7 seg ' + npc.position + ' \u00B7 floor ' + npc.floor + '</span></div>';
     html += '</div>';
 
     // Possess + powers dropdown
@@ -808,7 +809,7 @@ export const GodmodePanel = {
             // Location (use first member)
             const loc = members[0];
             html += '<div class="gm-grp-loc" data-center-id="' + loc.id + '">' +
-                (loc.side === 0 ? 'W' : 'E') + ' f' + loc.floor + ' s' + loc.position + '</div>';
+                (loc.falling ? 'chasm' : (loc.side === 0 ? 'W' : 'E')) + ' f' + loc.floor + ' s' + loc.position + '</div>';
             for (const npc of members) {
                 const dispClass = "gm-disp-" + npc.disposition;
                 html += '<div class="gm-grp-member" data-npc-id="' + npc.id + '">';
