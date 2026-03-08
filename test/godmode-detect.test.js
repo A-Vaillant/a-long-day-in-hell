@@ -491,7 +491,7 @@ describe("detectEvents", () => {
 
     // --- Search events ---
 
-    it("detects search start", () => {
+    it("does not emit event for routine search start", () => {
         const prev = makeSnap([makeNpc({
             components: { searching: { active: false, bestScore: 0 } },
         })]);
@@ -499,9 +499,7 @@ describe("detectEvents", () => {
             components: { searching: { active: true, bestScore: 0 } },
         })]);
         const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 1);
-        assert.strictEqual(events[0].type, "search");
-        assert.ok(events[0].text.includes("started searching"));
+        assert.strictEqual(events.length, 0, "search start is noise, not logged");
     });
 
     it("detects legible find (bestScore crosses threshold)", () => {
