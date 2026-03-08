@@ -70,11 +70,11 @@ export function createSearchOverlay(opts) {
                 ctx.stroke();
             }
 
-            // Label
+            // Label — draw in the header banner (negative y to escape grid translation)
             ctx.fillStyle = "rgba(96, 208, 96, 0.7)";
             ctx.font = "bold 10px 'Share Tech Mono', monospace";
             ctx.textAlign = "left";
-            ctx.fillText(npcName + " search (" + segments.length + ")", LABEL_GUTTER + 4, 14);
+            ctx.fillText(npcName + " search (" + segments.length + ")", LABEL_GUTTER + 4, -8);
         },
     };
 }
