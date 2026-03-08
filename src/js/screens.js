@@ -526,6 +526,10 @@ Engine.register("Read Held Book", {
     },
 });
 
+function formatSignBody(text) {
+    return esc(text).replace(/(\d+)\^([\d,]+)/g, '$1<sup>$2</sup>');
+}
+
 /* ---------- Life Story ---------- */
 
 Engine.register("Life Story", {
@@ -546,7 +550,7 @@ Engine.register("Sign Intro", {
         var html = '<div id="sign-view">';
         html += '<p class="sign-intro-note"><em>A large sign is posted on the wall beside the shelves. You read it.</em></p>';
         html += '<div class="sign-text">';
-        html += '<p>' + esc(TEXT.screens.sign_body) + '</p>';
+        html += '<p>' + formatSignBody(TEXT.screens.sign_body) + '</p>';
         html += '<ol class="sign-rules">';
         for (var i = 0; i < rules.length; i++) {
             html += '<li>' + esc(rules[i]) + '</li>';
@@ -623,7 +627,7 @@ Engine.register("Sign", {
         var html = '<div id="sign-view">';
         html += '<p class="location-header">The Sign</p>';
         html += '<div class="sign-text">';
-        html += '<p>' + esc(TEXT.screens.sign_body) + '</p>';
+        html += '<p>' + formatSignBody(TEXT.screens.sign_body) + '</p>';
         html += '<ol class="sign-rules">';
         for (var i = 0; i < rules.length; i++) {
             html += '<li>' + esc(rules[i]) + '</li>';
