@@ -92,15 +92,14 @@ export function detectEvents(prev, curr) {
                 text: npc.name + " caught a railing at floor " + npc.floor + ".", npcIds: [npc.id] });
         }
 
-        // Search progress — only significant finds, not routine searching
+        // Search progress — report when NPC finds words in a book
         const oldSearch = old.components && old.components.searching;
         const newSearch = npc.components && npc.components.searching;
-        if (oldSearch && newSearch) {
-            if (newSearch.bestScore > 0.10 && (!oldSearch.bestScore || newSearch.bestScore > oldSearch.bestScore + 0.05)) {
-                const pct = Math.round(newSearch.bestScore * 100);
-                events.push({ tick: curr.tick, day: curr.day, type: "search",
-                    text: npc.name + " found something legible (" + pct + "% coherent).", npcIds: [npc.id] });
-            }
+        if (oldSearch && newSearch && newSearch.bestScore > oldSearch.bestScore) {
+            const words = newSearch.bestScore;
+            const desc = words === 1 ? "a word" : words + " words";
+            events.push({ tick: curr.tick, day: curr.day, type: "search",
+                text: npc.name + " found " + desc + " in a book!", npcIds: [npc.id] });
         }
 
         // Started pilgrimage

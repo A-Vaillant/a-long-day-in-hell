@@ -23,7 +23,7 @@ import { PERSONALITY, generatePersonality } from "../lib/personality.core.ts";
 import { BELIEF, generateBelief } from "../lib/belief.core.ts";
 import { NEEDS, needsSystem } from "../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../lib/movement.core.ts";
-import { SEARCHING, searchSystem, scoreBigram, scoreFromSeed } from "../lib/search.core.ts";
+import { SEARCHING, searchSystem, scoreBigram, scoreFromSeed, countWordsFromSeed } from "../lib/search.core.ts";
 import { INTENT, intentSystem } from "../lib/intent.core.ts";
 import { SLEEP, nearestRestArea } from "../lib/sleep.core.ts";
 import { generateBookPage } from "../lib/book.core.ts";
@@ -105,9 +105,9 @@ function ecsTick(world, tick, day) {
     const searchRng = seedFromString(SEED + ":search:" + currentTick);
     const pageSampler = (side, position, floor, bookIndex, pageIndex) =>
         generateBookPage(side, position, floor, bookIndex, pageIndex, SEED, 400);
-    const fastScorer = (side, position, floor, bookIndex, pageIndex) =>
-        scoreFromSeed(SEED, side, position, floor, bookIndex, pageIndex);
-    searchSystem(world, searchRng, pageSampler, undefined, fastScorer);
+    const fastWordCounter = (side, position, floor, bookIndex, pageIndex) =>
+        countWordsFromSeed(SEED, side, position, floor, bookIndex, pageIndex);
+    searchSystem(world, searchRng, pageSampler, undefined, fastWordCounter);
 }
 
 function bench(fn, warmup = 50, iterations = 500) {
@@ -241,8 +241,8 @@ describe("perf: individual ECS systems (16 NPCs)", () => {
             searchSystem: () => {
                 const rng = seedFromString(SEED + ":search:bench");
                 const sampler = (s, p, f, b, pg) => generateBookPage(s, p, f, b, pg, SEED, 400);
-                const scorer = (s, p, f, b, pg) => scoreFromSeed(SEED, s, p, f, b, pg);
-                searchSystem(world, rng, sampler, undefined, scorer);
+                const wc = (s, p, f, b, pg) => countWordsFromSeed(SEED, s, p, f, b, pg);
+                searchSystem(world, rng, sampler, undefined, wc);
             },
         };
 

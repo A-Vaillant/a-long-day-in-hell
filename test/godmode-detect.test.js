@@ -491,7 +491,7 @@ describe("detectEvents", () => {
 
     // --- Search events ---
 
-    it("does not emit event for routine search start", () => {
+    it("does not emit event when no words found", () => {
         const prev = makeSnap([makeNpc({
             components: { searching: { active: false, bestScore: 0 } },
         })]);
@@ -499,33 +499,43 @@ describe("detectEvents", () => {
             components: { searching: { active: true, bestScore: 0 } },
         })]);
         const events = detectEvents(prev, curr);
-        assert.strictEqual(events.length, 0, "search start is noise, not logged");
+        assert.strictEqual(events.length, 0, "no words found = no event");
     });
 
-    it("detects legible find (bestScore crosses threshold)", () => {
+    it("detects word find (bestScore increases)", () => {
         const prev = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 0.05 } },
+            components: { searching: { active: true, bestScore: 0 } },
         })]);
         const curr = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 0.15 } },
+            components: { searching: { active: true, bestScore: 1 } },
         })]);
         const events = detectEvents(prev, curr);
         assert.strictEqual(events.length, 1);
         assert.strictEqual(events[0].type, "search");
-        assert.ok(events[0].text.includes("legible"));
-        assert.ok(events[0].text.includes("15%"));
+        assert.ok(events[0].text.includes("a word"));
     });
 
-    it("does not emit legible find for small score bumps", () => {
+    it("reports multiple words", () => {
         const prev = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 0.12 } },
+            components: { searching: { active: true, bestScore: 1 } },
         })]);
         const curr = makeSnap([makeNpc({
-            components: { searching: { active: true, bestScore: 0.14 } },
+            components: { searching: { active: true, bestScore: 3 } },
         })]);
         const events = detectEvents(prev, curr);
-        // +0.02 < 0.05 threshold, should not fire
-        assert.strictEqual(events.filter(e => e.text.includes("legible")).length, 0);
+        assert.strictEqual(events.length, 1);
+        assert.ok(events[0].text.includes("3 words"));
+    });
+
+    it("does not emit when bestScore unchanged", () => {
+        const prev = makeSnap([makeNpc({
+            components: { searching: { active: true, bestScore: 2 } },
+        })]);
+        const curr = makeSnap([makeNpc({
+            components: { searching: { active: true, bestScore: 2 } },
+        })]);
+        const events = detectEvents(prev, curr);
+        assert.strictEqual(events.filter(e => e.type === "search").length, 0);
     });
 
     // --- All event types have correct type field ---

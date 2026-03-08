@@ -21,7 +21,7 @@ import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
 import { STATS, generateStats, quicknessMod } from "../../lib/stats.core.ts";
 import { NEEDS, needsSystem, resetNeedsAtDawn } from "../../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
-import { SEARCHING, searchSystem, scoreFromSeed } from "../../lib/search.core.ts";
+import { SEARCHING, searchSystem, countWordsFromSeed } from "../../lib/search.core.ts";
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
 import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment } from "../../lib/knowledge.core.ts";
@@ -234,9 +234,9 @@ export const Social = {
         const searchRng = seedFromString(state.seed + ":npc:search:" + currentTick);
         const pageSampler = (side, position, floor, bookIndex, pageIndex) =>
             generateBookPage(side, position, floor, bookIndex, pageIndex, state.seed, 400);
-        const fastScorer = (side, position, floor, bookIndex, pageIndex) =>
-            scoreFromSeed(state.seed, side, position, floor, bookIndex, pageIndex);
-        searchSystem(world, searchRng, pageSampler, undefined, fastScorer);
+        const fastWordCounter = (side, position, floor, bookIndex, pageIndex) =>
+            countWordsFromSeed(state.seed, side, position, floor, bookIndex, pageIndex);
+        searchSystem(world, searchRng, pageSampler, undefined, fastWordCounter);
 
         // NPC-to-NPC socialization (share knowledge, build bonds)
         socializeSystem(world, currentTick);
