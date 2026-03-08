@@ -15,7 +15,7 @@ import {
     groupFormationSystem, socialPressureSystem, npcDismissSystem, segmentDistance,
     buildLocationIndex,
 } from "../../lib/social.core.ts";
-import { HABITUATION } from "../../lib/psych.core.ts";
+import { HABITUATION, applyShockToEntity } from "../../lib/psych.core.ts";
 import { PERSONALITY, generatePersonality, applySideBias } from "../../lib/personality.core.ts";
 import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
 import { STATS, generateStats, quicknessMod } from "../../lib/stats.core.ts";
@@ -33,6 +33,11 @@ import { isRestArea } from "../../lib/library.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.ts";
+import {
+    MEMORY, MEMORY_TYPES,
+    DEFAULT_MEMORY_CONFIG,
+    createMemory, addMemory, hasRecentMemory, witnessSystem, memoryDecaySystem,
+} from "../../lib/memory.core.ts";
 import { state } from "./state.js";
 
 let world = null;
@@ -87,6 +92,7 @@ export const Social = {
         addComponent(world, playerEntity, SEARCHING, {
             bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0, bestWords: [],
         });
+        addComponent(world, playerEntity, MEMORY, createMemory());
         addComponent(world, playerEntity, SLEEP, {
             home: { side: state.side, position: nearestRestArea(state.position), floor: state.floor },
             bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0,
@@ -114,7 +120,8 @@ export const Social = {
                 addComponent(world, ent, NEEDS, { hunger: 0, thirst: 0, exhaustion: 0 });
                 const headingRng = seedFromString(state.seed + ":npc:heading:" + npc.id);
                 addComponent(world, ent, MOVEMENT, { targetPosition: null, heading: headingRng.next() < 0.5 ? 1 : -1 });
-                addComponent(world, ent, SEARCHING, { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0 });
+                addComponent(world, ent, SEARCHING, { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0, bestWords: [] });
+                addComponent(world, ent, MEMORY, createMemory());
                 addComponent(world, ent, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
                 addComponent(world, ent, SLEEP, {
                     home: { side: npc.side, position: nearestRestArea(npc.position), floor: npc.floor },
@@ -211,6 +218,17 @@ export const Social = {
         // Build location index once, share between relationship + group systems
         const prebuilt = buildLocationIndex(world);
 
+        // Snapshot group membership before formation/dissolution (for witnessEvents)
+        const prevGroups = new Map(); // entity → groupId
+        for (const [npcId, ent] of npcEntities) {
+            const g = getComponent(world, ent, GROUP);
+            if (g) prevGroups.set(ent, g.groupId);
+        }
+        if (playerEntity !== null) {
+            const g = getComponent(world, playerEntity, GROUP);
+            if (g) prevGroups.set(playerEntity, g.groupId);
+        }
+
         // Core systems — order matters
         relationshipSystem(world, currentTick, undefined, prebuilt, n);
         psychologyDecaySystem(world, undefined, n);
@@ -253,12 +271,41 @@ export const Social = {
             }
         }
 
+        // Collect witness events from escape/chasm/falling/disposition changes
+        const witnessEvents = [];
+
+        // Detect group dissolutions: self-witnessed by the entity that lost their group
+        for (const [ent, prevGroupId] of prevGroups) {
+            const g = getComponent(world, ent, GROUP);
+            if (!g || g.groupId !== prevGroupId) {
+                const ident = getComponent(world, ent, IDENTITY);
+                if (!ident || !ident.alive) continue;
+                let mem = getComponent(world, ent, MEMORY);
+                if (!mem) { mem = createMemory(); addComponent(world, ent, MEMORY, mem); }
+                if (!hasRecentMemory(mem, MEMORY_TYPES.GROUP_DISSOLVED, ent, currentTick, DEFAULT_MEMORY_CONFIG.dedupWindow)) {
+                    const tc = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.GROUP_DISSOLVED];
+                    mem.entries.push({
+                        id: mem.nextId++,
+                        type: MEMORY_TYPES.GROUP_DISSOLVED,
+                        tick: currentTick,
+                        weight: tc.initialWeight,
+                        initialWeight: tc.initialWeight,
+                        permanent: tc.permanent,
+                        subject: ent,
+                        contagious: tc.contagious,
+                    });
+                    // Apply acute shock
+                    applyShockToEntity(world, ent, "groupDissolved");
+                }
+            }
+        }
+
         // Escape check: pilgrims who arrived at their book, or have book at rest area
-        this.checkEscapes();
+        this.checkEscapes(witnessEvents);
 
         // NPC chasm AI: check for jumps, advance falling
-        this.checkNpcChasmJump();
-        this.tickNpcFalling();
+        this.checkNpcChasmJump(witnessEvents);
+        this.tickNpcFalling(witnessEvents);
 
         // Write derived disposition back to state.npcs
         for (const npc of state.npcs) {
@@ -270,16 +317,64 @@ export const Social = {
 
             const knowledge = getComponent(world, ent, KNOWLEDGE);
             const onPilgrimage = !!(knowledge && knowledge.bookVision && ident.alive);
+            const prevDisposition = npc.disposition;
             npc.disposition = deriveDisposition(psych, ident.alive, undefined, onPilgrimage);
-            // Sync alive status back
+
+            // Detect madness transition
+            const wentMad = prevDisposition !== "mad" && npc.disposition === "mad";
+            if (wentMad && ident.alive) {
+                const pos = getComponent(world, ent, POSITION);
+                if (pos) {
+                    const eventPos = { side: pos.side, position: pos.position, floor: pos.floor };
+                    witnessEvents.push({
+                        type: MEMORY_TYPES.WITNESS_MADNESS,
+                        subject: ent,
+                        position: eventPos,
+                        bondedOnly: false,
+                        range: "colocated",
+                    });
+                    witnessEvents.push({
+                        type: MEMORY_TYPES.COMPANION_MAD,
+                        subject: ent,
+                        position: eventPos,
+                        bondedOnly: true,
+                        range: "sight",
+                    });
+                }
+            }
+
+            // Sync alive status back; emit death events
             if (!ident.alive && npc.alive) {
                 const needs = getComponent(world, ent, NEEDS);
                 console.log("NPC DEATH (ECS sync):", npc.name, "id="+npc.id,
                     "needs:", needs ? {h:Math.round(needs.hunger), t:Math.round(needs.thirst), e:Math.round(needs.exhaustion)} : "none",
                     "tick="+state.tick, "day="+state.day);
                 npc.alive = false;
+
+                const pos = getComponent(world, ent, POSITION);
+                if (pos) {
+                    const eventPos = { side: pos.side, position: pos.position, floor: pos.floor };
+                    witnessEvents.push({
+                        type: MEMORY_TYPES.FOUND_BODY,
+                        subject: ent,
+                        position: eventPos,
+                        bondedOnly: false,
+                        range: "colocated",
+                    });
+                    witnessEvents.push({
+                        type: MEMORY_TYPES.COMPANION_DIED,
+                        subject: ent,
+                        position: eventPos,
+                        bondedOnly: true,
+                        range: "sight",
+                    });
+                }
             }
         }
+
+        // Memory systems — witness events create lasting psychological scars
+        witnessSystem(world, witnessEvents, currentTick, prebuilt);
+        memoryDecaySystem(world, undefined, n);
 
         // Sync player needs from ECS → state (ECS is authority)
         if (playerEntity !== null) {
@@ -432,7 +527,7 @@ export const Social = {
      *
      * Witness boost: nearby NPCs on same side/floor get +15 hope.
      */
-    checkEscapes() {
+    checkEscapes(witnessEvents = []) {
         if (!world || !state.npcs) return;
         for (const npc of state.npcs) {
             if (!npc.alive) continue;
@@ -472,6 +567,15 @@ export const Social = {
                     }
                 }
 
+                // Emit witnessEscape event (hearing range — word travels fast)
+                witnessEvents.push({
+                    type: MEMORY_TYPES.WITNESS_ESCAPE,
+                    subject: ent,
+                    position: { side: pos.side, position: pos.position, floor: pos.floor },
+                    bondedOnly: false,
+                    range: "hearing",
+                });
+
                 console.log("NPC ESCAPED:", npc.name, "id=" + npc.id,
                     "at s" + pos.position + " f" + pos.floor,
                     "day=" + state.day, "tick=" + state.tick);
@@ -485,7 +589,7 @@ export const Social = {
      * Tick all falling NPCs. Called once per tick from onTick().
      * Each falling NPC gets physics + auto-grab attempt.
      */
-    tickNpcFalling() {
+    tickNpcFalling(witnessEvents = []) {
         if (!state.npcs) return;
         for (const npc of state.npcs) {
             if (!npc.falling || !npc.alive) continue;
@@ -550,7 +654,7 @@ export const Social = {
      * Check if any catatonic NPCs should jump into the chasm.
      * Called once per tick. Very low probability.
      */
-    checkNpcChasmJump() {
+    checkNpcChasmJump(witnessEvents = []) {
         if (!state.npcs) return;
         for (const npc of state.npcs) {
             if (!npc.alive || npc.falling) continue;
@@ -573,6 +677,14 @@ export const Social = {
             const rng = seedFromString(state.seed + ":npcjump:" + npc.id + ":" + state.tick);
             if (rng.next() < jumpChance) {
                 npc.falling = { speed: 0, floorsToFall: 0, side: npc.side };
+                // Emit witnessChasm event (sight range — visible from either side)
+                witnessEvents.push({
+                    type: MEMORY_TYPES.WITNESS_CHASM,
+                    subject: ent,
+                    position: { side: npc.side, position: npc.position, floor: npc.floor },
+                    bondedOnly: false,
+                    range: "sight",
+                });
             }
         }
     },
