@@ -462,7 +462,7 @@ export const GodmodeMap = {
             // Floor labels — compute a nice interval based on visible range
             const visibleFloors = vpRows;
             const floorInterval = Math.pow(10, Math.max(1, Math.floor(Math.log10(visibleFloors / 6))));
-            const floorStart = Math.floor(vpY / floorInterval) * floorInterval;
+            const floorStart = Math.max(0, Math.floor(vpY / floorInterval) * floorInterval);
             for (let f = floorStart; f < vpY + vpRows; f += floorInterval) {
                 const py = gridH - (f - vpY) * CELL_H;
                 if (py < 0 || py > gridH) continue;
@@ -660,7 +660,7 @@ export const GodmodeMap = {
         const posEl = document.getElementById("gm-pos");
         if (posEl) {
             const center = Math.round(vpX + vpCols / 2);
-            const centerFloor = Math.round(vpY + vpRows / 2);
+            const centerFloor = Math.max(0, Math.round(vpY + vpRows / 2));
             posEl.textContent = "s" + center + " f" + centerFloor;
         }
 
