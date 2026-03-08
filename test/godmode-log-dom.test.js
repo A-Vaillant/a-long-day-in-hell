@@ -52,9 +52,9 @@ describe("godmode log DOM integration (real code path)", () => {
         assert.strictEqual(btns.length, Object.keys(LOG_FILTER_LABELS).length);
     });
 
-    it("search filter starts inactive, others active", () => {
+    it("all filters start active", () => {
         GodmodeLog.renderTo(pane);
-        assert.strictEqual(isFilterActive(pane, "search"), false);
+        assert.strictEqual(isFilterActive(pane, "search"), true);
         assert.strictEqual(isFilterActive(pane, "bond"), true);
         assert.strictEqual(isFilterActive(pane, "death"), true);
     });
@@ -86,14 +86,14 @@ describe("godmode log DOM integration (real code path)", () => {
         assert.strictEqual(getVisibleEntries(pane).length, 1);
     });
 
-    it("enabling search filter shows search entries", () => {
+    it("disabling search filter hides search entries", () => {
         GodmodeLog.push({ tick: 1, day: 1, type: "search", text: "searching." });
         GodmodeLog.push({ tick: 2, day: 1, type: "death", text: "C died." });
         GodmodeLog.renderTo(pane);
 
-        assert.strictEqual(getVisibleEntries(pane).length, 1);
-        clickFilter(pane, "search");
         assert.strictEqual(getVisibleEntries(pane).length, 2);
+        clickFilter(pane, "search");
+        assert.strictEqual(getVisibleEntries(pane).length, 1);
     });
 
     it("filter state survives external re-render (render loop)", () => {

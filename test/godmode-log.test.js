@@ -34,12 +34,12 @@ describe("GodmodeLog", () => {
     });
 
     it("ring buffer caps at MAX_EVENTS", () => {
-        for (let i = 0; i < 250; i++) {
+        for (let i = 0; i < 2500; i++) {
             GodmodeLog.push({ tick: i, day: 1, type: "bond", text: "event " + i });
         }
-        assert.ok(GodmodeLog.length <= 200, "should not exceed 200 events");
+        assert.ok(GodmodeLog.length <= 2000, "should not exceed 2000 events");
         const recent = GodmodeLog.getRecent(1);
-        assert.strictEqual(recent[0].text, "event 249", "most recent event preserved");
+        assert.strictEqual(recent[0].text, "event 2499", "most recent event preserved");
     });
 
     it("init clears all events", () => {
@@ -75,12 +75,8 @@ describe("GodmodeLog filters", () => {
         GodmodeLog.init();
     });
 
-    it("search is off by default", () => {
-        assert.strictEqual(GodmodeLog.isFilterOn("search"), false);
-    });
-
-    it("other filters are on by default", () => {
-        for (const type of ["death", "resurrection", "disposition", "bond", "group", "pilgrimage", "escape"]) {
+    it("all filters are on by default", () => {
+        for (const type of ["death", "resurrection", "disposition", "bond", "group", "pilgrimage", "escape", "search"]) {
             assert.strictEqual(GodmodeLog.isFilterOn(type), true, type + " should be on");
         }
     });
@@ -98,14 +94,14 @@ describe("GodmodeLog filters", () => {
         assert.strictEqual(GodmodeLog.isFilterOn("death"), true);
     });
 
-    it("toggleFilter on search turns it on", () => {
+    it("toggleFilter on search turns it off", () => {
         GodmodeLog.toggleFilter("search");
-        assert.strictEqual(GodmodeLog.isFilterOn("search"), true);
+        assert.strictEqual(GodmodeLog.isFilterOn("search"), false);
     });
 
     it("getFilters returns copy of all filter states", () => {
         const f = GodmodeLog.getFilters();
-        assert.strictEqual(f.search, false);
+        assert.strictEqual(f.search, true);
         assert.strictEqual(f.death, true);
         // Mutating the copy doesn't affect internal state
         f.death = false;
@@ -114,10 +110,10 @@ describe("GodmodeLog filters", () => {
 
     it("init resets filters to defaults", () => {
         GodmodeLog.toggleFilter("death");  // off
-        GodmodeLog.toggleFilter("search"); // on
+        GodmodeLog.toggleFilter("search"); // off
         GodmodeLog.init();
         assert.strictEqual(GodmodeLog.isFilterOn("death"), true);
-        assert.strictEqual(GodmodeLog.isFilterOn("search"), false);
+        assert.strictEqual(GodmodeLog.isFilterOn("search"), true);
     });
 
     it("getFiltered returns only events matching active filters", () => {
@@ -126,7 +122,8 @@ describe("GodmodeLog filters", () => {
         GodmodeLog.push({ tick: 3, day: 1, type: "search", text: "searching" });
         GodmodeLog.push({ tick: 4, day: 1, type: "death", text: "B died" });
 
-        // search is off by default
+        // all on by default — toggle search off to test filtering
+        GodmodeLog.toggleFilter("search");
         const filtered = GodmodeLog.getFiltered(100);
         assert.strictEqual(filtered.length, 3); // 2 deaths + 1 bond
         assert.ok(filtered.every(e => e.type !== "search"));

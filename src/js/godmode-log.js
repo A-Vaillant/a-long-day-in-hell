@@ -5,21 +5,21 @@ function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-const MAX_EVENTS = 200;
+const MAX_EVENTS = 2000;
 let events = [];
 let onSelectNpc = null;  // callback(id) when NPC name clicked
 let lastHtml = "";
 let timeWindow = 0;  // 0 = all, >0 = last N days
 let lastDay = 1;     // last known currentDay, for re-renders from click handlers
 
-// Filter state: which event types to show. Search off by default.
+// Filter state: which event types to show.
 const filters = {
     death: true,
     resurrection: true,
     disposition: true,
     bond: true,
     group: true,
-    search: false,
+    search: true,
     pilgrimage: true,
     escape: true,
     chasm: true,
@@ -74,7 +74,7 @@ export const GodmodeLog = {
         filters.disposition = true;
         filters.bond = true;
         filters.group = true;
-        filters.search = false;
+        filters.search = true;
         filters.pilgrimage = true;
         filters.escape = true;
         filters.chasm = true;
@@ -177,7 +177,7 @@ export const GodmodeLog = {
         }
 
         if (currentDay) lastDay = currentDay;
-        const recent = this.getFiltered(100, lastDay);
+        const recent = this.getFiltered(500, lastDay);
         let html = this.renderFilters(lastDay);
         let count = 0;
         for (const ev of recent) {

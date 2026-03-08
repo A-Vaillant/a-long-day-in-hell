@@ -92,15 +92,10 @@ export function detectEvents(prev, curr) {
                 text: npc.name + " caught a railing at floor " + npc.floor + ".", npcIds: [npc.id] });
         }
 
-        // Started searching
+        // Search progress — only significant finds, not routine searching
         const oldSearch = old.components && old.components.searching;
         const newSearch = npc.components && npc.components.searching;
         if (oldSearch && newSearch) {
-            if (!oldSearch.active && newSearch.active) {
-                events.push({ tick: curr.tick, day: curr.day, type: "search",
-                    text: npc.name + " started searching bookshelves.", npcIds: [npc.id] });
-            }
-            // Found legible text (bestScore increased past threshold)
             if (newSearch.bestScore > 0.10 && (!oldSearch.bestScore || newSearch.bestScore > oldSearch.bestScore + 0.05)) {
                 const pct = Math.round(newSearch.bestScore * 100);
                 events.push({ tick: curr.tick, day: curr.day, type: "search",
