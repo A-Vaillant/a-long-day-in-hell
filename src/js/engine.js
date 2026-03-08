@@ -328,6 +328,27 @@ export const Engine = {
             Object.assign(state, saved);
             PRNG.seed(state.seed);
             loadLog();
+            // Migrate BigInt fields from pre-migration saves
+            if (typeof state.position !== 'bigint') state.position = BigInt(state.position || 0);
+            if (typeof state.floor !== 'bigint') state.floor = BigInt(state.floor || 0);
+            if (state.heldBook) {
+                if (typeof state.heldBook.position !== 'bigint') state.heldBook.position = BigInt(state.heldBook.position || 0);
+                if (typeof state.heldBook.floor !== 'bigint') state.heldBook.floor = BigInt(state.heldBook.floor || 0);
+            }
+            if (state.openBook) {
+                if (typeof state.openBook.position !== 'bigint') state.openBook.position = BigInt(state.openBook.position || 0);
+                if (typeof state.openBook.floor !== 'bigint') state.openBook.floor = BigInt(state.openBook.floor || 0);
+            }
+            if (state.targetBook) {
+                if (typeof state.targetBook.position !== 'bigint') state.targetBook.position = BigInt(state.targetBook.position || 0);
+                if (typeof state.targetBook.floor !== 'bigint') state.targetBook.floor = BigInt(state.targetBook.floor || 0);
+            }
+            if (state.npcs) {
+                for (const npc of state.npcs) {
+                    if (typeof npc.position !== 'bigint') npc.position = BigInt(npc.position || 0);
+                    if (typeof npc.floor !== 'bigint') npc.floor = BigInt(npc.floor || 0);
+                }
+            }
             // Migrate missing fields from older saves
             if (state.mortality === undefined) state.mortality = 100;
             if (state.despairing === undefined) state.despairing = false;
