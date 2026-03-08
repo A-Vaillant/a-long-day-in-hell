@@ -30,6 +30,7 @@ let followMode = false;
 let activeTab = "log"; // "log" | "npc" | "grp" | "trend"
 let prevSnap = null;
 let ffBusy = false;     // true during async fast-forward
+const BATCH_MODE = false; // TODO: re-enable once batch mode bugs are fixed
 let possessing = false; // true while controlling an NPC
 let godmodeDOM = null;  // saved godmode container for restoration
 
@@ -321,9 +322,8 @@ function fastForward(n) {
     running = false;
     updatePlayButton();
 
-    // Use batch ticking for large skips, per-tick for small ones (event detection)
-    const useBatch = n > 500;
-    const BATCH = useBatch ? 240 : 50; // 1 day per batch when batching
+    const useBatch = BATCH_MODE && n > 500;
+    const CHUNK = useBatch ? 240 : 50;
     let remaining = n;
 
     function step() {
@@ -332,7 +332,7 @@ function fastForward(n) {
         try {
             // Spend up to 12ms per frame on simulation
             while (remaining > 0 && (performance.now() - frameStart) < 12) {
-                const chunk = Math.min(remaining, BATCH);
+                const chunk = Math.min(remaining, CHUNK);
                 if (useBatch) {
                     tickBatch(chunk);
                 } else {
@@ -418,10 +418,9 @@ function loop(now) {
     accumulator += dt;
 
     // Batch multiple ticks per frame at high speeds
-    // At very high speeds, use batch ticking (no event detection)
     let ticked = 0;
-    const maxPerFrame = speed > 500 ? 240 : 50;
-    if (speed > 500) {
+    const maxPerFrame = BATCH_MODE && speed > 500 ? 240 : 50;
+    if (BATCH_MODE && speed > 500) {
         // Batch mode: advance in chunks, skip per-tick event detection
         while (accumulator >= tickInterval && ticked < maxPerFrame) {
             const chunk = Math.min(Math.floor(accumulator / tickInterval), maxPerFrame - ticked);
@@ -475,8 +474,7 @@ function setupDOM() {
         '<button id="gm-skip-night" title="Skip to nightfall (n)"><kbd>n</kbd>\u263E</button>' +
         '<button id="gm-skip-day" title="Skip 1 full day (D)"><kbd>D</kbd>+1d</button>' +
         '<button id="gm-skip-week" title="Skip 7 days (W)"><kbd>W</kbd>+7d</button>' +
-        '<button id="gm-skip-year" title="Skip 365 days (Y)"><kbd>Y</kbd>+1y</button>' +
-        '<input type="number" id="gm-ff-input" min="1" placeholder="ticks" title="Type ticks, Enter to fast-forward">' +
+        '<button id="gm-skip-month" title="Skip 30 days (Y)"><kbd>Y</kbd>+30d</button>' +
         '<div class="gm-ctrl-sep"></div>' +
         '<span id="gm-zoom" title="Zoom level (scroll wheel, +/-)">1x</span>' +
         '<span id="gm-pos" title="Viewport center (segment, floor)"></span>' +
@@ -556,21 +554,7 @@ function setupInput(canvas) {
     });
     document.getElementById("gm-skip-day").addEventListener("click", function () { skipDays(1); });
     document.getElementById("gm-skip-week").addEventListener("click", function () { skipDays(7); });
-    document.getElementById("gm-skip-year").addEventListener("click", function () { skipDays(365); });
-
-    const ffInput = document.getElementById("gm-ff-input");
-    ffInput.addEventListener("keydown", function (ev) {
-        ev.stopPropagation(); // don't let godmode keys fire while typing
-        if (ev.key === "Enter") {
-            const n = parseInt(this.value, 10);
-            if (n > 0) fastForward(n);
-            this.value = "";
-            this.blur();
-        } else if (ev.key === "Escape") {
-            this.value = "";
-            this.blur();
-        }
-    });
+    document.getElementById("gm-skip-month").addEventListener("click", function () { skipDays(30); });
 
     document.getElementById("gm-save").addEventListener("click", function () {
         Engine.save();
@@ -801,7 +785,7 @@ function setupInput(canvas) {
         } else if (ev.key === "W") {
             skipDays(7);
         } else if (ev.key === "Y") {
-            skipDays(365);
+            skipDays(30);
         } else if (ev.key === "n") {
             skipToNight();
         } else if (ev.key === "[") {
