@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 
@@ -43,6 +43,7 @@ describe("GodmodePanel — NPC list", () => {
         makeDOM();
         GodmodePanel.init({});
     });
+    afterEach(() => { delete global.document; });
 
     it("shows NPC list when no one is selected", () => {
         GodmodePanel.update(makeSnap(), null, true);
@@ -119,6 +120,7 @@ describe("GodmodePanel — NPC detail", () => {
         makeDOM();
         GodmodePanel.init({});
     });
+    afterEach(() => { delete global.document; });
 
     it("shows detail view when NPC selected", () => {
         GodmodePanel.update(makeSnap(), 0, true);
@@ -198,6 +200,7 @@ describe("GodmodePanel — Groups tab", () => {
         makeDOM();
         GodmodePanel.init({});
     });
+    afterEach(() => { delete global.document; });
 
     it("shows empty message when no groups exist", () => {
         GodmodePanel.updateGroups(makeSnap([

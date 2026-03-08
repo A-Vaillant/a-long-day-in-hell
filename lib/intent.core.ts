@@ -487,8 +487,8 @@ export function intentSystem(
         const hasCompanion = checkHasCompanion(world, entity, position);
 
         const result = evaluateIntent(
-            intent, psych, ident.alive, needs, personality, rng, config,
-            undefined, position, sleep, tick, knowledge, hasCompanion,
+            intent, psych, ident.alive, needs ?? null, personality ?? null, rng, config,
+            undefined, position ?? null, sleep ?? null, tick, knowledge ?? null, hasCompanion,
         );
 
         if (result) {
