@@ -1041,6 +1041,13 @@ button:disabled {
 
 /* === RESPONSIVE === */
 
+/* Prevent double-tap zoom on interactive elements */
+#moves a, #actions a, #book-controls a,
+[data-goto], [data-action], .shelf-slot,
+.sb-menu a, #mobile-menu-btn {
+    touch-action: manipulation;
+}
+
 @media (max-width: 640px) {
     :root {
         --sidebar-w: 0px;
@@ -1110,5 +1117,39 @@ button:disabled {
     /* Simpler film grain on mobile for perf */
     body::after {
         opacity: 0.015;
+    }
+
+    /* Mobile tap targets — 44px minimum per Apple HIG / WCAG */
+    #moves a, #actions a {
+        display: inline-block;
+        min-height: 44px;
+        line-height: 44px;
+        padding: 0 0.5rem;
+    }
+
+    [data-goto], [data-action] {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    /* Mobile menu button (visible when sidebar collapses) */
+    #mobile-menu-btn {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.8em;
+        color: var(--text-dim);
+        border: none;
+        background: none;
+        cursor: pointer;
+        min-height: 44px;
+        padding: 0 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    /* Hide kbd hints on mobile (no keyboard) */
+    #moves kbd, #actions kbd, .key-hint kbd {
+        display: none;
     }
 }

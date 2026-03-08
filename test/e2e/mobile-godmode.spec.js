@@ -307,7 +307,7 @@ test.describe("godmode mobile controls", () => {
     });
 
     test("speed slider is usable via tap", async ({ page }) => {
-        const slider = page.locator("#gm-speed");
+        const slider = page.locator("#gm-speed-slider");
         await expect(slider).toBeVisible();
         const box = await slider.boundingBox();
         // Tap near the right end to increase speed
@@ -387,7 +387,7 @@ test.describe("godmode mobile log filters", () => {
     });
 
     test("time filter buttons are tappable", async ({ page }) => {
-        const btn = page.locator('[data-timewindow]').first();
+        const btn = page.locator('[data-time-filter]').first();
         await expect(btn).toBeVisible();
         await btn.tap();
     });

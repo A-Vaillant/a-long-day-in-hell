@@ -215,23 +215,31 @@ export const Engine = {
         }
 
         html += '<div class="sb-divider"></div>';
-        html += '<div class="sb-menu"><a id="sidebar-menu">menu <kbd>esc</kbd></a></div>';
+        html += '<div class="sb-menu"><a id="sidebar-menu" data-goto="Menu">menu <kbd>esc</kbd></a></div>';
         html += '</div>';
         cap.innerHTML = html;
 
+        function openMenu(ev) {
+            ev.preventDefault();
+            var scr = state.screen;
+            var cur = Engine._screens[scr];
+            if (cur && cur.kind === "transition") {
+                state._menuReturn = "Corridor";
+            } else {
+                state._menuReturn = scr;
+            }
+            Engine.goto("Menu");
+        }
+
         const menuBtn = document.getElementById("sidebar-menu");
         if (menuBtn) {
-            menuBtn.addEventListener("click", function (ev) {
-                ev.preventDefault();
-                var scr = state.screen;
-                var cur = Engine._screens[scr];
-                if (cur && cur.kind === "transition") {
-                    state._menuReturn = "Corridor";
-                } else {
-                    state._menuReturn = scr;
-                }
-                Engine.goto("Menu");
-            });
+            menuBtn.addEventListener("click", openMenu);
+        }
+
+        // Mobile menu button (rendered outside sidebar for mobile layout)
+        const mobileMenu = document.getElementById("mobile-menu-btn");
+        if (mobileMenu) {
+            mobileMenu.addEventListener("click", openMenu);
         }
     },
 

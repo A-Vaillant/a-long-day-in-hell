@@ -195,14 +195,14 @@ test.describe("mobile book interaction", () => {
     });
 
     test("shelf books are tappable to open", async ({ page }) => {
-        const book = page.locator(".shelf-slot").first();
+        const book = page.locator(".book-spine:not(.book-gap)").first();
         await expect(book).toBeVisible();
         await book.tap();
         await expect(page.locator("#book-view")).toBeVisible();
     });
 
     test("page-prev and page-next links are tappable", async ({ page }) => {
-        const book = page.locator(".shelf-slot").first();
+        const book = page.locator(".book-spine:not(.book-gap)").first();
         await book.tap();
         await expect(page.locator("#book-view")).toBeVisible();
 
@@ -218,7 +218,7 @@ test.describe("mobile book interaction", () => {
     });
 
     test("take book link works via tap", async ({ page }) => {
-        const book = page.locator(".shelf-slot").first();
+        const book = page.locator(".book-spine:not(.book-gap)").first();
         await book.tap();
         await expect(page.locator("#book-view")).toBeVisible();
 
@@ -231,11 +231,11 @@ test.describe("mobile book interaction", () => {
     });
 
     test("close book link works via tap", async ({ page }) => {
-        const book = page.locator(".shelf-slot").first();
+        const book = page.locator(".book-spine:not(.book-gap)").first();
         await book.tap();
         await expect(page.locator("#book-view")).toBeVisible();
 
-        const close = page.locator('[data-goto="Corridor"]');
+        const close = page.locator('[data-goto="Corridor"]:not([data-action])');
         await expect(close).toBeVisible();
         await close.tap();
         await expect(page.locator("#corridor-view")).toBeVisible();
@@ -301,16 +301,16 @@ test.describe("mobile falling", () => {
     test("falling actions are tappable", async ({ page }) => {
         await page.goto(CORRIDOR);
         await page.waitForSelector("#corridor-view");
-        // Jump into chasm via debug
+        // Set up falling state directly
         await page.evaluate(() => {
             window.state.floor = 5;
-            window.Actions.resolve({ type: "chasm_jump" });
+            window.Chasm.jump(window.state.side);
             window.Engine.goto("Falling");
         });
         await expect(page.locator("#falling-view")).toBeVisible();
 
-        // Wait and grab actions should be tappable
-        const waitLink = page.locator('[data-action="fall-wait"], [data-goto="Falling"]').first();
+        // Fall action should be tappable
+        const waitLink = page.locator('#fall-wait');
         await expect(waitLink).toBeVisible();
     });
 });
