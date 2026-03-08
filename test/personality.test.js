@@ -82,8 +82,9 @@ describe("compatibility", () => {
 
     it("returns value in 0-1 range", () => {
         for (let i = 0; i < 20; i++) {
-            const a = makePerson(Math.random(), Math.random(), Math.random(), Math.random());
-            const b = makePerson(Math.random(), Math.random(), Math.random(), Math.random());
+            const v = (k) => ((i * 4 + k) * 0.0618) % 1;
+            const a = makePerson(v(0), v(1), v(2), v(3));
+            const b = makePerson(v(3), v(2), v(1), v(0));
             const c = compatibility(a, b);
             assert.ok(c >= 0 && c <= 1, `out of range: ${c}`);
         }

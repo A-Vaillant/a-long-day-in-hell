@@ -318,7 +318,7 @@ export function searchSystem(
         // Start searching (intent says search, but not yet active)
         if (!search.active) {
             const personality = getComponent<Personality>(world, entity, PERSONALITY);
-            search.patience = computePatience(personality, config);
+            search.patience = computePatience(personality ?? null, config);
             search.ticksSearched = 0;
             search.bestScore = 0;
             const idx = claimBookIndex(claimed, rng);
