@@ -243,6 +243,14 @@ describe("canSleep", () => {
     it("allows sleep above threshold", () => {
         assert.strictEqual(canSleep(100), true);
     });
+    it("allows sleep when lights off regardless of exhaustion", () => {
+        assert.strictEqual(canSleep(0, false), true);
+        assert.strictEqual(canSleep(SLEEP_EXHAUSTION_THRESHOLD - 1, false), true);
+    });
+    it("still requires exhaustion when lights on", () => {
+        assert.strictEqual(canSleep(0, true), false);
+        assert.strictEqual(canSleep(SLEEP_EXHAUSTION_THRESHOLD, true), true);
+    });
 });
 
 describe("applyAlcohol", () => {
