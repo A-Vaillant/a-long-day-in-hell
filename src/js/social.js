@@ -408,6 +408,19 @@ export const Social = {
         return members;
     },
 
+    /**
+     * Get the group leader's home location, if the player is in a group.
+     * Returns { side, position, floor } or null.
+     */
+    getGroupHome() {
+        if (!world || playerEntity === null) return null;
+        const playerGroup = getComponent(world, playerEntity, GROUP);
+        if (!playerGroup || playerGroup.leaderId == null) return null;
+        const leaderSleep = getComponent(world, playerGroup.leaderId, SLEEP);
+        if (!leaderSleep || !leaderSleep.home) return null;
+        return leaderSleep.home;
+    },
+
     // --- Escape resolution ---
 
     /**

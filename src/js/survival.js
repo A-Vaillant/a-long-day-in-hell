@@ -46,7 +46,7 @@ export const Surv = {
         Object.assign(state, applyResurrection(statsFromState()));
         state.deathCause = null;
     },
-    canSleep() { return canSleep(state.exhaustion, state.lightsOn); },
+    canSleep() { return canSleep(state.exhaustion, state.lightsOn, state.tick); },
     kill(cause) {
         state.dead = true;
         state.deaths = (state.deaths || 0) + 1;

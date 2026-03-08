@@ -382,6 +382,12 @@ button:disabled {
 .sb-disp-anxious { color: #8b6914; }
 .sb-disp-mad { color: #9a2a2a; }
 .sb-disp-catatonic { color: #555; font-style: italic; }
+.sb-home {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    padding: 0.1rem 0;
+}
+.sb-home::before { content: "home: "; font-style: italic; }
 
 .sb-menu a {
     color: var(--text-dim);
