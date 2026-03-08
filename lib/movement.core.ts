@@ -25,7 +25,7 @@ import { SLEEP, type Sleep } from "./sleep.core.ts";
 import { KNOWLEDGE, type Knowledge, isSearched } from "./knowledge.core.ts";
 import { GROUP, type Group } from "./social.core.ts";
 import { PERSONALITY, type Personality } from "./personality.core.ts";
-import { isRestArea } from "./library.core.ts";
+import { isRestArea, GALLERIES_PER_SEGMENT } from "./library.core.ts";
 import { bigAbs, bigMax, bigMin, bigSign } from "./bigint-utils.core.ts";
 
 // --- Component ---
@@ -64,8 +64,9 @@ interface Rng {
 
 /** Nearest rest area position from current position. */
 function nearestRestArea(position: bigint): bigint {
-    const r = ((position % 10n) + 10n) % 10n;
-    return r >= 5n ? position - r + 10n : position - r;
+    const n = GALLERIES_PER_SEGMENT;
+    const r = ((position % n) + n) % n;
+    return r * 2n >= n ? position - r + n : position - r;
 }
 
 /** Check if the span from a rest area in a direction has any unsearched segments. */

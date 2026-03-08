@@ -129,7 +129,7 @@ function resolveReadBook(bookIndex) {
         side: state.side, position: state.position,
         floor: state.floor, bookIndex: bookIndex,
     };
-    state.openPage = 0;
+    state.openPage = 1;
     return { resolved: true, screen: "Shelf Open Book" };
 }
 

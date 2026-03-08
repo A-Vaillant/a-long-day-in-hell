@@ -962,6 +962,9 @@ export const GodmodePanel = {
         if (!force && now - lastRenderTime < RENDER_THROTTLE_MS) return;
         lastRenderTime = now;
 
+        // Clear distance cache each render so stale values don't persist after NPC movement
+        distCache.clear();
+
         if (selectedId === null) {
             renderList(snap, pane);
         } else {

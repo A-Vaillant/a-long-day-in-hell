@@ -82,7 +82,7 @@ describe("DOM: book rendering", () => {
         assert.ok(spine, "a clickable spine exists");
         spine.click();
         assert.strictEqual(game.state.screen, "Shelf Open Book", "book opened");
-        assert.strictEqual(game.state.openPage, 0, "opens to cover even at low morale");
+        assert.strictEqual(game.state.openPage, 1, "opens to page 1 by default");
     });
 
     it("cover element gets spine-matching color CSS variables", () => {
