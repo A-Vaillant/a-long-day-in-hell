@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
     scoreBigram, computePatience, claimBookIndex,
     searchSystem, SEARCHING, DEFAULT_SEARCH,
+    countWordsFromSeed,
 } from "../lib/search.core.ts";
 import { createWorld, spawn, addComponent } from "../lib/ecs.core.ts";
 import { POSITION, IDENTITY, PSYCHOLOGY } from "../lib/social.core.ts";
@@ -152,12 +153,9 @@ describe("searchSystem", () => {
         const world = createWorld();
         spawnSearcher(world);
         const rng = makeRng(0.01); // low roll to trigger start
-        // Always return noise
-        const sampler = () => "xyzzy!@#$%qwfp";
         // Run enough ticks that the start chance fires
-        let started = false;
         for (let i = 0; i < 50; i++) {
-            searchSystem(world, rng, sampler);
+            searchSystem(world, rng, () => "", undefined, () => 0);
         }
         // Check that search was attempted (ticksSearched may have advanced)
         // We just verify no crash
@@ -170,7 +168,7 @@ describe("searchSystem", () => {
             identity: { name: "Dead", alive: false },
             search: { active: true },
         });
-        const events = searchSystem(world, makeRng(), () => "the the the");
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => 0);
         assert.strictEqual(events.length, 0);
     });
 
@@ -180,7 +178,7 @@ describe("searchSystem", () => {
             intent: { behavior: "wander_mad", cooldown: 0, elapsed: 0 },
             search: { active: true },
         });
-        const events = searchSystem(world, makeRng(), () => "the the the");
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => 0);
         assert.strictEqual(events.length, 0);
     });
 
@@ -190,37 +188,37 @@ describe("searchSystem", () => {
             intent: { behavior: "idle", cooldown: 0, elapsed: 0 },
             search: { active: true },
         });
-        const events = searchSystem(world, makeRng(), () => "the the the");
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => 0);
         assert.strictEqual(events.length, 0);
     });
 
-    it("legible text boosts hope and emits event", () => {
+    it("words found boosts hope and emits event", () => {
         const world = createWorld();
         const ent = spawnSearcher(world, {
             search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
         });
         const psych = { lucidity: 80, hope: 50 };
-        // Overwrite psychology directly
         addComponent(world, ent, PSYCHOLOGY, psych);
 
-        const prose = "the rain fell softly on the old tin roof and she remembered the summer when everything was still possible and the world felt like it belonged to her alone";
-        const events = searchSystem(world, makeRng(), () => prose);
+        // wordCountFn that always returns 2 words found
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => 2);
 
-        assert.ok(events.length > 0, "should emit a search event for legible text");
-        assert.ok(events[0].score > 0.06);
+        assert.ok(events.length > 0, "should emit a search event when words found");
+        assert.strictEqual(events[0].score, 2);
         assert.ok(events[0].hopeBoost > 0);
+        // Escalating: 1st word = 3, 2nd word = 6 → total 9
+        assert.strictEqual(events[0].hopeBoost, 9);
     });
 
-    it("noise text does not boost hope", () => {
+    it("no words found does not boost hope", () => {
         const world = createWorld();
-        const ent = spawnSearcher(world, {
+        spawnSearcher(world, {
             search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
 
-        // Pure digits/punctuation — zero letter bigrams
-        const noise = "48271!@#$%^&*()39056[]{}|;:',.<>?/~`28374";
-        const events = searchSystem(world, makeRng(), () => noise);
+        // wordCountFn that always returns 0
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => 0);
 
         assert.strictEqual(events.length, 0);
     });
@@ -240,7 +238,7 @@ describe("searchSystem", () => {
 
         // Run a tick — both should advance to different books
         const rng = makeRng();
-        searchSystem(world, rng, () => "xyzzy");
+        searchSystem(world, rng, () => "", undefined, () => 0);
         // No crash, no assertion needed beyond survival
         assert.ok(true);
     });
@@ -251,9 +249,70 @@ describe("searchSystem", () => {
             search: { active: true, bookIndex: 0, ticksSearched: 9, patience: 10 },
         });
 
-        searchSystem(world, makeRng(), () => "xyzzy");
+        searchSystem(world, makeRng(), () => "", undefined, () => 0);
         const search = getComponent(world, ent, SEARCHING);
         assert.strictEqual(search.active, false, "should deactivate after patience runs out");
+    });
+});
+
+// --- countWordsFromSeed ---
+
+describe("countWordsFromSeed", () => {
+    it("returns a non-negative integer", () => {
+        const words = countWordsFromSeed("test-seed", 0, 5, 100, 42, 0);
+        assert.ok(Number.isInteger(words));
+        assert.ok(words >= 0);
+    });
+
+    it("is deterministic for same coordinates", () => {
+        const a = countWordsFromSeed("seed", 0, 5, 100, 42, 0);
+        const b = countWordsFromSeed("seed", 0, 5, 100, 42, 0);
+        assert.strictEqual(a, b);
+    });
+
+    it("varies with different coordinates", () => {
+        // 4+ letter words are rare (~0.4%), need many samples
+        let found = 0;
+        for (let i = 0; i < 5000; i++) {
+            if (countWordsFromSeed("seed", 0, i, 100, i % 192, 0) > 0) found++;
+        }
+        assert.ok(found > 0, "should find at least one word in 5000 pages");
+        assert.ok(found < 5000, "should not find words on every page");
+    });
+
+    it("most random pages have 0 words", () => {
+        let zeroCount = 0;
+        const N = 1000;
+        for (let i = 0; i < N; i++) {
+            if (countWordsFromSeed("test", 0, i, 100, i % 192, 0) === 0) zeroCount++;
+        }
+        assert.ok(zeroCount > N * 0.95, `expected >95% zero-word pages, got ${zeroCount}/${N}`);
+    });
+});
+
+// --- escalating hope ---
+
+describe("searchSystem escalating hope", () => {
+    it("single word gives base hope boost", () => {
+        const world = createWorld();
+        const ent = spawnSearcher(world, {
+            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            psychology: { lucidity: 80, hope: 50 },
+        });
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => 1);
+        assert.strictEqual(events.length, 1);
+        assert.strictEqual(events[0].hopeBoost, DEFAULT_SEARCH.hopePerWord);
+    });
+
+    it("three words give triangular sum", () => {
+        const world = createWorld();
+        spawnSearcher(world, {
+            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            psychology: { lucidity: 80, hope: 50 },
+        });
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => 3);
+        // 3 + 6 + 9 = 18, capped at maxHopeBoost (12)
+        assert.strictEqual(events[0].hopeBoost, Math.min(DEFAULT_SEARCH.maxHopeBoost, 18));
     });
 });
 

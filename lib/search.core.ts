@@ -99,11 +99,104 @@ for (const [bg, freq] of Object.entries(BIGRAMS)) {
     }
 }
 
+// --- Word-finding (trie-based, no string allocation) ---
+
+/** English words NPCs might find in random text. 4–5 letters only. */
+const WORD_LIST = [
+    // 4-letter
+    "that","with","have","this","will","your","from","they","been",
+    "come","each","make","like","long","look","many","over","such",
+    "take","than","them","then","what","when","here","just","know",
+    "also","back","much","some","time","very","well","work","year",
+    "book","find","give","hand","help","home","hope","keep","last",
+    "life","live","love","name","once","only","part","read","same",
+    "tell","word","hell","dead","fear","lost","soul","fire","dark",
+    // 5-letter
+    "their","about","would","there","could","other","which","after",
+    "never","world","still","think","where","every","night","heart",
+    "shall","found","place","great","story","under","light","death",
+    "begin","those","being","while",
+];
+
+/** Trie node: children[0–25] = next nodes, wordLen > 0 = terminal. */
+interface TrieNode {
+    children: (TrieNode | null)[];
+    wordLen: number;  // length of the word ending here, or 0
+}
+
+function buildTrie(words: string[]): TrieNode {
+    const root: TrieNode = { children: new Array(26).fill(null), wordLen: 0 };
+    for (const word of words) {
+        let node = root;
+        for (let i = 0; i < word.length; i++) {
+            const c = word.charCodeAt(i) - 97;
+            if (c < 0 || c >= 26) continue;
+            if (!node.children[c]) {
+                node.children[c] = { children: new Array(26).fill(null), wordLen: 0 };
+            }
+            node = node.children[c]!;
+        }
+        node.wordLen = word.length;
+    }
+    return root;
+}
+
+const WORD_TRIE = buildTrie(WORD_LIST);
+
 /**
- * Score a book page for legibility directly from PRNG, without generating text.
- * Produces identical scores to scoreBigram(generateBookPage(...), 400) but
- * avoids all string allocation. ~10x faster for NPC search.
+ * Count English words on a book page directly from PRNG output.
+ * Streams charset indices through the trie — no string allocation.
+ * Returns the number of 4+ letter word matches found.
  */
+export function countWordsFromSeed(
+    globalSeed: string,
+    side: number, position: number, floor: number,
+    bookIndex: number, pageIndex: number,
+    sampleLen: number = 400,
+): number {
+    const rng = seedFromString(`${globalSeed}:book:${side}:${position}:${floor}:${bookIndex}:p${pageIndex}`);
+    const n = CHARSET.length;
+
+    let found = 0;
+    let outputPos = 0;
+    let lineCol = 0;
+    let cursors: TrieNode[] = [];
+
+    while (outputPos < sampleLen) {
+        if (lineCol < 80) {
+            const charIdx = rng.nextInt(n);
+            const letter = CHARSET_TO_LOWER[charIdx];
+
+            if (letter >= 0) {
+                const next: TrieNode[] = [];
+                const rootChild = WORD_TRIE.children[letter];
+                if (rootChild) {
+                    if (rootChild.wordLen > 0) found++;
+                    next.push(rootChild);
+                }
+                for (let i = 0; i < cursors.length; i++) {
+                    const child = cursors[i].children[letter];
+                    if (child) {
+                        if (child.wordLen > 0) found++;
+                        next.push(child);
+                    }
+                }
+                cursors = next;
+            } else {
+                cursors.length = 0;
+            }
+            lineCol++;
+            outputPos++;
+        } else {
+            cursors.length = 0;
+            lineCol = 0;
+            outputPos++;
+        }
+    }
+
+    return found;
+}
+
 /**
  * Score a book page for legibility directly from PRNG, without generating text.
  * Produces identical scores to scoreBigram(generateBookPage(...), sampleLen) but
@@ -176,10 +269,10 @@ export interface SearchConfig {
     pacePatienceBonus: number;
     /** Base patience in ticks. */
     basePatienceTicks: number;
-    /** Hope boost per unit of legibility score. */
-    hopePerLegibility: number;
-    /** Legibility threshold below which nothing registers. */
-    legibilityFloor: number;
+    /** Hope boost per word found. */
+    hopePerWord: number;
+    /** Minimum word count to register as a find. */
+    wordFloor: number;
     /** Max hope boost per single book find. */
     maxHopeBoost: number;
 }
@@ -188,9 +281,9 @@ export const DEFAULT_SEARCH: SearchConfig = {
     basePatienceTicks: 8,
     opennessPatienceBonus: 10,
     pacePatienceBonus: 6,
-    hopePerLegibility: 40,
-    legibilityFloor: 0.10,
-    maxHopeBoost: 8,
+    hopePerWord: 3,
+    wordFloor: 1,
+    maxHopeBoost: 12,
 };
 
 // --- Helpers ---
@@ -238,8 +331,8 @@ export type PageSampler = (
     bookIndex: number, pageIndex: number,
 ) => string;
 
-/** Fast scorer that bypasses page generation — returns legibility score directly. */
-export type ScoreFn = (
+/** Fast word counter that bypasses page generation — returns word count directly. */
+export type WordCountFn = (
     side: number, position: number, floor: number,
     bookIndex: number, pageIndex: number,
 ) => number;
@@ -267,7 +360,7 @@ export function searchSystem(
     rng: Rng,
     samplePage: PageSampler,
     config: SearchConfig = DEFAULT_SEARCH,
-    scoreFn?: ScoreFn,
+    wordCountFn?: WordCountFn,
 ): SearchEvent[] {
     const events: SearchEvent[] = [];
 
@@ -335,20 +428,26 @@ export function searchSystem(
         for (let b = 0; b < booksThisTick; b++) {
             if (!search.active) break;
 
-            // Score the book (fast path skips string allocation)
-            const score = scoreFn
-                ? scoreFn(pos.side, pos.position, pos.floor, search.bookIndex, 0)
-                : scoreBigram(samplePage(pos.side, pos.position, pos.floor, search.bookIndex, 0));
+            // Count words on the page (fast path uses PRNG directly)
+            const words = wordCountFn
+                ? wordCountFn(pos.side, pos.position, pos.floor, search.bookIndex, 0)
+                : countWordsFromSeed("", pos.side, pos.position, pos.floor, search.bookIndex, 0);
 
-            if (score > config.legibilityFloor) {
-                const boost = Math.min(config.maxHopeBoost, score * config.hopePerLegibility);
+            if (words >= config.wordFloor) {
+                // Escalating hope: each additional word is more exciting
+                // 1 word: 3, 2 words: 3+6=9, 3 words: 3+6+9=18
+                let boost = 0;
+                for (let w = 0; w < words; w++) {
+                    boost += config.hopePerWord * (w + 1);
+                }
+                boost = Math.min(config.maxHopeBoost, boost);
                 psych.hope = Math.min(100, psych.hope + boost);
-                if (score > search.bestScore) search.bestScore = score;
+                if (words > search.bestScore) search.bestScore = words;
                 events.push({
                     entity,
                     name: ident.name,
                     bookIndex: search.bookIndex,
-                    score,
+                    score: words,
                     hopeBoost: boost,
                     position: { ...pos },
                 });
