@@ -59,7 +59,7 @@ export const Social = {
         });
         const playerName = (state.lifeStory && state.lifeStory.name) || "You";
         addComponent(world, playerEntity, IDENTITY, { name: playerName, alive: true, free: false });
-        addComponent(world, playerEntity, PSYCHOLOGY, { lucidity: 100, hope: 100 });
+        addComponent(world, playerEntity, PSYCHOLOGY, { lucidity: 100, hope: 50 });
         addComponent(world, playerEntity, RELATIONSHIPS, { bonds: new Map() });
         addComponent(world, playerEntity, HABITUATION, { exposures: new Map() });
         addComponent(world, playerEntity, PLAYER, {});
@@ -106,10 +106,10 @@ export const Social = {
                 });
                 addComponent(world, ent, IDENTITY, { name: npc.name, alive: npc.alive, free: false });
                 // Match initial psychology to spawn disposition
-                const initPsych = npc.disposition === "mad" ? { lucidity: 25, hope: 60 } :
-                                  npc.disposition === "anxious" ? { lucidity: 55, hope: 50 } :
+                const initPsych = npc.disposition === "mad" ? { lucidity: 25, hope: 30 } :
+                                  npc.disposition === "anxious" ? { lucidity: 55, hope: 40 } :
                                   npc.disposition === "catatonic" ? { lucidity: 20, hope: 10 } :
-                                  { lucidity: 100, hope: 100 };
+                                  { lucidity: 100, hope: 50 };
                 addComponent(world, ent, PSYCHOLOGY, initPsych);
                 addComponent(world, ent, RELATIONSHIPS, { bonds: new Map() });
                 addComponent(world, ent, HABITUATION, { exposures: new Map() });
@@ -225,6 +225,20 @@ export const Social = {
             if (g) prevGroups.set(playerEntity, g.groupId);
         }
 
+        // Snapshot bond familiarity before relationship system (for MET_SOMEONE detection)
+        // Map: entity → Map<otherEntity, familiarity>
+        const BOND_THRESHOLD = 1.0;
+        const prevFamiliarity = new Map();
+        const allEntities = [...npcEntities.values()];
+        if (playerEntity !== null) allEntities.push(playerEntity);
+        for (const ent of allEntities) {
+            const rels = getComponent(world, ent, RELATIONSHIPS);
+            if (!rels) continue;
+            const snap = new Map();
+            for (const [other, bond] of rels.bonds) snap.set(other, bond.familiarity);
+            prevFamiliarity.set(ent, snap);
+        }
+
         // Core systems — order matters
         relationshipSystem(world, currentTick, undefined, prebuilt, n);
         psychologyDecaySystem(world, undefined, n);
@@ -295,6 +309,61 @@ export const Social = {
 
         // Collect witness events from escape/chasm/falling/disposition changes
         const witnessEvents = [];
+
+        // Detect new bonds (familiarity crossed threshold).
+        // Apply MET_SOMEONE directly to both parties (full weight), then push a
+        // sight-range witnessEvent for bystanders (minor hope boost, same weight from config).
+        const reportedBonds = new Set(); // "minEnt:maxEnt" to avoid double-emit per pair
+        const tc_met = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.MET_SOMEONE];
+        for (const ent of allEntities) {
+            const rels = getComponent(world, ent, RELATIONSHIPS);
+            if (!rels) continue;
+            const prev = prevFamiliarity.get(ent);
+            if (!prev) continue;
+            const ident = getComponent(world, ent, IDENTITY);
+            if (!ident || !ident.alive) continue;
+            for (const [other, bond] of rels.bonds) {
+                const prevFam = prev.get(other) ?? 0;
+                if (prevFam < BOND_THRESHOLD && bond.familiarity >= BOND_THRESHOLD) {
+                    const pairKey = Math.min(ent, other) + ":" + Math.max(ent, other);
+                    if (reportedBonds.has(pairKey)) continue;
+                    reportedBonds.add(pairKey);
+                    const pos = getComponent(world, ent, POSITION);
+                    if (!pos) continue;
+                    const eventPos = { side: pos.side, position: pos.position, floor: pos.floor };
+
+                    // Apply directly to both parties
+                    for (const party of [ent, other]) {
+                        const partyIdent = getComponent(world, party, IDENTITY);
+                        if (!partyIdent || !partyIdent.alive) continue;
+                        let mem = getComponent(world, party, MEMORY);
+                        if (!mem) { mem = createMemory(); addComponent(world, party, MEMORY, mem); }
+                        if (!hasRecentMemory(mem, MEMORY_TYPES.MET_SOMEONE, other, currentTick, DEFAULT_MEMORY_CONFIG.dedupWindow)) {
+                            const partyWeight = 4; // parties get stronger memory than bystanders
+                            mem.entries.push({
+                                id: mem.nextId++,
+                                type: MEMORY_TYPES.MET_SOMEONE,
+                                tick: currentTick,
+                                weight: partyWeight,
+                                initialWeight: partyWeight,
+                                permanent: tc_met.permanent,
+                                subject: other,
+                                contagious: tc_met.contagious,
+                            });
+                        }
+                    }
+
+                    // Bystanders within sight get a weaker version via witnessSystem
+                    witnessEvents.push({
+                        type: MEMORY_TYPES.MET_SOMEONE,
+                        subject: other,
+                        position: eventPos,
+                        bondedOnly: false,
+                        range: "sight",
+                    });
+                }
+            }
+        }
 
         // Detect group dissolutions: self-witnessed by the entity that lost their group
         for (const [ent, prevGroupId] of prevGroups) {
@@ -430,6 +499,10 @@ export const Social = {
                 case MEMORY_TYPES.FOUND_BODY:
                     logEntries.push({ tick: currentTick, day: state.day, type: "death",
                         text: npcName + " died" + locStr + ".", npcIds: [npcId], position: pos });
+                    break;
+                case MEMORY_TYPES.MET_SOMEONE:
+                    logEntries.push({ tick: currentTick, day: state.day, type: "bond",
+                        text: npcName + " became known.", npcIds: [npcId], position: pos });
                     break;
                 // COMPANION_DIED, COMPANION_MAD, WITNESS_ESCAPE(bonded) — skip, duplicates above
             }

@@ -250,16 +250,14 @@ export const Engine = {
             }
         }
 
-        if (this._sidebarActions.length > 0) {
-            html += '<div class="sb-divider"></div>';
-            html += '<div class="sb-actions">';
-            for (var ai = 0; ai < this._sidebarActions.length; ai++) {
-                var sa = this._sidebarActions[ai];
-                html += '<a data-goto="' + sa.screen + '">' + sa.label + ' <kbd>' + sa.key + '</kbd></a>';
-            }
-            html += '</div>';
+        html += '<div class="sb-divider"></div>';
+        html += '<div class="sb-menu">';
+        for (var ai = 0; ai < this._sidebarActions.length; ai++) {
+            var sa = this._sidebarActions[ai];
+            html += '<a data-goto="' + sa.screen + '">' + sa.label + ' <kbd>' + sa.key + '</kbd></a>';
         }
-        html += '<div class="sb-menu"><a id="sidebar-menu" data-goto="Menu">menu <kbd>esc</kbd></a></div>';
+        html += '<a id="sidebar-menu" data-goto="Menu">menu <kbd>esc</kbd></a>';
+        html += '</div>';
         html += '</div>';
         cap.innerHTML = html;
 

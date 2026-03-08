@@ -89,7 +89,7 @@
   "menu_save_confirm": "Saved.",
   "menu_new_game_confirm": "Are you sure? All progress will be lost.",
 
-  "memory_empty": "Nothing has happened yet that you can't shake.",
+  "memory_empty": "Nothing worth remembering has happened.",
   "memory_witness_chasm": "You saw someone fall into the chasm.",
   "memory_found_body": "You found someone dead on the floor.",
   "memory_companion_died": "Someone you knew died.",
@@ -98,6 +98,7 @@
   "memory_found_words": "You found legible words in a book.",
   "memory_witness_madness": "You watched someone lose their mind.",
   "memory_companion_mad": "Someone you were close to went mad.",
+  "memory_met_someone": "You got to know someone.",
 
   "ambient_memory_chasm": [
     "The railing catches your eye. You think of what you saw.",

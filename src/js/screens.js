@@ -1232,6 +1232,7 @@ const MEMORY_TYPE_PROSE = {
     foundWords:      "memory_found_words",
     witnessMadness:  "memory_witness_madness",
     companionMad:    "memory_companion_mad",
+    metSomeone:      "memory_met_someone",
 };
 
 function memoryVividness(weight, initialWeight) {
