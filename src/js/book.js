@@ -16,16 +16,22 @@ function isTargetBook(side, position, floor, bookIndex) {
 
 /**
  * Check if a book at these coords belongs to any NPC.
- * Returns the NPC's life story if found, null otherwise.
+ *
+ * Detection works by content, not stored coords: for each NPC, derive their
+ * story and compute the coords that fall out of that text. If those coords
+ * match the book being opened, this is their book — a wild coincidence.
+ *
+ * NPCs have no stored bookCoords. They don't know where their book is.
  */
 function findNPCStory(side, position, floor, bookIndex) {
     if (!state.npcs) return null;
     const seed = PRNG.getSeed();
     for (const npc of state.npcs) {
-        const bc = npc.bookCoords;
-        if (bc && bc.side === side && bc.position === position &&
+        const story = generateNPCLifeStory(npc.id, seed);
+        const bc = story.bookCoords;
+        if (bc.side === side && bc.position === position &&
             bc.floor === floor && bc.bookIndex === bookIndex) {
-            return generateNPCLifeStory(npc.id, seed);
+            return story;
         }
     }
     return null;
