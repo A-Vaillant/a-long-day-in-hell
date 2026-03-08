@@ -118,46 +118,42 @@ const WORD_LIST = [
     "begin","those","being","while",
 ];
 
-/** Trie node: children[0–25] = next nodes, wordLen > 0 = terminal. */
+/** Trie node: children[0–25] = next nodes, word = matched string at terminal. */
 interface TrieNode {
     children: (TrieNode | null)[];
-    wordLen: number;  // length of the word ending here, or 0
+    word: string | null;  // the word ending here, or null
 }
 
 function buildTrie(words: string[]): TrieNode {
-    const root: TrieNode = { children: new Array(26).fill(null), wordLen: 0 };
+    const root: TrieNode = { children: new Array(26).fill(null), word: null };
     for (const word of words) {
         let node = root;
         for (let i = 0; i < word.length; i++) {
             const c = word.charCodeAt(i) - 97;
             if (c < 0 || c >= 26) continue;
             if (!node.children[c]) {
-                node.children[c] = { children: new Array(26).fill(null), wordLen: 0 };
+                node.children[c] = { children: new Array(26).fill(null), word: null };
             }
             node = node.children[c]!;
         }
-        node.wordLen = word.length;
+        node.word = word;
     }
     return root;
 }
 
 const WORD_TRIE = buildTrie(WORD_LIST);
 
-/**
- * Count English words on a book page directly from PRNG output.
- * Streams charset indices through the trie — no string allocation.
- * Returns the number of 4+ letter word matches found.
- */
-export function countWordsFromSeed(
+/** Core trie scan over PRNG output. Returns array of matched words. */
+function scanWordsFromSeed(
     globalSeed: string,
     side: number, position: number, floor: number,
     bookIndex: number, pageIndex: number,
     sampleLen: number = 400,
-): number {
+): string[] {
     const rng = seedFromString(`${globalSeed}:book:${side}:${position}:${floor}:${bookIndex}:p${pageIndex}`);
     const n = CHARSET.length;
 
-    let found = 0;
+    const words: string[] = [];
     let outputPos = 0;
     let lineCol = 0;
     let cursors: TrieNode[] = [];
@@ -171,13 +167,13 @@ export function countWordsFromSeed(
                 const next: TrieNode[] = [];
                 const rootChild = WORD_TRIE.children[letter];
                 if (rootChild) {
-                    if (rootChild.wordLen > 0) found++;
+                    if (rootChild.word) words.push(rootChild.word);
                     next.push(rootChild);
                 }
                 for (let i = 0; i < cursors.length; i++) {
                     const child = cursors[i].children[letter];
                     if (child) {
-                        if (child.wordLen > 0) found++;
+                        if (child.word) words.push(child.word);
                         next.push(child);
                     }
                 }
@@ -194,7 +190,33 @@ export function countWordsFromSeed(
         }
     }
 
-    return found;
+    return words;
+}
+
+/**
+ * Count English words on a book page directly from PRNG output.
+ * Returns the number of 4+ letter word matches found.
+ */
+export function countWordsFromSeed(
+    globalSeed: string,
+    side: number, position: number, floor: number,
+    bookIndex: number, pageIndex: number,
+    sampleLen: number = 400,
+): number {
+    return scanWordsFromSeed(globalSeed, side, position, floor, bookIndex, pageIndex, sampleLen).length;
+}
+
+/**
+ * Find English words on a book page directly from PRNG output.
+ * Returns the matched word strings (e.g. ["hope", "fire"]).
+ */
+export function findWordsFromSeed(
+    globalSeed: string,
+    side: number, position: number, floor: number,
+    bookIndex: number, pageIndex: number,
+    sampleLen: number = 400,
+): string[] {
+    return scanWordsFromSeed(globalSeed, side, position, floor, bookIndex, pageIndex, sampleLen);
 }
 
 /**
@@ -256,8 +278,10 @@ export interface Searching {
     patience: number;
     /** Whether actively searching (managed by this system based on intent). */
     active: boolean;
-    /** Best legibility score found this search session. */
+    /** Most words found on a single page. */
     bestScore: number;
+    /** The actual words from the best find. */
+    bestWords: string[];
 }
 
 // --- Config ---
@@ -331,11 +355,11 @@ export type PageSampler = (
     bookIndex: number, pageIndex: number,
 ) => string;
 
-/** Fast word counter that bypasses page generation — returns word count directly. */
-export type WordCountFn = (
+/** Fast word finder that bypasses page generation — returns matched words. */
+export type WordFindFn = (
     side: number, position: number, floor: number,
     bookIndex: number, pageIndex: number,
-) => number;
+) => string[];
 
 // --- System ---
 
@@ -348,19 +372,16 @@ export type WordCountFn = (
  *
  * Flow per entity with search intent:
  * 1. If not yet active: initialize (claim book, set patience).
- * 2. Sample current book's first page, score bigrams.
- * 3. If legible: hope boost, record bestScore, emit event.
+ * 2. Scan current book's first page for English words via trie.
+ * 3. If words found: hope boost, record bestScore/bestWords, emit event.
  * 4. Advance to next unclaimed book or exhaust patience.
- *
- * When `scoreFn` is provided, it bypasses samplePage + scoreBigram
- * for a ~10x speedup (no string allocation).
  */
 export function searchSystem(
     world: World,
     rng: Rng,
     samplePage: PageSampler,
     config: SearchConfig = DEFAULT_SEARCH,
-    wordCountFn?: WordCountFn,
+    wordFindFn?: WordFindFn,
 ): SearchEvent[] {
     const events: SearchEvent[] = [];
 
@@ -414,6 +435,7 @@ export function searchSystem(
             search.patience = computePatience(personality ?? null, config);
             search.ticksSearched = 0;
             search.bestScore = 0;
+            search.bestWords = [];
             const idx = claimBookIndex(claimed, rng);
             if (idx === -1) continue;
             search.bookIndex = idx;
@@ -428,26 +450,30 @@ export function searchSystem(
         for (let b = 0; b < booksThisTick; b++) {
             if (!search.active) break;
 
-            // Count words on the page (fast path uses PRNG directly)
-            const words = wordCountFn
-                ? wordCountFn(pos.side, pos.position, pos.floor, search.bookIndex, 0)
-                : countWordsFromSeed("", pos.side, pos.position, pos.floor, search.bookIndex, 0);
+            // Find words on the page (fast path uses PRNG directly)
+            const foundWords = wordFindFn
+                ? wordFindFn(pos.side, pos.position, pos.floor, search.bookIndex, 0)
+                : findWordsFromSeed("", pos.side, pos.position, pos.floor, search.bookIndex, 0);
 
-            if (words >= config.wordFloor) {
+            if (foundWords.length >= config.wordFloor) {
                 // Escalating hope: each additional word is more exciting
                 // 1 word: 3, 2 words: 3+6=9, 3 words: 3+6+9=18
                 let boost = 0;
-                for (let w = 0; w < words; w++) {
+                for (let w = 0; w < foundWords.length; w++) {
                     boost += config.hopePerWord * (w + 1);
                 }
                 boost = Math.min(config.maxHopeBoost, boost);
                 psych.hope = Math.min(100, psych.hope + boost);
-                if (words > search.bestScore) search.bestScore = words;
+                if (foundWords.length > search.bestScore) {
+                    search.bestScore = foundWords.length;
+                    search.bestWords = foundWords;
+                }
                 events.push({
                     entity,
                     name: ident.name,
                     bookIndex: search.bookIndex,
-                    score: words,
+                    score: foundWords.length,
+                    words: foundWords,
                     hopeBoost: boost,
                     position: { ...pos },
                 });
@@ -484,6 +510,7 @@ export interface SearchEvent {
     name: string;
     bookIndex: number;
     score: number;
+    words: string[];
     hopeBoost: number;
     position: Position;
 }

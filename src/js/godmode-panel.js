@@ -324,9 +324,11 @@ const componentRenderers = {
                 bar(comp.ticksSearched, comp.patience, "#b8a878") + '</div>';
         }
         if (comp.bestScore > 0) {
-            const desc = comp.bestScore === 1 ? "1 word" : comp.bestScore + " words";
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Most words found on a single page.">best find</span>';
-            html += '<span class="gm-bar-num">' + desc + '</span></div>';
+            const wordStr = comp.bestWords && comp.bestWords.length > 0
+                ? '"' + comp.bestWords.join(" ") + '"'
+                : (comp.bestScore === 1 ? "1 word" : comp.bestScore + " words");
+            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Best words found on a single page.">best find</span>';
+            html += '<span class="gm-bar-num">' + wordStr + '</span></div>';
         }
         html += '</div>';
         return html;

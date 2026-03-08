@@ -122,7 +122,7 @@ function spawnSearcher(world, overrides = {}) {
     const ent = spawn(world);
     addComponent(world, ent, SEARCHING, {
         bookIndex: 0, ticksSearched: 0, patience: 10,
-        active: false, bestScore: 0,
+        active: false, bestScore: 0, bestWords: [],
         ...overrides.search,
     });
     addComponent(world, ent, POSITION, {
@@ -155,7 +155,7 @@ describe("searchSystem", () => {
         const rng = makeRng(0.01); // low roll to trigger start
         // Run enough ticks that the start chance fires
         for (let i = 0; i < 50; i++) {
-            searchSystem(world, rng, () => "", undefined, () => 0);
+            searchSystem(world, rng, () => "", undefined, () => []);
         }
         // Check that search was attempted (ticksSearched may have advanced)
         // We just verify no crash
@@ -168,7 +168,7 @@ describe("searchSystem", () => {
             identity: { name: "Dead", alive: false },
             search: { active: true },
         });
-        const events = searchSystem(world, makeRng(), () => "", undefined, () => 0);
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => []);
         assert.strictEqual(events.length, 0);
     });
 
@@ -178,7 +178,7 @@ describe("searchSystem", () => {
             intent: { behavior: "wander_mad", cooldown: 0, elapsed: 0 },
             search: { active: true },
         });
-        const events = searchSystem(world, makeRng(), () => "", undefined, () => 0);
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => []);
         assert.strictEqual(events.length, 0);
     });
 
@@ -188,7 +188,7 @@ describe("searchSystem", () => {
             intent: { behavior: "idle", cooldown: 0, elapsed: 0 },
             search: { active: true },
         });
-        const events = searchSystem(world, makeRng(), () => "", undefined, () => 0);
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => []);
         assert.strictEqual(events.length, 0);
     });
 
@@ -200,11 +200,12 @@ describe("searchSystem", () => {
         const psych = { lucidity: 80, hope: 50 };
         addComponent(world, ent, PSYCHOLOGY, psych);
 
-        // wordCountFn that always returns 2 words found
-        const events = searchSystem(world, makeRng(), () => "", undefined, () => 2);
+        // wordFindFn that always returns 2 words
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => ["hope", "fire"]);
 
         assert.ok(events.length > 0, "should emit a search event when words found");
         assert.strictEqual(events[0].score, 2);
+        assert.deepStrictEqual(events[0].words, ["hope", "fire"]);
         assert.ok(events[0].hopeBoost > 0);
         // Escalating: 1st word = 3, 2nd word = 6 → total 9
         assert.strictEqual(events[0].hopeBoost, 9);
@@ -218,7 +219,7 @@ describe("searchSystem", () => {
         });
 
         // wordCountFn that always returns 0
-        const events = searchSystem(world, makeRng(), () => "", undefined, () => 0);
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => []);
 
         assert.strictEqual(events.length, 0);
     });
@@ -238,7 +239,7 @@ describe("searchSystem", () => {
 
         // Run a tick — both should advance to different books
         const rng = makeRng();
-        searchSystem(world, rng, () => "", undefined, () => 0);
+        searchSystem(world, rng, () => "", undefined, () => []);
         // No crash, no assertion needed beyond survival
         assert.ok(true);
     });
@@ -249,7 +250,7 @@ describe("searchSystem", () => {
             search: { active: true, bookIndex: 0, ticksSearched: 9, patience: 10 },
         });
 
-        searchSystem(world, makeRng(), () => "", undefined, () => 0);
+        searchSystem(world, makeRng(), () => "", undefined, () => []);
         const search = getComponent(world, ent, SEARCHING);
         assert.strictEqual(search.active, false, "should deactivate after patience runs out");
     });
@@ -299,7 +300,7 @@ describe("searchSystem escalating hope", () => {
             search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
-        const events = searchSystem(world, makeRng(), () => "", undefined, () => 1);
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => ["hope"]);
         assert.strictEqual(events.length, 1);
         assert.strictEqual(events[0].hopeBoost, DEFAULT_SEARCH.hopePerWord);
     });
@@ -310,7 +311,7 @@ describe("searchSystem escalating hope", () => {
             search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
-        const events = searchSystem(world, makeRng(), () => "", undefined, () => 3);
+        const events = searchSystem(world, makeRng(), () => "", undefined, () => ["hell", "fire", "dark"]);
         // 3 + 6 + 9 = 18, capped at maxHopeBoost (12)
         assert.strictEqual(events[0].hopeBoost, Math.min(DEFAULT_SEARCH.maxHopeBoost, 18));
     });

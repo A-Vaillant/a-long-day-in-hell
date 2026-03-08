@@ -23,7 +23,7 @@ import { PERSONALITY, generatePersonality } from "../lib/personality.core.ts";
 import { BELIEF, generateBelief } from "../lib/belief.core.ts";
 import { NEEDS, needsSystem } from "../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../lib/movement.core.ts";
-import { SEARCHING, searchSystem, scoreBigram, scoreFromSeed, countWordsFromSeed } from "../lib/search.core.ts";
+import { SEARCHING, searchSystem, scoreBigram, scoreFromSeed, countWordsFromSeed, findWordsFromSeed } from "../lib/search.core.ts";
 import { INTENT, intentSystem } from "../lib/intent.core.ts";
 import { SLEEP, nearestRestArea } from "../lib/sleep.core.ts";
 import { generateBookPage } from "../lib/book.core.ts";
@@ -68,7 +68,7 @@ function createBenchWorld(npcCount) {
         addComponent(world, ent, HABITUATION, { exposures: new Map() });
         addComponent(world, ent, NEEDS, { hunger: 0, thirst: 0, exhaustion: 0 });
         addComponent(world, ent, MOVEMENT, { targetPosition: null, heading: 1 });
-        addComponent(world, ent, SEARCHING, { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0 });
+        addComponent(world, ent, SEARCHING, { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0, bestWords: [] });
         addComponent(world, ent, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
         addComponent(world, ent, SLEEP, {
             home: { side: npc.side, position: nearestRestArea(npc.position), floor: npc.floor },
@@ -105,9 +105,9 @@ function ecsTick(world, tick, day) {
     const searchRng = seedFromString(SEED + ":search:" + currentTick);
     const pageSampler = (side, position, floor, bookIndex, pageIndex) =>
         generateBookPage(side, position, floor, bookIndex, pageIndex, SEED, 400);
-    const fastWordCounter = (side, position, floor, bookIndex, pageIndex) =>
-        countWordsFromSeed(SEED, side, position, floor, bookIndex, pageIndex);
-    searchSystem(world, searchRng, pageSampler, undefined, fastWordCounter);
+    const fastWordFinder = (side, position, floor, bookIndex, pageIndex) =>
+        findWordsFromSeed(SEED, side, position, floor, bookIndex, pageIndex);
+    searchSystem(world, searchRng, pageSampler, undefined, fastWordFinder);
 }
 
 function bench(fn, warmup = 50, iterations = 500) {
@@ -241,8 +241,8 @@ describe("perf: individual ECS systems (16 NPCs)", () => {
             searchSystem: () => {
                 const rng = seedFromString(SEED + ":search:bench");
                 const sampler = (s, p, f, b, pg) => generateBookPage(s, p, f, b, pg, SEED, 400);
-                const wc = (s, p, f, b, pg) => countWordsFromSeed(SEED, s, p, f, b, pg);
-                searchSystem(world, rng, sampler, undefined, wc);
+                const wf = (s, p, f, b, pg) => findWordsFromSeed(SEED, s, p, f, b, pg);
+                searchSystem(world, rng, sampler, undefined, wf);
             },
         };
 
