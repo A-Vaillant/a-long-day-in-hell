@@ -30,7 +30,6 @@ export interface StartLocation {
 }
 
 export interface LifeStoryOptions {
-    placement?: "gaussian" | "random";
     startLoc?: StartLocation;
     /** Raw textToAddress of the player's storyText. Required for NPCs; omit for the player. */
     playerRawAddress?: bigint;
@@ -46,7 +45,6 @@ export interface LifeStory {
     lastThing: string;
     storyText: string;
     targetPage: number;
-    placement: string;
     bookCoords: BookCoords;
     /** Where the player wakes up — derived from bookCoords, not the origin. */
     playerStart: StartLocation;
@@ -135,17 +133,6 @@ const PROSE_TEMPLATES: readonly ((s: StoryFields) => string)[] = [
 ];
 
 /**
- * Box-Muller transform: two uniform [0,1) → one standard normal sample.
- * Returns a value from approximately N(0,1).
- */
-function gaussianSample(rng: Xoshiro128ss): number {
-    let u: number, v: number;
-    do { u = rng.next(); } while (u === 0);
-    v = rng.next();
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
-
-/**
  * Generate a life story and book coordinates from a seed string.
  *
  * @param {string} seed
@@ -153,7 +140,6 @@ function gaussianSample(rng: Xoshiro128ss): number {
  * @returns {LifeStory}
  */
 export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeStory {
-    const placement = (opts && opts.placement) || "gaussian";
     const startLoc: StartLocation = (opts && opts.startLoc) || { side: 0, position: 0n, floor: 10n };
 
     const rng: Xoshiro128ss = seedFromString("life:" + seed);
@@ -225,18 +211,8 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const playerPos   = position + dir * BigInt(ringR);
     const playerFloor = floor + floorOffset < 0n ? 0n : floor + floorOffset;
 
-    // Gaussian "easy mode": override player start to near-book (for testing/accessibility).
-    let playerStart: StartLocation;
-    if (placement === "gaussian") {
-        const easyRng: Xoshiro128ss = seedFromString("easy:" + story.storyText);
-        const easyPos   = position + BigInt(Math.round(gaussianSample(easyRng) * 50));
-        const easyFloor = floor + BigInt(Math.round(gaussianSample(easyRng) * 15));
-        playerStart = { side: playerSide, position: easyPos, floor: easyFloor < 0n ? 0n : easyFloor };
-    } else {
-        playerStart = { side: playerSide, position: playerPos, floor: playerFloor };
-    }
+    const playerStart: StartLocation = { side: playerSide, position: playerPos, floor: playerFloor };
 
-    story.placement = placement;
     story.bookCoords = { side, position, floor, bookIndex };
     story.playerStart = playerStart;
     // rawBookAddress and bookAddress already set above
@@ -251,9 +227,6 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
  * as the player's story but seeded differently so each NPC gets their own
  * name, occupation, cause of death, story text, and book coordinates.
  *
- * Book coordinates use "random" placement (uniform across the library)
- * since NPCs don't have a "start location" like the player does.
- *
  * @param {number} npcId
  * @param {string} globalSeed
  * @returns {LifeStory}
@@ -265,7 +238,7 @@ export function generateNPCLifeStory(
     randomOrigin: bigint,
 ): LifeStory {
     const seed = `npc:${npcId}:${globalSeed}`;
-    return generateLifeStory(seed, { placement: "random", playerRawAddress, randomOrigin });
+    return generateLifeStory(seed, { playerRawAddress, randomOrigin });
 }
 
 /**

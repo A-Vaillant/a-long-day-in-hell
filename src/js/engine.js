@@ -353,8 +353,7 @@ export const Engine = {
             state.deaths      = 0;
             state.deathCause  = null;
 
-            const placement = params.get("placement") || "random";
-            const story = LifeStory.generate(seed, { placement });
+            const story = LifeStory.generate(seed);
             state.lifeStory  = story;
             state.targetBook = story.bookCoords;
             // Anchor the coordinate system: randomOrigin is a small in-bounds offset
@@ -365,7 +364,7 @@ export const Engine = {
             const originHi = BigInt(originRng.nextInt(0x100000000));
             state.randomOrigin = (originHi * 0x100000000n + originLo) % PLAYABLE_ADDRESS_MAX;
             state.playerRawAddress = story.rawBookAddress;
-            // Player wakes up cosmically far from their book (or nearby in gaussian/easy mode)
+            // Player wakes up cosmically far from their book
             state.side     = story.playerStart.side;
             state.position = story.playerStart.position;
             state.floor    = story.playerStart.floor;

@@ -42,7 +42,7 @@ export interface Knowledge {
  *
  * @param globalSeed - game seed
  * @param npcId - NPC id (for deterministic per-NPC seeding)
- * @param startLoc - NPC's spawn location (for gaussian placement)
+ * @param startLoc - NPC's spawn location
  */
 export function generateNpcLifeStory(
     globalSeed: string,
@@ -52,7 +52,7 @@ export function generateNpcLifeStory(
     randomOrigin: bigint,
 ): LifeStory {
     const seed = globalSeed + ":npc:life:" + npcId;
-    return generateLifeStory(seed, { placement: "gaussian", startLoc, playerRawAddress, randomOrigin });
+    return generateLifeStory(seed, { startLoc, playerRawAddress, randomOrigin });
 }
 
 /**

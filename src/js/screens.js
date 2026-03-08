@@ -545,11 +545,47 @@ function renderSignBody(body) {
 
 /* ---------- Life Story ---------- */
 
+function mercyDistanceText(playerLoc, targetBook) {
+    const segDist = playerLoc.position > targetBook.position
+        ? playerLoc.position - targetBook.position
+        : targetBook.position - playerLoc.position;
+    const floorDist = playerLoc.floor > targetBook.floor
+        ? playerLoc.floor - targetBook.floor
+        : targetBook.floor - playerLoc.floor;
+    const segDir = targetBook.position > playerLoc.position ? "to your right" : "to your left";
+    const floorDir = targetBook.floor > playerLoc.floor ? "above" : "below";
+    const sameSide = playerLoc.side === targetBook.side;
+    const targetSide = targetBook.side === 0 ? "west" : "east";
+    const SEGMENTS_PER_DAY = 160n;
+    const days = segDist / SEGMENTS_PER_DAY;
+
+    let distStr;
+    if (days < 2n) {
+        distStr = segDist + " segment" + (segDist === 1n ? "" : "s");
+    } else if (days < 365n) {
+        distStr = days + " days' walk";
+    } else {
+        const years = days / 365n;
+        distStr = years + " year" + (years === 1n ? "" : "s") + " of walking";
+    }
+
+    let location = distStr + " " + segDir;
+    if (!sameSide) location += ", on the " + targetSide + " side";
+    if (floorDist > 0n) location += ", " + floorDist + " floor" + (floorDist === 1n ? "" : "s") + " " + floorDir;
+
+    return location;
+}
+
 Engine.register("Life Story", {
     kind: "state",
     render() {
+        const loc = { side: state.side, position: state.position, floor: state.floor };
+        const dist = mercyDistanceText(loc, state.targetBook);
         return '<div id="lifestory-view">' +
             '<p>' + esc(LifeStory.format(state.lifeStory)) + '</p>' +
+            '<hr>' +
+            '<p class="mercy-hint">' + esc(TEXT.screens.mercy_intro) + '<br>' +
+            '<em>' + esc(dist) + '.</em></p>' +
             '<hr>' +
             '<p class="key-hint"><a data-goto="Sign Intro">Read the sign <kbd>E</kbd></a></p>' +
             '</div>';
@@ -727,7 +763,6 @@ Engine.register("Win", {
             '<hr>' +
             '<p><em>Seed: ' + esc(state.seed) + '<br>' +
             'Your name was ' + esc(state.lifeStory.name) + '.<br>' +
-            'Placement: ' + esc(state.lifeStory.placement || "random") + '<br>' +
             'Book location: ' + sideLabel + ' side, segment ' + tb.position + ', floor ' + tb.floor + ', book #' + (tb.bookIndex + 1) + '<br>' +
             'Days survived: ' + state.day + '<br>' +
             'Submissions: ' + (state.submissionsAttempted || 0) + '<br>' +

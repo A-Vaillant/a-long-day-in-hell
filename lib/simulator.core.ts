@@ -85,7 +85,6 @@ export interface LifeStory {
     causeOfDeath: string;
     storyText: string;
     targetPage: number;
-    placement: string;
     bookCoords: BookCoords;
     playerStart: { side: number; position: bigint; floor: bigint };
 }
@@ -172,7 +171,6 @@ export interface SimulationOpts {
     seed?: string;
     maxDays?: number;
     maxDeaths?: number;
-    placement?: string;
     strategy: Strategy;
     onTick?: (gs: GameState) => void;
     onDay?: (gs: GameState) => void;
@@ -196,7 +194,6 @@ export interface Simulation {
  * @param {string} [opts.seed] - game seed (random if omitted)
  * @param {number} [opts.maxDays=100] - safety cap on simulation length
  * @param {number} [opts.maxDeaths=50] - safety cap on death count
- * @param {string} [opts.placement="gaussian"] - "gaussian" or "random"
  * @param {object} opts.strategy - strategy object with decide(gameState) method
  * @param {function} [opts.onTick] - callback per tick: (gameState) => void
  * @param {function} [opts.onDay] - callback per dawn: (gameState) => void
@@ -212,7 +209,6 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     const seed = opts.seed || String(Math.floor(Math.random() * 0xFFFFFFFF));
     const maxDays = opts.maxDays || 100;
     const maxDeaths = opts.maxDeaths || 50;
-    const placement = opts.placement || "gaussian";
     const strategy = opts.strategy;
     const eventCards = opts.eventCards || [];
     const npcNames = opts.npcNames || ["Alma","Cedric","Dolores","Edmund","Fatima","Gordon","Helena","Ivan"];
@@ -222,7 +218,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     const rng = seedFromString(seed);
 
     // Initialize life story + target book
-    const lifeStory: LifeStory = LifeStoryCore.generateLifeStory(seed, { placement: placement as "gaussian" | "random" });
+    const lifeStory: LifeStory = LifeStoryCore.generateLifeStory(seed);
     const targetBook: BookCoords = lifeStory.bookCoords;
     const startLoc: Location = lifeStory.playerStart;
 
@@ -828,7 +824,6 @@ export interface ScenarioOpts {
     runs: number;
     strategyFactory: () => Strategy;
     maxDays?: number;
-    placement?: string;
     seedPrefix?: string;
     simOpts?: Partial<SimulationOpts>;
 }
@@ -859,7 +854,6 @@ export interface ScenarioResult {
  * @param {number} opts.runs - number of runs
  * @param {function} opts.strategyFactory - () => strategy object (fresh per run)
  * @param {number} [opts.maxDays=100]
- * @param {string} [opts.placement="gaussian"]
  * @param {string} [opts.seedPrefix="scenario"]
  * @param {object} [opts.simOpts] - additional createSimulation options
  * @returns {{ results: SimResult[], summary: object }}
@@ -872,7 +866,6 @@ export function runScenario(opts: ScenarioOpts): ScenarioResult {
             seed: runSeed,
             maxDays: opts.maxDays || 100,
             strategy: opts.strategyFactory(),
-            placement: opts.placement || "gaussian",
             ...(opts.simOpts || {}),
         });
         results.push(sim.run());
