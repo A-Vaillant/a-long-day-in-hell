@@ -345,14 +345,14 @@ describe("GodmodePanel — Damnation", () => {
         assert.strictEqual(btn.textContent, "[?]");
     });
 
-    it("clicking [?] with damned NPC shows DAMNED message", () => {
+    it("clicking [?] with damned NPC shows distance with damned annotation", () => {
         const prose = "Your name was Rosa Ingram. You were a librarian, from Portland. You died of heart failure. Before you died, you were thinking about the garden.";
         const npc = makeNpcWithKnowledge(prose);
         GodmodePanel.update(makeSnap([npc]), 0, true);
         const btn = document.querySelector(".gm-calc-dist");
         btn.click();
-        assert.ok(btn.textContent.includes("DAMNED"), `expected DAMNED, got: ${btn.textContent}`);
-        assert.ok(btn.textContent.includes("edge"));
+        assert.ok(btn.textContent.includes("moves"), `expected distance, got: ${btn.textContent}`);
+        assert.ok(btn.textContent.includes("damned"), `expected damned annotation, got: ${btn.textContent}`);
     });
 
     it("clicking [?] with in-bounds NPC shows distance in moves", () => {
