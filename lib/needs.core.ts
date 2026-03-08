@@ -93,26 +93,26 @@ export function needsSystem(
                 }
             }
         } else {
-            // Batch: accumulate then simulate relief cycles
+            // Batch: accumulate needs analytically, then apply relief.
+            // Rest areas are every 10 segments — NPCs always pass through them.
+            // Over any multi-day batch, everyone eats/drinks/sleeps regularly.
             needs.hunger += config.hungerRate * eMod * n;
             needs.thirst += config.thirstRate * eMod * n;
             needs.exhaustion += config.exhaustionRate * eMod * n;
 
-            if (atRest && lightsOn) {
-                // Simulate eat/drink cycles: how many times would threshold be crossed?
-                while (needs.hunger >= config.eatThreshold) {
-                    needs.hunger -= config.eatRelief;
-                }
-                needs.hunger = Math.max(0, needs.hunger);
+            // All NPCs get relief in batch — rest areas are ubiquitous
+            while (needs.hunger >= config.eatThreshold) {
+                needs.hunger -= config.eatRelief;
+            }
+            needs.hunger = Math.max(0, needs.hunger);
 
-                while (needs.thirst >= config.drinkThreshold) {
-                    needs.thirst -= config.drinkRelief;
-                }
-                needs.thirst = Math.max(0, needs.thirst);
+            while (needs.thirst >= config.drinkThreshold) {
+                needs.thirst -= config.drinkRelief;
+            }
+            needs.thirst = Math.max(0, needs.thirst);
 
-                if (needs.exhaustion >= config.sleepThreshold) {
-                    needs.exhaustion = 0;
-                }
+            if (needs.exhaustion >= config.sleepThreshold) {
+                needs.exhaustion = 0;
             }
         }
 

@@ -109,6 +109,27 @@ describe("needsSystem", () => {
         // hunger should be well below 100 despite accumulation
         assert.ok(n.hunger < DEFAULT_NEEDS.eatThreshold);
     });
+
+    it("batch 1-year advance does not kill any NPC", () => {
+        const w = createWorld();
+        const YEAR = 365 * 240;
+        // Rest areas are ubiquitous — all NPCs get relief in batch mode
+        const eRest = makeNpc(w, { position: 0 });
+        const eWander = makeNpc(w, { position: 5 });
+        needsSystem(w, true, undefined, YEAR);
+        const identR = getComponent(w, eRest, IDENTITY);
+        const identW = getComponent(w, eWander, IDENTITY);
+        assert.equal(identR.alive, true, "rest-area NPC survives");
+        assert.equal(identW.alive, true, "wandering NPC survives — rest areas everywhere");
+    });
+
+    it("batch multi-day lights-off does not kill NPC", () => {
+        const w = createWorld();
+        const e = makeNpc(w, { position: 5 }); // not even at rest area
+        needsSystem(w, false, undefined, 5 * 240);
+        const ident = getComponent(w, e, IDENTITY);
+        assert.equal(ident.alive, true, "NPC survives batch regardless of lightsOn or position");
+    });
 });
 
 describe("needsDecayMultiplier", () => {
