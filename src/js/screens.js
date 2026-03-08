@@ -513,7 +513,7 @@ Engine.register("Read Held Book", {
                 floor: state.heldBook.floor,
                 bookIndex: state.heldBook.bookIndex,
             };
-            state.openPage = 0;
+            state.openPage = 1;
         }
     },
     render() {

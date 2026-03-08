@@ -130,7 +130,7 @@ function resolveReadBook(bookIndex) {
         floor: state.floor, bookIndex: bookIndex,
     };
     if (state.morale >= 80) {
-        state.openPage = 0;
+        state.openPage = 1;
     } else {
         const pageRng = PRNG.fork("pageopen:" + state.tick);
         state.openPage = pageRng.nextInt(Book.PAGES_PER_BOOK) + 1;
