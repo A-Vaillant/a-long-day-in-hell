@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { bootGame } from "./dom-harness.js";
 import { SPAWN_CONFIG } from "../lib/npc.core.ts";
 
+function bigAbs(x) { return x < 0n ? -x : x; }
+
 const TOTAL = SPAWN_CONFIG.wavesPerSide * 2 * SPAWN_CONFIG.npcsPerWave;
 const PER_SIDE = SPAWN_CONFIG.wavesPerSide * SPAWN_CONFIG.npcsPerWave;
 
@@ -53,7 +55,7 @@ describe("NPC spawn system", () => {
 
         const avgDist = (npcs) => {
             const total = npcs.reduce((sum, n) =>
-                sum + Math.abs(n.position - playerPos) + Math.abs(n.floor - playerFloor), 0);
+                sum + Number(bigAbs(n.position - playerPos)) + Number(bigAbs(n.floor - playerFloor)), 0);
             return total / npcs.length;
         };
 
@@ -74,7 +76,7 @@ describe("NPC spawn system", () => {
     it("no NPC has negative floor", () => {
         const game = bootGame();
         for (const npc of game.state.npcs) {
-            assert.ok(npc.floor >= 0, `NPC ${npc.id} has floor ${npc.floor}`);
+            assert.ok(npc.floor >= 0n, `NPC ${npc.id} has floor ${npc.floor}`);
         }
     });
 });

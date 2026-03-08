@@ -15,7 +15,7 @@ function getCorridorProse(document) {
 describe("Corridor description stability", () => {
     it("same location produces same description across re-renders", () => {
         const game = bootGame();
-        game.state.position = 1;
+        game.state.position = 1n;
         game.Engine.goto("Corridor");
         const prose1 = getCorridorProse(game.document);
 
@@ -27,13 +27,13 @@ describe("Corridor description stability", () => {
 
     it("same location produces same description after moving away and back", () => {
         const game = bootGame();
-        game.state.position = 1;
+        game.state.position = 1n;
         game.Engine.goto("Corridor");
         const prose1 = getCorridorProse(game.document);
 
-        game.state.position = 2;
+        game.state.position = 2n;
         game.Engine.goto("Corridor");
-        game.state.position = 1;
+        game.state.position = 1n;
         game.Engine.goto("Corridor");
         const prose2 = getCorridorProse(game.document);
 
@@ -42,7 +42,7 @@ describe("Corridor description stability", () => {
 
     it("description is stable across ticks at the same location", () => {
         const game = bootGame();
-        game.state.position = 3;
+        game.state.position = 3n;
         game.Engine.goto("Corridor");
         const prose1 = getCorridorProse(game.document);
 
@@ -55,7 +55,7 @@ describe("Corridor description stability", () => {
 
     it("rest area description is stable across ticks", () => {
         const game = bootGame();
-        game.state.position = 0;
+        game.state.position = 0n;
         game.Engine.goto("Corridor");
         const prose1 = getCorridorProse(game.document);
 
@@ -70,7 +70,7 @@ describe("Corridor description stability", () => {
         const game = bootGame();
         const descriptions = new Set();
         for (let pos = 1; pos <= 9; pos++) {
-            game.state.position = pos;
+            game.state.position = BigInt(pos);
             game.Engine.goto("Corridor");
             descriptions.add(getCorridorProse(game.document));
         }

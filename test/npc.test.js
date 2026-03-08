@@ -1,5 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+function bigAbs(x) { return x < 0n ? -x : x; }
+
 import {
     spawnNPCs,
     moveNPCs,
@@ -26,7 +28,7 @@ const TEST_DIALOGUE = {
     dead:      ["dead line 0", "dead line 1"],
 };
 
-const playerLoc = { side: 0, position: 0, floor: 10 };
+const playerLoc = { side: 0, position: 0n, floor: 10n };
 
 // --- DISPOSITIONS ---
 
@@ -58,8 +60,8 @@ describe("spawnNPCs", () => {
             assert.ok(typeof npc.name === "string" && npc.name.length > 0);
             assert.ok(TEST_NAMES.includes(npc.name), "name should come from provided list");
             assert.ok(typeof npc.side === "number");
-            assert.ok(typeof npc.position === "number");
-            assert.ok(typeof npc.floor === "number");
+            assert.ok(typeof npc.position === "bigint");
+            assert.ok(typeof npc.floor === "bigint");
             assert.ok(DISPOSITIONS.includes(npc.disposition));
             assert.strictEqual(npc.disposition, "calm", "all start calm");
             assert.strictEqual(npc.alive, true);
@@ -73,8 +75,8 @@ describe("spawnNPCs", () => {
                              0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
         const npcs = spawnNPCs(playerLoc, 5, TEST_NAMES, rng);
         for (const npc of npcs) {
-            const dist = Math.abs(npc.position - playerLoc.position) +
-                         Math.abs(npc.floor - playerLoc.floor);
+            const dist = Number(bigAbs(npc.position - playerLoc.position)) +
+                         Number(bigAbs(npc.floor - playerLoc.floor));
             assert.ok(dist < 100, `NPC too far from player: dist=${dist}`);
         }
     });
@@ -93,24 +95,24 @@ describe("spawnNPCs", () => {
 
 describe("getNPCsAt", () => {
     const npcs = [
-        { id: 0, name: "A", side: 0, position: 5, floor: 10, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
-        { id: 1, name: "B", side: 0, position: 5, floor: 10, disposition: "anxious", alive: true, daysMet: 0, lastSeenDay: 0 },
-        { id: 2, name: "C", side: 1, position: 5, floor: 10, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
-        { id: 3, name: "D", side: 0, position: 5, floor: 10, disposition: "calm", alive: false, daysMet: 0, lastSeenDay: 0 },
+        { id: 0, name: "A", side: 0, position: 5n, floor: 10n, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
+        { id: 1, name: "B", side: 0, position: 5n, floor: 10n, disposition: "anxious", alive: true, daysMet: 0, lastSeenDay: 0 },
+        { id: 2, name: "C", side: 1, position: 5n, floor: 10n, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
+        { id: 3, name: "D", side: 0, position: 5n, floor: 10n, disposition: "calm", alive: false, daysMet: 0, lastSeenDay: 0 },
     ];
 
     it("returns NPCs at matching location", () => {
-        const at = getNPCsAt(npcs, 0, 5, 10);
+        const at = getNPCsAt(npcs, 0, 5n, 10n);
         assert.strictEqual(at.length, 3, "includes dead NPCs at location");
     });
 
     it("returns empty array when none present", () => {
-        const at = getNPCsAt(npcs, 1, 99, 0);
+        const at = getNPCsAt(npcs, 1, 99n, 0n);
         assert.strictEqual(at.length, 0);
     });
 
     it("filters by all three coordinates", () => {
-        const at = getNPCsAt(npcs, 1, 5, 10);
+        const at = getNPCsAt(npcs, 1, 5n, 10n);
         assert.strictEqual(at.length, 1);
         assert.strictEqual(at[0].name, "C");
     });
@@ -121,7 +123,7 @@ describe("getNPCsAt", () => {
 describe("moveNPCs", () => {
     it("returns new array (immutable)", () => {
         const npcs = [
-            { id: 0, name: "A", side: 0, position: 5, floor: 10, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
+            { id: 0, name: "A", side: 0, position: 5n, floor: 10n, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
         ];
         const rng = stubRng([0.5, 0.5]);
         const moved = moveNPCs(npcs, rng);
@@ -130,41 +132,41 @@ describe("moveNPCs", () => {
 
     it("dead NPCs do not move", () => {
         const npcs = [
-            { id: 0, name: "A", side: 0, position: 5, floor: 10, disposition: "calm", alive: false, daysMet: 0, lastSeenDay: 0 },
+            { id: 0, name: "A", side: 0, position: 5n, floor: 10n, disposition: "calm", alive: false, daysMet: 0, lastSeenDay: 0 },
         ];
         const rng = stubRng([0.0]);
         const moved = moveNPCs(npcs, rng);
-        assert.strictEqual(moved[0].position, 5);
-        assert.strictEqual(moved[0].floor, 10);
+        assert.strictEqual(moved[0].position, 5n);
+        assert.strictEqual(moved[0].floor, 10n);
     });
 
     it("catatonic NPCs do not move", () => {
         const npcs = [
-            { id: 0, name: "A", side: 0, position: 5, floor: 10, disposition: "catatonic", alive: true, daysMet: 0, lastSeenDay: 0 },
+            { id: 0, name: "A", side: 0, position: 5n, floor: 10n, disposition: "catatonic", alive: true, daysMet: 0, lastSeenDay: 0 },
         ];
         const rng = stubRng([0.0]);
         const moved = moveNPCs(npcs, rng);
-        assert.strictEqual(moved[0].position, 5);
+        assert.strictEqual(moved[0].position, 5n);
     });
 
     it("living non-catatonic NPCs may change position", () => {
         const npcs = [
-            { id: 0, name: "A", side: 0, position: 50, floor: 10, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
+            { id: 0, name: "A", side: 0, position: 50n, floor: 10n, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
         ];
         const rng = stubRng([0.0, 0.0]);
         const moved = moveNPCs(npcs, rng);
-        const posChanged = moved[0].position !== 50;
-        const floorChanged = moved[0].floor !== 10;
+        const posChanged = moved[0].position !== 50n;
+        const floorChanged = moved[0].floor !== 10n;
         assert.ok(posChanged || floorChanged, "NPC should move");
     });
 
     it("floor never goes below 0", () => {
         const npcs = [
-            { id: 0, name: "A", side: 0, position: 5, floor: 0, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
+            { id: 0, name: "A", side: 0, position: 5n, floor: 0n, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 },
         ];
         const rng = stubRng([0.0, 0.0]);
         const moved = moveNPCs(npcs, rng);
-        assert.ok(moved[0].floor >= 0);
+        assert.ok(moved[0].floor >= 0n);
     });
 });
 
@@ -172,14 +174,14 @@ describe("moveNPCs", () => {
 
 describe("deteriorate", () => {
     it("calm NPC stays calm on early days", () => {
-        const npc = { id: 0, name: "A", side: 0, position: 0, floor: 0, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 };
+        const npc = { id: 0, name: "A", side: 0, position: 0n, floor: 0n, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 };
         const rng = stubRng([0.9]);
         const result = deteriorate(npc, 5, rng);
         assert.strictEqual(result.disposition, "calm");
     });
 
     it("disposition degrades over time with bad rolls", () => {
-        const npc = { id: 0, name: "A", side: 0, position: 0, floor: 0, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 };
+        const npc = { id: 0, name: "A", side: 0, position: 0n, floor: 0n, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 };
         const rng = stubRng([0.0]);
         const result = deteriorate(npc, 100, rng);
         const idx = DISPOSITIONS.indexOf(result.disposition);
@@ -187,14 +189,14 @@ describe("deteriorate", () => {
     });
 
     it("catatonic NPCs can die", () => {
-        const npc = { id: 0, name: "A", side: 0, position: 0, floor: 0, disposition: "catatonic", alive: true, daysMet: 0, lastSeenDay: 0 };
+        const npc = { id: 0, name: "A", side: 0, position: 0n, floor: 0n, disposition: "catatonic", alive: true, daysMet: 0, lastSeenDay: 0 };
         const rng = stubRng([0.0]);
         const result = deteriorate(npc, 200, rng);
         assert.strictEqual(result.alive, false);
     });
 
     it("dead NPCs stay dead", () => {
-        const npc = { id: 0, name: "A", side: 0, position: 0, floor: 0, disposition: "catatonic", alive: false, daysMet: 0, lastSeenDay: 0 };
+        const npc = { id: 0, name: "A", side: 0, position: 0n, floor: 0n, disposition: "catatonic", alive: false, daysMet: 0, lastSeenDay: 0 };
         const rng = stubRng([0.5]);
         const result = deteriorate(npc, 300, rng);
         assert.strictEqual(result.alive, false);
@@ -206,7 +208,7 @@ describe("deteriorate", () => {
 describe("interactText", () => {
     it("returns a non-empty string for each disposition", () => {
         for (const disp of DISPOSITIONS) {
-            const npc = { id: 0, name: "Test", side: 0, position: 0, floor: 0, disposition: disp, alive: true, daysMet: 0, lastSeenDay: 0 };
+            const npc = { id: 0, name: "Test", side: 0, position: 0n, floor: 0n, disposition: disp, alive: true, daysMet: 0, lastSeenDay: 0 };
             const rng = stubRng([0.5]);
             const text = interactText(npc, TEST_DIALOGUE, rng);
             assert.ok(typeof text === "string" && text.length > 0, `empty text for disposition: ${disp}`);
@@ -214,21 +216,21 @@ describe("interactText", () => {
     });
 
     it("returns a string for dead NPCs", () => {
-        const npc = { id: 0, name: "Test", side: 0, position: 0, floor: 0, disposition: "calm", alive: false, daysMet: 0, lastSeenDay: 0 };
+        const npc = { id: 0, name: "Test", side: 0, position: 0n, floor: 0n, disposition: "calm", alive: false, daysMet: 0, lastSeenDay: 0 };
         const rng = stubRng([0.5]);
         const text = interactText(npc, TEST_DIALOGUE, rng);
         assert.ok(typeof text === "string" && text.length > 0);
     });
 
     it("returns empty string for unknown disposition", () => {
-        const npc = { id: 0, name: "Test", side: 0, position: 0, floor: 0, disposition: "inspired", alive: true, daysMet: 0, lastSeenDay: 0 };
+        const npc = { id: 0, name: "Test", side: 0, position: 0n, floor: 0n, disposition: "inspired", alive: true, daysMet: 0, lastSeenDay: 0 };
         const rng = stubRng([0.5]);
         const text = interactText(npc, TEST_DIALOGUE, rng);
         assert.strictEqual(text, "");
     });
 
     it("different RNG values can produce different text", () => {
-        const npc = { id: 0, name: "Test", side: 0, position: 0, floor: 0, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 };
+        const npc = { id: 0, name: "Test", side: 0, position: 0n, floor: 0n, disposition: "calm", alive: true, daysMet: 0, lastSeenDay: 0 };
         const texts = new Set();
         for (let i = 0; i < 10; i++) {
             const rng = stubRng([i / 10]);

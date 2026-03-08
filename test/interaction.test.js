@@ -66,8 +66,8 @@ describe("talkTo", () => {
 
     it("fails when not co-located", () => {
         const w = makeWorld();
-        const p = makeEntity(w, { player: true, position: 0 });
-        const n = makeEntity(w, { name: "Far", position: 5 });
+        const p = makeEntity(w, { player: true, position: 0n });
+        const n = makeEntity(w, { name: "Far", position: 5n });
         const result = talkTo(w, p, n, "neutral", 100);
         assert.strictEqual(result.success, false);
         assert.strictEqual(result.reason, "not_here");
@@ -189,8 +189,8 @@ describe("spendTime", () => {
 
     it("fails when not co-located", () => {
         const w = makeWorld();
-        const p = makeEntity(w, { player: true, position: 0 });
-        const n = makeEntity(w, { name: "Hank", position: 3 });
+        const p = makeEntity(w, { player: true, position: 0n });
+        const n = makeEntity(w, { name: "Hank", position: 3n });
         const result = spendTime(w, p, n, 100);
         assert.strictEqual(result.success, false);
     });
@@ -337,8 +337,8 @@ describe("recruit", () => {
 
     it("fails when not co-located", () => {
         const w = makeWorld();
-        const p = makeEntity(w, { player: true, position: 0 });
-        const n = makeEntity(w, { name: "Rose", position: 5 });
+        const p = makeEntity(w, { player: true, position: 0n });
+        const n = makeEntity(w, { name: "Rose", position: 5n });
 
         const result = recruit(w, p, n, 100);
         assert.strictEqual(result.joined, false);
@@ -460,9 +460,9 @@ describe("social action pipeline", () => {
     it("influence scales spend time bond accumulation", () => {
         const w = makeWorld();
         const highP = makeEntity(w, { player: true, influence: 18 });
-        const lowP = makeEntity(w, { influence: 3, position: 10 });
+        const lowP = makeEntity(w, { influence: 3, position: 10n });
         const n1 = makeEntity(w, { name: "N1" });
-        const n2 = makeEntity(w, { name: "N2", position: 10 });
+        const n2 = makeEntity(w, { name: "N2", position: 10n });
 
         const r1 = spendTime(w, highP, n1, 100);
         const r2 = spendTime(w, lowP, n2, 100);
@@ -517,7 +517,7 @@ describe("socialize scorer diminishing returns", () => {
             personality: { openness: 0.5, pace: 0.5, composure: 0.5 },
             intent: { behavior, cooldown: 0, elapsed },
             rng: fakeRng,
-            position: { side: 0, position: 0, floor: 0 },
+            position: { side: 0, position: 0n, floor: 0n },
             sleep: null,
             knowledge: null,
             tick: 0,
@@ -600,8 +600,8 @@ describe("socializeSystem", () => {
 
     it("does not pair bonded NPCs at different locations", () => {
         const w = makeWorld();
-        const a = makeEntity(w, { name: "Far1", position: 0 });
-        const b = makeEntity(w, { name: "Far2", position: 5 });
+        const a = makeEntity(w, { name: "Far1", position: 0n });
+        const b = makeEntity(w, { name: "Far2", position: 5n });
         const aRels = getComponent(w, a, RELATIONSHIPS);
         const bRels = getComponent(w, b, RELATIONSHIPS);
         aRels.bonds.set(b, { familiarity: 20, affinity: 10, firstContact: 0, lastContact: 50, encounters: 5 });

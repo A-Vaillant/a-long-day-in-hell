@@ -102,7 +102,7 @@ function renderCorridorDark(loc, moves) {
     html += '<div id="actions">';
     html += '<a data-goto="Wait"><kbd>.</kbd> wait</a>';
     if (Surv.canSleep()) html += ' <a data-goto="Sleep"><kbd>z</kbd> sleep</a>';
-    if (state.floor > 0) {
+    if (state.floor > 0n) {
         html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
     }
     if (seg.restArea) {
@@ -200,7 +200,7 @@ Engine.register("Corridor", {
 
         if (seg.restArea) {
             html += '<p class="feature">' + esc(Madlib(TEXT.madlibs.corridor_rest, "corridor_rest:" + locKey(loc)));
-            html += (state.floor > 0) ? ' Stairs lead up and down.' : ' Stairs lead up.';
+            html += (state.floor > 0n) ? ' Stairs lead up and down.' : ' Stairs lead up.';
             html += '</p>';
         } else {
             html += '<div id="corridor-grid"></div>';
@@ -1040,7 +1040,7 @@ Engine.register("Chasm", {
         const chasmKey = "chasm_" + alt;
         const chasmText = TEXT.screens[chasmKey] || TEXT.screens.chasm_abyss;
         html += '<p>' + esc(T(chasmText, chasmKey + ":" + state.tick)) + '</p>';
-        if (state.floor === 0) {
+        if (state.floor === 0n) {
             html += '<p><em>You are at the bottom. There is nowhere to fall.</em></p>';
         } else if (Despair.chasmSkipsConfirm()) {
             html += '<p><em>' + esc(T(TEXT.screens.chasm_jump_confirm, "chasm_confirm:" + state.tick)) + '</em></p>';

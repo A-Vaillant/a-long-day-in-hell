@@ -13,18 +13,19 @@
 import { seedFromString, type Xoshiro128ss } from "./prng.core.ts";
 import { BOOKS_PER_GALLERY, isRestArea } from "./library.core.ts";
 import { PAGES_PER_BOOK } from "./book.core.ts";
+import { bigAbs } from "./bigint-utils.core.ts";
 
 export interface BookCoords {
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
     bookIndex: number;
 }
 
 export interface StartLocation {
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
 }
 
 export interface LifeStoryOptions {
@@ -142,7 +143,7 @@ function gaussianSample(rng: Xoshiro128ss): number {
  */
 export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeStory {
     const placement = (opts && opts.placement) || "gaussian";
-    const startLoc: StartLocation = (opts && opts.startLoc) || { side: 0, position: 0, floor: 10 };
+    const startLoc: StartLocation = (opts && opts.startLoc) || { side: 0, position: 0n, floor: 10n };
 
     const rng: Xoshiro128ss = seedFromString("life:" + seed);
     const pick = <T>(arr: readonly T[]): T => arr[rng.nextInt(arr.length)];
@@ -165,32 +166,75 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     // Which page of the target book holds the life story (0-indexed)
     story.targetPage = rng.nextInt(PAGES_PER_BOOK);
 
-    // Book coordinates: derived independently so changing template pools
-    // doesn't shift everyone's book.
-    const coordRng: Xoshiro128ss = seedFromString("coords:" + seed);
+    // Book coordinates: derived from story text itself.
+    // The content determines where the book lives in the library.
+    const coordRng: Xoshiro128ss = seedFromString("coords:" + story.storyText);
 
-    let side: number, position: number, floor: number, bookIndex: number;
+    let side: number, position: bigint, floor: bigint, bookIndex: number;
 
     if (placement === "random") {
         side      = coordRng.nextInt(2);
-        position  = coordRng.nextInt(10000) - 5000;
-        floor     = coordRng.nextInt(100);
+        position  = BigInt(coordRng.nextInt(10000) - 5000);
+        floor     = BigInt(coordRng.nextInt(100));
         bookIndex = coordRng.nextInt(BOOKS_PER_GALLERY);
     } else {
         // Gaussian: centered on start, σ=200 segments, σ=2000 floors
         side      = coordRng.nextInt(2);
-        position  = startLoc.position + Math.round(gaussianSample(coordRng) * 200);
-        floor     = Math.max(0, startLoc.floor + Math.round(gaussianSample(coordRng) * 2000));
+        position  = startLoc.position + BigInt(Math.round(gaussianSample(coordRng) * 200));
+        floor     = startLoc.floor + BigInt(Math.round(gaussianSample(coordRng) * 2000));
+        if (floor < 0n) floor = 0n;
         bookIndex = coordRng.nextInt(BOOKS_PER_GALLERY);
     }
 
     // Rest areas have no shelves — nudge to nearest gallery
-    if (isRestArea(position)) position += 1;
+    if (isRestArea(position)) position += 1n;
 
     story.placement = placement;
     story.bookCoords = { side, position, floor, bookIndex };
 
     return story as LifeStory;
+}
+
+/**
+ * Generate a life story for an NPC.
+ *
+ * Deterministic from NPC id + global seed. Uses the same template pools
+ * as the player's story but seeded differently so each NPC gets their own
+ * name, occupation, cause of death, story text, and book coordinates.
+ *
+ * Book coordinates use "random" placement (uniform across the library)
+ * since NPCs don't have a "start location" like the player does.
+ *
+ * @param {number} npcId
+ * @param {string} globalSeed
+ * @returns {LifeStory}
+ */
+export function generateNPCLifeStory(npcId: number, globalSeed: string): LifeStory {
+    const seed = `npc:${npcId}:${globalSeed}`;
+    return generateLifeStory(seed, { placement: "random" });
+}
+
+/**
+ * Compute the distance (in segments + floors) between a location and book coords.
+ * This is a simple Manhattan distance — segments walked + floors climbed.
+ * Does not account for having to reach a rest area for stairs or the
+ * chasm crossing at floor 0.
+ *
+ * @param {{ side: number, position: number, floor: number }} loc
+ * @param {BookCoords} book
+ * @returns {number}
+ */
+export function distanceToBook(
+    loc: { side: number; position: bigint; floor: bigint },
+    book: BookCoords,
+): bigint {
+    const segDist = bigAbs(loc.position - book.position);
+    const floorDist = bigAbs(loc.floor - book.floor);
+    // Crossing the chasm costs going down to floor 0 and back up
+    const crossCost = loc.side !== book.side
+        ? loc.floor + book.floor  // down to 0 + back up to target floor
+        : 0n;
+    return segDist + floorDist + crossCost;
 }
 
 /**

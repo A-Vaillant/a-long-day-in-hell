@@ -146,7 +146,7 @@ const WORD_TRIE = buildTrie(WORD_LIST);
 /** Core trie scan over PRNG output. Returns array of matched words. */
 function scanWordsFromSeed(
     globalSeed: string,
-    side: number, position: number, floor: number,
+    side: number, position: bigint, floor: bigint,
     bookIndex: number, pageIndex: number,
     sampleLen: number = 400,
 ): string[] {
@@ -199,7 +199,7 @@ function scanWordsFromSeed(
  */
 export function countWordsFromSeed(
     globalSeed: string,
-    side: number, position: number, floor: number,
+    side: number, position: bigint, floor: bigint,
     bookIndex: number, pageIndex: number,
     sampleLen: number = 400,
 ): number {
@@ -212,7 +212,7 @@ export function countWordsFromSeed(
  */
 export function findWordsFromSeed(
     globalSeed: string,
-    side: number, position: number, floor: number,
+    side: number, position: bigint, floor: bigint,
     bookIndex: number, pageIndex: number,
     sampleLen: number = 400,
 ): string[] {
@@ -226,7 +226,7 @@ export function findWordsFromSeed(
  */
 export function scoreFromSeed(
     globalSeed: string,
-    side: number, position: number, floor: number,
+    side: number, position: bigint, floor: bigint,
     bookIndex: number, pageIndex: number,
     sampleLen: number = 400,
 ): number {
@@ -351,13 +351,13 @@ export function claimBookIndex(
 }
 
 export type PageSampler = (
-    side: number, position: number, floor: number,
+    side: number, position: bigint, floor: bigint,
     bookIndex: number, pageIndex: number,
 ) => string;
 
 /** Fast word finder that bypasses page generation — returns matched words. */
 export type WordFindFn = (
-    side: number, position: number, floor: number,
+    side: number, position: bigint, floor: bigint,
     bookIndex: number, pageIndex: number,
 ) => string[];
 

@@ -12,18 +12,18 @@ function makeFork(seed) {
 }
 
 // position 0 is a rest area; position 1 is not
-const origin     = { side: 0, position: 0, floor: 1 };   // rest area, floor 1
-const mid        = { side: 0, position: 1, floor: 1 };   // gallery, floor 1
-const bottom     = { side: 0, position: 0, floor: BOTTOM_FLOOR }; // rest area, floor 0
-const bottomMid  = { side: 0, position: 1, floor: BOTTOM_FLOOR }; // gallery, floor 0
+const origin     = { side: 0, position: 0n, floor: 1n };   // rest area, floor 1
+const mid        = { side: 0, position: 1n, floor: 1n };   // gallery, floor 1
+const bottom     = { side: 0, position: 0n, floor: BOTTOM_FLOOR }; // rest area, floor 0
+const bottomMid  = { side: 0, position: 1n, floor: BOTTOM_FLOOR }; // gallery, floor 0
 
 describe("locationKey", () => {
     it("produces unique keys for distinct locations", () => {
         const keys = new Set([
-            locationKey({ side: 0, position: 0, floor: 0 }),
-            locationKey({ side: 1, position: 0, floor: 0 }),
-            locationKey({ side: 0, position: 1, floor: 0 }),
-            locationKey({ side: 0, position: 0, floor: 1 }),
+            locationKey({ side: 0, position: 0n, floor: 0n }),
+            locationKey({ side: 1, position: 0n, floor: 0n }),
+            locationKey({ side: 0, position: 1n, floor: 0n }),
+            locationKey({ side: 0, position: 0n, floor: 1n }),
         ]);
         assert.strictEqual(keys.size, 4);
     });
@@ -31,14 +31,14 @@ describe("locationKey", () => {
 
 describe("generateSegment", () => {
     it("is deterministic for the same coordinates and seed", () => {
-        const s1 = generateSegment(0, 0, 1, makeFork("seed"));
-        const s2 = generateSegment(0, 0, 1, makeFork("seed"));
+        const s1 = generateSegment(0, 0n, 1n, makeFork("seed"));
+        const s2 = generateSegment(0, 0n, 1n, makeFork("seed"));
         assert.deepStrictEqual(s1, s2);
     });
 
     it("differs for different positions", () => {
-        const s1 = generateSegment(0, 0, 1, makeFork("seed"));
-        const s2 = generateSegment(0, 1, 1, makeFork("seed"));
+        const s1 = generateSegment(0, 0n, 1n, makeFork("seed"));
+        const s2 = generateSegment(0, 1n, 1n, makeFork("seed"));
         assert.notDeepStrictEqual(s1, s2);
     });
 
@@ -46,16 +46,16 @@ describe("generateSegment", () => {
         // lightLevel is the only stochastic field; test over many positions
         // to confirm the seed actually produces different outputs somewhere
         const results_a = Array.from({ length: 50 }, (_, i) =>
-            generateSegment(0, i, 2, makeFork("seed-a")).lightLevel);
+            generateSegment(0, BigInt(i), 2n, makeFork("seed-a")).lightLevel);
         const results_b = Array.from({ length: 50 }, (_, i) =>
-            generateSegment(0, i, 2, makeFork("seed-b")).lightLevel);
+            generateSegment(0, BigInt(i), 2n, makeFork("seed-b")).lightLevel);
         assert.notDeepStrictEqual(results_a, results_b);
     });
 
     it("has rest area only at gallery boundaries", () => {
-        for (let pos = 0; pos < GALLERIES_PER_SEGMENT * 2; pos++) {
-            const s = generateSegment(0, pos, 1, makeFork("seed"));
-            if (pos % GALLERIES_PER_SEGMENT === 0) {
+        for (let pos = 0; pos < Number(GALLERIES_PER_SEGMENT) * 2; pos++) {
+            const s = generateSegment(0, BigInt(pos), 1n, makeFork("seed"));
+            if (BigInt(pos) % GALLERIES_PER_SEGMENT === 0n) {
                 assert.ok(s.restArea !== null, `pos ${pos} should have rest area`);
                 assert.strictEqual(s.restArea.hasStairs, true);
                 assert.strictEqual(s.restArea.hasKiosk, true);
@@ -67,22 +67,22 @@ describe("generateSegment", () => {
     });
 
     it("has bridge only at floor 0 rest areas", () => {
-        const atBottomRest  = generateSegment(0, 0, BOTTOM_FLOOR, makeFork("seed"));
-        const atBottomMid   = generateSegment(0, 1, BOTTOM_FLOOR, makeFork("seed"));
-        const aboveRest     = generateSegment(0, 0, 1, makeFork("seed"));
+        const atBottomRest  = generateSegment(0, 0n, BOTTOM_FLOOR, makeFork("seed"));
+        const atBottomMid   = generateSegment(0, 1n, BOTTOM_FLOOR, makeFork("seed"));
+        const aboveRest     = generateSegment(0, 0n, 1n, makeFork("seed"));
         assert.strictEqual(atBottomRest.hasBridge, true);
         assert.strictEqual(atBottomMid.hasBridge, false);
         assert.strictEqual(aboveRest.hasBridge, false);
     });
 
     it("has correct book count per gallery", () => {
-        const s = generateSegment(0, 0, 0, makeFork("seed"));
+        const s = generateSegment(0, 0n, 0n, makeFork("seed"));
         assert.strictEqual(s.bookCount, BOOKS_PER_GALLERY);
     });
 
     it("lightLevel is either normal or dim", () => {
         for (let i = 0; i < 20; i++) {
-            const s = generateSegment(0, i, 1, makeFork("seed"));
+            const s = generateSegment(0, BigInt(i), 1n, makeFork("seed"));
             assert.ok(["normal", "dim"].includes(s.lightLevel));
         }
     });
@@ -121,17 +121,17 @@ describe("availableMoves", () => {
 describe("applyMove", () => {
     it("left decrements position", () => {
         assert.deepStrictEqual(applyMove(origin, DIRS.LEFT),
-            { side: 0, position: -1, floor: 1 });
+            { side: 0, position: -1n, floor: 1n });
     });
 
     it("right increments position", () => {
         assert.deepStrictEqual(applyMove(origin, DIRS.RIGHT),
-            { side: 0, position: 1, floor: 1 });
+            { side: 0, position: 1n, floor: 1n });
     });
 
     it("up increments floor at rest area", () => {
         assert.deepStrictEqual(applyMove(origin, DIRS.UP),
-            { side: 0, position: 0, floor: 2 });
+            { side: 0, position: 0n, floor: 2n });
     });
 
     it("up throws outside rest area", () => {
@@ -140,7 +140,7 @@ describe("applyMove", () => {
 
     it("down decrements floor at rest area", () => {
         assert.deepStrictEqual(applyMove(origin, DIRS.DOWN),
-            { side: 0, position: 0, floor: 0 });
+            { side: 0, position: 0n, floor: 0n });
     });
 
     it("down throws at floor 0", () => {
@@ -153,10 +153,10 @@ describe("applyMove", () => {
 
     it("cross switches side at floor 0 rest area", () => {
         assert.deepStrictEqual(applyMove(bottom, DIRS.CROSS),
-            { side: 1, position: 0, floor: 0 });
+            { side: 1, position: 0n, floor: 0n });
         assert.deepStrictEqual(
-            applyMove({ side: 1, position: 0, floor: 0 }, DIRS.CROSS),
-            { side: 0, position: 0, floor: 0 });
+            applyMove({ side: 1, position: 0n, floor: 0n }, DIRS.CROSS),
+            { side: 0, position: 0n, floor: 0n });
     });
 
     it("cross throws above floor 0", () => {

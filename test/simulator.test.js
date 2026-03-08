@@ -132,8 +132,8 @@ describe("strategy: custom", () => {
         assert.ok(capturedState, "strategy should have been called");
         assert.strictEqual(typeof capturedState.seed, "string");
         assert.strictEqual(typeof capturedState.side, "number");
-        assert.strictEqual(typeof capturedState.position, "number");
-        assert.strictEqual(typeof capturedState.floor, "number");
+        assert.strictEqual(typeof capturedState.position, "bigint");
+        assert.strictEqual(typeof capturedState.floor, "bigint");
         assert.strictEqual(typeof capturedState.tick, "number");
         assert.strictEqual(typeof capturedState.day, "number");
         assert.strictEqual(typeof capturedState.lightsOn, "boolean");

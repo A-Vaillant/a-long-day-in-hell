@@ -124,7 +124,7 @@ describe("repeated death-resurrection cycle", () => {
     it("held book persists through repeated deaths", () => {
         let tick = { tick: 0, day: 1 };
         let stats = defaultStats();
-        const heldBook = { side: 0, position: 5, floor: 3, bookIndex: 42 };
+        const heldBook = { side: 0, position: 5n, floor: 3n, bookIndex: 42 };
 
         for (let i = 0; i < 10; i++) {
             stats = { ...stats, dead: true, mortality: 0 };
@@ -139,7 +139,7 @@ describe("repeated death-resurrection cycle", () => {
             }
             assert.ok(safety <= 100, "dawn should arrive within 100 hour-steps");
         }
-        assert.deepStrictEqual(heldBook, { side: 0, position: 5, floor: 3, bookIndex: 42 });
+        assert.deepStrictEqual(heldBook, { side: 0, position: 5n, floor: 3n, bookIndex: 42 });
     });
 });
 

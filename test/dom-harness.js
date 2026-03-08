@@ -111,8 +111,8 @@ export function bootGame(seed = "test-seed-42") {
     const win = game.window;
     win.state.seed = seed;
     win.state.side = 0;
-    win.state.position = 0;
-    win.state.floor = 10;
+    win.state.position = 0n;
+    win.state.floor = 10n;
     win.state.move = "";
     win.state.heldBook = null;
     win.state.shelfOffset = 0;
@@ -124,7 +124,7 @@ export function bootGame(seed = "test-seed-42") {
 
     const story = win.LifeStory.generate(seed, {
         placement: "gaussian",
-        startLoc: { side: 0, position: 0, floor: 10 },
+        startLoc: { side: 0, position: 0n, floor: 10n },
     });
     win.state.lifeStory = story;
     win.state.targetBook = story.bookCoords;

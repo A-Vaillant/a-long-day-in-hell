@@ -4,7 +4,7 @@ import { detectEvents, resetDetectState } from "../src/js/godmode-detect.js";
 
 function makeNpc(overrides) {
     return {
-        id: 0, name: "Alice", side: 0, position: 0, floor: 100,
+        id: 0, name: "Alice", side: 0, position: 0n, floor: 100n,
         disposition: "calm", alive: true, lucidity: 100, hope: 100,
         personality: null, bonds: [], groupId: null, falling: null,
         free: false, components: {},
@@ -389,8 +389,8 @@ describe("detectEvents", () => {
     });
 
     it("detects NPC catching a railing", () => {
-        const prev = makeSnap([makeNpc({ falling: { speed: 10 }, floor: 50 })]);
-        const curr = makeSnap([makeNpc({ falling: null, floor: 42 })]);
+        const prev = makeSnap([makeNpc({ falling: { speed: 10 }, floor: 50n })]);
+        const curr = makeSnap([makeNpc({ falling: null, floor: 42n })]);
         const events = detectEvents(prev, curr);
         assert.strictEqual(events.length, 1);
         assert.strictEqual(events[0].type, "chasm");

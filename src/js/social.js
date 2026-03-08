@@ -463,7 +463,8 @@ export const Social = {
                 for (const other of state.npcs) {
                     if (other.id === npc.id || !other.alive) continue;
                     if (other.side !== pos.side || other.floor !== pos.floor) continue;
-                    if (Math.abs(other.position - pos.position) > 3) continue;
+                    const posDiff = other.position - pos.position;
+                    if ((posDiff < 0n ? -posDiff : posDiff) > 3n) continue;
                     const otherEnt = npcEntities.get(other.id);
                     if (otherEnt === undefined) continue;
                     const otherPsych = getComponent(world, otherEnt, PSYCHOLOGY);
@@ -492,8 +493,8 @@ export const Social = {
             // Skip possessed NPC — player controls their falling via normal screens
             if (state._possessedNpcId === npc.id) continue;
 
-            const result = fallTick(npc.falling, npc.floor);
-            npc.floor = result.newFloor;
+            const result = fallTick(npc.falling, Number(npc.floor));
+            npc.floor = BigInt(result.newFloor);
             npc.falling.speed = result.newSpeed;
 
             if (result.landed) {
@@ -554,7 +555,7 @@ export const Social = {
         if (!state.npcs) return;
         for (const npc of state.npcs) {
             if (!npc.alive || npc.falling) continue;
-            if (npc.floor <= 0) continue; // can't fall from bottom
+            if (npc.floor <= 0n) continue; // can't fall from bottom
             if (state._possessedNpcId === npc.id) continue;
 
             // Only catatonic or very low hope NPCs jump
@@ -582,7 +583,7 @@ export const Social = {
      */
     npcJump(npcId) {
         const npc = state.npcs && state.npcs.find(n => n.id === npcId);
-        if (!npc || !npc.alive || npc.floor <= 0) return false;
+        if (!npc || !npc.alive || npc.floor <= 0n) return false;
         npc.falling = { speed: 0, floorsToFall: 0, side: npc.side };
         return true;
     },

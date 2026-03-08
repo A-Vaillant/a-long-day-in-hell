@@ -35,14 +35,14 @@ const SEED = "perf-bench-42";
 function createBenchWorld(npcCount) {
     const world = createWorld();
     const rng = seedFromString(SEED + ":spawn");
-    const startLoc = { side: 0, position: 0, floor: 100 };
+    const startLoc = { side: 0, position: 0n, floor: 100n };
     const names = [];
     for (let i = 0; i < npcCount; i++) names.push("NPC_" + i);
     const npcs = NpcCore.spawnNPCs(startLoc, npcCount, names, rng);
 
     // Player entity
     const player = spawn(world);
-    addComponent(world, player, POSITION, { side: 0, position: 0, floor: 100 });
+    addComponent(world, player, POSITION, { side: 0, position: 0n, floor: 100n });
     addComponent(world, player, IDENTITY, { name: "Player", alive: true });
     addComponent(world, player, PSYCHOLOGY, { lucidity: 100, hope: 100 });
     addComponent(world, player, RELATIONSHIPS, { bonds: new Map() });

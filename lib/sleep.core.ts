@@ -29,8 +29,8 @@ export const SLEEP = "sleep";
 
 export interface HomeLocation {
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
 }
 
 export interface Sleep {
@@ -77,13 +77,14 @@ export const DEFAULT_SLEEP: SleepConfig = {
 // --- Helpers ---
 
 /** Nearest rest area to a position. */
-export function nearestRestArea(position: number): number {
-    return Math.round(position / 10) * 10;
+export function nearestRestArea(position: bigint): bigint {
+    const r = ((position % 10n) + 10n) % 10n;
+    return r >= 5n ? position - r + 10n : position - r;
 }
 
 /** Distance in segments between a position and a rest area. */
-export function distanceToRestArea(position: number, restArea: number): number {
-    return Math.abs(position - restArea);
+export function distanceToRestArea(position: bigint, restArea: bigint): bigint {
+    return position > restArea ? position - restArea : restArea - position;
 }
 
 // --- Systems ---

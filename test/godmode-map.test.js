@@ -14,43 +14,45 @@ describe("Godmode follow mode", () => {
             viewSide = npc.side;
             switched = true;
         }
-        // Deadzone nudge
+        // Deadzone nudge — convert bigint coords to number for viewport math
+        const npcX = Number(npc.position);
+        const npcY = Number(npc.floor);
         const marginX = vpCols * 0.25;
         const marginY = vpRows * 0.25;
         const left = vpX + marginX;
         const right = vpX + vpCols - marginX;
         const bottom = vpY + marginY;
         const top = vpY + vpRows - marginY;
-        if (npc.position < left) vpX = npc.position - marginX;
-        else if (npc.position > right) vpX = npc.position - vpCols + marginX;
-        if (npc.floor < bottom) vpY = npc.floor - marginY;
-        else if (npc.floor > top) vpY = npc.floor - vpRows + marginY;
+        if (npcX < left) vpX = npcX - marginX;
+        else if (npcX > right) vpX = npcX - vpCols + marginX;
+        if (npcY < bottom) vpY = npcY - marginY;
+        else if (npcY > top) vpY = npcY - vpRows + marginY;
         return { viewSide, vpX, vpY, switched };
     }
 
     it("follow nudges viewport when NPC moves outside deadzone", () => {
         // NPC starts centered, then moves far right
-        const result = simulateFollow(0, 0, 0, 40, 30, { side: 0, position: 50, floor: 15 });
+        const result = simulateFollow(0, 0, 0, 40, 30, { side: 0, position: 50n, floor: 15n });
         // Viewport should have shifted right
         assert.ok(result.vpX > 0, "viewport should shift right to follow NPC");
     });
 
     it("follow does not nudge viewport when NPC is within deadzone", () => {
         // NPC at center of viewport
-        const result = simulateFollow(0, 0, 0, 40, 30, { side: 0, position: 20, floor: 15 });
+        const result = simulateFollow(0, 0, 0, 40, 30, { side: 0, position: 20n, floor: 15n });
         assert.strictEqual(result.vpX, 0, "viewport should not shift when NPC is within deadzone");
         assert.strictEqual(result.vpY, 0, "viewport Y should not shift when NPC is within deadzone");
     });
 
     it("follow auto-switches corridor when NPC crosses chasm", () => {
         // Viewing west (0), NPC is now on east (1)
-        const result = simulateFollow(0, 10, 5, 40, 30, { side: 1, position: 15, floor: 8 });
+        const result = simulateFollow(0, 10, 5, 40, 30, { side: 1, position: 15n, floor: 8n });
         assert.strictEqual(result.viewSide, 1, "should switch to east corridor");
         assert.strictEqual(result.switched, true, "should flag side switch");
     });
 
     it("follow does not switch corridor when NPC stays on same side", () => {
-        const result = simulateFollow(0, 10, 5, 40, 30, { side: 0, position: 15, floor: 8 });
+        const result = simulateFollow(0, 10, 5, 40, 30, { side: 0, position: 15n, floor: 8n });
         assert.strictEqual(result.viewSide, 0, "should stay on west corridor");
         assert.strictEqual(result.switched, false, "should not flag side switch");
     });
@@ -62,7 +64,7 @@ describe("Godmode follow mode", () => {
 
         // NPC traveled from position 0 to position 5000, floor 0 to floor 200
         const result = simulateFollow(0, vpX, vpY, vpCols, vpRows,
-            { side: 0, position: 5000, floor: 200 });
+            { side: 0, position: 5000n, floor: 200n });
 
         // Viewport should have jumped to track
         assert.ok(result.vpX > 4900, "viewport should jump to NPC position after large skip");
@@ -76,13 +78,13 @@ describe("Godmode follow mode", () => {
 
         // Cross to east
         let r = simulateFollow(viewSide, vpX, vpY, vpCols, vpRows,
-            { side: 1, position: 10, floor: 0 });
+            { side: 1, position: 10n, floor: 0n });
         assert.strictEqual(r.viewSide, 1);
         viewSide = r.viewSide; vpX = r.vpX; vpY = r.vpY;
 
         // Cross back to west
         r = simulateFollow(viewSide, vpX, vpY, vpCols, vpRows,
-            { side: 0, position: 20, floor: 5 });
+            { side: 0, position: 20n, floor: 5n });
         assert.strictEqual(r.viewSide, 0);
     });
 });
@@ -191,8 +193,8 @@ describe("Godmode follow mode state management", () => {
 describe("Godmode corridor switching on NPC select", () => {
     it("selecting NPC switches corridor but does not follow", () => {
         const npcs = [
-            { id: "soren", name: "Soren", side: 0, position: 5, floor: 3 },
-            { id: "rachel", name: "Rachel", side: 1, position: 12, floor: 7 },
+            { id: "soren", name: "Soren", side: 0, position: 5n, floor: 3n },
+            { id: "rachel", name: "Rachel", side: 1, position: 12n, floor: 7n },
         ];
 
         let currentSide = 0;

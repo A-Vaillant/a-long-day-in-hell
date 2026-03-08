@@ -166,7 +166,7 @@ function resolveSubmit() {
 }
 
 function resolveChasmJump() {
-    if (state.floor <= 0) return { resolved: false };
+    if (state.floor <= 0n) return { resolved: false };
     Chasm.jump(state.side);
     return { resolved: true, screen: "Falling" };
 }

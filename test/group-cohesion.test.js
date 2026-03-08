@@ -189,7 +189,7 @@ describe("Group cohesion: separation tolerance", () => {
         assert.ok(inSameGroup(world, npcs), "group should exist before separation");
 
         // Move one member away
-        getComponent(world, npcs[0], POSITION).position = 999;
+        getComponent(world, npcs[0], POSITION).position = 999n;
 
         runGroupOnly(world, 20);
 
@@ -258,12 +258,12 @@ describe("Group cohesion: compatible vs incompatible bond strength", () => {
         const world = createWorld();
 
         // Compatible pair at position 0
-        const a1 = makeNpc(world, { name: "C-A", id: 0, position: 0, personality: COHESIVE });
-        const a2 = makeNpc(world, { name: "C-B", id: 1, position: 0, personality: COHESIVE });
+        const a1 = makeNpc(world, { name: "C-A", id: 0, position: 0n, personality: COHESIVE });
+        const a2 = makeNpc(world, { name: "C-B", id: 1, position: 0n, personality: COHESIVE });
 
         // Incompatible pair at position 100
-        const b1 = makeNpc(world, { name: "I-A", id: 2, position: 100, personality: COHESIVE });
-        const b2 = makeNpc(world, { name: "I-B", id: 3, position: 100, personality: OPPOSITE });
+        const b1 = makeNpc(world, { name: "I-A", id: 2, position: 100n, personality: COHESIVE });
+        const b2 = makeNpc(world, { name: "I-B", id: 3, position: 100n, personality: OPPOSITE });
 
         runBonding(world, 2000);
 
@@ -280,13 +280,13 @@ describe("Group cohesion: affinity growth rate", () => {
     it("compatible pair reaches high affinity faster than incompatible pair", () => {
         // Compatible pair
         const cWorld = createWorld();
-        const c1 = makeNpc(cWorld, { name: "C1", id: 0, position: 0, personality: COHESIVE });
-        const c2 = makeNpc(cWorld, { name: "C2", id: 1, position: 0, personality: COHESIVE });
+        const c1 = makeNpc(cWorld, { name: "C1", id: 0, position: 0n, personality: COHESIVE });
+        const c2 = makeNpc(cWorld, { name: "C2", id: 1, position: 0n, personality: COHESIVE });
 
         // Incompatible pair — maximally opposite
         const iWorld = createWorld();
-        const i1 = makeNpc(iWorld, { name: "I1", id: 0, position: 0, personality: COHESIVE });
-        const i2 = makeNpc(iWorld, { name: "I2", id: 1, position: 0, personality: OPPOSITE });
+        const i1 = makeNpc(iWorld, { name: "I1", id: 0, position: 0n, personality: COHESIVE });
+        const i2 = makeNpc(iWorld, { name: "I2", id: 1, position: 0n, personality: OPPOSITE });
 
         // Measure at a midpoint where fatigue has slowed the incompatible pair
         // but compatible pair is growing unimpeded
@@ -308,8 +308,8 @@ describe("Group cohesion: affinity growth rate", () => {
 describe("Group cohesion: incompatible groups disintegrate", () => {
     it("affinity rises initially then erodes for incompatible co-located pair", () => {
         const world = createWorld();
-        const a = makeNpc(world, { name: "A", id: 0, position: 0, personality: COHESIVE });
-        const b = makeNpc(world, { name: "B", id: 1, position: 0, personality: OPPOSITE });
+        const a = makeNpc(world, { name: "A", id: 0, position: 0n, personality: COHESIVE });
+        const b = makeNpc(world, { name: "B", id: 1, position: 0n, personality: OPPOSITE });
 
         // Phase 1: early bonding — affinity should rise
         runBonding(world, 200);
@@ -327,8 +327,8 @@ describe("Group cohesion: incompatible groups disintegrate", () => {
     it("incompatible group dissolves while co-located due to affinity erosion", () => {
         const world = createWorld();
         // Two NPCs with very different personalities
-        const a = makeNpc(world, { name: "A", id: 0, position: 0, personality: COHESIVE });
-        const b = makeNpc(world, { name: "B", id: 1, position: 0, personality: OPPOSITE });
+        const a = makeNpc(world, { name: "A", id: 0, position: 0n, personality: COHESIVE });
+        const b = makeNpc(world, { name: "B", id: 1, position: 0n, personality: OPPOSITE });
 
         // Bond enough to form group
         runBonding(world, 200);
@@ -352,8 +352,8 @@ describe("Group cohesion: incompatible groups disintegrate", () => {
 
     it("compatible group stays intact under same conditions", () => {
         const world = createWorld();
-        const a = makeNpc(world, { name: "A", id: 0, position: 0, personality: COHESIVE });
-        const b = makeNpc(world, { name: "B", id: 1, position: 0, personality: COHESIVE });
+        const a = makeNpc(world, { name: "A", id: 0, position: 0n, personality: COHESIVE });
+        const b = makeNpc(world, { name: "B", id: 1, position: 0n, personality: COHESIVE });
 
         runBonding(world, 5000);
 

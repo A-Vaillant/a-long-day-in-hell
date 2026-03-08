@@ -342,7 +342,7 @@ document.addEventListener("keydown", function (ev) {
             break;
         case "J": {
             ev.preventDefault();
-            if (state.floor > 0) {
+            if (state.floor > 0n) {
                 if (Despair.chasmSkipsConfirm()) {
                     Actions.resolve({ type: "chasm_jump" });
                     Engine.goto("Falling");

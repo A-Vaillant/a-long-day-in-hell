@@ -78,7 +78,7 @@ describe("generateBookPage", () => {
 
 describe("bookMeta", () => {
     it("returns correct fields", () => {
-        const m = bookMeta(1, 5, 3, 42);
-        assert.deepStrictEqual(m, { side: 1, position: 5, floor: 3, bookIndex: 42 });
+        const m = bookMeta(1, 5n, 3n, 42);
+        assert.deepStrictEqual(m, { side: 1, position: 5n, floor: 3n, bookIndex: 42 });
     });
 });

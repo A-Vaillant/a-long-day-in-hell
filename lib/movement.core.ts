@@ -26,6 +26,7 @@ import { KNOWLEDGE, type Knowledge, isSearched } from "./knowledge.core.ts";
 import { GROUP, type Group } from "./social.core.ts";
 import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { isRestArea } from "./library.core.ts";
+import { bigAbs, bigMax, bigMin, bigSign } from "./bigint-utils.core.ts";
 
 // --- Component ---
 
@@ -33,7 +34,7 @@ export const MOVEMENT = "movement";
 
 export interface Movement {
     /** Target position when seeking rest. Set by movement system. */
-    targetPosition: number | null;
+    targetPosition: bigint | null;
     /** Current heading for exploration: 1 (right) or -1 (left). */
     heading: number;
 }
@@ -62,29 +63,30 @@ interface Rng {
 }
 
 /** Nearest rest area position from current position. */
-function nearestRestArea(position: number): number {
-    return Math.round(position / 10) * 10;
+function nearestRestArea(position: bigint): bigint {
+    const r = ((position % 10n) + 10n) % 10n;
+    return r >= 5n ? position - r + 10n : position - r;
 }
 
 /** Check if the span from a rest area in a direction has any unsearched segments. */
-function spanHasUnsearched(knowledge: Knowledge, side: number, restPos: number, dir: number, floor: number): boolean {
+function spanHasUnsearched(knowledge: Knowledge, side: number, restPos: bigint, dir: number, floor: bigint): boolean {
     for (let i = 1; i <= 10; i++) {
-        if (!isSearched(knowledge, side, restPos + dir * i, floor)) return true;
+        if (!isSearched(knowledge, side, restPos + BigInt(dir * i), floor)) return true;
     }
     return false;
 }
 
 /** Check if the spans in both directions from a rest area are fully searched. */
-function localExhausted(knowledge: Knowledge, side: number, restPos: number, floor: number): boolean {
+function localExhausted(knowledge: Knowledge, side: number, restPos: bigint, floor: bigint): boolean {
     return !spanHasUnsearched(knowledge, side, restPos, 1, floor) &&
            !spanHasUnsearched(knowledge, side, restPos, -1, floor);
 }
 
-/** Direction to step toward a target. Returns -1, 0, or 1. */
-function stepToward(current: number, target: number): number {
-    if (current < target) return 1;
-    if (current > target) return -1;
-    return 0;
+/** Direction to step toward a target. Returns -1n, 0n, or 1n. */
+function stepToward(current: bigint, target: bigint): bigint {
+    if (current < target) return 1n;
+    if (current > target) return -1n;
+    return 0n;
 }
 
 // --- Movement behaviors ---
@@ -153,29 +155,29 @@ export function movementSystem(
             // --- Single tick ---
             if (isDirected) {
                 const step = stepToward(pos.position, mov.targetPosition!);
-                if (step !== 0) {
+                if (step !== 0n) {
                     pos.position += step;
                 } else if (behavior === "pilgrimage" && isRestArea(pos.position)) {
                     // At rest area target — handle floor/side transitions
                     const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
                     const vision = knowledge?.bookVision;
                     if (vision) {
-                        if (pos.side !== vision.side && pos.floor === 0) {
+                        if (pos.side !== vision.side && pos.floor === 0n) {
                             pos.side = vision.side;
-                        } else if (pos.side !== vision.side && pos.floor > 0) {
-                            pos.floor--;
+                        } else if (pos.side !== vision.side && pos.floor > 0n) {
+                            pos.floor -= 1n;
                         } else if (pos.floor !== vision.floor) {
-                            pos.floor += pos.floor < vision.floor ? 1 : -1;
-                            pos.floor = Math.max(0, pos.floor);
+                            pos.floor += pos.floor < vision.floor ? 1n : -1n;
+                            pos.floor = bigMax(0n, pos.floor);
                         }
                     }
                 }
             } else if (behavior === "wander_mad") {
                 // Erratic: random direction each tick
-                pos.position += rng.next() < 0.5 ? 1 : -1;
+                pos.position += rng.next() < 0.5 ? 1n : -1n;
                 if (isRestArea(pos.position) && rng.next() < config.madFloorChance) {
-                    pos.floor += rng.next() < 0.5 ? 1 : -1;
-                    pos.floor = Math.max(0, pos.floor);
+                    pos.floor += rng.next() < 0.5 ? 1n : -1n;
+                    pos.floor = bigMax(0n, pos.floor);
                 }
             } else {
                 // Explore: walk in current heading, biased toward group leader
@@ -189,13 +191,13 @@ export function movementSystem(
 
                 if (chasingLeader && isRestArea(pos.position)) {
                     // At rest area: change floor or cross to reach leader
-                    if (pos.side !== leaderPos!.side && pos.floor === 0) {
+                    if (pos.side !== leaderPos!.side && pos.floor === 0n) {
                         pos.side = leaderPos!.side;
-                    } else if (pos.side !== leaderPos!.side && pos.floor > 0) {
-                        pos.floor--;
+                    } else if (pos.side !== leaderPos!.side && pos.floor > 0n) {
+                        pos.floor -= 1n;
                     } else if (pos.floor !== leaderPos!.floor) {
-                        pos.floor += pos.floor < leaderPos!.floor ? 1 : -1;
-                        pos.floor = Math.max(0, pos.floor);
+                        pos.floor += pos.floor < leaderPos!.floor ? 1n : -1n;
+                        pos.floor = bigMax(0n, pos.floor);
                     }
                 } else if (chasingLeader) {
                     // Not at rest area: head toward nearest rest area to change floor/side
@@ -208,10 +210,10 @@ export function movementSystem(
                     if (rng.next() < followChance) {
                         pos.position += stepToward(pos.position, leaderPos!.position);
                     } else {
-                        pos.position += mov.heading;
+                        pos.position += BigInt(mov.heading);
                     }
                 } else {
-                    pos.position += mov.heading;
+                    pos.position += BigInt(mov.heading);
                 }
                 const hasLeader = followingLeader || chasingLeader;
                 if (isRestArea(pos.position) && !hasLeader) {
@@ -233,18 +235,18 @@ export function movementSystem(
                         const exhausted = !fwdHasWork && !bwdHasWork;
                         const floorChangeChance = exhausted ? 0.5 : config.exploreFloorChance;
                         if (rng.next() < floorChangeChance) {
-                            const upHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor + 1) ||
-                                              spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor + 1);
-                            const downHasWork = pos.floor > 0 && (
-                                spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor - 1) ||
-                                spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor - 1));
+                            const upHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor + 1n) ||
+                                              spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor + 1n);
+                            const downHasWork = pos.floor > 0n && (
+                                spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor - 1n) ||
+                                spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor - 1n));
                             if (upHasWork && !downHasWork) {
-                                pos.floor++;
-                            } else if (!upHasWork && downHasWork && pos.floor > 0) {
-                                pos.floor--;
+                                pos.floor += 1n;
+                            } else if (!upHasWork && downHasWork && pos.floor > 0n) {
+                                pos.floor -= 1n;
                             } else {
-                                pos.floor += rng.next() < 0.5 ? 1 : -1;
-                                pos.floor = Math.max(0, pos.floor);
+                                pos.floor += rng.next() < 0.5 ? 1n : -1n;
+                                pos.floor = bigMax(0n, pos.floor);
                             }
                         }
                     } else {
@@ -253,8 +255,8 @@ export function movementSystem(
                             mov.heading = -mov.heading;
                         }
                         if (rng.next() < config.exploreFloorChance) {
-                            pos.floor += rng.next() < 0.5 ? 1 : -1;
-                            pos.floor = Math.max(0, pos.floor);
+                            pos.floor += rng.next() < 0.5 ? 1n : -1n;
+                            pos.floor = bigMax(0n, pos.floor);
                         }
                     }
                 }
@@ -262,56 +264,56 @@ export function movementSystem(
         } else {
             // --- Batch mode ---
             if (isDirected) {
-                const dist = Math.abs(pos.position - mov.targetPosition!);
-                if (n >= dist) {
+                const dist = bigAbs(pos.position - mov.targetPosition!);
+                if (BigInt(n) >= dist) {
                     pos.position = mov.targetPosition!;
                     // Pilgrimage batch: use remaining moves for floor/side transitions
                     if (behavior === "pilgrimage" && isRestArea(pos.position)) {
                         const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
                         const vision = knowledge?.bookVision;
                         if (vision) {
-                            let remaining = n - dist;
+                            let remaining = BigInt(n) - dist;
                             // Phase 1: wrong side → descend to floor 0, then cross
-                            if (pos.side !== vision.side && remaining > 0) {
-                                const floorsDown = Math.min(pos.floor, remaining);
+                            if (pos.side !== vision.side && remaining > 0n) {
+                                const floorsDown = bigMin(pos.floor, remaining);
                                 pos.floor -= floorsDown;
                                 remaining -= floorsDown;
-                                if (pos.floor === 0 && remaining > 0) {
+                                if (pos.floor === 0n && remaining > 0n) {
                                     pos.side = vision.side;
-                                    remaining--;
+                                    remaining -= 1n;
                                 }
                             }
                             // Phase 2: right side, wrong floor → move toward target floor
-                            if (pos.side === vision.side && pos.floor !== vision.floor && remaining > 0) {
-                                const floorDist = Math.abs(pos.floor - vision.floor);
-                                const floorMoves = Math.min(remaining, floorDist);
-                                pos.floor += (pos.floor < vision.floor ? 1 : -1) * floorMoves;
+                            if (pos.side === vision.side && pos.floor !== vision.floor && remaining > 0n) {
+                                const floorDist = bigAbs(pos.floor - vision.floor);
+                                const floorMoves = bigMin(remaining, floorDist);
+                                pos.floor += (pos.floor < vision.floor ? 1n : -1n) * floorMoves;
                                 remaining -= floorMoves;
                             }
                             // Phase 3: right side+floor → walk toward book position
-                            if (pos.side === vision.side && pos.floor === vision.floor && remaining > 0) {
-                                const posDist = Math.abs(pos.position - vision.position);
-                                const posMoves = Math.min(remaining, posDist);
+                            if (pos.side === vision.side && pos.floor === vision.floor && remaining > 0n) {
+                                const posDist = bigAbs(pos.position - vision.position);
+                                const posMoves = bigMin(remaining, posDist);
                                 pos.position += stepToward(pos.position, vision.position) * posMoves;
                             }
-                            pos.floor = Math.max(0, pos.floor);
+                            pos.floor = bigMax(0n, pos.floor);
                         }
                     }
                 } else {
-                    pos.position += stepToward(pos.position, mov.targetPosition!) * n;
+                    pos.position += stepToward(pos.position, mov.targetPosition!) * BigInt(n);
                 }
             } else if (behavior === "wander_mad") {
                 // Erratic batch: n random steps
-                let netMove = 0;
+                let netMove = 0n;
                 for (let i = 0; i < n; i++) {
-                    netMove += rng.next() < 0.5 ? 1 : -1;
+                    netMove += rng.next() < 0.5 ? 1n : -1n;
                 }
                 pos.position += netMove;
                 if (isRestArea(pos.position)) {
                     const floorMoves = Math.round(config.madFloorChance * n);
                     for (let i = 0; i < floorMoves; i++) {
-                        pos.floor += rng.next() < 0.5 ? 1 : -1;
-                        pos.floor = Math.max(0, pos.floor);
+                        pos.floor += rng.next() < 0.5 ? 1n : -1n;
+                        pos.floor = bigMax(0n, pos.floor);
                     }
                 }
             } else {
@@ -323,48 +325,48 @@ export function movementSystem(
 
                 if (leaderPos && !sameFloor) {
                     // Leader on different floor/side — navigate to rejoin in batch
-                    let remaining = n;
+                    let remaining = BigInt(n);
                     // Step 1: reach nearest rest area
-                    const restDist = Math.abs(pos.position - nearestRestArea(pos.position));
-                    if (restDist > 0) {
-                        const steps = Math.min(remaining, restDist);
+                    const restDist = bigAbs(pos.position - nearestRestArea(pos.position));
+                    if (restDist > 0n) {
+                        const steps = bigMin(remaining, restDist);
                         pos.position += stepToward(pos.position, nearestRestArea(pos.position)) * steps;
                         remaining -= steps;
                     }
                     // Step 2: at rest area — change floors/cross to match leader
-                    if (remaining > 0 && isRestArea(pos.position)) {
+                    if (remaining > 0n && isRestArea(pos.position)) {
                         if (pos.side !== leaderPos!.side) {
                             // Descend to floor 0
-                            const floorsDown = Math.min(pos.floor, remaining);
+                            const floorsDown = bigMin(pos.floor, remaining);
                             pos.floor -= floorsDown;
                             remaining -= floorsDown;
                             // Cross bridge
-                            if (pos.floor === 0 && remaining > 0) {
+                            if (pos.floor === 0n && remaining > 0n) {
                                 pos.side = leaderPos!.side;
-                                remaining--;
+                                remaining -= 1n;
                             }
                         }
-                        if (pos.side === leaderPos!.side && pos.floor !== leaderPos!.floor && remaining > 0) {
-                            const floorDist = Math.abs(pos.floor - leaderPos!.floor);
-                            const floorSteps = Math.min(remaining, floorDist);
-                            pos.floor += (pos.floor < leaderPos!.floor ? 1 : -1) * floorSteps;
+                        if (pos.side === leaderPos!.side && pos.floor !== leaderPos!.floor && remaining > 0n) {
+                            const floorDist = bigAbs(pos.floor - leaderPos!.floor);
+                            const floorSteps = bigMin(remaining, floorDist);
+                            pos.floor += (pos.floor < leaderPos!.floor ? 1n : -1n) * floorSteps;
                             remaining -= floorSteps;
                         }
-                        pos.floor = Math.max(0, pos.floor);
+                        pos.floor = bigMax(0n, pos.floor);
                     }
                     // Step 3: same floor — walk toward leader
-                    if (remaining > 0 && pos.side === leaderPos!.side && pos.floor === leaderPos!.floor) {
-                        const dist = Math.abs(leaderPos!.position - pos.position);
-                        const steps = Math.min(remaining, dist);
+                    if (remaining > 0n && pos.side === leaderPos!.side && pos.floor === leaderPos!.floor) {
+                        const dist = bigAbs(leaderPos!.position - pos.position);
+                        const steps = bigMin(remaining, dist);
                         pos.position += stepToward(pos.position, leaderPos!.position) * steps;
                     }
                 } else if (sameFloor) {
                     // Move toward leader position in batch
                     const dist = leaderPos!.position - pos.position;
-                    const step = Math.min(Math.abs(dist), n);
-                    pos.position += Math.sign(dist) * step;
+                    const step = bigMin(bigAbs(dist), BigInt(n));
+                    pos.position += bigSign(dist) * step;
                 } else {
-                    pos.position += mov.heading * n;
+                    pos.position += BigInt(mov.heading * n);
                 }
                 // Check if we crossed any rest areas — approximate floor changes
                 const restsCrossed = Math.floor(Math.abs(n) / 10);
@@ -373,8 +375,8 @@ export function movementSystem(
                         mov.heading = -mov.heading;
                     }
                     if (!leaderPos && rng.next() < config.exploreFloorChance) {
-                        pos.floor += rng.next() < 0.5 ? 1 : -1;
-                        pos.floor = Math.max(0, pos.floor);
+                        pos.floor += rng.next() < 0.5 ? 1n : -1n;
+                        pos.floor = bigMax(0n, pos.floor);
                     }
                 }
             }
