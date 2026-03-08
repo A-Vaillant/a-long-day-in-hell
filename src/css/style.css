@@ -1136,17 +1136,26 @@ button:disabled {
     }
 
     /* Mobile tap targets — 44px minimum per Apple HIG / WCAG */
+    #moves, #actions {
+        font-size: 1em;
+    }
+
     #moves a, #actions a {
         display: inline-block;
         min-height: 44px;
         line-height: 44px;
-        padding: 0 0.5rem;
+        padding: 0 0.75rem;
     }
 
     [data-goto], [data-action] {
         min-height: 44px;
+        padding: 0.4rem 0.6rem;
         display: inline-flex;
         align-items: center;
+    }
+
+    .passage a[data-goto] {
+        font-size: 1.05em;
     }
 
     /* Mobile menu button (visible when sidebar collapses) */
