@@ -409,6 +409,8 @@ button:disabled {
     letter-spacing: 0.06em;
     font-size: 0.9em;
     cursor: pointer;
+    display: block;
+    padding: 0.1rem 0;
 }
 .sb-menu a:hover {
     color: var(--text);
