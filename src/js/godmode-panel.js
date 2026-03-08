@@ -4,7 +4,7 @@
  * Callbacks: onSelect(id), onCenter(id), onDeselect()
  */
 
-import { getNpcNarrative } from "./godmode-narrative.js";
+import { getForNpc } from "./event-log.js";
 
 let callbacks = {};
 let lastHtml = "";
@@ -98,6 +98,14 @@ const TIPS = {
     endurance: "Physical resilience. Slows hunger, thirst, exhaustion. 3d6 (3–18).",
     influence: "Social force. Scales pressure, companion restoration, affinity gain. 3d6 (3–18).",
     quickness: "Speed. Movement probability, search speed, grab chance. 3d6 (3–18).",
+    witnessChasm: "Saw someone fall into the chasm. Permanent scar.",
+    foundBody: "Stumbled on a body. Numbs with repetition.",
+    companionDied: "Someone close died. Lingers.",
+    groupDissolved: "Their group fell apart. Decays over days.",
+    witnessEscape: "Saw someone escape. Hopeful. Fades slowly.",
+    foundWords: "Found words in a book. Brief wonder.",
+    witnessMadness: "Watched someone lose their mind. Permanent floor.",
+    companionMad: "Someone close went mad. Permanent scar.",
 };
 
 function tip(label) {
@@ -124,7 +132,7 @@ function bar(value, max, color) {
 // Each renderer: (comp, npc, snap) => html string (a gm-section)
 // Order array controls display order; unlisted components render last via fallback.
 
-const COMPONENT_ORDER = ["psychology", "stats", "intent", "knowledge", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation"];
+const COMPONENT_ORDER = ["psychology", "stats", "intent", "knowledge", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation", "memory"];
 
 const componentRenderers = {
     psychology(comp) {
@@ -363,6 +371,32 @@ const componentRenderers = {
         for (const mate of groupMates) {
             html += '<div class="gm-group-member gm-disp-' + mate.disposition + '">' +
                 esc(mate.name) + '</div>';
+        }
+        html += '</div>';
+        return html;
+    },
+
+    memory(comp, npc, snap) {
+        if (!comp.entries || comp.entries.length === 0) return "";
+        let html = '<div class="gm-section">';
+        html += '<div class="gm-section-title">memories</div>';
+        // Sort by weight descending
+        const sorted = comp.entries.slice().sort((a, b) => b.weight - a.weight);
+        for (const e of sorted) {
+            const pct = Math.max(0, Math.min(100, (e.weight / (e.initialWeight || 1)) * 100));
+            const color = e.permanent ? "#9a6a4a" : "#6a6050";
+            const age = snap ? (((snap.day - 1) * 240 + snap.tick) - e.tick) : 0;
+            const ageDays = Math.floor(age / 240);
+            const ageStr = ageDays > 0 ? " · " + ageDays + "d ago" : "";
+            const subjStr = e.subjectName ? " · " + e.subjectName : "";
+            const permStr = e.permanent ? " ·\u202fperm" : "";
+            html += '<div class="gm-memory-entry">';
+            html += '<div class="gm-memory-header">';
+            html += '<span class="gm-tip" data-tip="' + esc(TIPS[e.type] || "") + '">' + esc(e.type) + '</span>';
+            html += '<span class="gm-memory-meta">' + esc(subjStr + ageStr + permStr) + '</span>';
+            html += '</div>';
+            html += '<div class="gm-mini-bar"><div class="gm-mini-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
+            html += '</div>';
         }
         html += '</div>';
         return html;
@@ -624,15 +658,15 @@ function renderDetail(npc, snap, pane) {
     html += '<div class="gm-thought">' + esc(narrate(npc)) + '</div>';
     html += '</div>';
 
-    // Narrative history
-    const narrative = getNpcNarrative(npc.id);
-    if (narrative.length > 0) {
+    // Event history (objective log, filtered to this NPC)
+    const history = getForNpc(npc.id);
+    if (history.length > 0) {
         html += '<div class="gm-section">';
-        html += '<div class="gm-section-title">story</div>';
+        html += '<div class="gm-section-title">history</div>';
         html += '<div class="gm-narrative">';
         // Show newest first
-        for (let i = narrative.length - 1; i >= 0; i--) {
-            const entry = narrative[i];
+        for (let i = history.length - 1; i >= 0; i--) {
+            const entry = history[i];
             const mins = (entry.tick / 240) * 24 * 60 + 6 * 60;
             const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
             const mm = String(Math.floor(mins % 60)).padStart(2, "0");

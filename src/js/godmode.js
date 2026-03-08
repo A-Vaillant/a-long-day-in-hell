@@ -17,7 +17,7 @@ import { GodmodePanel } from "./godmode-panel.js";
 import { GodmodeLog } from "./godmode-log.js";
 import { GodmodeTrends } from "./godmode-trends.js";
 import { detectEvents } from "./godmode-detect.js";
-import { narrateEvents } from "./godmode-narrative.js";
+import { appendEvents } from "./event-log.js";
 import { getComponent } from "../../lib/ecs.core.ts";
 import { TICKS_PER_DAY, LIGHTS_ON_TICKS } from "../../lib/tick.core.ts";
 
@@ -43,8 +43,10 @@ function tickOnce() {
     // Social.onTick() is already called by Tick.advance — do NOT double-call
     const after = snapshot();
     const events = detectEvents(before, after);
-    for (const ev of events) GodmodeLog.push(ev);
-    if (events.length > 0) narrateEvents(events, after);
+    if (events.length > 0) {
+        appendEvents(events);
+        for (const ev of events) GodmodeLog.push(ev);
+    }
     GodmodeTrends.record(after);
     prevSnap = after;
 }
@@ -101,6 +103,26 @@ function snapshot() {
                         }
                     }
                     components[key] = { exposures };
+                } else if (key === "memory") {
+                    // Serialize memory entries — resolve subject entity → name
+                    const entries = (comp.entries || []).map(e => {
+                        let subjectName = null;
+                        if (e.subject != null) {
+                            const subjIdent = getComponent(world, e.subject, "identity");
+                            subjectName = subjIdent ? subjIdent.name : String(e.subject);
+                        }
+                        return {
+                            id: e.id,
+                            type: e.type,
+                            tick: e.tick,
+                            weight: e.weight,
+                            initialWeight: e.initialWeight,
+                            permanent: e.permanent,
+                            contagious: e.contagious,
+                            subjectName,
+                        };
+                    });
+                    components[key] = { entries, capacity: comp.capacity };
                 } else {
                     // Shallow copy plain data components
                     components[key] = { ...comp };
@@ -182,6 +204,21 @@ function snapshot() {
                         }
                     }
                     pComponents[key] = { exposures };
+                } else if (key === "memory") {
+                    const entries = (comp.entries || []).map(e => {
+                        let subjectName = null;
+                        if (e.subject != null) {
+                            const subjIdent = getComponent(world, e.subject, "identity");
+                            subjectName = subjIdent ? subjIdent.name : String(e.subject);
+                        }
+                        return {
+                            id: e.id, type: e.type, tick: e.tick,
+                            weight: e.weight, initialWeight: e.initialWeight,
+                            permanent: e.permanent, contagious: e.contagious,
+                            subjectName,
+                        };
+                    });
+                    pComponents[key] = { entries, capacity: comp.capacity };
                 } else {
                     pComponents[key] = { ...comp };
                 }
@@ -263,8 +300,10 @@ function tickBatch(n) {
     Tick.advance(n);
     const after = snapshot();
     const events = detectEvents(before, after);
-    for (const ev of events) GodmodeLog.push(ev);
-    if (events.length > 0) narrateEvents(events, after);
+    if (events.length > 0) {
+        appendEvents(events);
+        for (const ev of events) GodmodeLog.push(ev);
+    }
     GodmodeTrends.record(after);
     prevSnap = after;
 }

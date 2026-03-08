@@ -218,6 +218,13 @@ document.addEventListener("keydown", function (ev) {
             return;
         }
         return;
+    } else if (screen === "Memory") {
+        if (key === "q" || key === "Escape" || key === "m") {
+            ev.preventDefault();
+            Engine.goto("Corridor");
+            return;
+        }
+        return;
     } else if (screen === "Sign") {
         if (key === "q" || key === "Escape") {
             ev.preventDefault();
@@ -373,6 +380,11 @@ document.addEventListener("keydown", function (ev) {
         case "r": {
             ev.preventDefault();
             if (state.heldBook !== null && state.lightsOn) Engine.goto("Read Held Book");
+            break;
+        }
+        case "m": {
+            ev.preventDefault();
+            Engine.goto("Memory");
             break;
         }
         case "s": {

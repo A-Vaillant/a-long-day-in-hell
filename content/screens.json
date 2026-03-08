@@ -87,5 +87,33 @@
   "sign_closing": "We hope you enjoy your stay here. We have done all we can to make your stay a pleasant and instructive one.",
 
   "menu_save_confirm": "Saved.",
-  "menu_new_game_confirm": "Are you sure? All progress will be lost."
+  "menu_new_game_confirm": "Are you sure? All progress will be lost.",
+
+  "memory_empty": "Nothing has happened yet that you can't shake.",
+  "memory_witness_chasm": "You saw someone fall into the chasm.",
+  "memory_found_body": "You found someone dead on the floor.",
+  "memory_companion_died": "Someone you knew died.",
+  "memory_group_dissolved": "Your group fell apart.",
+  "memory_witness_escape": "You saw someone escape.",
+  "memory_found_words": "You found legible words in a book.",
+  "memory_witness_madness": "You watched someone lose their mind.",
+  "memory_companion_mad": "Someone you were close to went mad.",
+
+  "ambient_memory_chasm": [
+    "The railing catches your eye. You think of what you saw.",
+    "You pass the edge of the chasm and look away.",
+    "The drop is familiar. Not in a good way."
+  ],
+  "ambient_memory_body": [
+    "The carpet looks ordinary. You remember when it didn't.",
+    "You half-expect to find someone here again."
+  ],
+  "ambient_memory_escape": [
+    "Someone left from somewhere near here. You remember the feeling.",
+    "You think of what it looked like when they went through."
+  ],
+  "ambient_memory_madness": [
+    "Something happened here. You can still hear it.",
+    "The shelf is normal. Nothing about it is normal to you."
+  ]
 }
