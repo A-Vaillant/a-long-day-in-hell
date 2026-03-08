@@ -61,6 +61,11 @@ export const DEFAULT_SHOCKS: ShockConfig = {
     committingViolence: { lucidity: -0.3, hope: -1,   habitRate: 0.6 },
     sleepAlone:         { lucidity: 0,    hope: -3,   habitRate: 0.3 },
     sleepNoBed:         { lucidity: 0,    hope: -4.5, habitRate: 0.3 },
+    foundBody:          { lucidity: -0.3, hope: -0.5, habitRate: 1.2 },
+    companionDied:      { lucidity: -0.8, hope: -3,   habitRate: 0.1 },
+    groupDissolved:     { lucidity: 0,    hope: -1.5, habitRate: 0.5 },
+    witnessEscape:      { lucidity: 0.5,  hope: 3,    habitRate: 0 },
+    witnessMadness:     { lucidity: -1,   hope: -0.5, habitRate: 0.4 },
 };
 
 // --- Core functions ---
