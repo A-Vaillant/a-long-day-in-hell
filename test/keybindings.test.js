@@ -392,16 +392,32 @@ describe("Keybindings: Menu", () => {
  * -------------------------------------------------------- */
 
 describe("Keybindings: Life Story", () => {
-    it("e continues from life story", () => {
+    it("e goes to sign intro", () => {
         const game = bootGame();
         goTo(game, "Life Story");
+        pressKey(game, "e");
+        assert.strictEqual(game.state.screen, "Sign Intro");
+    });
+
+    it("E goes to sign intro", () => {
+        const game = bootGame();
+        goTo(game, "Life Story");
+        pressKey(game, "E");
+        assert.strictEqual(game.state.screen, "Sign Intro");
+    });
+});
+
+describe("Keybindings: Sign Intro", () => {
+    it("e continues to corridor", () => {
+        const game = bootGame();
+        goTo(game, "Sign Intro");
         pressKey(game, "e");
         assert.strictEqual(game.state.screen, "Corridor");
     });
 
-    it("E continues from life story", () => {
+    it("E continues to corridor", () => {
         const game = bootGame();
-        goTo(game, "Life Story");
+        goTo(game, "Sign Intro");
         pressKey(game, "E");
         assert.strictEqual(game.state.screen, "Corridor");
     });

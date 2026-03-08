@@ -96,6 +96,12 @@ document.addEventListener("keydown", function (ev) {
     } else if (screen === "Life Story") {
         if (key === "e" || key === "E") {
             ev.preventDefault();
+            Engine.goto("Sign Intro");
+            return;
+        }
+    } else if (screen === "Sign Intro") {
+        if (key === "e" || key === "E") {
+            ev.preventDefault();
             Engine.goto("Corridor");
             return;
         }

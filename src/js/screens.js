@@ -532,10 +532,34 @@ Engine.register("Life Story", {
     kind: "state",
     render() {
         return '<div id="lifestory-view">' +
-            LifeStory.format(state.lifeStory) +
+            '<p>' + esc(LifeStory.format(state.lifeStory)) + '</p>' +
             '<hr>' +
-            '<p class="key-hint"><a data-goto="Corridor">Continue <kbd>E</kbd></a></p>' +
+            '<p class="key-hint"><a data-goto="Sign Intro">Read the sign <kbd>E</kbd></a></p>' +
             '</div>';
+    },
+});
+
+Engine.register("Sign Intro", {
+    kind: "state",
+    render() {
+        var rules = TEXT.screens.sign_rules || [];
+        var html = '<div id="sign-view">';
+        html += '<p class="sign-intro-note"><em>A large sign is posted on the wall beside the shelves. You read it.</em></p>';
+        html += '<div class="sign-text">';
+        html += '<p>' + esc(TEXT.screens.sign_body) + '</p>';
+        html += '<ol class="sign-rules">';
+        for (var i = 0; i < rules.length; i++) {
+            html += '<li>' + esc(rules[i]) + '</li>';
+        }
+        html += '</ol>';
+        if (TEXT.screens.sign_closing) {
+            html += '<p class="sign-closing">' + esc(TEXT.screens.sign_closing) + '</p>';
+        }
+        html += '</div>';
+        html += '<hr>';
+        html += '<p class="key-hint"><a data-goto="Corridor">Continue <kbd>E</kbd></a></p>';
+        html += '</div>';
+        return html;
     },
 });
 
