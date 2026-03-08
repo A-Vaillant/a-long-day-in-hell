@@ -799,7 +799,12 @@ function setupInput(canvas) {
 
 function possessNpc(npcId) {
     if (possessing) return;
-    const npc = state.npcs && state.npcs.find(n => n.id === npcId);
+
+    // Check if possessing the player (id -1 in snapshot)
+    const isPlayer = npcId === -1;
+    const npc = isPlayer
+        ? { id: -1, name: "yourself", alive: true, side: state.side, position: state.position, floor: state.floor, falling: state.falling }
+        : state.npcs && state.npcs.find(n => n.id === npcId);
     if (!npc || !npc.alive) return;
 
     // Pause godmode sim
@@ -812,8 +817,8 @@ function possessNpc(npcId) {
     if (godmodeDOM) godmodeDOM.style.display = "none";
     document.body.classList.remove("godmode");
 
-    // Tell Social to swap player state to NPC
-    Social.possess(npcId);
+    // Tell Social to swap player state to NPC (skip for player — already there)
+    if (!isPlayer) Social.possess(npcId);
 
     // Build the normal game DOM structure
     const gameWrap = document.createElement("div");
@@ -822,8 +827,10 @@ function possessNpc(npcId) {
     // Possess banner
     const banner = document.createElement("div");
     banner.id = "possess-banner";
-    banner.innerHTML = '<span>Possessing <strong>' + (npc.name || "NPC") +
-        '</strong></span> <button id="unpossess-btn"><kbd>Esc</kbd> release</button>';
+    banner.innerHTML = isPlayer
+        ? '<span>Playing as <strong>yourself</strong></span> <button id="unpossess-btn">return to godmode</button>'
+        : '<span>Possessing <strong>' + (npc.name || "NPC") +
+          '</strong></span> <button id="unpossess-btn"><kbd>Esc</kbd> release</button>';
     gameWrap.appendChild(banner);
 
     // Standard game layout
@@ -865,16 +872,17 @@ function possessNpc(npcId) {
     // Wire unpossess button
     document.getElementById("unpossess-btn").addEventListener("click", unpossessNpc);
 
-    // Store wasRunning for restoration
+    // Store state for restoration
     state._possessWasRunning = wasRunning;
+    state._possessIsPlayer = isPlayer;
 }
 
 function unpossessNpc() {
     if (!possessing) return;
     possessing = false;
 
-    // Tell Social to restore player state
-    Social.unpossess();
+    // Tell Social to restore player state (skip for player — nothing to restore)
+    if (!state._possessIsPlayer) Social.unpossess();
 
     // Remove game DOM
     const gameWrap = document.getElementById("godmode-game-wrap");
@@ -892,6 +900,7 @@ function unpossessNpc() {
         updatePlayButton();
     }
     state._possessWasRunning = undefined;
+    state._possessIsPlayer = undefined;
 
     // Re-render godmode
     lastFrame = performance.now();
@@ -914,6 +923,9 @@ export const Godmode = {
 
     /** Whether we're in possession mode. */
     isPossessing() { return possessing; },
+
+    /** Whether we're possessing the player (vs an NPC). */
+    isPossessingPlayer() { return possessing && !!state._possessIsPlayer; },
 
     /** Called by Engine.init() after shared world setup. Replaces DOM and starts observation loop. */
     start() {
