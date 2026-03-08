@@ -13,7 +13,7 @@ function getTapTargets(document) {
 describe("Mobile tap targets", () => {
     it("corridor at rest area has tappable links for all facilities", () => {
         const game = bootGame();
-        game.state.position = 0; // rest area
+        game.state.position = 0n; // rest area
         game.Engine.goto("Corridor");
 
         const targets = getTapTargets(game.document);
@@ -29,7 +29,7 @@ describe("Mobile tap targets", () => {
 
     it("corridor at gallery has movement links with data-goto", () => {
         const game = bootGame();
-        game.state.position = 1; // gallery
+        game.state.position = 1n; // gallery
         game.Engine.goto("Corridor");
 
         const targets = getTapTargets(game.document);
@@ -45,7 +45,7 @@ describe("Mobile tap targets", () => {
 
     it("kiosk screen has tappable facility links", () => {
         const game = bootGame();
-        game.state.position = 0;
+        game.state.position = 0n;
         game.Engine.goto("Kiosk");
 
         const targets = getTapTargets(game.document);
@@ -58,7 +58,7 @@ describe("Mobile tap targets", () => {
 
     it("bedroom screen has tappable links", () => {
         const game = bootGame();
-        game.state.position = 0;
+        game.state.position = 0n;
         game.Engine.goto("Bedroom");
 
         const targets = getTapTargets(game.document);
@@ -71,8 +71,8 @@ describe("Mobile tap targets", () => {
     it("book view has navigation and action links", () => {
         const game = bootGame();
         // Open a book
-        game.state.position = 1;
-        game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 0 };
+        game.state.position = 1n;
+        game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 0 };
         game.state.openPage = 2; // middle page so both prev/next show
         game.Engine.goto("Shelf Open Book");
 
@@ -92,7 +92,7 @@ describe("Mobile tap targets", () => {
         const screens = ["Corridor", "Kiosk", "Bedroom", "Sign"];
 
         for (const screen of screens) {
-            game.state.position = 0;
+            game.state.position = 0n;
             game.Engine.goto(screen);
 
             const targets = getTapTargets(game.document);
@@ -106,7 +106,7 @@ describe("Mobile tap targets", () => {
 
     it("dark corridor still shows bedroom link", () => {
         const game = bootGame();
-        game.state.position = 0; // rest area
+        game.state.position = 0n; // rest area
         game.state.lightsOn = false;
         game.Engine.goto("Corridor");
 
@@ -118,7 +118,7 @@ describe("Mobile tap targets", () => {
 
     it("rest area has enough distinct actions for mobile navigation", () => {
         const game = bootGame();
-        game.state.position = 0;
+        game.state.position = 0n;
         game.state.lightsOn = true;
         game.Engine.goto("Corridor");
 

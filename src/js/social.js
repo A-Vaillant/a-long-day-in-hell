@@ -55,7 +55,7 @@ export const Social = {
         // Spawn player entity
         playerEntity = spawn(world);
         addComponent(world, playerEntity, POSITION, {
-            side: state.side, position: state.position, floor: state.floor,
+            side: state.side, position: BigInt(state.position), floor: BigInt(state.floor),
         });
         const playerName = (state.lifeStory && state.lifeStory.name) || "You";
         addComponent(world, playerEntity, IDENTITY, { name: playerName, alive: true, free: false });
@@ -74,7 +74,7 @@ export const Social = {
         const playerStatsRng = seedFromString(state.seed + ":player:stats");
         addComponent(world, playerEntity, STATS, generateStats(playerStatsRng));
         // Use createKnowledge shape so player and NPC fields stay in sync
-        const playerKnowledge = createKnowledge(state.seed, -1, { side: state.side, position: state.position, floor: state.floor });
+        const playerKnowledge = createKnowledge(state.seed, -1, { side: state.side, position: BigInt(state.position), floor: BigInt(state.floor) });
         playerKnowledge.lifeStory = state.lifeStory;
         addComponent(world, playerEntity, KNOWLEDGE, playerKnowledge);
         addComponent(world, playerEntity, NEEDS, {
@@ -90,7 +90,7 @@ export const Social = {
         addComponent(world, playerEntity, SEARCHING, createSearching());
         addComponent(world, playerEntity, MEMORY, createMemory());
         addComponent(world, playerEntity, SLEEP, {
-            home: { side: state.side, position: nearestRestArea(state.position), floor: state.floor },
+            home: { side: state.side, position: nearestRestArea(BigInt(state.position)), floor: BigInt(state.floor) },
             bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0,
             nomadic: false,
         });
@@ -151,8 +151,8 @@ export const Social = {
         const pos = getComponent(world, playerEntity, POSITION);
         if (pos) {
             pos.side = state.side;
-            pos.position = state.position;
-            pos.floor = state.floor;
+            pos.position = BigInt(state.position);
+            pos.floor = BigInt(state.floor);
         }
         // Keep player alive status in sync
         const ident = getComponent(world, playerEntity, IDENTITY);
@@ -170,8 +170,8 @@ export const Social = {
             const npc = state.npcs && state.npcs.find(n => n.id === state._possessedNpcId);
             if (npc) {
                 npc.side = state.side;
-                npc.position = state.position;
-                npc.floor = state.floor;
+                npc.position = BigInt(state.position);
+                npc.floor = BigInt(state.floor);
                 npc.falling = state.falling;
             }
         }

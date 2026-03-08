@@ -234,7 +234,7 @@ Engine.register("Corridor", {
             var heldLabel = getBookName(state.heldBook);
             html += ' <a data-goto="Read Held Book"><kbd>r</kbd> read' + (heldLabel ? ' \u2018' + esc(heldLabel) + '\u2019' : '') + '</a>';
         }
-        if (state.floor > 0) {
+        if (state.floor > 0n) {
             html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
         }
         if (npcsHere.length > 0) {
@@ -1106,7 +1106,7 @@ Engine.register("Chasm", {
         return html;
     },
     afterRender() {
-        if (state.floor === 0) return;
+        if (state.floor === 0n) return;
         if (Despair.chasmSkipsConfirm()) {
             Actions.resolve({ type: "chasm_jump" });
             setTimeout(function () { Engine.goto("Falling"); }, 0);
