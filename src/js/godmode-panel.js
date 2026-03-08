@@ -402,20 +402,12 @@ function showSearchMap(npcId) {
         parsed.filter(p => p.side === 1),
     ];
 
-    // Compute bounds across all segments + NPC position + book vision
-    // Coerce BigInt → Number for canvas math (values are small in practice)
+    // Compute bounds from searched segments + NPC position only.
+    // Book/vision coords excluded — they can be billions of segments away.
     const allPos = parsed.map(p => p.pos);
     const allFloor = parsed.map(p => p.floor);
     allPos.push(Number(npc.position));
     allFloor.push(Number(npc.floor));
-    if (k.bookVision) {
-        allPos.push(Number(k.bookVision.position));
-        allFloor.push(Number(k.bookVision.floor));
-    }
-    if (k.lifeStory && k.lifeStory.bookCoords) {
-        allPos.push(Number(k.lifeStory.bookCoords.position));
-        allFloor.push(Number(k.lifeStory.bookCoords.floor));
-    }
 
     const minPos = Math.min(...allPos) - 2;
     const maxPos = Math.max(...allPos) + 2;
@@ -444,12 +436,15 @@ function showSearchMap(npcId) {
     const hasBoth = bySide[0].length > 0 && bySide[1].length > 0;
     const sidesToShow = hasBoth ? [0, 1] : (bySide[0].length > 0 ? [0] : [1]);
 
-    // Canvas sizing
-    const CELL = Math.max(3, Math.min(12, Math.floor(280 / Math.max(cols, rows))));
+    // Cap canvas to a reasonable size — beyond this, cells are dots
+    const MAX_DIM = 500;
+    const clampedCols = Math.min(cols, MAX_DIM);
+    const clampedRows = Math.min(rows, MAX_DIM);
+    const CELL = Math.max(2, Math.min(12, Math.floor(280 / Math.max(clampedCols, clampedRows))));
     const GAP = hasBoth ? 8 : 0;
-    const corridorW = cols * CELL;
+    const corridorW = clampedCols * CELL;
     const canvasW = hasBoth ? corridorW * 2 + GAP : corridorW;
-    const canvasH = rows * CELL;
+    const canvasH = clampedRows * CELL;
 
     const canvas = document.createElement("canvas");
     canvas.width = canvasW;
@@ -479,24 +474,28 @@ function showSearchMap(npcId) {
         ctx.fillStyle = "#0d0b08";
         ctx.fillRect(offsetX, 0, corridorW, canvasH);
 
-        // Grid lines
-        ctx.strokeStyle = "#1a1710";
-        ctx.lineWidth = 0.5;
-        for (let c = 0; c <= cols; c++) {
-            const x = offsetX + c * CELL;
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
-        }
-        for (let r = 0; r <= rows; r++) {
-            const y = r * CELL;
-            ctx.beginPath(); ctx.moveTo(offsetX, y); ctx.lineTo(offsetX + corridorW, y); ctx.stroke();
+        // Grid lines (skip when cells are tiny — just noise)
+        if (CELL >= 4) {
+            ctx.strokeStyle = "#1a1710";
+            ctx.lineWidth = 0.5;
+            for (let c = 0; c <= clampedCols; c++) {
+                const x = offsetX + c * CELL;
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+            }
+            for (let r = 0; r <= clampedRows; r++) {
+                const y = r * CELL;
+                ctx.beginPath(); ctx.moveTo(offsetX, y); ctx.lineTo(offsetX + corridorW, y); ctx.stroke();
+            }
         }
 
         // Searched cells — iterate the set, not the bounding box
+        // Clamp to visible region
         ctx.fillStyle = "#3a5a3a";
         for (const seg of bySide[sideIdx]) {
-            const cx = offsetX + (seg.pos - minPos) * CELL;
-            const cy = (maxFloor - seg.floor) * CELL;
-            ctx.fillRect(cx, cy, CELL, CELL);
+            const col = seg.pos - minPos;
+            const row = maxFloor - seg.floor;
+            if (col < 0 || col >= clampedCols || row < 0 || row >= clampedRows) continue;
+            ctx.fillRect(offsetX + col * CELL, row * CELL, CELL, CELL);
         }
 
         // NPC position
