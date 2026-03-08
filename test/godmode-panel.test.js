@@ -345,44 +345,59 @@ describe("GodmodePanel — Damnation", () => {
         assert.strictEqual(btn.textContent, "[?]");
     });
 
-    it("clicking [?] with damned NPC shows distance with damned annotation", () => {
+    it("clicking [?] with damned NPC shows damned label", () => {
         const prose = "Your name was Rosa Ingram. You were a librarian, from Portland. You died of heart failure. Before you died, you were thinking about the garden.";
         const npc = makeNpcWithKnowledge(prose);
-        GodmodePanel.update(makeSnap([npc]), 0, true);
+        const snap = makeSnap([npc]);
+        GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
         btn.click();
-        assert.ok(btn.textContent.includes("moves"), `expected distance, got: ${btn.textContent}`);
-        assert.ok(btn.textContent.includes("damned"), `expected damned annotation, got: ${btn.textContent}`);
+        // Re-render to see cached result
+        GodmodePanel.update(snap, 0, true);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(pane.innerHTML.includes("damned"), `expected damned in pane`);
+        // Should NOT show book coordinates
+        assert.ok(!pane.innerHTML.includes("s100"), "should not reveal book location for damned NPC");
     });
 
-    it("clicking [?] with in-bounds NPC shows distance in moves", () => {
+    it("clicking [?] with in-bounds NPC reveals location and distance", () => {
         const shortText = "You were born.";
         const bc = { side: 0, position: 200n, floor: 10n, bookIndex: 0 };
         const npc = makeNpcWithKnowledge(shortText, bc, { side: 0, position: 100n, floor: 5n });
-        GodmodePanel.update(makeSnap([npc]), 0, true);
+        const snap = makeSnap([npc]);
+        GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
         btn.click();
-        assert.ok(btn.textContent.includes("moves"), `expected moves, got: ${btn.textContent}`);
-        assert.ok(!btn.textContent.includes("DAMNED"));
+        GodmodePanel.update(snap, 0, true);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(pane.innerHTML.includes("moves"), `expected moves in pane`);
+        assert.ok(pane.innerHTML.includes("s200"), "should show book position after click");
     });
 
     it("in-bounds distance is correct arithmetic", () => {
         const shortText = "You were born.";
         const bc = { side: 0, position: 200n, floor: 10n, bookIndex: 0 };
         const npc = makeNpcWithKnowledge(shortText, bc, { side: 0, position: 100n, floor: 5n });
-        GodmodePanel.update(makeSnap([npc]), 0, true);
+        const snap = makeSnap([npc]);
+        GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
         btn.click();
-        assert.ok(btn.textContent.includes("105"), `expected 105, got: ${btn.textContent}`);
+        GodmodePanel.update(snap, 0, true);
+        const pane = document.getElementById("gm-npc-pane");
+        assert.ok(pane.innerHTML.includes("105"), `expected 105 in pane`);
     });
 
-    it("[?] becomes non-clickable after calculation", () => {
-        const prose = "Your name was Rosa Ingram. You were a librarian, from Portland. You died of heart failure.";
-        const npc = makeNpcWithKnowledge(prose);
-        GodmodePanel.update(makeSnap([npc]), 0, true);
+    it("[?] disappears after calculation (replaced by cached result)", () => {
+        const shortText = "You were born.";
+        const npc = makeNpcWithKnowledge(shortText);
+        const snap = makeSnap([npc]);
+        GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
+        assert.ok(btn, "[?] exists before click");
         btn.click();
-        assert.strictEqual(btn.style.cursor, "default");
+        GodmodePanel.update(snap, 0, true);
+        const btn2 = document.querySelector(".gm-calc-dist");
+        assert.strictEqual(btn2, null, "[?] should be gone after calculation");
     });
 });
 

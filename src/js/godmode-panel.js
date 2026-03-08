@@ -202,20 +202,24 @@ const componentRenderers = {
     knowledge(comp, npc) {
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">knowledge</div>';
-        // Book location + damnation check (lazy — click [?] to compute)
+        // Book location + distance — hidden until [?] clicked, cached after
         const bc = comp.lifeStory && comp.lifeStory.bookCoords;
         if (bc) {
-            const bookLoc = (bc.side === 0 ? 'W' : 'E') + ' f' + bc.floor + ' s' + bc.position + ' #' + bc.bookIndex;
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Computed from story text. The NPC does not know this.">book</span>';
-            html += '<span class="gm-bar-num">' + esc(bookLoc) + '</span></div>';
-            // Distance / damnation — computed on demand, cached after first click
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Click to compute: distance to book, or whether it lies beyond the library edge.">distance</span>';
             const cached = distCache.get(npc.id);
             if (cached) {
-                const color = cached.damned ? '#9a2a2a' : '#aaa';
-                html += '<span class="gm-bar-num" style="color:' + color + '">' + esc(cached.text) + '</span></div>';
+                if (cached.damned) {
+                    html += '<div class="gm-stat"><span class="gm-tip" data-tip="Story text exceeds library address space. No valid shelf location exists.">book</span>';
+                    html += '<span class="gm-bar-num" style="color:#9a2a2a">damned</span></div>';
+                } else {
+                    const bookLoc = (bc.side === 0 ? 'W' : 'E') + ' f' + bc.floor + ' s' + bc.position + ' #' + bc.bookIndex;
+                    html += '<div class="gm-stat"><span class="gm-tip" data-tip="Computed from story text. The NPC does not know this.">book</span>';
+                    html += '<span class="gm-bar-num">' + esc(bookLoc) + '</span></div>';
+                    html += '<div class="gm-stat"><span>distance</span>';
+                    html += '<span class="gm-bar-num">' + esc(cached.text) + '</span></div>';
+                }
             } else {
                 const storyText = comp.lifeStory ? comp.lifeStory.storyText : '';
+                html += '<div class="gm-stat"><span class="gm-tip" data-tip="Click to compute: book location and distance, or whether the NPC is damned.">book</span>';
                 html += '<span class="gm-bar-num"><a class="gm-calc-dist" data-npc-id="' + npc.id + '" data-story-text="' + esc(storyText) + '" data-npc-pos="' + npc.position + '" data-npc-floor="' + npc.floor + '" data-npc-side="' + npc.side + '" data-bc-side="' + bc.side + '" data-bc-pos="' + bc.position + '" data-bc-floor="' + bc.floor + '" style="cursor:pointer;color:#aaa">[?]</a></span></div>';
             }
         }
@@ -421,12 +425,6 @@ function showSearchMap(npcId) {
     const cols = maxPos - minPos + 1;
     const rows = maxFloor - minFloor + 1;
 
-    // Build sets for fast lookup
-    const searchedSets = [new Set(), new Set()];
-    for (const p of parsed) {
-        searchedSets[p.side].add(p.pos + ":" + p.floor);
-    }
-
     // Create overlay
     const pane = document.getElementById("gm-npc-pane");
     if (!pane) return;
@@ -476,7 +474,6 @@ function showSearchMap(npcId) {
 
     for (const sideIdx of sidesToShow) {
         const offsetX = hasBoth && sideIdx === 1 ? corridorW + GAP : 0;
-        const searched = searchedSets[sideIdx];
 
         // Background
         ctx.fillStyle = "#0d0b08";
@@ -494,16 +491,12 @@ function showSearchMap(npcId) {
             ctx.beginPath(); ctx.moveTo(offsetX, y); ctx.lineTo(offsetX + corridorW, y); ctx.stroke();
         }
 
-        // Searched cells
+        // Searched cells — iterate the set, not the bounding box
         ctx.fillStyle = "#3a5a3a";
-        for (let p = minPos; p <= maxPos; p++) {
-            for (let f = minFloor; f <= maxFloor; f++) {
-                if (searched.has(p + ":" + f)) {
-                    const cx = offsetX + (p - minPos) * CELL;
-                    const cy = (maxFloor - f) * CELL; // flip Y
-                    ctx.fillRect(cx, cy, CELL, CELL);
-                }
-            }
+        for (const seg of bySide[sideIdx]) {
+            const cx = offsetX + (seg.pos - minPos) * CELL;
+            const cy = (maxFloor - seg.floor) * CELL;
+            ctx.fillRect(cx, cy, CELL, CELL);
         }
 
         // NPC position
@@ -924,22 +917,24 @@ export const GodmodePanel = {
                 if (calcBtn) {
                     const storyText = calcBtn.dataset.storyText || '';
                     const npcId = parseInt(calcBtn.dataset.npcId, 10);
-                    const npcPos   = BigInt(calcBtn.dataset.npcPos);
-                    const npcFloor = BigInt(calcBtn.dataset.npcFloor);
-                    const npcSide  = parseInt(calcBtn.dataset.npcSide, 10);
-                    const bcSide   = parseInt(calcBtn.dataset.bcSide, 10);
-                    const bcPos    = BigInt(calcBtn.dataset.bcPos);
-                    const bcFloor  = BigInt(calcBtn.dataset.bcFloor);
-                    const dPos   = npcPos > bcPos ? npcPos - bcPos : bcPos - npcPos;
-                    const dFloor = npcFloor > bcFloor ? npcFloor - bcFloor : bcFloor - npcFloor;
-                    const cross  = npcSide !== bcSide ? npcFloor + bcFloor : 0n;
-                    const dist   = dPos + dFloor + cross;
                     const damned = !isInBounds(storyText);
-                    const text = dist.toLocaleString() + ' moves' + (damned ? ' (damned)' : '');
-                    distCache.set(npcId, { text, damned });
-                    calcBtn.textContent = text;
-                    calcBtn.style.color = damned ? '#9a2a2a' : '#aaa';
-                    calcBtn.style.cursor = 'default';
+                    if (damned) {
+                        distCache.set(npcId, { text: '', damned: true });
+                    } else {
+                        const npcPos   = BigInt(calcBtn.dataset.npcPos);
+                        const npcFloor = BigInt(calcBtn.dataset.npcFloor);
+                        const npcSide  = parseInt(calcBtn.dataset.npcSide, 10);
+                        const bcSide   = parseInt(calcBtn.dataset.bcSide, 10);
+                        const bcPos    = BigInt(calcBtn.dataset.bcPos);
+                        const bcFloor  = BigInt(calcBtn.dataset.bcFloor);
+                        const dPos   = npcPos > bcPos ? npcPos - bcPos : bcPos - npcPos;
+                        const dFloor = npcFloor > bcFloor ? npcFloor - bcFloor : bcFloor - npcFloor;
+                        const cross  = npcSide !== bcSide ? npcFloor + bcFloor : 0n;
+                        const dist   = dPos + dFloor + cross;
+                        distCache.set(npcId, { text: dist.toLocaleString() + ' moves', damned: false });
+                    }
+                    // Force re-render to show cached result
+                    lastHtml = "";
                     return;
                 }
 
