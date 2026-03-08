@@ -59,7 +59,7 @@ export const Social = {
         });
         const playerName = (state.lifeStory && state.lifeStory.name) || "You";
         addComponent(world, playerEntity, IDENTITY, { name: playerName, alive: true, free: false });
-        addComponent(world, playerEntity, PSYCHOLOGY, { lucidity: 100, hope: 100 });
+        addComponent(world, playerEntity, PSYCHOLOGY, { lucidity: 100, hope: 50 });
         addComponent(world, playerEntity, RELATIONSHIPS, { bonds: new Map() });
         addComponent(world, playerEntity, HABITUATION, { exposures: new Map() });
         addComponent(world, playerEntity, PLAYER, {});
@@ -111,10 +111,10 @@ export const Social = {
                 });
                 addComponent(world, ent, IDENTITY, { name: npc.name, alive: npc.alive, free: false });
                 // Match initial psychology to spawn disposition
-                const initPsych = npc.disposition === "mad" ? { lucidity: 25, hope: 60 } :
-                                  npc.disposition === "anxious" ? { lucidity: 55, hope: 50 } :
+                const initPsych = npc.disposition === "mad" ? { lucidity: 25, hope: 30 } :
+                                  npc.disposition === "anxious" ? { lucidity: 55, hope: 40 } :
                                   npc.disposition === "catatonic" ? { lucidity: 20, hope: 10 } :
-                                  { lucidity: 100, hope: 100 };
+                                  { lucidity: 100, hope: 50 };
                 addComponent(world, ent, PSYCHOLOGY, initPsych);
                 addComponent(world, ent, RELATIONSHIPS, { bonds: new Map() });
                 addComponent(world, ent, HABITUATION, { exposures: new Map() });
@@ -315,9 +315,11 @@ export const Social = {
         // Collect witness events from escape/chasm/falling/disposition changes
         const witnessEvents = [];
 
-        // Detect new bonds (familiarity crossed threshold) — emit MET_SOMEONE via witnessSystem
-        // Deduplicate by only emitting from the lower-entity-id side of each pair.
-        const reportedBonds = new Set(); // "minEnt:maxEnt" to avoid double-emit
+        // Detect new bonds (familiarity crossed threshold).
+        // Apply MET_SOMEONE directly to both parties (full weight), then push a
+        // sight-range witnessEvent for bystanders (minor hope boost, same weight from config).
+        const reportedBonds = new Set(); // "minEnt:maxEnt" to avoid double-emit per pair
+        const tc_met = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.MET_SOMEONE];
         for (const ent of allEntities) {
             const rels = getComponent(world, ent, RELATIONSHIPS);
             if (!rels) continue;
@@ -333,12 +335,36 @@ export const Social = {
                     reportedBonds.add(pairKey);
                     const pos = getComponent(world, ent, POSITION);
                     if (!pos) continue;
+                    const eventPos = { side: pos.side, position: pos.position, floor: pos.floor };
+
+                    // Apply directly to both parties
+                    for (const party of [ent, other]) {
+                        const partyIdent = getComponent(world, party, IDENTITY);
+                        if (!partyIdent || !partyIdent.alive) continue;
+                        let mem = getComponent(world, party, MEMORY);
+                        if (!mem) { mem = createMemory(); addComponent(world, party, MEMORY, mem); }
+                        if (!hasRecentMemory(mem, MEMORY_TYPES.MET_SOMEONE, other, currentTick, DEFAULT_MEMORY_CONFIG.dedupWindow)) {
+                            const partyWeight = 4; // parties get stronger memory than bystanders
+                            mem.entries.push({
+                                id: mem.nextId++,
+                                type: MEMORY_TYPES.MET_SOMEONE,
+                                tick: currentTick,
+                                weight: partyWeight,
+                                initialWeight: partyWeight,
+                                permanent: tc_met.permanent,
+                                subject: other,
+                                contagious: tc_met.contagious,
+                            });
+                        }
+                    }
+
+                    // Bystanders within sight get a weaker version via witnessSystem
                     witnessEvents.push({
                         type: MEMORY_TYPES.MET_SOMEONE,
-                        subject: other,  // who was met
-                        position: { side: pos.side, position: pos.position, floor: pos.floor },
+                        subject: other,
+                        position: eventPos,
                         bondedOnly: false,
-                        range: "colocated",
+                        range: "sight",
                     });
                 }
             }

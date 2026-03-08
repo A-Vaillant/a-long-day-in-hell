@@ -89,7 +89,7 @@ export const DEFAULT_MEMORY_TYPES: Record<MemoryType, MemoryTypeConfig> = {
     foundWords:      { initialWeight: 3,  decayRate: 0.002,   floor: 0,   permanent: false, contagious: false, shockKey: null,              hopeDrainPerTick: 0.00003,  lucidityDrainPerTick: 0 },
     witnessMadness:  { initialWeight: 7,  decayRate: 0.0003,  floor: 1.0, permanent: true,  contagious: false, shockKey: "witnessMadness",  hopeDrainPerTick: -0.00002, lucidityDrainPerTick: -0.00006 },
     companionMad:    { initialWeight: 9,  decayRate: 0.0002,  floor: 2.0, permanent: true,  contagious: false, shockKey: "companionMad",    hopeDrainPerTick: -0.00003, lucidityDrainPerTick: -0.00005 },
-    metSomeone:      { initialWeight: 4,  decayRate: 0.0008,  floor: 0,   permanent: false, contagious: false, shockKey: null,              hopeDrainPerTick: 0.00002,  lucidityDrainPerTick: 0 },
+    metSomeone:      { initialWeight: 2,  decayRate: 0.0008,  floor: 0,   permanent: false, contagious: false, shockKey: null,              hopeDrainPerTick: 0.00001,  lucidityDrainPerTick: 0 },
 };
 
 export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
