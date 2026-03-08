@@ -19,6 +19,15 @@ export { state };
 
 const SAVE_KEY = "hell_save";
 
+function jsonReplacer(key, value) {
+    if (typeof value === 'bigint') return { __bigint: value.toString() };
+    return value;
+}
+function jsonReviver(key, value) {
+    if (value && typeof value === 'object' && '__bigint' in value) return BigInt(value.__bigint);
+    return value;
+}
+
 export function T(value, contextKey) {
     if (!Array.isArray(value)) return value;
     if (value.length === 0) return "";
@@ -218,12 +227,13 @@ export const Engine = {
                 var parts = [];
                 if (home.side !== state.side) parts.push('across the chasm');
                 var df = home.floor - state.floor;
-                if (df > 0) parts.push(df + (df === 1 ? ' floor up' : ' floors up'));
-                else if (df < 0) parts.push((-df) + (df === -1 ? ' floor down' : ' floors down'));
+                if (df > 0n) parts.push(df + (df === 1n ? ' floor up' : ' floors up'));
+                else if (df < 0n) parts.push((-df) + (df === -1n ? ' floor down' : ' floors down'));
                 var dp = home.position - state.position;
-                if (Math.abs(dp) > 20) parts.push(dp > 0 ? 'far right' : 'far left');
-                else if (Math.abs(dp) > 5) parts.push(dp > 0 ? 'right' : 'left');
-                else if (dp !== 0) parts.push(dp > 0 ? 'just right' : 'just left');
+                var absDp = dp < 0n ? -dp : dp;
+                if (absDp > 20n) parts.push(dp > 0n ? 'far right' : 'far left');
+                else if (absDp > 5n) parts.push(dp > 0n ? 'right' : 'left');
+                else if (dp !== 0n) parts.push(dp > 0n ? 'just right' : 'just left');
                 var desc = parts.length > 0 ? parts.join(', ') : 'here';
                 html += '<div class="sb-home">' + desc + '</div>';
             }
@@ -263,7 +273,7 @@ export const Engine = {
             var cur = this._screens[state.screen];
             if (cur && cur.kind === "transition") return; // never save on a transition
             if (state._possessedNpcId != null) return; // don't save during possession
-            localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+            localStorage.setItem(SAVE_KEY, JSON.stringify(state, jsonReplacer));
         } catch (e) {
             if (e instanceof DOMException && e.name === "QuotaExceededError") return;
             console.error("Save failed:", e);
@@ -272,7 +282,7 @@ export const Engine = {
     load() {
         try {
             const raw = localStorage.getItem(SAVE_KEY);
-            if (raw) return JSON.parse(raw);
+            if (raw) return JSON.parse(raw, jsonReviver);
         } catch (e) { /* ignore parse errors */ }
         return null;
     },
@@ -307,8 +317,8 @@ export const Engine = {
 
             state.seed     = seed;
             state.side     = 0;
-            state.position = 0;
-            state.floor    = PRNG.fork("startFloor").nextInt(100000) + 50000;
+            state.position = 0n;
+            state.floor    = BigInt(PRNG.fork("startFloor").nextInt(100000) + 50000);
             state.move     = "";
             state.heldBook    = null;
             state.shelfOffset = 0;
@@ -345,7 +355,7 @@ export const Engine = {
             const ob = params.get("openBook");
             if (ob) {
                 const parts = ob.split(",").map(Number);
-                state.openBook = { side: parts[0], position: parts[1], floor: parts[2], bookIndex: parts[3] };
+                state.openBook = { side: parts[0], position: BigInt(parts[1]), floor: BigInt(parts[2]), bookIndex: parts[3] };
                 const sp = params.get("spread");
                 state.openPage = sp ? Number(sp) : 0;
             }

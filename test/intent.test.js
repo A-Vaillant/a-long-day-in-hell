@@ -29,8 +29,8 @@ describe("DEFAULT_SCORERS", () => {
             personality: { temperament: 0.5, pace: 0.5, openness: 0.5, outlook: 0.5 },
             intent: makeIntent(),
             rng: makeRng(0.5),
-            position: { side: 0, position: 5, floor: 0 },
-            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            position: { side: 0, position: 5n, floor: 0n },
+            sleep: { home: { side: 0, position: 10n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
             tick: 0,
             ...overrides,
         };
@@ -102,8 +102,8 @@ describe("DEFAULT_SCORERS", () => {
 
     it("return_home scores positively in the evening when away from home", () => {
         const ctx = makeCtx({
-            position: { side: 0, position: 5, floor: 0 },
-            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            position: { side: 0, position: 5n, floor: 0n },
+            sleep: { home: { side: 0, position: 10n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
             tick: 150, // near lights-out
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
@@ -112,8 +112,8 @@ describe("DEFAULT_SCORERS", () => {
 
     it("return_home returns -Infinity when already at home", () => {
         const ctx = makeCtx({
-            position: { side: 0, position: 10, floor: 0 },
-            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            position: { side: 0, position: 10n, floor: 0n },
+            sleep: { home: { side: 0, position: 10n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
             tick: 150,
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
@@ -122,8 +122,8 @@ describe("DEFAULT_SCORERS", () => {
 
     it("return_home returns -Infinity when too far from home", () => {
         const ctx = makeCtx({
-            position: { side: 0, position: 100, floor: 0 },
-            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
+            position: { side: 0, position: 100n, floor: 0n },
+            sleep: { home: { side: 0, position: 10n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
             tick: 150,
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
@@ -137,7 +137,7 @@ describe("DEFAULT_SCORERS", () => {
 
     it("return_home returns -Infinity for nomadic NPCs", () => {
         const ctx = makeCtx({
-            sleep: { home: { side: 0, position: 10, floor: 0 }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: true },
+            sleep: { home: { side: 0, position: 10n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: true },
             tick: 150,
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);

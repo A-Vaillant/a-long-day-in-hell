@@ -43,7 +43,7 @@ export interface Knowledge {
 export function generateNpcLifeStory(
     globalSeed: string,
     npcId: number,
-    startLoc: { side: number; position: number; floor: number },
+    startLoc: { side: number; position: bigint; floor: bigint },
 ): LifeStory {
     const seed = globalSeed + ":npc:life:" + npcId;
     return generateLifeStory(seed, { placement: "gaussian", startLoc });
@@ -57,7 +57,7 @@ export function generateNpcLifeStory(
 export function createKnowledge(
     globalSeed: string,
     npcId: number,
-    startLoc: { side: number; position: number; floor: number },
+    startLoc: { side: number; position: bigint; floor: bigint },
 ): Knowledge {
     return {
         lifeStory: generateNpcLifeStory(globalSeed, npcId, startLoc),
@@ -79,7 +79,7 @@ export function createKnowledge(
  */
 export function isAtBookSegment(
     knowledge: Knowledge,
-    pos: { side: number; position: number; floor: number },
+    pos: { side: number; position: bigint; floor: bigint },
 ): boolean {
     const vision = knowledge.bookVision;
     if (!vision) return false;
@@ -89,17 +89,17 @@ export function isAtBookSegment(
 }
 
 /** Segment key for searchedSegments set. */
-export function segmentKey(side: number, position: number, floor: number): string {
+export function segmentKey(side: number, position: bigint, floor: bigint): string {
     return `${side}:${position}:${floor}`;
 }
 
 /** Mark a segment as searched. */
-export function markSearched(knowledge: Knowledge, side: number, position: number, floor: number): void {
+export function markSearched(knowledge: Knowledge, side: number, position: bigint, floor: bigint): void {
     knowledge.searchedSegments.add(segmentKey(side, position, floor));
 }
 
 /** Check if a segment has been searched. */
-export function isSearched(knowledge: Knowledge, side: number, position: number, floor: number): boolean {
+export function isSearched(knowledge: Knowledge, side: number, position: bigint, floor: bigint): boolean {
     return knowledge.searchedSegments.has(segmentKey(side, position, floor));
 }
 

@@ -27,7 +27,7 @@ import { seedFromString } from "../lib/prng.core.ts";
 function makeEntity(world, opts = {}) {
     const {
         name = "Npc",
-        side = 0, position = 0, floor = 0,
+        side = 0, position = 0n, floor = 0n,
         influence = 10,
         temperament = 0.5, pace = 0.5, openness = 0.5, outlook = 0.5,
         lucidity = 100, hope = 100,
@@ -48,7 +48,7 @@ function addMovement(world, entity, heading = 1) {
     addComponent(world, entity, MOVEMENT, { targetPosition: null, heading });
     addComponent(world, entity, INTENT, { behavior: "explore", cooldown: 0 });
     addComponent(world, entity, SLEEP, {
-        home: { side: 0, position: 0, floor: 0 },
+        home: { side: 0, position: 0n, floor: 0n },
         bedIndex: null, asleep: false, coSleepers: [],
         awayStreak: 0, nomadic: false,
     });
@@ -159,8 +159,8 @@ describe("Group leader election", () => {
 describe("Group movement bias", () => {
     it("follower moves toward leader instead of own heading", () => {
         const world = createWorld();
-        const leader = makeEntity(world, { name: "Leader", position: 50, influence: 18 });
-        const follower = makeEntity(world, { name: "Follower", position: 40, influence: 5, pace: 0.0 });
+        const leader = makeEntity(world, { name: "Leader", position: 50n, influence: 18 });
+        const follower = makeEntity(world, { name: "Follower", position: 40n, influence: 5, pace: 0.0 });
         addMovement(world, leader, 1);
         addMovement(world, follower, -1); // heading AWAY from leader
         putInGroup(world, [leader, follower]);
@@ -169,10 +169,10 @@ describe("Group movement bias", () => {
         // Run single tick — patient follower (pace=0) should follow leader with high probability
         const rng = seedFromString("follow-test");
         // Run many ticks and check net direction
-        const startPos = 40;
-        let moved = 0;
+        const startPos = 40n;
+        let moved = 0n;
         for (let i = 0; i < 100; i++) {
-            getComponent(world, leader, POSITION).position = 50;
+            getComponent(world, leader, POSITION).position = 50n;
             const pos = getComponent(world, follower, POSITION);
             pos.position = startPos;
             const tickRng = seedFromString("follow:" + i);
@@ -181,29 +181,29 @@ describe("Group movement bias", () => {
         }
 
         // Patient follower should move toward leader (positive direction) more often than away
-        assert.ok(moved > 0,
+        assert.ok(moved > 0n,
             `patient follower should drift toward leader, net movement: ${moved}`);
     });
 
     it("restless follower follows less consistently", () => {
         const world = createWorld();
-        const leader = makeEntity(world, { name: "Leader", position: 50, influence: 18 });
-        const patient = makeEntity(world, { name: "Patient", position: 40, influence: 5, pace: 0.0 });
-        const restless = makeEntity(world, { name: "Restless", position: 40, influence: 5, pace: 1.0 });
+        const leader = makeEntity(world, { name: "Leader", position: 50n, influence: 18 });
+        const patient = makeEntity(world, { name: "Patient", position: 40n, influence: 5, pace: 0.0 });
+        const restless = makeEntity(world, { name: "Restless", position: 40n, influence: 5, pace: 1.0 });
         addMovement(world, leader, 1);
         addMovement(world, patient, -1);
         addMovement(world, restless, -1);
         putInGroup(world, [leader, patient, restless]);
         electGroupLeaders(world);
 
-        let patientToward = 0;
-        let restlessToward = 0;
+        let patientToward = 0n;
+        let restlessToward = 0n;
         for (let i = 0; i < 200; i++) {
-            getComponent(world, patient, POSITION).position = 40;
-            getComponent(world, restless, POSITION).position = 40;
+            getComponent(world, patient, POSITION).position = 40n;
+            getComponent(world, restless, POSITION).position = 40n;
             movementSystem(world, seedFromString("pace:" + i));
-            patientToward += getComponent(world, patient, POSITION).position - 40;
-            restlessToward += getComponent(world, restless, POSITION).position - 40;
+            patientToward += getComponent(world, patient, POSITION).position - 40n;
+            restlessToward += getComponent(world, restless, POSITION).position - 40n;
         }
 
         assert.ok(patientToward > restlessToward,
@@ -212,8 +212,8 @@ describe("Group movement bias", () => {
 
     it("leader moves independently (not biased)", () => {
         const world = createWorld();
-        const leader = makeEntity(world, { name: "Leader", position: 50, influence: 18 });
-        const follower = makeEntity(world, { name: "Follower", position: 50, influence: 5 });
+        const leader = makeEntity(world, { name: "Leader", position: 50n, influence: 18 });
+        const follower = makeEntity(world, { name: "Follower", position: 50n, influence: 5 });
         addMovement(world, leader, -1); // heading left
         addMovement(world, follower, 1);
         putInGroup(world, [leader, follower]);
@@ -222,14 +222,14 @@ describe("Group movement bias", () => {
         movementSystem(world, seedFromString("leader-test"));
 
         // Leader should move in their own heading
-        assert.strictEqual(getComponent(world, leader, POSITION).position, 49,
+        assert.strictEqual(getComponent(world, leader, POSITION).position, 49n,
             "leader moves in own heading direction");
     });
 
     it("follower on different floor chases leader", () => {
         const world = createWorld();
-        const leader = makeEntity(world, { name: "Leader", position: 50, floor: 5, influence: 18 });
-        const follower = makeEntity(world, { name: "Follower", position: 40, floor: 3, influence: 5 });
+        const leader = makeEntity(world, { name: "Leader", position: 50n, floor: 5n, influence: 18 });
+        const follower = makeEntity(world, { name: "Follower", position: 40n, floor: 3n, influence: 5 });
         addMovement(world, leader, 1);
         addMovement(world, follower, -1);
         putInGroup(world, [leader, follower]);
@@ -239,21 +239,21 @@ describe("Group movement bias", () => {
 
         const fPos = getComponent(world, follower, POSITION);
         // Follower is at rest area (40) — should change floor toward leader (floor 5)
-        assert.strictEqual(fPos.position, 40,
+        assert.strictEqual(fPos.position, 40n,
             "follower stays at rest area to change floor");
-        assert.strictEqual(fPos.floor, 4,
+        assert.strictEqual(fPos.floor, 4n,
             "follower moves one floor toward leader");
     });
 
     it("ungrouped NPC is not biased", () => {
         const world = createWorld();
-        const a = makeEntity(world, { name: "Solo", position: 40 });
+        const a = makeEntity(world, { name: "Solo", position: 40n });
         addMovement(world, a, -1);
         // No group component
 
         movementSystem(world, seedFromString("solo-test"));
 
-        assert.strictEqual(getComponent(world, a, POSITION).position, 39,
+        assert.strictEqual(getComponent(world, a, POSITION).position, 39n,
             "ungrouped NPC moves in own heading");
     });
 });
@@ -462,24 +462,25 @@ describe("NPC dismiss system", () => {
 describe("Sim: groups travel together", () => {
     it("grouped NPCs converge toward leader over time", () => {
         const world = createWorld();
-        const leader = makeEntity(world, { name: "Leader", position: 50, influence: 18 });
-        const f1 = makeEntity(world, { name: "F1", position: 30, influence: 5, pace: 0.2 });
-        const f2 = makeEntity(world, { name: "F2", position: 70, influence: 5, pace: 0.2 });
+        const leader = makeEntity(world, { name: "Leader", position: 50n, influence: 18 });
+        const f1 = makeEntity(world, { name: "F1", position: 30n, influence: 5, pace: 0.2 });
+        const f2 = makeEntity(world, { name: "F2", position: 70n, influence: 5, pace: 0.2 });
         addMovement(world, leader, 1);
         addMovement(world, f1, -1);
         addMovement(world, f2, 1);
         putInGroup(world, [leader, f1, f2]);
         electGroupLeaders(world);
 
-        const initialSpread = Math.abs(getComponent(world, f1, POSITION).position - getComponent(world, leader, POSITION).position)
-            + Math.abs(getComponent(world, f2, POSITION).position - getComponent(world, leader, POSITION).position);
+        function bigAbs(x) { return x < 0n ? -x : x; }
+        const initialSpread = bigAbs(getComponent(world, f1, POSITION).position - getComponent(world, leader, POSITION).position)
+            + bigAbs(getComponent(world, f2, POSITION).position - getComponent(world, leader, POSITION).position);
 
         for (let i = 0; i < 100; i++) {
             movementSystem(world, seedFromString("converge:" + i));
         }
 
-        const finalSpread = Math.abs(getComponent(world, f1, POSITION).position - getComponent(world, leader, POSITION).position)
-            + Math.abs(getComponent(world, f2, POSITION).position - getComponent(world, leader, POSITION).position);
+        const finalSpread = bigAbs(getComponent(world, f1, POSITION).position - getComponent(world, leader, POSITION).position)
+            + bigAbs(getComponent(world, f2, POSITION).position - getComponent(world, leader, POSITION).position);
 
         assert.ok(finalSpread < initialSpread,
             `group should converge: initial spread ${initialSpread}, final ${finalSpread}`);

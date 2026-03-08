@@ -409,7 +409,7 @@ describe("DOM: Dismiss from group", () => {
 
         // Move NPC away so tick advance doesn't re-form the group
         npc.side = 1;
-        npc.position = 99;
+        npc.position = 99n;
         game.Social.syncNpcPositions();
 
         game.state._talkTarget = npc;
@@ -537,8 +537,8 @@ describe("DOM: Group UI indicators", () => {
         const home = game.Social.getGroupHome();
         assert.ok(home, "group home exists after recruit");
         assert.ok(typeof home.side === "number", "home has side");
-        assert.ok(typeof home.position === "number", "home has position");
-        assert.ok(typeof home.floor === "number", "home has floor");
+        assert.ok(typeof home.position === "bigint", "home has position");
+        assert.ok(typeof home.floor === "bigint", "home has floor");
     });
 
 });

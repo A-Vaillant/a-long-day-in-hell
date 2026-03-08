@@ -126,7 +126,7 @@ function spawnSearcher(world, overrides = {}) {
         ...overrides.search,
     });
     addComponent(world, ent, POSITION, {
-        side: 0, position: 5, floor: 100,
+        side: 0, position: 5n, floor: 100n,
         ...overrides.position,
     });
     addComponent(world, ent, IDENTITY, {
@@ -226,7 +226,7 @@ describe("searchSystem", () => {
 
     it("multiple NPCs at same position claim different books", () => {
         const world = createWorld();
-        const pos = { side: 0, position: 5, floor: 100 };
+        const pos = { side: 0, position: 5n, floor: 100n };
         spawnSearcher(world, {
             position: pos,
             search: { active: true, bookIndex: 10, ticksSearched: 0, patience: 10 },

@@ -253,10 +253,12 @@ const componentRenderers = {
             html += '<div class="gm-stat"><span class="gm-tip" data-tip="Where this NPC\'s book actually is.">book</span>';
             html += '<span class="gm-bar-num">' + esc(bookLoc) + '</span></div>';
             // Distance
-            const dFloor = Math.abs(npc.floor - bc.floor);
-            const dPos = Math.abs(npc.position - bc.position);
+            const dfRaw = npc.floor - bc.floor;
+            const dFloor = dfRaw < 0n ? -dfRaw : dfRaw;
+            const dpRaw = npc.position - bc.position;
+            const dPos = dpRaw < 0n ? -dpRaw : dpRaw;
             const sameSide = npc.side === bc.side;
-            const dist = dPos + dFloor + (sameSide ? 0 : dFloor + 1);
+            const dist = dPos + dFloor + (sameSide ? 0n : dFloor + 1n);
             html += '<div class="gm-stat"><span class="gm-tip" data-tip="Approximate travel distance in moves (position + floor + chasm crossing).">distance</span>';
             html += '<span class="gm-bar-num">' + dist + ' moves</span></div>';
         }
@@ -661,7 +663,7 @@ export const GodmodePanel = {
             powers.push({
                 key: "jump",
                 label: "push into chasm",
-                available(npc) { return npc.alive && npc.floor > 0 && !npc.falling; },
+                available(npc) { return npc.alive && npc.floor > 0n && !npc.falling; },
                 action: cbs.onJump,
             });
         }

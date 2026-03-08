@@ -40,7 +40,7 @@ describe("getAvailableBehaviors", () => {
     function makeWorld() {
         const world = createWorld();
         const entity = spawn(world);
-        addComponent(world, entity, POSITION, { side: 0, position: 5, floor: 10 });
+        addComponent(world, entity, POSITION, { side: 0, position: 5n, floor: 10n });
         addComponent(world, entity, IDENTITY, { name: "Test", alive: true });
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
         addComponent(world, entity, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });

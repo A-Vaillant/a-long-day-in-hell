@@ -6,8 +6,8 @@ export interface Rng {
 
 export interface Location {
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
 }
 
 export type Disposition = "calm" | "anxious" | "mad" | "catatonic" | "inspired" | "escaped";
@@ -18,12 +18,13 @@ export interface NPC {
     id: number;
     name: string;
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
     disposition: Disposition;
     daysMet: number;
     lastSeenDay: number;
     alive: boolean;
+    bookCoords?: { side: number; position: bigint; floor: bigint; bookIndex: number };
 }
 
 /** Dialogue table: keyed by disposition + "dead". */
@@ -71,14 +72,15 @@ export function spawnNPCs(playerLoc: Location, count: number, names: string[], r
         usedNames.add(nameIdx);
         const posDelta = Math.round(gaussianish(rng) * config.positionSpread);
         const floorDelta = Math.round(gaussianish(rng) * config.floorSpread);
-        const floor = Math.max(0, playerLoc.floor + floorDelta);
+        const floor = playerLoc.floor + BigInt(floorDelta);
+        const clampedFloor = floor < 0n ? 0n : floor;
 
         npcs.push({
             id: config.idOffset + i,
             name: names[nameIdx],
             side: config.sameSide ? playerLoc.side : (rng.next() < 0.5 ? 0 : 1),
-            position: playerLoc.position + posDelta,
-            floor,
+            position: playerLoc.position + BigInt(posDelta),
+            floor: clampedFloor,
             disposition: "calm",
             daysMet: 0,
             lastSeenDay: 0,
@@ -97,17 +99,19 @@ export function moveNPCs(npcs: NPC[], rng: Rng): NPC[] {
 
         const posDelta = Math.round((rng.next() - 0.5) * 10);
         const floorDelta = rng.next() < 0.3 ? (rng.next() < 0.5 ? -1 : 1) : 0;
+        const newPos = npc.position + BigInt(posDelta);
+        const newFloor = npc.floor + BigInt(floorDelta);
 
         return {
             ...npc,
-            position: npc.position + posDelta,
-            floor: Math.max(0, npc.floor + floorDelta),
+            position: newPos,
+            floor: newFloor < 0n ? 0n : newFloor,
         };
     });
 }
 
 /** Filter NPCs at a specific location. */
-export function getNPCsAt(npcs: NPC[], side: number, position: number, floor: number): NPC[] {
+export function getNPCsAt(npcs: NPC[], side: number, position: bigint, floor: bigint): NPC[] {
     return npcs.filter(n => n.side === side && n.position === position && n.floor === floor);
 }
 

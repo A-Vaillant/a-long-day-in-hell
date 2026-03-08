@@ -7,8 +7,8 @@
  *
  * Coordinates: { side, position, floor }
  *   side     : 0 or 1 (the two sides of the chasm)
- *   position : integer segment index along the corridor (unbounded)
- *   floor    : integer, 0 = bottom, increases upward
+ *   position : bigint segment index along the corridor (unbounded)
+ *   floor    : bigint, 0 = bottom, increases upward
  *
  * Each segment contains:
  *   - A stretch of shelved corridor (~300 yards of books)
@@ -16,9 +16,9 @@
  *       clock, kiosk, bedroom (7 beds), bathroom, submission slot, stairs
  *
  * Movement:
- *   left      : position - 1 (blocked at position 0, which is a wall — or wrap?)
+ *   left      : position - 1
  *   right     : position + 1
- *   up        : floor + 1 (only from a rest area, i.e. right edge of segment)
+ *   up        : floor + 1 (only from a rest area)
  *   down      : floor - 1 (only from a rest area; blocked at floor 0)
  *   cross     : switch side (only at floor 0, only from a rest area)
  *
@@ -28,8 +28,8 @@
 /** A location in the library. */
 export interface Location {
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
 }
 
 /** Rest area descriptor within a segment. */
@@ -43,8 +43,8 @@ export interface RestArea {
 /** Segment descriptor returned by generateSegment. */
 export interface Segment {
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
     lightLevel: "dim" | "normal";
     restArea: RestArea | null;
     hasBridge: boolean;
@@ -58,14 +58,14 @@ export interface Rng {
 
 export type Direction = "left" | "right" | "up" | "down" | "cross";
 
-export const BOTTOM_FLOOR: number = 0;
+export const BOTTOM_FLOOR: bigint = 0n;
 export const BOOKS_PER_GALLERY: number   = 192;  // 24 wide × 8 tall — one shelf face
-export const GALLERIES_PER_SEGMENT: number = 10; // gallery pages between rest areas
-export const SEGMENT_BOOK_COUNT: number  = BOOKS_PER_GALLERY * GALLERIES_PER_SEGMENT; // 1920
+export const GALLERIES_PER_SEGMENT: bigint = 10n; // gallery pages between rest areas
+export const SEGMENT_BOOK_COUNT: number  = BOOKS_PER_GALLERY * Number(GALLERIES_PER_SEGMENT); // 1920
 
 /** True when a position falls on a rest area (kiosk, beds, stairs). */
-export function isRestArea(position: number): boolean {
-    return ((position % GALLERIES_PER_SEGMENT) + GALLERIES_PER_SEGMENT) % GALLERIES_PER_SEGMENT === 0;
+export function isRestArea(position: bigint): boolean {
+    return ((position % GALLERIES_PER_SEGMENT) + GALLERIES_PER_SEGMENT) % GALLERIES_PER_SEGMENT === 0n;
 }
 
 export const DIRS: Record<string, Direction> = {
@@ -85,12 +85,12 @@ export function locationKey({ side, position, floor }: Location): string {
  * Generate a segment deterministically from its coordinates.
  *
  * @param {number} side
- * @param {number} position
- * @param {number} floor
+ * @param {bigint} position
+ * @param {bigint} floor
  * @param {function} forkRng - (key: string) => rng instance
  * @returns {object} segment descriptor
  */
-export function generateSegment(side: number, position: number, floor: number, forkRng: (key: string) => Rng): Segment {
+export function generateSegment(side: number, position: bigint, floor: bigint, forkRng: (key: string) => Rng): Segment {
     const rng = forkRng("seg:" + locationKey({ side, position, floor }));
 
     const lightLevel: "dim" | "normal" = rng.next() < 0.05 ? "dim" : "normal";
@@ -101,7 +101,7 @@ export function generateSegment(side: number, position: number, floor: number, f
         hasStairs: true,
         hasKiosk: true,
         bedsAvailable: 7,
-        hasZoroastrianText: position === 0,
+        hasZoroastrianText: position === 0n,
     } : null;
 
     // Bridge only at floor 0 rest areas
@@ -138,15 +138,15 @@ export function availableMoves({ side, position, floor }: Location): Direction[]
 /** Apply a move to a location, returning new coordinates. */
 export function applyMove({ side, position, floor }: Location, dir: Direction): Location {
     switch (dir) {
-        case DIRS.LEFT:  return { side, position: position - 1, floor };
-        case DIRS.RIGHT: return { side, position: position + 1, floor };
+        case DIRS.LEFT:  return { side, position: position - 1n, floor };
+        case DIRS.RIGHT: return { side, position: position + 1n, floor };
         case DIRS.UP:
             if (!isRestArea(position)) throw new Error("Stairs only accessible from rest areas");
-            return { side, position, floor: floor + 1 };
+            return { side, position, floor: floor + 1n };
         case DIRS.DOWN:
             if (floor <= BOTTOM_FLOOR) throw new Error("Cannot descend below floor 0");
             if (!isRestArea(position)) throw new Error("Stairs only accessible from rest areas");
-            return { side, position, floor: floor - 1 };
+            return { side, position, floor: floor - 1n };
         case DIRS.CROSS:
             if (floor !== BOTTOM_FLOOR) throw new Error("Can only cross at the bottom floor");
             if (!isRestArea(position)) throw new Error("Bridge only accessible from rest areas");

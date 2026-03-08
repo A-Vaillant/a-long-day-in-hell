@@ -26,8 +26,8 @@ function getPassageText(game) {
 describe("DOM: chasm and freefall", () => {
     it("J key opens chasm from non-rest-area above floor 0", () => {
         const game = bootGame();
-        game.state.position = 1;
-        game.state.floor = 100;
+        game.state.position = 1n;
+        game.state.floor = 100n;
         game.Engine.goto("Corridor");
 
         pressKey(game, "J");
@@ -36,8 +36,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("J key opens chasm screen at rest area above floor 0", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100;
+        game.state.position = 0n;
+        game.state.floor = 100n;
         game.Engine.goto("Corridor");
 
         pressKey(game, "J");
@@ -46,8 +46,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("J key does nothing at floor 0", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 0;
+        game.state.position = 0n;
+        game.state.floor = 0n;
         game.Engine.goto("Corridor");
 
         pressKey(game, "J");
@@ -56,8 +56,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("chasm screen shows confirmation and back link", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100;
+        game.state.position = 0n;
+        game.state.floor = 100n;
         game.Engine.goto("Chasm");
 
         const text = getPassageText(game);
@@ -67,8 +67,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("confirming jump enters freefall", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100;
+        game.state.position = 0n;
+        game.state.floor = 100n;
         game.Engine.goto("Chasm");
 
         clickElement(game, "chasm-jump-yes");
@@ -80,8 +80,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("Y key confirms jump on chasm screen", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100;
+        game.state.position = 0n;
+        game.state.floor = 100n;
         game.Engine.goto("Chasm");
 
         pressKey(game, "y");
@@ -92,8 +92,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("N key returns to corridor from chasm screen", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100;
+        game.state.position = 0n;
+        game.state.floor = 100n;
         game.Engine.goto("Chasm");
 
         pressKey(game, "n");
@@ -102,8 +102,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("falling screen shows altitude-aware prose and grab description", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 1000;
+        game.state.position = 0n;
+        game.state.floor = 1000n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -116,8 +116,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("wait action advances fall", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 1000;
+        game.state.position = 0n;
+        game.state.floor = 1000n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -130,8 +130,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("multiple waits accumulate speed", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 10000;
+        game.state.position = 0n;
+        game.state.floor = 10000n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -140,14 +140,14 @@ describe("DOM: chasm and freefall", () => {
         }
 
         assert.strictEqual(game.state.falling.speed, 5, "speed is 5 after 5 ticks");
-        assert.strictEqual(game.state.floor, 10000 - 15, "fell 1+2+3+4+5 = 15 floors");
+        assert.strictEqual(game.state.floor, BigInt(10000 - 15), "fell 1+2+3+4+5 = 15 floors");
     });
 
     it("throw book clears held book", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 1000;
-        game.state.heldBook = { side: 0, position: 0, floor: 1000, bookIndex: 5 };
+        game.state.position = 0n;
+        game.state.floor = 1000n;
+        game.state.heldBook = { side: 0, position: 0n, floor: 1000n, bookIndex: 5 };
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -159,8 +159,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("no throw button when not holding a book", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 1000;
+        game.state.position = 0n;
+        game.state.floor = 1000n;
         game.state.heldBook = null;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
@@ -170,8 +170,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("despairing skips confirmation — jumps immediately", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 500;
+        game.state.position = 0n;
+        game.state.floor = 500n;
         game.state.morale = 0;
         game.state.despairing = true;
         game.Engine.goto("Chasm");
@@ -182,8 +182,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("landing at floor 0 from low height goes to corridor", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 3;
+        game.state.position = 0n;
+        game.state.floor = 3n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -193,7 +193,7 @@ describe("DOM: chasm and freefall", () => {
             safety++;
         }
 
-        assert.strictEqual(game.state.floor, 0, "at floor 0");
+        assert.strictEqual(game.state.floor, 0n, "at floor 0");
         assert.strictEqual(game.state.falling, null, "no longer falling");
         assert.strictEqual(game.state.dead, false, "survived the fall");
         assert.strictEqual(game.state.screen, "Corridor", "back on corridor");
@@ -201,8 +201,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("fatal landing at floor 0 shows death screen (gravity)", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 200;
+        game.state.position = 0n;
+        game.state.floor = 200n;
         const deathsBefore = game.state.deaths || 0;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
@@ -224,8 +224,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("failed grab reduces mortality", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100000;
+        game.state.position = 0n;
+        game.state.floor = 100000n;
         game.state.mortality = 100;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
@@ -253,8 +253,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("grab failure can kill player (death cause: trauma)", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100000;
+        game.state.position = 0n;
+        game.state.floor = 100000n;
         game.state.mortality = 10; // very low — one failed grab should kill
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
@@ -280,8 +280,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("lights-out shows darkness prose during freefall", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 10000;
+        game.state.position = 0n;
+        game.state.floor = 10000n;
         game.state.lightsOn = false;
         game.state.tick = 170; // past lights-out
         game.Engine.goto("Chasm");
@@ -293,8 +293,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("falling state persists through save/load round-trip", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 10000;
+        game.state.position = 0n;
+        game.state.floor = 10000n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -317,8 +317,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("corridor renders correctly after grabbing a railing mid-fall", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 30; // low floor, slow speed, high grab chance
+        game.state.position = 0n;
+        game.state.floor = 30n; // low floor, slow speed, high grab chance
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -342,7 +342,7 @@ describe("DOM: chasm and freefall", () => {
         // Should be on corridor now at whatever floor we stopped at
         assert.strictEqual(game.state.screen, "Corridor", "on corridor after grab");
         assert.strictEqual(game.state.falling, null, "not falling");
-        assert.ok(game.state.floor > 0, "stopped above floor 0");
+        assert.ok(game.state.floor > 0n, "stopped above floor 0");
 
         // Verify corridor actually renders without errors
         const text = getPassageText(game);
@@ -351,8 +351,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("jump link shown in corridor at non-rest-area when above floor 0", () => {
         const game = bootGame();
-        game.state.position = 1;
-        game.state.floor = 100;
+        game.state.position = 1n;
+        game.state.floor = 100n;
         game.Engine.goto("Corridor");
 
         const html = game.document.getElementById("passage").innerHTML;
@@ -361,8 +361,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("jump link hidden at floor 0", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 0;
+        game.state.position = 0n;
+        game.state.floor = 0n;
         game.Engine.goto("Corridor");
 
         const html = game.document.getElementById("passage").innerHTML;
@@ -371,8 +371,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("jump link visible at rest area above floor 0", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100;
+        game.state.position = 0n;
+        game.state.floor = 100n;
         game.Engine.goto("Corridor");
 
         const html = game.document.getElementById("passage").innerHTML;
@@ -381,8 +381,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("tick advances during freefall (time passes)", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 10000;
+        game.state.position = 0n;
+        game.state.floor = 10000n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -396,13 +396,13 @@ describe("DOM: chasm and freefall", () => {
 
     it("chasm view text changes with altitude", () => {
         const game = bootGame();
-        game.state.position = 0;
+        game.state.position = 0n;
 
-        game.state.floor = 50000;
+        game.state.floor = 50000n;
         game.Engine.goto("Chasm");
         const highText = getPassageText(game);
 
-        game.state.floor = 15;
+        game.state.floor = 15n;
         game.Engine.goto("Chasm");
         const lowText = getPassageText(game);
 
@@ -412,14 +412,14 @@ describe("DOM: chasm and freefall", () => {
 
     it("falling prose changes as you descend", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 50000;
+        game.state.position = 0n;
+        game.state.floor = 50000n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
         const highText = getPassageText(game);
 
-        game.state.floor = 100;
+        game.state.floor = 100n;
         game.Engine.goto("Falling");
         const lowText = getPassageText(game);
 
@@ -428,8 +428,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("failed grab at high speed reduces speed", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100000;
+        game.state.position = 0n;
+        game.state.floor = 100000n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -455,8 +455,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("trauma death mid-fall: resurrect still falling", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100000;
+        game.state.position = 0n;
+        game.state.floor = 100000n;
         game.state.mortality = 10; // very low — one failed grab should kill
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
@@ -496,7 +496,7 @@ describe("DOM: chasm and freefall", () => {
             if (game.state.falling) {
                 assert.ok(game.state.floor < floorAtDeath, "fell further during death/sleep");
             } else {
-                assert.strictEqual(game.state.floor, 0, "hit bottom during night");
+                assert.strictEqual(game.state.floor, 0n, "hit bottom during night");
             }
         }
         // If grabs succeeded, that's OK — non-deterministic
@@ -504,8 +504,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("fall continues through voluntary sleep", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 500; // low enough to land during sleep
+        game.state.position = 0n;
+        game.state.floor = 500n; // low enough to land during sleep
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -522,13 +522,13 @@ describe("DOM: chasm and freefall", () => {
         // After 10 more ticks from speed 5, total distance = 6+7+8+9+10+11+12+13+14+15 = 105
         // Plus the 15 from the first 5 ticks = 120 floors total. From 500, floor ~380.
         // Should still be falling (need ~32 ticks to fall 500 floors from speed 5)
-        assert.ok(game.state.falling || game.state.floor === 0, "fall advanced");
+        assert.ok(game.state.falling || game.state.floor === 0n, "fall advanced");
     });
 
     it("corridor shows 'chasm' label when not despairing", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100;
+        game.state.position = 0n;
+        game.state.floor = 100n;
         game.state.despairing = false;
         game.Engine.goto("Corridor");
 
@@ -540,8 +540,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("corridor shows 'jump' label when despairing", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100;
+        game.state.position = 0n;
+        game.state.floor = 100n;
         game.state.despairing = true;
         game.Engine.goto("Corridor");
 
@@ -552,8 +552,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("despairing J key skips confirmation, enters freefall directly", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 500;
+        game.state.position = 0n;
+        game.state.floor = 500n;
         game.state.morale = 0;
         game.state.despairing = true;
 
@@ -567,8 +567,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("failed grab shows feedback text on next render", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100000;
+        game.state.position = 0n;
+        game.state.floor = 100000n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 
@@ -594,8 +594,8 @@ describe("DOM: chasm and freefall", () => {
 
     it("grab button present at terminal velocity (5% chance)", () => {
         const game = bootGame();
-        game.state.position = 0;
-        game.state.floor = 100000;
+        game.state.position = 0n;
+        game.state.floor = 100000n;
         game.Engine.goto("Chasm");
         clickElement(game, "chasm-jump-yes");
 

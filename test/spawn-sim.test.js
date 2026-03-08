@@ -31,7 +31,7 @@ import { seedFromString } from "../lib/prng.core.ts";
 function makeNpc(world, opts = {}) {
     const {
         name = "Npc",
-        side = 0, position = 0, floor = 0,
+        side = 0, position = 0n, floor = 0n,
         lucidity = 100, hope = 100,
         seed = "test",
         id = 0,
@@ -97,7 +97,7 @@ describe("Scenario: volatile personalities trend toward madness", () => {
         for (let i = 0; i < COUNT; i++) {
             chaoticEnts.push(makeNpc(chaoticWorld, {
                 name: "Chaotic-" + i, id: i, seed: "volatile",
-                position: i * 100, // isolated
+                position: BigInt(i * 100), // isolated
                 biasPlayerSide: false,
             }));
         }
@@ -106,7 +106,7 @@ describe("Scenario: volatile personalities trend toward madness", () => {
         for (let i = 0; i < COUNT; i++) {
             calmEnts.push(makeNpc(calmWorld, {
                 name: "Calm-" + i, id: i, seed: "volatile",
-                position: i * 100, // isolated
+                position: BigInt(i * 100), // isolated
                 biasPlayerSide: true,
             }));
         }
@@ -141,7 +141,7 @@ describe("Scenario: volatile personalities trend toward madness", () => {
         for (let i = 0; i < 20; i++) {
             extremeEnts.push(makeNpc(extremeWorld, {
                 name: "Extreme-" + i, id: i, seed: "extreme-bias",
-                position: i * 100, // isolated
+                position: BigInt(i * 100), // isolated
                 biasPlayerSide: false, // far side = seekers (volatile, restless)
             }));
         }
@@ -151,7 +151,7 @@ describe("Scenario: volatile personalities trend toward madness", () => {
         for (let i = 0; i < 20; i++) {
             controlEnts.push(makeNpc(controlWorld, {
                 name: "Control-" + i, id: i, seed: "extreme-bias",
-                position: i * 100,
+                position: BigInt(i * 100),
                 biasPlayerSide: null, // no bias at all
             }));
         }
@@ -182,11 +182,11 @@ describe("Scenario: companions slow psychological decay", () => {
         const world = createWorld();
 
         // Pair: two NPCs at same location who will build bonds
-        const paired1 = makeNpc(world, { name: "Paired-A", id: 0, seed: "pair", position: 0 });
-        const paired2 = makeNpc(world, { name: "Paired-B", id: 1, seed: "pair", position: 0 });
+        const paired1 = makeNpc(world, { name: "Paired-A", id: 0, seed: "pair", position: 0n });
+        const paired2 = makeNpc(world, { name: "Paired-B", id: 1, seed: "pair", position: 0n });
 
         // Loner: isolated NPC far away
-        const loner = makeNpc(world, { name: "Loner", id: 2, seed: "pair", position: 500 });
+        const loner = makeNpc(world, { name: "Loner", id: 2, seed: "pair", position: 500n });
 
         // Run simulation — paired NPCs build bonds, then all decay
         const TICKS = 40000;
@@ -212,9 +212,9 @@ describe("Scenario: companions slow psychological decay", () => {
         const world = createWorld();
 
         // Use same id so they get identical personalities → max compatibility
-        const paired1 = makeNpc(world, { name: "Duo-A", id: 10, seed: "lucid", position: 0 });
-        const paired2 = makeNpc(world, { name: "Duo-B", id: 10, seed: "lucid", position: 0 });
-        const loner = makeNpc(world, { name: "Solo", id: 10, seed: "lucid", position: 500 });
+        const paired1 = makeNpc(world, { name: "Duo-A", id: 10, seed: "lucid", position: 0n });
+        const paired2 = makeNpc(world, { name: "Duo-B", id: 10, seed: "lucid", position: 0n });
+        const loner = makeNpc(world, { name: "Solo", id: 10, seed: "lucid", position: 500n });
 
         const TICKS = 40000;
         const BATCH = 500;
@@ -245,7 +245,7 @@ describe("Scenario: mad prophet contagion via social pressure", () => {
         // Mad prophet at position 0
         const prophet = makeNpc(world, {
             name: "Prophet", id: 0, seed: "contagion",
-            position: 0, lucidity: 10, hope: 50, // mad (lucidity < 40)
+            position: 0n, lucidity: 10, hope: 50, // mad (lucidity < 40)
         });
 
         // Nearby calm NPCs within shout range (default 6 segments)
@@ -253,7 +253,7 @@ describe("Scenario: mad prophet contagion via social pressure", () => {
         for (let i = 0; i < 5; i++) {
             nearby.push(makeNpc(world, {
                 name: "Near-" + i, id: i + 1, seed: "contagion",
-                position: i + 1, // positions 1-5, within shout range
+                position: BigInt(i + 1), // positions 1-5, within shout range
             }));
         }
 
@@ -262,7 +262,7 @@ describe("Scenario: mad prophet contagion via social pressure", () => {
         for (let i = 0; i < 5; i++) {
             far.push(makeNpc(world, {
                 name: "Far-" + i, id: i + 10, seed: "contagion",
-                position: 50 + i, // way outside shout range
+                position: 50n + BigInt(i), // way outside shout range
             }));
         }
 
@@ -299,23 +299,23 @@ describe("Scenario: mad prophet contagion via social pressure", () => {
         for (let i = 0; i < 3; i++) {
             makeNpc(world, {
                 name: "Prophet-" + i, id: i, seed: "multi-mad",
-                position: 0, lucidity: 10, hope: 50,
+                position: 0n, lucidity: 10, hope: 50,
             });
         }
 
         // Victim nearby
         const victim = makeNpc(world, {
-            name: "Victim", id: 10, seed: "multi-mad", position: 2,
+            name: "Victim", id: 10, seed: "multi-mad", position: 2n,
         });
 
         // Control: same setup but only 1 prophet
         const world2 = createWorld();
         makeNpc(world2, {
             name: "Prophet-0", id: 0, seed: "single-mad",
-            position: 0, lucidity: 10, hope: 50,
+            position: 0n, lucidity: 10, hope: 50,
         });
         const control = makeNpc(world2, {
-            name: "Control", id: 10, seed: "single-mad", position: 2,
+            name: "Control", id: 10, seed: "single-mad", position: 2n,
         });
 
         const TICKS = 3000;
@@ -342,7 +342,7 @@ describe("Scenario: isolation accelerates psychological breakdown", () => {
         for (let i = 0; i < 10; i++) {
             isolated.push(makeNpc(isoWorld, {
                 name: "Iso-" + i, id: i, seed: "isolation",
-                position: i * 100, // far apart, no one in hearing range
+                position: BigInt(i * 100), // far apart, no one in hearing range
             }));
         }
 
@@ -352,7 +352,7 @@ describe("Scenario: isolation accelerates psychological breakdown", () => {
         for (let i = 0; i < 10; i++) {
             clustered.push(makeNpc(cluWorld, {
                 name: "Clu-" + i, id: i, seed: "isolation",
-                position: 0, // all co-located — same seed so same personalities
+                position: 0n, // all co-located — same seed so same personalities
             }));
         }
 
@@ -385,7 +385,7 @@ describe("Scenario: isolation accelerates psychological breakdown", () => {
         for (let i = 0; i < 10; i++) {
             isolated.push(makeNpc(isoWorld, {
                 name: "Iso-" + i, id: i, seed: "hope-iso",
-                position: i * 100,
+                position: BigInt(i * 100),
             }));
         }
 
@@ -394,7 +394,7 @@ describe("Scenario: isolation accelerates psychological breakdown", () => {
         for (let i = 0; i < 10; i++) {
             clustered.push(makeNpc(cluWorld, {
                 name: "Clu-" + i, id: i, seed: "hope-clu",
-                position: 0,
+                position: 0n,
             }));
         }
 
@@ -512,11 +512,11 @@ describe("Scenario: WEST settlers vs EAST seekers", () => {
         for (let i = 0; i < COUNT; i++) {
             seekerEnts.push(makeNpc(seekerWorld, {
                 name: "Seeker-" + i, id: i, seed: "corridor",
-                position: i * 100, biasPlayerSide: false,
+                position: BigInt(i * 100), biasPlayerSide: false,
             }));
             settlerEnts.push(makeNpc(settlerWorld, {
                 name: "Settler-" + i, id: i, seed: "corridor",
-                position: i * 100, biasPlayerSide: true,
+                position: BigInt(i * 100), biasPlayerSide: true,
             }));
         }
 

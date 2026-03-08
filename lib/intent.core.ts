@@ -198,8 +198,8 @@ const scorers: Record<string, BehaviorScorer> = {
 
         const home = ctx.sleep.home;
         const pos = ctx.position;
-        const posDist = Math.abs(pos.position - home.position);
-        const floorDist = Math.abs(pos.floor - home.floor);
+        const posDist = Number(pos.position > home.position ? pos.position - home.position : home.position - pos.position);
+        const floorDist = Number(pos.floor > home.floor ? pos.floor - home.floor : home.floor - pos.floor);
         const sideDiff = pos.side !== home.side ? 1 : 0;
         // Rough travel distance: position segments + floor changes + side crossing
         const distToHome = posDist + floorDist * 5 + sideDiff * 10;

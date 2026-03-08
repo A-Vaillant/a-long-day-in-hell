@@ -39,7 +39,7 @@ describe("DOM: Engine boundary registry", () => {
 
     it("resetHour handler closes open book", () => {
         const game = bootGame();
-        game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 5 };
+        game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 5 };
         game.state.openPage = 3;
         // Advance past reset hour (tick 230)
         game.state.tick = 225;

@@ -20,7 +20,7 @@ function stubRng(values) {
 }
 
 function makeEntity(world, { name = "Test", alive = true, lucidity = 100, hope = 100,
-                              side = 0, position = 0, floor = 0 } = {}) {
+                              side = 0, position = 0n, floor = 0n } = {}) {
     const e = spawn(world);
     addComponent(world, e, IDENTITY, { name, alive });
     addComponent(world, e, PSYCHOLOGY, { lucidity, hope });
@@ -181,8 +181,8 @@ describe("invite", () => {
 
     it("impossible when not co-located", () => {
         const w = createWorld();
-        const src = makeEntity(w, { name: "Player", position: 0 });
-        const tgt = makeEntity(w, { name: "NPC", position: 10 });
+        const src = makeEntity(w, { name: "Player", position: 0n });
+        const tgt = makeEntity(w, { name: "NPC", position: 10n });
 
         const result = invite(w, src, tgt, stubRng([0]));
         assert.strictEqual(result.type, "impossible");
@@ -221,7 +221,7 @@ describe("invite", () => {
         const src = makeEntity(w, { name: "Player" });
         const tgt = spawn(w);
         addComponent(w, tgt, IDENTITY, { name: "NPC", alive: true });
-        addComponent(w, tgt, POSITION, { side: 0, position: 0, floor: 0 });
+        addComponent(w, tgt, POSITION, { side: 0, position: 0n, floor: 0n });
         addComponent(w, tgt, RELATIONSHIPS, { bonds: new Map() });
 
         const result = invite(w, src, tgt, stubRng([0]));
@@ -412,8 +412,8 @@ describe("attack", () => {
 
     it("impossible when not co-located", () => {
         const w = createWorld();
-        const src = makeEntity(w, { name: "Player", position: 0 });
-        const tgt = makeEntity(w, { name: "NPC", position: 10 });
+        const src = makeEntity(w, { name: "Player", position: 0n });
+        const tgt = makeEntity(w, { name: "NPC", position: 10n });
 
         assert.strictEqual(attack(w, src, tgt).type, "impossible");
     });
@@ -448,7 +448,7 @@ describe("attack", () => {
         const w = createWorld();
         const src = spawn(w);
         addComponent(w, src, IDENTITY, { name: "Robot", alive: true });
-        addComponent(w, src, POSITION, { side: 0, position: 0, floor: 0 });
+        addComponent(w, src, POSITION, { side: 0, position: 0n, floor: 0n });
         addComponent(w, src, RELATIONSHIPS, { bonds: new Map() });
         const tgt = makeEntity(w, { name: "NPC" });
 
@@ -462,7 +462,7 @@ describe("attack", () => {
         const src = makeEntity(w, { name: "Player" });
         const tgt = spawn(w);
         addComponent(w, tgt, IDENTITY, { name: "NPC", alive: true });
-        addComponent(w, tgt, POSITION, { side: 0, position: 0, floor: 0 });
+        addComponent(w, tgt, POSITION, { side: 0, position: 0n, floor: 0n });
 
         const result = attack(w, src, tgt);
         assert.strictEqual(result.type, "ok");
@@ -519,7 +519,7 @@ describe("decideAction", () => {
     it("anxious entity flees from visible mad (not just co-located)", () => {
         const w = createWorld();
         const anxious = makeEntity(w, { name: "Anx", lucidity: 55, hope: 80 });
-        const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50, position: 5 });
+        const mad = makeEntity(w, { name: "Mad", lucidity: 20, hope: 50, position: 5n });
         // Mad is visible but not co-located
         const action = decideAction(w, anxious, awareness([], [], [mad]), stubRng([0.5]));
         assert.strictEqual(action.action, "flee");
@@ -538,7 +538,7 @@ describe("decideAction", () => {
     it("anxious entity may approach visible bonded entity", () => {
         const w = createWorld();
         const anx = makeEntity(w, { name: "Anx", lucidity: 55, hope: 80 });
-        const friend = makeEntity(w, { name: "Friend", position: 5 });
+        const friend = makeEntity(w, { name: "Friend", position: 5n });
         setBond(w, anx, friend, 10, 10);
         // friend is visible but not co-located
         const action = decideAction(w, anx, awareness([], [], [friend]), stubRng([0.1]));
@@ -572,7 +572,7 @@ describe("decideAction", () => {
     it("calm entity may approach visible stranger", () => {
         const w = createWorld();
         const calm = makeEntity(w, { name: "Calm" });
-        const stranger = makeEntity(w, { name: "Stranger", position: 5 });
+        const stranger = makeEntity(w, { name: "Stranger", position: 5n });
         // stranger visible, not co-located, rng 0.05 < 0.2 = approach
         const action = decideAction(w, calm, awareness([], [], [stranger]), stubRng([0.05]));
         assert.strictEqual(action.action, "approach");
@@ -617,7 +617,7 @@ describe("decideAction", () => {
     it("wander direction can be positive or negative", () => {
         const w = createWorld();
         makeEntity(w, { name: "C1" });
-        makeEntity(w, { name: "C2", position: 99 });
+        makeEntity(w, { name: "C2", position: 99n });
         const a1 = decideAction(w, 0, empty, stubRng([0.1, 0.2]));
         const a2 = decideAction(w, 1, empty, stubRng([0.1, 0.8]));
         if (a1.action === "wander") assert.strictEqual(a1.direction, -1);
@@ -640,8 +640,8 @@ describe("buildAwareness", () => {
 
     it("nearby but not co-located (within hearing range)", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 2 });
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 2n });
         const result = buildAwareness(w, a, [a, b]);
         assert.deepStrictEqual(result.coLocated, []);
         assert.deepStrictEqual(result.nearby, [b]);
@@ -650,8 +650,8 @@ describe("buildAwareness", () => {
 
     it("visible but not nearby (beyond hearing, within sight)", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 7 });
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 7n });
         const result = buildAwareness(w, a, [a, b]);
         assert.deepStrictEqual(result.coLocated, []);
         assert.deepStrictEqual(result.nearby, []);
@@ -660,8 +660,8 @@ describe("buildAwareness", () => {
 
     it("out of sight range — not in any set", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 20 });
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 20n });
         const result = buildAwareness(w, a, [a, b]);
         assert.deepStrictEqual(result.coLocated, []);
         assert.deepStrictEqual(result.nearby, []);
@@ -670,8 +670,8 @@ describe("buildAwareness", () => {
 
     it("different floor — not visible", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", floor: 0 });
-        const b = makeEntity(w, { name: "B", floor: 1 });
+        const a = makeEntity(w, { name: "A", floor: 0n });
+        const b = makeEntity(w, { name: "B", floor: 1n });
         const result = buildAwareness(w, a, [a, b]);
         assert.deepStrictEqual(result.visible, []);
     });

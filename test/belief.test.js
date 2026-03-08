@@ -562,7 +562,7 @@ describe("the nihilist trap", () => {
 describe("integrated ECS: belief wired into psychologyDecaySystem", () => {
     function makeEntity(world, faith, devotion, lucidity, hope) {
         const e = spawn(world);
-        addComponent(world, e, POSITION, { side: 0, position: 0, floor: 0 });
+        addComponent(world, e, POSITION, { side: 0, position: 0n, floor: 0n });
         addComponent(world, e, IDENTITY, { name: "Test", alive: true });
         addComponent(world, e, PSYCHOLOGY, { lucidity, hope });
         addComponent(world, e, RELATIONSHIPS, { bonds: new Map() });

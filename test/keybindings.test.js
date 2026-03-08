@@ -14,13 +14,13 @@ function goTo(game, screen) {
 }
 
 function atRestArea(game) {
-    game.state.position = 0;
-    game.state.floor = 10;
+    game.state.position = 0n;
+    game.state.floor = 10n;
 }
 
 function atNonRestArea(game) {
-    game.state.position = 1;
-    game.state.floor = 10;
+    game.state.position = 1n;
+    game.state.floor = 10n;
 }
 
 /* --------------------------------------------------------
@@ -34,7 +34,7 @@ describe("Keybindings: Corridor", () => {
         const pos = game.state.position;
         pressKey(game, "h");
         assert.strictEqual(game.state.screen, "Corridor");
-        assert.strictEqual(game.state.position, pos - 1);
+        assert.strictEqual(game.state.position, pos - 1n);
     });
 
     it("ArrowLeft moves left", () => {
@@ -42,7 +42,7 @@ describe("Keybindings: Corridor", () => {
         goTo(game, "Corridor");
         const pos = game.state.position;
         pressKey(game, "ArrowLeft");
-        assert.strictEqual(game.state.position, pos - 1);
+        assert.strictEqual(game.state.position, pos - 1n);
     });
 
     it("l moves right", () => {
@@ -50,7 +50,7 @@ describe("Keybindings: Corridor", () => {
         goTo(game, "Corridor");
         const pos = game.state.position;
         pressKey(game, "l");
-        assert.strictEqual(game.state.position, pos + 1);
+        assert.strictEqual(game.state.position, pos + 1n);
     });
 
     it("ArrowRight moves right", () => {
@@ -58,7 +58,7 @@ describe("Keybindings: Corridor", () => {
         goTo(game, "Corridor");
         const pos = game.state.position;
         pressKey(game, "ArrowRight");
-        assert.strictEqual(game.state.position, pos + 1);
+        assert.strictEqual(game.state.position, pos + 1n);
     });
 
     it("k moves up (stairs at rest area)", () => {
@@ -67,7 +67,7 @@ describe("Keybindings: Corridor", () => {
         goTo(game, "Corridor");
         const floor = game.state.floor;
         pressKey(game, "k");
-        assert.strictEqual(game.state.floor, floor + 1);
+        assert.strictEqual(game.state.floor, floor + 1n);
     });
 
     it("ArrowUp moves up", () => {
@@ -76,39 +76,39 @@ describe("Keybindings: Corridor", () => {
         goTo(game, "Corridor");
         const floor = game.state.floor;
         pressKey(game, "ArrowUp");
-        assert.strictEqual(game.state.floor, floor + 1);
+        assert.strictEqual(game.state.floor, floor + 1n);
     });
 
     it("j moves down", () => {
         const game = bootGame();
         atRestArea(game);
-        game.state.floor = 5;
+        game.state.floor = 5n;
         goTo(game, "Corridor");
         pressKey(game, "j");
-        assert.strictEqual(game.state.floor, 4);
+        assert.strictEqual(game.state.floor, 4n);
     });
 
     it("ArrowDown moves down", () => {
         const game = bootGame();
         atRestArea(game);
-        game.state.floor = 5;
+        game.state.floor = 5n;
         goTo(game, "Corridor");
         pressKey(game, "ArrowDown");
-        assert.strictEqual(game.state.floor, 4);
+        assert.strictEqual(game.state.floor, 4n);
     });
 
     it("j does not go below floor 0", () => {
         const game = bootGame();
         atRestArea(game);
-        game.state.floor = 0;
+        game.state.floor = 0n;
         goTo(game, "Corridor");
         pressKey(game, "j");
-        assert.strictEqual(game.state.floor, 0);
+        assert.strictEqual(game.state.floor, 0n);
     });
 
     it("x crosses to other side at floor 0", () => {
         const game = bootGame();
-        game.state.floor = 0;
+        game.state.floor = 0n;
         goTo(game, "Corridor");
         const side = game.state.side;
         pressKey(game, "x");
@@ -140,7 +140,7 @@ describe("Keybindings: Corridor", () => {
 
     it("J opens Chasm above floor 0", () => {
         const game = bootGame();
-        game.state.floor = 50;
+        game.state.floor = 50n;
         goTo(game, "Corridor");
         pressKey(game, "J");
         assert.strictEqual(game.state.screen, "Chasm");
@@ -156,7 +156,7 @@ describe("Keybindings: Corridor", () => {
 
     it("J does nothing at floor 0", () => {
         const game = bootGame();
-        game.state.floor = 0;
+        game.state.floor = 0n;
         goTo(game, "Corridor");
         pressKey(game, "J");
         assert.strictEqual(game.state.screen, "Corridor");
@@ -164,7 +164,7 @@ describe("Keybindings: Corridor", () => {
 
     it("J skips confirm when despairing", () => {
         const game = bootGame();
-        game.state.floor = 50;
+        game.state.floor = 50n;
         game.state.despairing = true;
         goTo(game, "Corridor");
         pressKey(game, "J");
@@ -274,7 +274,7 @@ describe("Keybindings: Corridor", () => {
 
 describe("Keybindings: Shelf Open Book", () => {
     function openBook(game) {
-        const coords = { side: 0, position: 0, floor: 10, bookIndex: 0 };
+        const coords = { side: 0, position: 0n, floor: 10n, bookIndex: 0 };
         game.state.openBook = coords;
         game.state.openPage = 5;
         goTo(game, "Shelf Open Book");
@@ -328,7 +328,7 @@ describe("Keybindings: Shelf Open Book", () => {
 
     it("t does nothing if already holding this book", () => {
         const game = bootGame();
-        const coords = { side: 0, position: 0, floor: 10, bookIndex: 0 };
+        const coords = { side: 0, position: 0n, floor: 10n, bookIndex: 0 };
         game.state.heldBook = { ...coords };
         game.state.openBook = { ...coords };
         game.state.openPage = 5;
@@ -339,7 +339,7 @@ describe("Keybindings: Shelf Open Book", () => {
 
     it("p puts back a held book", () => {
         const game = bootGame();
-        const coords = { side: 0, position: 0, floor: 10, bookIndex: 0 };
+        const coords = { side: 0, position: 0n, floor: 10n, bookIndex: 0 };
         game.state.heldBook = { ...coords };
         game.state.openBook = { ...coords };
         game.state.openPage = 5;
@@ -588,7 +588,7 @@ describe("Keybindings: Submission Slot", () => {
     it("s submits when holding a book", () => {
         const game = bootGame();
         atRestArea(game);
-        game.state.heldBook = { side: 0, position: 0, floor: 10, bookIndex: 0 };
+        game.state.heldBook = { side: 0, position: 0n, floor: 10n, bookIndex: 0 };
         goTo(game, "Submission Slot");
         pressKey(game, "s");
         assert.strictEqual(game.state.screen, "Submission Attempt");
@@ -654,7 +654,7 @@ describe("Keybindings: Submission Attempt", () => {
 describe("Keybindings: Chasm", () => {
     it("n returns to corridor", () => {
         const game = bootGame();
-        game.state.floor = 50;
+        game.state.floor = 50n;
         goTo(game, "Chasm");
         pressKey(game, "n");
         assert.strictEqual(game.state.screen, "Corridor");
@@ -662,7 +662,7 @@ describe("Keybindings: Chasm", () => {
 
     it("N returns to corridor", () => {
         const game = bootGame();
-        game.state.floor = 50;
+        game.state.floor = 50n;
         goTo(game, "Chasm");
         pressKey(game, "N");
         assert.strictEqual(game.state.screen, "Corridor");
@@ -670,7 +670,7 @@ describe("Keybindings: Chasm", () => {
 
     it("q returns to corridor", () => {
         const game = bootGame();
-        game.state.floor = 50;
+        game.state.floor = 50n;
         goTo(game, "Chasm");
         pressKey(game, "q");
         assert.strictEqual(game.state.screen, "Corridor");
@@ -678,7 +678,7 @@ describe("Keybindings: Chasm", () => {
 
     it("Escape returns to corridor", () => {
         const game = bootGame();
-        game.state.floor = 50;
+        game.state.floor = 50n;
         goTo(game, "Chasm");
         pressKey(game, "Escape");
         assert.strictEqual(game.state.screen, "Corridor");
@@ -686,7 +686,7 @@ describe("Keybindings: Chasm", () => {
 
     it("y confirms jump", () => {
         const game = bootGame();
-        game.state.floor = 50;
+        game.state.floor = 50n;
         goTo(game, "Chasm");
         pressKey(game, "y");
         assert.strictEqual(game.state.screen, "Falling");
@@ -694,7 +694,7 @@ describe("Keybindings: Chasm", () => {
 
     it("Y confirms jump", () => {
         const game = bootGame();
-        game.state.floor = 50;
+        game.state.floor = 50n;
         goTo(game, "Chasm");
         pressKey(game, "Y");
         assert.strictEqual(game.state.screen, "Falling");
@@ -750,7 +750,7 @@ describe("Keybindings: Death", () => {
 
 describe("Keybindings: Falling", () => {
     function setupFalling(game) {
-        game.state.floor = 50;
+        game.state.floor = 50n;
         goTo(game, "Chasm");
         pressKey(game, "y");
         assert.strictEqual(game.state.screen, "Falling");

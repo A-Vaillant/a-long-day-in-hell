@@ -174,7 +174,7 @@ describe("hasSocialContact", () => {
     it("returns false for entity with no relationships component", () => {
         const w = createWorld();
         const e = spawn(w);
-        addComponent(w, e, POSITION, { side: 0, position: 0, floor: 0 });
+        addComponent(w, e, POSITION, { side: 0, position: 0n, floor: 0n });
         assert.strictEqual(hasSocialContact(w, e), false);
     });
 
@@ -206,8 +206,8 @@ describe("hasSocialContact", () => {
 
     it("returns true when bond exists and within hearing range", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 2 }); // within default hear range (3)
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 2n }); // within default hear range (3)
         const relsA = getComponent(w, a, RELATIONSHIPS);
         relsA.bonds.set(b, { familiarity: 5, affinity: 3, lastContact: 0 });
         assert.strictEqual(hasSocialContact(w, a), true);
@@ -215,8 +215,8 @@ describe("hasSocialContact", () => {
 
     it("returns false when bond exists but beyond hearing range", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 5 }); // beyond default hear range (3)
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 5n }); // beyond default hear range (3)
         const relsA = getComponent(w, a, RELATIONSHIPS);
         relsA.bonds.set(b, { familiarity: 5, affinity: 3, lastContact: 0 });
         assert.strictEqual(hasSocialContact(w, a), false);
@@ -280,7 +280,7 @@ describe("psychologyDecaySystem", () => {
         const relsA = getComponent(w, a, RELATIONSHIPS);
         relsA.bonds.set(b, { familiarity: 5, affinity: 3, lastContact: 0 });
 
-        const alone = makeEntity(w, { name: "Alone", position: 999 });
+        const alone = makeEntity(w, { name: "Alone", position: 999n });
 
         psychologyDecaySystem(w);
 
@@ -295,29 +295,29 @@ describe("psychologyDecaySystem", () => {
 describe("coLocated", () => {
     it("returns true for identical positions", () => {
         assert.strictEqual(coLocated(
-            { side: 0, position: 5, floor: 3 },
-            { side: 0, position: 5, floor: 3 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 0, position: 5n, floor: 3n },
         ), true);
     });
 
     it("returns false when side differs", () => {
         assert.strictEqual(coLocated(
-            { side: 0, position: 5, floor: 3 },
-            { side: 1, position: 5, floor: 3 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 1, position: 5n, floor: 3n },
         ), false);
     });
 
     it("returns false when position differs", () => {
         assert.strictEqual(coLocated(
-            { side: 0, position: 5, floor: 3 },
-            { side: 0, position: 6, floor: 3 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 0, position: 6n, floor: 3n },
         ), false);
     });
 
     it("returns false when floor differs", () => {
         assert.strictEqual(coLocated(
-            { side: 0, position: 5, floor: 3 },
-            { side: 0, position: 5, floor: 4 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 0, position: 5n, floor: 4n },
         ), false);
     });
 });
@@ -327,29 +327,29 @@ describe("coLocated", () => {
 describe("segmentDistance", () => {
     it("returns 0 for same position", () => {
         assert.strictEqual(segmentDistance(
-            { side: 0, position: 5, floor: 3 },
-            { side: 0, position: 5, floor: 3 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 0, position: 5n, floor: 3n },
         ), 0);
     });
 
     it("returns absolute difference on same side/floor", () => {
         assert.strictEqual(segmentDistance(
-            { side: 0, position: 5, floor: 3 },
-            { side: 0, position: 8, floor: 3 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 0, position: 8n, floor: 3n },
         ), 3);
     });
 
     it("returns Infinity for different floors", () => {
         assert.strictEqual(segmentDistance(
-            { side: 0, position: 5, floor: 3 },
-            { side: 0, position: 5, floor: 4 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 0, position: 5n, floor: 4n },
         ), Infinity);
     });
 
     it("returns Infinity for different sides", () => {
         assert.strictEqual(segmentDistance(
-            { side: 0, position: 5, floor: 3 },
-            { side: 1, position: 5, floor: 3 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 1, position: 5n, floor: 3n },
         ), Infinity);
     });
 });
@@ -359,22 +359,22 @@ describe("segmentDistance", () => {
 describe("canSeeAcrossChasm", () => {
     it("true for same floor different side", () => {
         assert.strictEqual(canSeeAcrossChasm(
-            { side: 0, position: 5, floor: 3 },
-            { side: 1, position: 5, floor: 3 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 1, position: 5n, floor: 3n },
         ), true);
     });
 
     it("false for same side", () => {
         assert.strictEqual(canSeeAcrossChasm(
-            { side: 0, position: 5, floor: 3 },
-            { side: 0, position: 10, floor: 3 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 0, position: 10n, floor: 3n },
         ), false);
     });
 
     it("false for different floor", () => {
         assert.strictEqual(canSeeAcrossChasm(
-            { side: 0, position: 5, floor: 3 },
-            { side: 1, position: 5, floor: 4 },
+            { side: 0, position: 5n, floor: 3n },
+            { side: 1, position: 5n, floor: 4n },
         ), false);
     });
 });
@@ -384,22 +384,22 @@ describe("canSeeAcrossChasm", () => {
 describe("canHear", () => {
     it("true within hearing range", () => {
         assert.strictEqual(canHear(
-            { side: 0, position: 0, floor: 0 },
-            { side: 0, position: 3, floor: 0 },
+            { side: 0, position: 0n, floor: 0n },
+            { side: 0, position: 3n, floor: 0n },
         ), true);
     });
 
     it("false beyond hearing range", () => {
         assert.strictEqual(canHear(
-            { side: 0, position: 0, floor: 0 },
-            { side: 0, position: 4, floor: 0 },
+            { side: 0, position: 0n, floor: 0n },
+            { side: 0, position: 4n, floor: 0n },
         ), false);
     });
 
     it("false across chasm", () => {
         assert.strictEqual(canHear(
-            { side: 0, position: 0, floor: 0 },
-            { side: 1, position: 0, floor: 0 },
+            { side: 0, position: 0n, floor: 0n },
+            { side: 1, position: 0n, floor: 0n },
         ), false);
     });
 });
@@ -407,15 +407,15 @@ describe("canHear", () => {
 describe("canSee", () => {
     it("true within sight range", () => {
         assert.strictEqual(canSee(
-            { side: 0, position: 0, floor: 0 },
-            { side: 0, position: 10, floor: 0 },
+            { side: 0, position: 0n, floor: 0n },
+            { side: 0, position: 10n, floor: 0n },
         ), true);
     });
 
     it("false beyond sight range", () => {
         assert.strictEqual(canSee(
-            { side: 0, position: 0, floor: 0 },
-            { side: 0, position: 11, floor: 0 },
+            { side: 0, position: 0n, floor: 0n },
+            { side: 0, position: 11n, floor: 0n },
         ), false);
     });
 });
@@ -425,9 +425,9 @@ describe("canSee", () => {
 describe("getVisibleEntities", () => {
     it("returns entities within sight range with distance", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 5 });
-        const c = makeEntity(w, { name: "C", position: 20 }); // out of range
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 5n });
+        const c = makeEntity(w, { name: "C", position: 20n }); // out of range
         const result = getVisibleEntities(w, a);
         assert.strictEqual(result.length, 1);
         assert.strictEqual(result[0][0], b);
@@ -454,9 +454,9 @@ describe("getVisibleEntities", () => {
 describe("getNearbyEntities", () => {
     it("returns entities within hearing range", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 2 });
-        const c = makeEntity(w, { name: "C", position: 5 }); // out of hear range
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 2n });
+        const c = makeEntity(w, { name: "C", position: 5n }); // out of hear range
         const result = getNearbyEntities(w, a);
         assert.strictEqual(result.length, 1);
         assert.strictEqual(result[0], b);
@@ -555,8 +555,8 @@ describe("relationshipSystem", () => {
 
     it("non-co-located entities do not build bonds", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 10 });
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 10n });
 
         relationshipSystem(w, 0);
 
@@ -577,8 +577,8 @@ describe("relationshipSystem", () => {
 
     it("decays bonds for absent entities", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 10 });
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 10n });
 
         // Pre-seed a bond
         const relsA = getComponent(w, a, RELATIONSHIPS);
@@ -734,8 +734,8 @@ describe("groupFormationSystem", () => {
 
     it("does not form group for non-co-located entities", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 10 });
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 10n });
 
         const relsA = getComponent(w, a, RELATIONSHIPS);
         const relsB = getComponent(w, b, RELATIONSHIPS);
@@ -776,10 +776,10 @@ describe("groupFormationSystem", () => {
 
     it("separate locations form separate groups", () => {
         const w = createWorld();
-        const a = makeEntity(w, { name: "A", position: 0 });
-        const b = makeEntity(w, { name: "B", position: 0 });
-        const c = makeEntity(w, { name: "C", position: 10 });
-        const d = makeEntity(w, { name: "D", position: 10 });
+        const a = makeEntity(w, { name: "A", position: 0n });
+        const b = makeEntity(w, { name: "B", position: 0n });
+        const c = makeEntity(w, { name: "C", position: 10n });
+        const d = makeEntity(w, { name: "D", position: 10n });
 
         const relsA = getComponent(w, a, RELATIONSHIPS);
         const relsB = getComponent(w, b, RELATIONSHIPS);
@@ -828,7 +828,7 @@ describe("groupFormationSystem", () => {
         assert.ok(getComponent(w, a, GROUP));
 
         // Move B away — group should persist (separation tolerance)
-        getComponent(w, b, POSITION).position = 999;
+        getComponent(w, b, POSITION).position = 999n;
         groupFormationSystem(w);
         assert.ok(getComponent(w, a, GROUP), "group persists after 1 tick of separation");
         assert.ok(getComponent(w, b, GROUP), "B still in group");
@@ -850,7 +850,7 @@ describe("groupFormationSystem", () => {
         assert.ok(getComponent(w, a, GROUP));
 
         // Move B away and tick past tolerance
-        getComponent(w, b, POSITION).position = 999;
+        getComponent(w, b, POSITION).position = 999n;
         for (let i = 0; i <= tolerance; i++) {
             groupFormationSystem(w, config);
         }
@@ -1072,9 +1072,9 @@ describe("socialPressureSystem", () => {
 
     it("does not affect entities at different locations", () => {
         const w = createWorld();
-        const sane = makeEntity(w, { name: "Sane", lucidity: 80, hope: 80, position: 999 });
-        makeEntity(w, { name: "Mad1", lucidity: 20, hope: 50, position: 0 });
-        makeEntity(w, { name: "Mad2", lucidity: 20, hope: 50, position: 0 });
+        const sane = makeEntity(w, { name: "Sane", lucidity: 80, hope: 80, position: 999n });
+        makeEntity(w, { name: "Mad1", lucidity: 20, hope: 50, position: 0n });
+        makeEntity(w, { name: "Mad2", lucidity: 20, hope: 50, position: 0n });
 
         socialPressureSystem(w);
 

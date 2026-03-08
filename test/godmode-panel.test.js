@@ -23,7 +23,7 @@ function makeDOM() {
 
 function makeNpc(overrides) {
     return {
-        id: 0, name: "Soren", side: 0, position: 10, floor: 50,
+        id: 0, name: "Soren", side: 0, position: 10n, floor: 50n,
         disposition: "calm", alive: true, lucidity: 80, hope: 60,
         bonds: [], groupId: null,
         components: {
@@ -245,8 +245,8 @@ describe("GodmodePanel — Groups tab", () => {
 
     it("shows location for group", () => {
         GodmodePanel.updateGroups(makeSnap([
-            makeNpc({ id: 0, name: "Soren", groupId: 1, side: 0, floor: 50, position: 10 }),
-            makeNpc({ id: 1, name: "Rachel", groupId: 1, side: 0, floor: 50, position: 10 }),
+            makeNpc({ id: 0, name: "Soren", groupId: 1, side: 0, floor: 50n, position: 10n }),
+            makeNpc({ id: 1, name: "Rachel", groupId: 1, side: 0, floor: 50n, position: 10n }),
         ]));
         const loc = document.querySelector(".gm-grp-loc");
         assert.ok(loc);

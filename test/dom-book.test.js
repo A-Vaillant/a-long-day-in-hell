@@ -6,11 +6,11 @@ describe("DOM: book rendering", () => {
     it("book page displays random ASCII text", () => {
         const game = bootGame();
         // Move to a gallery position
-        game.state.position = 1;
+        game.state.position = 1n;
         game.Engine.goto("Corridor");
 
         // Open a book
-        game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 5 };
+        game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 5 };
         game.state.openPage = 1;
         game.Engine.goto("Shelf Open Book");
 
@@ -62,7 +62,7 @@ describe("DOM: book rendering", () => {
 
     it("cover page is blank calfskin (no text)", () => {
         const game = bootGame();
-        game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 5 };
+        game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 5 };
         game.state.openPage = 0;
         game.Engine.goto("Shelf Open Book");
 
@@ -73,7 +73,7 @@ describe("DOM: book rendering", () => {
 
     it("morale < 80 opens to random page (not cover)", () => {
         const game = bootGame();
-        game.state.position = 1;
+        game.state.position = 1n;
         game.state.morale = 50;
         game.Engine.goto("Corridor");
 
@@ -86,7 +86,7 @@ describe("DOM: book rendering", () => {
 
     it("book naming persists in header", () => {
         const game = bootGame();
-        const bk = { side: 0, position: 1, floor: 10, bookIndex: 5 };
+        const bk = { side: 0, position: 1n, floor: 10n, bookIndex: 5 };
         game.state.openBook = bk;
         game.state.openPage = 1;
         game.Engine.goto("Shelf Open Book");
@@ -107,8 +107,8 @@ describe("DOM: book rendering", () => {
 
     it("book name shows in corridor read action", () => {
         const game = bootGame();
-        game.state.position = 1;
-        game.state.heldBook = { side: 0, position: 1, floor: 10, bookIndex: 3 };
+        game.state.position = 1n;
+        game.state.heldBook = { side: 0, position: 1n, floor: 10n, bookIndex: 3 };
         if (!game.state.bookNames) game.state.bookNames = {};
         game.state.bookNames["0:1:10:3"] = "My Book";
         game.Engine.goto("Corridor");
@@ -119,7 +119,7 @@ describe("DOM: book rendering", () => {
 
     it("page navigation works", () => {
         const game = bootGame();
-        game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 0 };
+        game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 0 };
         game.state.openPage = 1;
         game.Engine.goto("Shelf Open Book");
 

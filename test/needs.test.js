@@ -10,7 +10,7 @@ import {
 function makeNpc(world, { position = 0, alive = true, hunger = 0, thirst = 0, exhaustion = 0 } = {}) {
     const e = spawn(world);
     addComponent(world, e, IDENTITY, { name: "Test", alive });
-    addComponent(world, e, POSITION, { side: 0, position, floor: 0 });
+    addComponent(world, e, POSITION, { side: 0, position, floor: 0n });
     addComponent(world, e, NEEDS, { hunger, thirst, exhaustion });
     return e;
 }
@@ -18,7 +18,7 @@ function makeNpc(world, { position = 0, alive = true, hunger = 0, thirst = 0, ex
 describe("needsSystem", () => {
     it("accumulates hunger/thirst/exhaustion per tick", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5 }); // not a rest area
+        const e = makeNpc(w, { position: 5n }); // not a rest area
         needsSystem(w, true);
         const n = getComponent(w, e, NEEDS);
         assert.ok(n.hunger > 0);
@@ -28,7 +28,7 @@ describe("needsSystem", () => {
 
     it("auto-eats at rest area when above threshold and lights on", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 0, hunger: 55 }); // rest area
+        const e = makeNpc(w, { position: 0n, hunger: 55 }); // rest area
         needsSystem(w, true);
         const n = getComponent(w, e, NEEDS);
         // Should have eaten: 55 + rate - 40 < 55
@@ -37,7 +37,7 @@ describe("needsSystem", () => {
 
     it("auto-drinks at rest area when above threshold and lights on", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 0, thirst: 55 });
+        const e = makeNpc(w, { position: 0n, thirst: 55 });
         needsSystem(w, true);
         const n = getComponent(w, e, NEEDS);
         assert.ok(n.thirst < 55);
@@ -45,7 +45,7 @@ describe("needsSystem", () => {
 
     it("auto-sleeps at rest area when exhaustion above threshold", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 0, exhaustion: 75 });
+        const e = makeNpc(w, { position: 0n, exhaustion: 75 });
         needsSystem(w, true);
         const n = getComponent(w, e, NEEDS);
         assert.equal(n.exhaustion, 0);
@@ -53,7 +53,7 @@ describe("needsSystem", () => {
 
     it("does NOT auto-eat when not at rest area", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5, hunger: 55 });
+        const e = makeNpc(w, { position: 5n, hunger: 55 });
         needsSystem(w, true);
         const n = getComponent(w, e, NEEDS);
         assert.ok(n.hunger > 55); // only accumulated, no relief
@@ -61,7 +61,7 @@ describe("needsSystem", () => {
 
     it("does NOT auto-eat when lights off", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 0, hunger: 55 });
+        const e = makeNpc(w, { position: 0n, hunger: 55 });
         needsSystem(w, false);
         const n = getComponent(w, e, NEEDS);
         assert.ok(n.hunger > 55);
@@ -69,7 +69,7 @@ describe("needsSystem", () => {
 
     it("kills NPC when hunger >= 100", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5, hunger: 99.99 });
+        const e = makeNpc(w, { position: 5n, hunger: 99.99 });
         needsSystem(w, true);
         const ident = getComponent(w, e, IDENTITY);
         assert.equal(ident.alive, false);
@@ -77,7 +77,7 @@ describe("needsSystem", () => {
 
     it("kills NPC when thirst >= 100", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5, thirst: 99.99 });
+        const e = makeNpc(w, { position: 5n, thirst: 99.99 });
         needsSystem(w, true);
         const ident = getComponent(w, e, IDENTITY);
         assert.equal(ident.alive, false);
@@ -85,7 +85,7 @@ describe("needsSystem", () => {
 
     it("skips dead entities", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5, alive: false, hunger: 50 });
+        const e = makeNpc(w, { position: 5n, alive: false, hunger: 50 });
         needsSystem(w, true);
         const n = getComponent(w, e, NEEDS);
         assert.equal(n.hunger, 50); // unchanged
@@ -93,7 +93,7 @@ describe("needsSystem", () => {
 
     it("batch mode accumulates needs", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5 });
+        const e = makeNpc(w, { position: 5n });
         needsSystem(w, true, undefined, 100);
         const n = getComponent(w, e, NEEDS);
         assert.ok(n.hunger > DEFAULT_NEEDS.hungerRate * 50);
@@ -102,7 +102,7 @@ describe("needsSystem", () => {
 
     it("batch mode auto-eats multiple cycles at rest area", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 0 });
+        const e = makeNpc(w, { position: 0n });
         needsSystem(w, true, undefined, 10000);
         const n = getComponent(w, e, NEEDS);
         // After 10000 ticks at rest area, should have eaten many times
@@ -114,8 +114,8 @@ describe("needsSystem", () => {
         const w = createWorld();
         const YEAR = 365 * 240;
         // Rest areas are ubiquitous — all NPCs get relief in batch mode
-        const eRest = makeNpc(w, { position: 0 });
-        const eWander = makeNpc(w, { position: 5 });
+        const eRest = makeNpc(w, { position: 0n });
+        const eWander = makeNpc(w, { position: 5n });
         needsSystem(w, true, undefined, YEAR);
         const identR = getComponent(w, eRest, IDENTITY);
         const identW = getComponent(w, eWander, IDENTITY);
@@ -125,7 +125,7 @@ describe("needsSystem", () => {
 
     it("batch multi-day lights-off does not kill NPC", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5 }); // not even at rest area
+        const e = makeNpc(w, { position: 5n }); // not even at rest area
         needsSystem(w, false, undefined, 5 * 240);
         const ident = getComponent(w, e, IDENTITY);
         assert.equal(ident.alive, true, "NPC survives batch regardless of lightsOn or position");

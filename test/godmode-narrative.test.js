@@ -4,7 +4,7 @@ import { narrateEvents, getNpcNarrative, resetNarratives } from "../src/js/godmo
 
 function makeNpc(overrides) {
     return {
-        id: 0, name: "Alice", side: 0, position: 5, floor: 10,
+        id: 0, name: "Alice", side: 0, position: 5n, floor: 10n,
         disposition: "calm", alive: true, hope: 70, lucidity: 80,
         bonds: [], groupId: null, free: false, components: {},
         ...overrides,
@@ -46,7 +46,7 @@ describe("narrateEvents", () => {
     });
 
     it("chasm jump generates chasm narrative", () => {
-        const npc = makeNpc({ floor: 50 });
+        const npc = makeNpc({ floor: 50n });
         const snap = makeSnap([npc]);
         narrateEvents([{ tick: 10, day: 1, type: "death", text: "Alice jumped into the chasm." }], snap);
         const story = getNpcNarrative(0);
@@ -63,7 +63,7 @@ describe("narrateEvents", () => {
     });
 
     it("railing catch generates narrative", () => {
-        const snap = makeSnap([makeNpc({ floor: 42 })]);
+        const snap = makeSnap([makeNpc({ floor: 42n })]);
         narrateEvents([{ tick: 10, day: 1, type: "resurrection", text: "Alice caught a railing at floor 42." }], snap);
         const story = getNpcNarrative(0);
         assert.ok(story[0].text.includes("railing"));
@@ -86,8 +86,8 @@ describe("narrateEvents", () => {
 
     it("bond adds to both NPCs' stories", () => {
         const snap = makeSnap([
-            makeNpc({ id: 0, name: "Alice", side: 0, floor: 10 }),
-            makeNpc({ id: 1, name: "Bob", side: 0, floor: 10 }),
+            makeNpc({ id: 0, name: "Alice", side: 0, floor: 10n }),
+            makeNpc({ id: 1, name: "Bob", side: 0, floor: 10n }),
         ]);
         narrateEvents([{ tick: 10, day: 1, type: "bond", text: "Alice met Bob." }], snap);
         const aliceStory = getNpcNarrative(0);
@@ -114,7 +114,7 @@ describe("narrateEvents", () => {
 
     it("pilgrimage start generates narrative", () => {
         const snap = makeSnap([makeNpc({
-            components: { knowledge: { bookVision: { side: 1, floor: 5, position: 20 } } },
+            components: { knowledge: { bookVision: { side: 1, floor: 5n, position: 20n } } },
         })]);
         narrateEvents([{ tick: 10, day: 1, type: "pilgrimage", text: "Alice began a pilgrimage." }], snap);
         const story = getNpcNarrative(0);

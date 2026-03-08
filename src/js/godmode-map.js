@@ -72,12 +72,12 @@ export const GodmodeMap = {
     init(canvasEl, state) {
         canvas = canvasEl;
         ctx = canvas.getContext("2d");
-        startFloor = state.floor;
+        startFloor = Number(state.floor);
         startSide = state.side;
         viewSide = state.side;  // default to player's corridor
         // Center viewport on starting location
-        vpX = state.position - Math.floor(vpCols / 2);
-        vpY = state.floor - Math.floor(vpRows / 2);
+        vpX = Number(state.position) - Math.floor(vpCols / 2);
+        vpY = Number(state.floor) - Math.floor(vpRows / 2);
         this.resize();
         window.addEventListener("resize", () => this.resize());
     },
@@ -212,10 +212,12 @@ export const GodmodeMap = {
                 const right = vpX + vpCols - marginX;
                 const bottom = vpY + marginY;
                 const top = vpY + vpRows - marginY;
-                if (npc.position < left) vpX = npc.position - marginX;
-                else if (npc.position > right) vpX = npc.position - vpCols + marginX;
-                if (npc.floor < bottom) vpY = npc.floor - marginY;
-                else if (npc.floor > top) vpY = npc.floor - vpRows + marginY;
+                const npcPos = Number(npc.position);
+                const npcFlr = Number(npc.floor);
+                if (npcPos < left) vpX = npcPos - marginX;
+                else if (npcPos > right) vpX = npcPos - vpCols + marginX;
+                if (npcFlr < bottom) vpY = npcFlr - marginY;
+                else if (npcFlr > top) vpY = npcFlr - vpRows + marginY;
             }
         }
 
@@ -510,12 +512,12 @@ export const GodmodeMap = {
         const cellBuckets = new Map();
         for (const npc of snap.npcs) {
             if (viewSide !== null && npc.side !== viewSide) continue;
-            const cx = worldToPixelX(npc.position, npc.side);
-            const cy = worldToPixelY(npc.floor);
+            const cx = worldToPixelX(Number(npc.position), npc.side);
+            const cy = worldToPixelY(Number(npc.floor));
             if (cx < LABEL_GUTTER - dotR || cx > w + dotR) continue;
             if (cy < -dotR || cy > gridH + dotR) continue;
 
-            const cellKey = npc.side + ":" + npc.position + ":" + npc.floor;
+            const cellKey = npc.side + ":" + String(npc.position) + ":" + String(npc.floor);
             let bucket = cellBuckets.get(cellKey);
             if (!bucket) { bucket = { cx, cy, npcs: [] }; cellBuckets.set(cellKey, bucket); }
             bucket.npcs.push(npc);
@@ -722,8 +724,8 @@ export const GodmodeMap = {
 
     /** Center viewport on a world position. */
     centerOn(pos, floor) {
-        vpX = pos - vpCols / 2;
-        vpY = floor - vpRows / 2;
+        vpX = Number(pos) - vpCols / 2;
+        vpY = Number(floor) - vpRows / 2;
     },
 
     /** Set side view: 0=west, 1=east, null=both. */

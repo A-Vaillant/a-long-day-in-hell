@@ -30,7 +30,7 @@ describe("generateLifeStory winnability", () => {
             it("floor is non-negative", () => {
                 for (let i = 0; i < SEEDS; i++) {
                     const story = generateLifeStory("seed-" + i, { placement });
-                    assert.ok(story.bookCoords.floor >= 0,
+                    assert.ok(story.bookCoords.floor >= 0n,
                         `seed-${i}: floor ${story.bookCoords.floor} is negative`);
                 }
             });

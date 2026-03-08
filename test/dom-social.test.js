@@ -89,7 +89,7 @@ describe("DOM: Social sidebar — group display", () => {
         assert.ok(game.Social.getGroupMembers().length > 0, "grouped initially");
 
         // Move NPC far away
-        npc.position = game.state.position + 100;
+        npc.position = game.state.position + 100n;
         game.Social.syncNpcPositions();
         game.Social.onTick();
 
@@ -112,7 +112,7 @@ describe("DOM: Ambient muttering", () => {
         // Place an NPC 2 segments away, same side/floor
         const npc = game.state.npcs[0];
         npc.side = game.state.side;
-        npc.position = game.state.position + 2;
+        npc.position = game.state.position + 2n;
         npc.floor = game.state.floor;
         game.Social.syncNpcPositions();
         game.Social.syncPlayerPosition();
@@ -138,7 +138,7 @@ describe("DOM: Ambient muttering", () => {
         const game = bootGame();
         const npc = game.state.npcs[0];
         npc.side = game.state.side;
-        npc.position = game.state.position + 10;
+        npc.position = game.state.position + 10n;
         npc.floor = game.state.floor;
         game.Social.syncNpcPositions();
         game.Social.syncPlayerPosition();
@@ -151,7 +151,7 @@ describe("DOM: Ambient muttering", () => {
         const game = bootGame();
         const npc = game.state.npcs[0];
         npc.side = game.state.side;
-        npc.position = game.state.position + 1;
+        npc.position = game.state.position + 1n;
         npc.floor = game.state.floor;
         game.Social.syncNpcPositions();
 
@@ -170,7 +170,7 @@ describe("DOM: Ambient muttering", () => {
         // Place NPC 1 segment away
         const npc = game.state.npcs[0];
         npc.side = game.state.side;
-        npc.position = game.state.position + 1;
+        npc.position = game.state.position + 1n;
         npc.floor = game.state.floor;
         game.Social.syncNpcPositions();
 

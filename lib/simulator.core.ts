@@ -73,8 +73,8 @@ export type Action =
 
 export interface BookCoords {
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
     bookIndex: number;
 }
 
@@ -93,8 +93,8 @@ export interface LifeStory {
 export interface GameState {
     seed: string;
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
     tick: number;
     day: number;
     lightsOn: boolean;
@@ -143,8 +143,8 @@ export interface SimResult {
 interface InternalState {
     seed: string;
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
     tick: number;
     day: number;
     lightsOn: boolean;
@@ -221,7 +221,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     const rng = seedFromString(seed);
 
     // Initialize life story + target book
-    const startLoc: Location = { side: 0, position: 0, floor: 10 };
+    const startLoc: Location = { side: 0, position: 0n, floor: 10n };
     const lifeStory: LifeStory = LifeStoryCore.generateLifeStory(seed, { placement: placement as "gaussian" | "random", startLoc });
     const targetBook: BookCoords = lifeStory.bookCoords;
 
@@ -615,9 +615,9 @@ export const strategies = {
                 // Walk to rest area if starving/parched
                 if ((gs.stats.hunger >= 90 || gs.stats.thirst >= 90) && !gs.isRestArea) {
                     // Head toward nearest rest area (position % 10 === 0)
-                    const mod = ((gs.position % 10) + 10) % 10;
-                    const distRight = (10 - mod) % 10 || 10;
-                    const distLeft = mod || 10;
+                    const mod = ((gs.position % 10n) + 10n) % 10n;
+                    const distRight = (10n - mod) % 10n || 10n;
+                    const distLeft = mod || 10n;
                     return { type: "move", dir: distLeft <= distRight ? "left" : "right" };
                 }
 
@@ -701,9 +701,9 @@ export const strategies = {
                 }
 
                 // Walk to nearest rest area
-                const mod = ((gs.position % 10) + 10) % 10;
-                const distRight = (10 - mod) % 10 || 10;
-                const distLeft = mod || 10;
+                const mod = ((gs.position % 10n) + 10n) % 10n;
+                const distRight = (10n - mod) % 10n || 10n;
+                const distLeft = mod || 10n;
                 return { type: "move", dir: distLeft <= distRight ? "left" : "right" };
             }
         };
@@ -730,12 +730,10 @@ export const strategies = {
         let phase: "navigate" | "take" | "toSubmit" | "submit" | "done" = "navigate";
 
         /** Navigate to a rest area from current position. */
-        function moveToRestArea(pos: number): MoveAction | null {
-            // Rest areas are at positions divisible by 10.
-            // Handle negative positions: need modular arithmetic.
-            const mod = ((pos % 10) + 10) % 10;
-            if (mod === 0) return null; // already at rest area
-            const distRight = 10 - mod;
+        function moveToRestArea(pos: bigint): MoveAction | null {
+            const mod = ((pos % 10n) + 10n) % 10n;
+            if (mod === 0n) return null; // already at rest area
+            const distRight = 10n - mod;
             const distLeft = mod;
             return { type: "move", dir: distLeft <= distRight ? "left" : "right" };
         }
@@ -778,7 +776,7 @@ export const strategies = {
 
                 // 1. Handle side crossing (only at floor 0 rest areas)
                 if (gs.side !== tb.side) {
-                    if (gs.floor > 0) {
+                    if (gs.floor > 0n) {
                         // Need to go down to floor 0 — requires rest area
                         if (!gs.isRestArea) {
                             return moveToRestArea(gs.position) || { type: "move", dir: "right" };

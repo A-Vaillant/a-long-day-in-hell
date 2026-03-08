@@ -18,9 +18,9 @@ export const Chasm = {
         const f = state.falling;
         if (!f) return null;
         const prevFloor = state.floor;
-        const result = fallTick(f, state.floor);
+        const result = fallTick(f, Number(state.floor));
 
-        state.floor = result.newFloor;
+        state.floor = BigInt(result.newFloor);
         f.speed = result.newSpeed;
 
         if (result.landed) {
@@ -56,6 +56,6 @@ export const Chasm = {
     },
 
     getAltitude(floor) {
-        return altitudeBand(floor !== undefined ? floor : state.floor);
+        return altitudeBand(Number(floor !== undefined ? floor : state.floor));
     },
 };

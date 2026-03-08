@@ -40,8 +40,8 @@ export const AI = "ai";
 
 export interface Position {
     side: number;
-    position: number;
-    floor: number;
+    position: bigint;
+    floor: bigint;
 }
 
 export interface Identity {
@@ -450,7 +450,7 @@ export const DEFAULT_AWARENESS: AwarenessConfig = {
 export function segmentDistance(a: Position, b: Position): number {
     if (a.floor !== b.floor) return Infinity;
     if (a.side !== b.side) return Infinity; // use canSeeAcrossChasm for cross-chasm
-    return Math.abs(a.position - b.position);
+    return Number(a.position > b.position ? a.position - b.position : b.position - a.position);
 }
 
 /**
@@ -542,7 +542,7 @@ export function getNearbyEntities(
 }
 
 export interface PrebuiltIndex {
-    locationIndex: Map<number, Entity[]>;
+    locationIndex: Map<string, Entity[]>;
     entities: [Entity, ...unknown[]][];
 }
 
@@ -552,13 +552,13 @@ export interface PrebuiltIndex {
  */
 export function buildLocationIndex(world: World): PrebuiltIndex {
     const entities = query(world, [POSITION, RELATIONSHIPS, IDENTITY]);
-    const locationIndex = new Map<number, Entity[]>();
+    const locationIndex = new Map<string, Entity[]>();
     for (const tuple of entities) {
         const entity = tuple[0] as Entity;
         const pos = tuple[1] as Position;
         const ident = tuple[3] as Identity;
         if (!ident.alive) continue;
-        const key = pos.side * 1000000000 + pos.position * 10000 + pos.floor;
+        const key = `${pos.side}:${pos.position}:${pos.floor}`;
         let list = locationIndex.get(key);
         if (!list) {
             list = [];
@@ -589,7 +589,7 @@ export function relationshipSystem(
         const rels = tuple[2] as Relationships;
         const ident = tuple[3] as Identity;
         if (!ident.alive) continue;
-        const key = pos.side * 1000000000 + pos.position * 10000 + pos.floor;
+        const key = `${pos.side}:${pos.position}:${pos.floor}`;
         const coLocated = locationIndex.get(key);
 
         // Accumulate bonds with co-located entities
@@ -687,7 +687,7 @@ export function groupFormationSystem(
     const { locationIndex } = prebuilt || buildLocationIndex(world);
 
     // Build a fast position lookup: entity → position key
-    const entityPos = new Map<Entity, number>();
+    const entityPos = new Map<Entity, string>();
     for (const [key, list] of locationIndex) {
         for (const e of list) entityPos.set(e, key);
     }
@@ -982,7 +982,7 @@ export function socialPressureSystem(
 
     const targets: { pos: Position, psych: Psychology }[] = [];
     // Track mad NPC positions + their influence modifier
-    const madIndex = new Map<number, { position: number, infMod: number }[]>();
+    const madIndex = new Map<string, { position: bigint, infMod: number }[]>();
 
     for (const tuple of entities) {
         const entity = tuple[0] as Entity;
@@ -993,7 +993,7 @@ export function socialPressureSystem(
         const disp = deriveDisposition(psych, true, thresholds);
 
         if (disp === "mad") {
-            const key = pos.side * 1000000 + pos.floor;
+            const key = `${pos.side}:${pos.floor}`;
             let list = madIndex.get(key);
             if (!list) { list = []; madIndex.set(key, list); }
             const stats = getComponent<Stats>(world, entity, STATS);
@@ -1004,13 +1004,13 @@ export function socialPressureSystem(
     }
 
     for (const target of targets) {
-        const key = target.pos.side * 1000000 + target.pos.floor;
+        const key = `${target.pos.side}:${target.pos.floor}`;
         const madNearby = madIndex.get(key);
         if (!madNearby) continue;
 
         let pressure = 0;
         for (let mi = 0; mi < madNearby.length; mi++) {
-            if (Math.abs(target.pos.position - madNearby[mi].position) <= awareness.shoutRange) {
+            if (Number(target.pos.position > madNearby[mi].position ? target.pos.position - madNearby[mi].position : madNearby[mi].position - target.pos.position) <= awareness.shoutRange) {
                 pressure += madNearby[mi].infMod;
             }
         }
