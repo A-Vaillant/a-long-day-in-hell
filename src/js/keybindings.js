@@ -80,7 +80,7 @@ document.addEventListener("keydown", function (ev) {
                 if (nameLink) nameLink.click();
                 return;
             }
-            case "H": case "Home":
+            case "H":
                 ev.preventDefault();
                 state.openPage = 0;
                 Engine.goto("Shelf Open Book");
