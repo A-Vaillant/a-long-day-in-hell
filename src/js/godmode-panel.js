@@ -805,7 +805,10 @@ export const GodmodePanel = {
         let html = '<div class="gm-grp-list">';
         for (const [gid, members] of groups) {
             html += '<div class="gm-grp-card">';
-            html += '<div class="gm-grp-header">' + members.length + ' members</div>';
+            // Find leader name from group component
+            const leaderName = members.find(m => m.components && m.components.group && m.components.group.leaderName)
+                ?.components.group.leaderName || '?';
+            html += '<div class="gm-grp-header">' + members.length + ' members &middot; leader: ' + esc(leaderName) + '</div>';
             // Location (use first member)
             const loc = members[0];
             html += '<div class="gm-grp-loc" data-center-id="' + loc.id + '">' +

@@ -207,6 +207,7 @@ export const Engine = {
         var group = Social.getGroupMembers();
         if (group.length > 0) {
             html += '<div class="sb-divider"></div>';
+            html += '<div class="sb-label">Companions</div>';
             for (var gi = 0; gi < group.length; gi++) {
                 var m = group[gi];
                 html += '<div class="sb-companion sb-disp-' + m.disposition + '">' +

@@ -853,6 +853,16 @@ button:disabled {
     opacity: 0.6;
 }
 
+.npc-companion-tag {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    font-style: italic;
+}
+.talk-group-status {
+    color: var(--text-dim);
+    font-style: italic;
+    margin: 0.3rem 0;
+}
 .npc-dialogue {
     color: var(--text-dim);
     margin: 0.1rem 0 0.3rem 1.2em;
