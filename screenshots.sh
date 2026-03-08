@@ -38,8 +38,10 @@ snap() {
     local name="$1" passage="$2" selector="$3" extra="${4:-}"
     local url="${BASE}/?seed=${SEED}&vohu=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$passage")"
     local sel_json; sel_json=$(printf '%s' "$selector" | python3 -c 'import sys,json;print(json.dumps(sys.stdin.read()))')
+    # Hide debug panel for clean screenshots, then run extra JS + re-render
+    local js="state.debug=false; ${extra:-} Engine.goto(state.screen);"
     shot-scraper shot "$url" \
-        ${extra:+--javascript "$extra"} \
+        --javascript "$js" \
         --wait-for "document.querySelector(${sel_json})&&document.querySelector(${sel_json}).innerText.trim().length>0" \
         --timeout 12000 \
         -o "${OUT}/${name}.png" \
