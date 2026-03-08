@@ -570,7 +570,7 @@ function mercyDistanceText(playerLoc, targetBook) {
     }
 
     let location = distStr + " " + segDir;
-    if (!sameSide) location += ", on the " + targetSide + " side";
+    if (!sameSide) location += ", on the other side";
     if (floorDist > 0n) location += ", " + floorDist + " floor" + (floorDist === 1n ? "" : "s") + " " + floorDir;
 
     return location;
