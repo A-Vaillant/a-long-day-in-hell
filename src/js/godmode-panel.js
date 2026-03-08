@@ -59,50 +59,12 @@ const DISP_SHORT = {
     escaped: "FREE",
 };
 
-const TIPS = {
-    lucidity: "Mental clarity. Low lucidity → madness, violence.",
-    hope: "Will to continue. Low hope → catatonia, shutdown.",
-    hunger: "Food need. Accumulates over time. Death at 100.",
-    thirst: "Water need. Accumulates faster than hunger. Death at 100.",
-    exhaustion: "Fatigue. Auto-sleeps at rest areas when high.",
-    bookIndex: "Which book in the gallery they're currently examining (0–191).",
-    ticksSearched: "How many ticks spent searching at this position.",
-    patience: "Search stamina. Higher for patient, open NPCs. Shown as progress bar.",
-    "prior faith": "Religion in life. Determines how hard the Zoroastrian revelation hits.",
-    devotion: "How devout they were in life. Higher = harder the faith crisis.",
-    "faith crisis": "How far their prior faith has crumbled. Grows over time.",
-    faithCrisis: "How far their prior faith has crumbled. Grows over time.",
-    acceptance: "How much they've accepted the Zoroastrian reality of this place.",
-    stance: "Current worldview forged by hell.",
-    undecided: "Haven't committed to a worldview yet.",
-    seeker: "Accepted the rules. Searching for their book with purpose.",
-    direite: "God spoke — scourge them. Meaning through violence.",
-    nihilist: "Nothing means anything. Precursor to catatonia.",
-    holdout: "Clinging to prior faith. \"This is a test from God.\"",
-    temperament: "Stress response. Withdrawn (0) ↔ volatile (1). Volatile → madness. Withdrawn → despair.",
-    pace: "Tolerance for staying put. Patient (0) ↔ restless (1).",
-    openness: "How readily they let people in. Guarded (0) ↔ open (1).",
-    outlook: "How they frame being here. Accepting (0) ↔ resistant (1).",
-    fam: "Familiarity — time spent together. Grows with proximity.",
-    aff: "Affinity — how they feel about each other. Can go negative.",
-    calm: "Functional. Lucidity and hope both adequate.",
-    anxious: "Strained. Lucidity or hope dropping.",
-    mad: "Lucidity collapsed. Erratic, potentially violent.",
-    catatonic: "Hope collapsed. Unresponsive. May not recover.",
-    inspired: "Divinely inspired. On a pilgrimage to find their book.",
-    witnessChasm: "Saw someone jump into the chasm. Devastating at first.",
-    beingKilled: "Died and came back. Terrifying, then routine.",
-    companionMad: "A companion went mad. Personal. Slow to numb.",
-    beingDismissed: "Abandoned or rejected. Pure hope damage.",
-    witnessAttack: "Saw violence. Goes numb fastest.",
-    committingViolence: "Killed someone. Costs clarity and hope.",
-    endurance: "Physical resilience. Slows hunger, thirst, exhaustion. 3d6 (3–18).",
-    influence: "Social force. Scales pressure, companion restoration, affinity gain. 3d6 (3–18).",
-    quickness: "Speed. Movement probability, search speed, grab chance. 3d6 (3–18).",
-};
+// Narrative copy loaded from content/godmode.json via window.TEXT
+function gm() { return (typeof TEXT !== "undefined" && TEXT.godmode) || {}; }
+function TIPS() { return gm().tips || {}; }
 
 function tip(label) {
-    const desc = TIPS[label];
+    const desc = TIPS()[label];
     if (!desc) return '<span>' + esc(label) + '</span>';
     return '<span class="gm-tip" data-tip="' + esc(desc) + '">' + esc(label) + '</span>';
 }
@@ -191,7 +153,7 @@ const componentRenderers = {
         if (comp.stance !== undefined) {
             const label = STANCE_LABELS[comp.stance] || comp.stance;
             const color = STANCE_COLORS[comp.stance] || "#888";
-            html += '<div class="gm-stat">' + tip("stance") + '<span class="gm-bar-num gm-tip" data-tip="' + esc(TIPS[comp.stance] || "") + '" style="color:' + color + '">' + esc(label) + '</span></div>';
+            html += '<div class="gm-stat">' + tip("stance") + '<span class="gm-bar-num gm-tip" data-tip="' + esc(TIPS()[comp.stance] || "") + '" style="color:' + color + '">' + esc(label) + '</span></div>';
         }
         // Render any other belief fields generically
         for (const key in comp) {
@@ -208,16 +170,6 @@ const componentRenderers = {
     },
 
     intent(comp, npc, snap) {
-        const BEHAVIOR_LABELS = {
-            idle: "Idle",
-            explore: "Exploring",
-            seek_rest: "Seeking rest",
-            search: "Searching books",
-            return_home: "Heading home",
-            wander_mad: "Wandering (mad)",
-            pilgrimage: "Pilgrimage",
-            socialize: "Socializing",
-        };
         const BEHAVIOR_COLORS = {
             idle: "#888",
             explore: "#b8a878",
@@ -228,16 +180,17 @@ const componentRenderers = {
             pilgrimage: "#d4a0e0",
             socialize: "#7ab0a0",
         };
+        const labels = gm().behavior_labels || {};
         // Show "Asleep" when idle during lights-off
         const asleep = comp.behavior === "idle" && snap && !snap.lightsOn && npc && npc.alive;
-        const label = asleep ? "Asleep" : (BEHAVIOR_LABELS[comp.behavior] || comp.behavior);
+        const label = asleep ? (labels.asleep || "Asleep") : (labels[comp.behavior] || comp.behavior);
         const color = asleep ? "#6a3a6a" : (BEHAVIOR_COLORS[comp.behavior] || "#888");
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">behavior</div>';
-        html += '<div class="gm-stat"><span class="gm-tip" data-tip="Current goal. Chosen by utility scoring each tick.">intent</span>';
+        html += '<div class="gm-stat">' + tip("intent");
         html += '<span class="gm-bar-num" style="color:' + color + '">' + esc(label) + '</span></div>';
         if (comp.cooldown > 0) {
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Ticks before the arbiter can switch behaviors.">cooldown</span>';
+            html += '<div class="gm-stat">' + tip("cooldown");
             html += '<span class="gm-bar-num">' + comp.cooldown + '</span></div>';
         }
         html += '</div>';
@@ -345,8 +298,8 @@ const componentRenderers = {
             if (bond.familiarity < 0.5) continue;
             html += '<div class="gm-bond">';
             html += '<span class="gm-bond-name">' + esc(bond.name) + (bond.isPlayer ? ' <span class="gm-player-tag">you</span>' : '') + '</span>';
-            html += '<span class="gm-bond-fam gm-tip" data-tip="' + esc(TIPS.fam) + '">fam ' + Math.round(bond.familiarity) + '</span>';
-            html += '<span class="gm-bond-aff gm-tip ' + (bond.affinity >= 0 ? 'gm-aff-pos' : 'gm-aff-neg') + '" data-tip="' + esc(TIPS.aff) + '">' +
+            html += '<span class="gm-bond-fam gm-tip" data-tip="' + esc(TIPS().fam) + '">fam ' + Math.round(bond.familiarity) + '</span>';
+            html += '<span class="gm-bond-aff gm-tip ' + (bond.affinity >= 0 ? 'gm-aff-pos' : 'gm-aff-neg') + '" data-tip="' + esc(TIPS().aff) + '">' +
                 'aff ' + (bond.affinity >= 0 ? '+' : '') + Math.round(bond.affinity) + '</span>';
             html += '</div>';
         }
@@ -601,69 +554,58 @@ function renderComponentFallback(key, comp) {
 }
 
 function narrate(npc) {
-    if (!npc.alive) return "They are dead. They will return at dawn.";
+    const n = gm().narrate || {};
+    if (!npc.alive) return n.dead || "";
 
     const parts = [];
-
-    if (npc.disposition === "calm") parts.push("They are unworried.");
-    else if (npc.disposition === "anxious") parts.push("They are anxious.");
-    else if (npc.disposition === "mad") parts.push("They have lost their mind.");
-    else if (npc.disposition === "catatonic") parts.push("They have stopped moving.");
-    else if (npc.disposition === "inspired") parts.push("They have seen where their book is.");
+    const disp = (n.disposition || {})[npc.disposition];
+    if (disp) parts.push(disp);
 
     if (npc.bonds.length === 0) {
-        parts.push("They know no one.");
+        parts.push(n.bonds_none || "");
     } else {
         const close = npc.bonds.filter(b => b.affinity > 5);
         if (close.length > 0) {
-            parts.push("They are close with " + close.map(b => b.name).join(", ") + ".");
+            parts.push((n.bonds_close || "").replace("{names}", close.map(b => b.name).join(", ")));
+        } else if (npc.bonds.length === 1) {
+            parts.push(n.bonds_met_one || "");
         } else {
-            parts.push("They have met " + npc.bonds.length + " " + (npc.bonds.length === 1 ? "person" : "people") + ".");
+            parts.push((n.bonds_met || "").replace("{count}", npc.bonds.length));
         }
     }
 
     // Belief
     const belief = npc.components && npc.components.belief;
     if (belief) {
-        const b = belief;
-        if (b.stance === "holdout") {
-            parts.push("They still believe this is a test from God.");
-        } else if (b.stance === "seeker") {
-            parts.push("They have accepted the rules. They are looking for their book.");
-        } else if (b.stance === "direite") {
-            parts.push("They believe God demands scourging.");
-        } else if (b.stance === "nihilist") {
-            parts.push("They have stopped believing in anything.");
-        } else if (b.faithCrisis > 0.5 && b.acceptance < 0.3) {
-            parts.push("Their faith is crumbling.");
+        const stanceText = (n.stance || {})[belief.stance];
+        if (stanceText) {
+            parts.push(stanceText);
+        } else if (belief.faithCrisis > 0.5 && belief.acceptance < 0.3) {
+            parts.push(n.faith_crumbling || "");
         }
     }
 
     // Intent
     const intent = npc.components && npc.components.intent;
     if (intent) {
-        if (intent.behavior === "search") parts.push("They are browsing bookshelves.");
-        else if (intent.behavior === "return_home") parts.push("They are heading home for the night.");
-        else if (intent.behavior === "seek_rest") parts.push("They need to rest.");
-        else if (intent.behavior === "wander_mad") parts.push("They are wandering erratically.");
-        else if (intent.behavior === "pilgrimage") parts.push("They are on a pilgrimage to find their book.");
-        else if (intent.behavior === "socialize") parts.push("They are talking with someone nearby.");
+        const intentText = (n.intent || {})[intent.behavior];
+        if (intentText) parts.push(intentText);
     }
 
     // Sleep
     const sleep = npc.components && npc.components.sleep;
     if (sleep && sleep.asleep) {
         if (sleep.coSleepers && sleep.coSleepers.length > 0) {
-            parts.push("They are sleeping among others.");
+            parts.push(n.sleep_others || "");
         } else {
-            parts.push("They are sleeping alone.");
+            parts.push(n.sleep_alone || "");
         }
     }
 
     if (npc.groupId !== null && npc.groupId !== undefined) {
-        parts.push("They are traveling with others.");
+        parts.push(n.traveling || "");
     } else if (!sleep || !sleep.asleep) {
-        parts.push("They are alone.");
+        parts.push(n.alone || "");
     }
 
     return parts.join(" ");
@@ -748,7 +690,7 @@ function renderDetail(npc, snap, pane) {
     // Identity (always present, from flat fields)
     html += '<div class="gm-section gm-identity">';
     html += '<div class="gm-name">' + esc(npc.name) + (npc.isPlayer ? ' <span class="gm-player-tag">you</span>' : '') + '</div>';
-    html += '<div class="gm-disp gm-disp-' + npc.disposition + ' gm-tip" data-tip="' + esc(TIPS[npc.disposition] || "") + '">' + npc.disposition + '</div>';
+    html += '<div class="gm-disp gm-disp-' + npc.disposition + ' gm-tip" data-tip="' + esc(TIPS()[npc.disposition] || "") + '">' + npc.disposition + '</div>';
     const isEscaped = npc.free;
     if (!npc.alive) html += '<div class="gm-dead-tag" style="' + (isEscaped ? 'color:#60d060;font-style:normal' : '') + '">' + (isEscaped ? 'FREE' : 'dead') + '</div>';
     if (npc.falling) html += '<div class="gm-dead-tag" style="color:#e0b040">falling (spd ' + Math.round(npc.falling.speed) + ')</div>';

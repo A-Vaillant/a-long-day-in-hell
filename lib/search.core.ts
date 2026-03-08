@@ -284,6 +284,11 @@ export interface Searching {
     bestWords: string[];
 }
 
+/** Create a fresh SEARCHING component with all fields initialized. */
+export function createSearching(): Searching {
+    return { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0, bestWords: [] };
+}
+
 // --- Config ---
 
 export interface SearchConfig {
