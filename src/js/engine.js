@@ -315,6 +315,11 @@ export const Engine = {
 
     init() {
         const params = new URLSearchParams(window.location.search);
+        if (params.has("reset")) {
+            this.clearSave();
+            window.location.href = window.location.pathname;
+            return;
+        }
         const saved = this.load();
         const isDebugGoto = params.has("vohu");
         const hasSeedParam = params.has("seed");

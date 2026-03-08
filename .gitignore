@@ -17,9 +17,14 @@ CHANGELOG.md
 
 # Source material (not redistributable)
 *.epub
+*.pdf
+A Short Stay in Hell.txt
+The Library of Babel.txt
+mock/lifestory_book.txt
 
 # VDD workflow artifacts
 .chainlink/
+.vdd/
 reviews/
 *.review.md
 
