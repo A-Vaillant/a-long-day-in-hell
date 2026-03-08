@@ -380,7 +380,8 @@ const componentRenderers = {
 
 // --- Search coverage map overlay ---
 
-function showSearchMap(npcId) {
+function toggleSearchMap(npcId) {
+    if (!callbacks.onSearchMap) return;
     const snap = lastSnap;
     if (!snap) return;
     const npc = snap.npcs.find(n => n.id === npcId);
@@ -390,166 +391,19 @@ function showSearchMap(npcId) {
     const segs = k.searchedSegments || [];
     if (segs.length === 0) return;
 
-    // Parse segment keys "side:position:floor"
-    const parsed = segs.map(s => {
+    const segments = segs.map(s => {
         const [side, pos, floor] = s.split(":").map(Number);
         return { side, pos, floor };
     });
 
-    // Separate by side
-    const bySide = [
-        parsed.filter(p => p.side === 0),
-        parsed.filter(p => p.side === 1),
-    ];
-
-    // Compute bounds from searched segments + NPC position only.
-    // Book/vision coords excluded — they can be billions of segments away.
-    const allPos = parsed.map(p => p.pos);
-    const allFloor = parsed.map(p => p.floor);
-    allPos.push(Number(npc.position));
-    allFloor.push(Number(npc.floor));
-
-    const minPos = Math.min(...allPos) - 2;
-    const maxPos = Math.max(...allPos) + 2;
-    const minFloor = Math.min(...allFloor) - 2;
-    const maxFloor = Math.max(...allFloor) + 2;
-
-    const cols = maxPos - minPos + 1;
-    const rows = maxFloor - minFloor + 1;
-
-    // Create overlay
-    const pane = document.getElementById("gm-npc-pane");
-    if (!pane) return;
-
-    const overlay = document.createElement("div");
-    overlay.className = "gm-search-map-overlay";
-
-    // Header
-    const header = document.createElement("div");
-    header.className = "gm-search-map-header";
-    header.innerHTML = '<span>' + esc(npc.name) + ' — search coverage (' +
-        segs.length + ' segment' + (segs.length !== 1 ? 's' : '') + ')</span>' +
-        '<button class="gm-btn gm-search-map-close">\u00D7</button>';
-    overlay.appendChild(header);
-
-    // Determine if we show both sides or just one
-    const hasBoth = bySide[0].length > 0 && bySide[1].length > 0;
-    const sidesToShow = hasBoth ? [0, 1] : (bySide[0].length > 0 ? [0] : [1]);
-
-    // Cap canvas to a reasonable size — beyond this, cells are dots
-    const MAX_DIM = 500;
-    const clampedCols = Math.min(cols, MAX_DIM);
-    const clampedRows = Math.min(rows, MAX_DIM);
-    const CELL = Math.max(2, Math.min(12, Math.floor(280 / Math.max(clampedCols, clampedRows))));
-    const GAP = hasBoth ? 8 : 0;
-    const corridorW = clampedCols * CELL;
-    const canvasW = hasBoth ? corridorW * 2 + GAP : corridorW;
-    const canvasH = clampedRows * CELL;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = canvasW;
-    canvas.height = canvasH;
-    canvas.style.width = canvasW + "px";
-    canvas.style.height = canvasH + "px";
-    overlay.appendChild(canvas);
-
-    // Legend
-    const legend = document.createElement("div");
-    legend.className = "gm-search-map-legend";
-    legend.innerHTML =
-        '<span class="gm-sml-searched"></span> searched ' +
-        '<span class="gm-sml-npc"></span> location ' +
-        '<span class="gm-sml-book"></span> book';
-    overlay.appendChild(legend);
-
-    pane.appendChild(overlay);
-
-    // Render
-    const ctx = canvas.getContext("2d");
-
-    for (const sideIdx of sidesToShow) {
-        const offsetX = hasBoth && sideIdx === 1 ? corridorW + GAP : 0;
-
-        // Background
-        ctx.fillStyle = "#0d0b08";
-        ctx.fillRect(offsetX, 0, corridorW, canvasH);
-
-        // Grid lines (skip when cells are tiny — just noise)
-        if (CELL >= 4) {
-            ctx.strokeStyle = "#1a1710";
-            ctx.lineWidth = 0.5;
-            for (let c = 0; c <= clampedCols; c++) {
-                const x = offsetX + c * CELL;
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
-            }
-            for (let r = 0; r <= clampedRows; r++) {
-                const y = r * CELL;
-                ctx.beginPath(); ctx.moveTo(offsetX, y); ctx.lineTo(offsetX + corridorW, y); ctx.stroke();
-            }
-        }
-
-        // Searched cells — iterate the set, not the bounding box
-        // Clamp to visible region
-        ctx.fillStyle = "#3a5a3a";
-        for (const seg of bySide[sideIdx]) {
-            const col = seg.pos - minPos;
-            const row = maxFloor - seg.floor;
-            if (col < 0 || col >= clampedCols || row < 0 || row >= clampedRows) continue;
-            ctx.fillRect(offsetX + col * CELL, row * CELL, CELL, CELL);
-        }
-
-        // NPC position
-        if (npc.side === sideIdx) {
-            const nx = offsetX + (Number(npc.position) - minPos) * CELL + CELL / 2;
-            const ny = (maxFloor - Number(npc.floor)) * CELL + CELL / 2;
-            ctx.fillStyle = "#d4c898";
-            ctx.beginPath();
-            ctx.arc(nx, ny, Math.max(2, CELL / 2.5), 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Book location
-        const bc = k.lifeStory && k.lifeStory.bookCoords;
-        if (bc && bc.side === sideIdx) {
-            const bx = offsetX + (Number(bc.position) - minPos) * CELL + CELL / 2;
-            const by = (maxFloor - Number(bc.floor)) * CELL + CELL / 2;
-            ctx.fillStyle = "#60d060";
-            ctx.beginPath();
-            ctx.arc(bx, by, Math.max(2, CELL / 2.5), 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Vision location (if different from book)
-        if (k.bookVision && k.bookVision.side === sideIdx) {
-            const vx = offsetX + (Number(k.bookVision.position) - minPos) * CELL + CELL / 2;
-            const vy = (maxFloor - Number(k.bookVision.floor)) * CELL + CELL / 2;
-            ctx.strokeStyle = k.visionAccurate ? "#60d060" : "#d04040";
-            ctx.lineWidth = 1.5;
-            const r = Math.max(2, CELL / 2.5);
-            ctx.beginPath();
-            ctx.moveTo(vx - r, vy - r); ctx.lineTo(vx + r, vy + r);
-            ctx.moveTo(vx + r, vy - r); ctx.lineTo(vx - r, vy + r);
-            ctx.stroke();
-        }
-
-        // Side label
-        if (hasBoth) {
-            ctx.fillStyle = "#6a6050";
-            ctx.font = "9px 'Share Tech Mono', monospace";
-            ctx.textAlign = "center";
-            ctx.fillText(sideIdx === 0 ? "W" : "E", offsetX + corridorW / 2, 9);
-        }
-    }
-
-    // Chasm gap
-    if (hasBoth) {
-        ctx.fillStyle = "#1a1408";
-        ctx.fillRect(corridorW, 0, GAP, canvasH);
-    }
-
-    // Close handler
-    overlay.querySelector(".gm-search-map-close").addEventListener("click", function () {
-        overlay.remove();
+    const bc = k.lifeStory && k.lifeStory.bookCoords;
+    callbacks.onSearchMap({
+        npcId: npc.id,
+        npcName: npc.name,
+        segments,
+        bookCoords: bc || null,
+        bookVision: k.bookVision || null,
+        visionAccurate: !!k.visionAccurate,
     });
 }
 
@@ -899,7 +753,7 @@ export const GodmodePanel = {
                 // Search map button
                 if (ev.target.closest(".gm-search-map-btn")) {
                     const id = parseInt(ev.target.closest(".gm-search-map-btn").dataset.npcId, 10);
-                    showSearchMap(id);
+                    toggleSearchMap(id);
                     return;
                 }
 

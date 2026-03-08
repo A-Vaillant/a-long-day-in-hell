@@ -1097,34 +1097,7 @@ body.godmode {
     }
 }
 
-/* --- Search coverage map overlay --- */
-.gm-search-map-overlay {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: #0d0b08ee;
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px;
-}
-
-.gm-search-map-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 11px;
-    color: #b8a878;
-}
-
-.gm-search-map-close {
-    font-size: 14px;
-    padding: 2px 6px;
-    min-height: 0;
-}
-
+/* --- Search coverage map button (panel) --- */
 .gm-search-map-btn {
     font-size: 9px;
     padding: 1px 6px;
@@ -1132,26 +1105,3 @@ body.godmode {
     margin-left: 6px;
     vertical-align: middle;
 }
-
-.gm-search-map-legend {
-    display: flex;
-    gap: 12px;
-    font-size: 10px;
-    color: #6a6050;
-    align-items: center;
-}
-
-.gm-sml-searched,
-.gm-sml-npc,
-.gm-sml-book {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 1px;
-    margin-right: 3px;
-    vertical-align: middle;
-}
-
-.gm-sml-searched { background: #3a5a3a; }
-.gm-sml-npc { background: #d4c898; border-radius: 50%; }
-.gm-sml-book { background: #60d060; border-radius: 50%; }

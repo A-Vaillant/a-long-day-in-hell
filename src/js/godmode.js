@@ -18,6 +18,7 @@ import { GodmodeLog } from "./godmode-log.js";
 import { GodmodeTrends } from "./godmode-trends.js";
 import { detectEvents } from "./godmode-detect.js";
 import { appendEvents } from "./event-log.js";
+import { createSearchOverlay } from "./godmode-overlays.js";
 import { getComponent } from "../../lib/ecs.core.ts";
 import { TICKS_PER_DAY, LIGHTS_ON_TICKS } from "../../lib/tick.core.ts";
 
@@ -1013,6 +1014,11 @@ export const Godmode = {
             onVision(id) {
                 Social.grantVision(id);
                 render(true);
+            },
+            onSearchMap(data) {
+                const key = "search:" + data.npcId;
+                GodmodeMap.toggleOverlay(key, createSearchOverlay(data));
+                render();
             },
         });
         setupInput(canvas);
