@@ -123,6 +123,12 @@ function snapshot() {
                         };
                     });
                     components[key] = { entries, capacity: comp.capacity };
+                } else if (key === "knowledge") {
+                    // Serialize searchedSegments Set → array of "side:pos:floor" keys
+                    components[key] = {
+                        ...comp,
+                        searchedSegments: comp.searchedSegments ? [...comp.searchedSegments] : [],
+                    };
                 } else {
                     // Shallow copy plain data components
                     components[key] = { ...comp };

@@ -468,6 +468,12 @@ export function searchSystem(
                     search.bestScore = foundWords.length;
                     search.bestWords = foundWords;
                 }
+                // Persist lifetime best to knowledge
+                const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
+                if (knowledge && foundWords.length > knowledge.bestScore) {
+                    knowledge.bestScore = foundWords.length;
+                    knowledge.bestWords = [...foundWords];
+                }
                 events.push({
                     entity,
                     name: ident.name,
