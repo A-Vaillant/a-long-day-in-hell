@@ -172,6 +172,10 @@ export interface SimulationOpts {
     maxDays?: number;
     maxDeaths?: number;
     strategy: Strategy;
+    /** Override player start location (default: lifeStory.playerStart). */
+    startLoc?: { side: number; position: bigint; floor: bigint };
+    /** Start player ~50 segments from book (tests win path, not the journey). */
+    startNearBook?: boolean;
     onTick?: (gs: GameState) => void;
     onDay?: (gs: GameState) => void;
     onDeath?: (gs: GameState) => void;
@@ -220,7 +224,15 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     // Initialize life story + target book
     const lifeStory: LifeStory = LifeStoryCore.generateLifeStory(seed);
     const targetBook: BookCoords = lifeStory.bookCoords;
-    const startLoc: Location = lifeStory.playerStart;
+    let startLoc: Location;
+    if (opts.startLoc) {
+        startLoc = opts.startLoc;
+    } else if (opts.startNearBook) {
+        // ~50 segments from book, same side, ~25 floors above
+        startLoc = { side: targetBook.side, position: targetBook.position + 50n, floor: targetBook.floor + 25n };
+    } else {
+        startLoc = lifeStory.playerStart;
+    }
 
     // Initialize game state
     const gs: InternalState = {

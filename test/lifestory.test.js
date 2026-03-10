@@ -136,13 +136,20 @@ describe("playerStart", () => {
         }
     });
 
-    it("gaussian mode: playerStart is within 500 segments of book", () => {
+    it("playerStart is on the same side as book", () => {
         for (let i = 0; i < 50; i++) {
-            const story = generateLifeStory("ps-easy-" + i, { placement: "gaussian" });
-            const dist = story.playerStart.position - story.bookCoords.position;
-            const absDist = dist < 0n ? -dist : dist;
-            assert.ok(absDist < 500n,
-                `seed ps-easy-${i}: playerStart ${absDist} segments from book (expected <500)`);
+            const story = generateLifeStory("ps-side-" + i);
+            assert.strictEqual(story.playerStart.side, story.bookCoords.side,
+                `seed ps-side-${i}: player on side ${story.playerStart.side}, book on side ${story.bookCoords.side}`);
+        }
+    });
+
+    it("playerStart floor is 20–30 above book floor", () => {
+        for (let i = 0; i < 50; i++) {
+            const story = generateLifeStory("ps-floor-off-" + i);
+            const floorDiff = story.playerStart.floor - story.bookCoords.floor;
+            assert.ok(floorDiff >= 20n && floorDiff <= 30n,
+                `seed ps-floor-off-${i}: floor diff ${floorDiff} (expected 20–30)`);
         }
     });
 

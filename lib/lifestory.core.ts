@@ -206,10 +206,12 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const powerU = spawnRng.next();
     const ringR  = Math.floor(stoneR * Math.pow(66, powerU));
     const dir    = spawnRng.next() < 0.5 ? 1n : -1n;
-    const floorOffset = BigInt(Math.floor(spawnRng.next() * 61) - 30);
-    const playerSide  = spawnRng.nextInt(2);
+    // Floor: 20–30 above the book (close enough to find, far enough to work for it)
+    const floorOffset = BigInt(20 + Math.floor(spawnRng.next() * 11));
+    // Always spawn on the same side as the book — crossing is only at floor 0
+    const playerSide  = side;
     const playerPos   = position + dir * BigInt(ringR);
-    const playerFloor = floor + floorOffset < 0n ? 0n : floor + floorOffset;
+    const playerFloor = floor + floorOffset;
 
     const playerStart: StartLocation = { side: playerSide, position: playerPos, floor: playerFloor };
 

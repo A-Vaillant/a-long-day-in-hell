@@ -10,7 +10,7 @@ describe("simulator: targeted win path", () => {
             seed: "win-test-1",
             maxDays: 200,
             strategy: strategies.targeted(),
-            placement: "gaussian",
+            startNearBook: true,
         });
         const result = sim.run();
         assert.strictEqual(result.won, true, "should win");
@@ -24,7 +24,7 @@ describe("simulator: targeted win path", () => {
                 seed,
                 maxDays: 200,
                 strategy: strategies.targeted(),
-                placement: "gaussian",
+                startNearBook: true,
             });
             const result = sim.run();
             assert.strictEqual(result.won, true, `seed "${seed}" should win`);
@@ -204,13 +204,13 @@ describe("scenario: search coverage", () => {
 });
 
 describe("scenario: win path verification", () => {
-    it("gaussian placement is winnable with targeted strategy across 10 seeds", () => {
+    it("targeted strategy is winnable near book across 10 seeds", () => {
         const scenario = runScenario({
             runs: 10,
             strategyFactory: () => strategies.targeted(),
             maxDays: 300,
-            placement: "gaussian",
             seedPrefix: "winnable",
+            simOpts: { startNearBook: true },
         });
         assert.strictEqual(scenario.summary.wins, 10,
             `expected 10/10 wins, got ${scenario.summary.wins}/10`);

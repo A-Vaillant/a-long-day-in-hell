@@ -389,6 +389,18 @@ export const Engine = {
             const originLo = BigInt(originRng.nextInt(0x100000000));
             const originHi = BigInt(originRng.nextInt(0x100000000));
             state.randomOrigin = (originHi * 0x100000000n + originLo) % PLAYABLE_ADDRESS_MAX;
+            // Clamp the floor component of randomOrigin to [2000, 95000] so the
+            // player's book is always deep in the stacks, never near the ground.
+            // This only constrains the game's placement roll — the bijection is untouched.
+            {
+                const _bpg = 192n, _floors = 100_000n;
+                const _floorMin = 2000n, _floorRange = 93000n;
+                const _bookIdx = state.randomOrigin % _bpg;
+                const _floorRaw = (state.randomOrigin / _bpg) % _floors;
+                const _rest = state.randomOrigin / (_bpg * _floors);
+                const _clampedFloor = _floorMin + (_floorRaw % _floorRange);
+                state.randomOrigin = _bookIdx + _bpg * (_clampedFloor + _floors * _rest);
+            }
             state.playerRawAddress = story.rawBookAddress;
             // Player wakes up cosmically far from their book
             state.side     = story.playerStart.side;
