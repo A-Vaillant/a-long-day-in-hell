@@ -16,10 +16,11 @@ import { Social } from "./social.js";
 import { createBoundaryRegistry, processTime } from "../../lib/engine.core.ts";
 import { Godmode } from "./godmode.js";
 import { saveLog, loadLog, clearLog, count as logCount } from "./event-log.js";
+import * as Slots from "./save-slots.js";
 
 export { state };
 
-const SAVE_KEY = "hell_save";
+const SAVE_KEY = "hell_save"; // legacy — kept for jsonReplacer/Reviver reuse only
 
 function jsonReplacer(key, value) {
     if (typeof value === 'bigint') return { __bigint: value.toString() };
@@ -291,26 +292,78 @@ export const Engine = {
             var cur = this._screens[state.screen];
             if (cur && cur.kind === "transition") return; // never save on a transition
             if (state._possessedNpcId != null) return; // don't save during possession
-            // Embed log metadata in state for save-slot display (not the full log)
             state._savedLogCount = logCount();
             state._savedAt = Date.now();
-            localStorage.setItem(SAVE_KEY, JSON.stringify(state, jsonReplacer));
-            saveLog();
+
+            const index = Slots.loadIndex();
+            let slotId = state._slotId || index.activeSlot;
+            const stateJson = JSON.stringify(state, jsonReplacer);
+            saveLog(slotId);
+
+            const meta = {
+                seed: state.seed,
+                name: (state.lifeStory && state.lifeStory.name) || "?",
+                day: state.day || 0,
+                savedAt: state._savedAt,
+                godmoded: !!state.godmoded,
+                deaths: state.deaths || 0,
+            };
+
+            if (!slotId) {
+                slotId = Slots.createSlot(index, meta);
+                state._slotId = slotId;
+            }
+            const logJson = localStorage.getItem(Slots.logKey(slotId));
+            Slots.saveToSlot(index, slotId, stateJson, logJson, meta);
         } catch (e) {
             if (e instanceof DOMException && e.name === "QuotaExceededError") return;
             console.error("Save failed:", e);
         }
     },
-    load() {
+    /** Load state for a specific slot (or the active slot). */
+    load(slotId) {
         try {
-            const raw = localStorage.getItem(SAVE_KEY);
-            if (raw) return JSON.parse(raw, jsonReviver);
+            const index = Slots.loadIndex();
+            const id = slotId || index.activeSlot;
+            if (!id) return null;
+            const raw = Slots.loadSlotRaw(id);
+            if (raw) {
+                const parsed = JSON.parse(raw, jsonReviver);
+                parsed._slotId = id;
+                return parsed;
+            }
         } catch (e) { /* ignore parse errors */ }
         return null;
     },
+    /** Delete the active slot's save data. */
     clearSave() {
-        localStorage.removeItem(SAVE_KEY);
-        clearLog();
+        const index = Slots.loadIndex();
+        const id = state._slotId || index.activeSlot;
+        if (id) Slots.deleteSlot(index, id);
+        clearLog(id);
+    },
+    /** Get the save slot index for UI rendering. */
+    getSlotIndex() {
+        return Slots.loadIndex();
+    },
+    /** Switch to a different save slot and reload. */
+    loadSlot(slotId) {
+        const index = Slots.loadIndex();
+        index.activeSlot = slotId;
+        Slots.saveIndex(index);
+        window.location.reload();
+    },
+    /** Delete a specific slot by id. */
+    deleteSlot(slotId) {
+        const index = Slots.loadIndex();
+        Slots.deleteSlot(index, slotId);
+    },
+    /** Start a new game without deleting the current slot. */
+    newGame() {
+        const index = Slots.loadIndex();
+        index.activeSlot = null;
+        Slots.saveIndex(index);
+        window.location.href = window.location.pathname;
     },
 
     init() {
@@ -327,7 +380,7 @@ export const Engine = {
         if (saved && saved.seed != null && !hasSeedParam && !isDebugGoto) {
             Object.assign(state, saved);
             PRNG.seed(state.seed);
-            loadLog();
+            loadLog(state._slotId);
             // Migrate BigInt fields from pre-migration saves
             if (typeof state.position !== 'bigint') state.position = BigInt(state.position || 0);
             if (typeof state.floor !== 'bigint') state.floor = BigInt(state.floor || 0);
@@ -419,6 +472,8 @@ export const Engine = {
 
         // Godmode: observation mode — skip normal game UI entirely
         if (params.get("godmode") === "1") {
+            state.godmoded = true;
+            this.save();
             Godmode.start();
             return;
         }

@@ -9,7 +9,8 @@
  * save JSON. Unbounded growth is intentional; prune via cap on load if needed.
  */
 
-const LOG_KEY = "hell_eventlog";
+const LEGACY_LOG_KEY = "hell_eventlog";
+function logKey(slotId) { return slotId ? "hell_eventlog_" + slotId : LEGACY_LOG_KEY; }
 // Cap restore to most recent N entries to guard against runaway log size.
 const RESTORE_CAP = 10000;
 
@@ -43,25 +44,27 @@ export function resetLog() {
 }
 
 /** Persist log to localStorage. Called by Engine.save(). */
-export function saveLog() {
+export function saveLog(slotId) {
+    const key = logKey(slotId);
     try {
-        localStorage.setItem(LOG_KEY, JSON.stringify(log));
+        localStorage.setItem(key, JSON.stringify(log));
     } catch (e) {
         if (e instanceof DOMException && e.name === "QuotaExceededError") {
             // Trim oldest half and retry once
             try {
                 const trimmed = log.slice(Math.floor(log.length / 2));
-                localStorage.setItem(LOG_KEY, JSON.stringify(trimmed));
+                localStorage.setItem(key, JSON.stringify(trimmed));
             } catch (_) { /* give up silently */ }
         }
     }
 }
 
 /** Restore log from localStorage. Called by Engine during load. */
-export function loadLog() {
+export function loadLog(slotId) {
     log.length = 0;
+    const key = logKey(slotId);
     try {
-        const raw = localStorage.getItem(LOG_KEY);
+        const raw = localStorage.getItem(key);
         if (!raw) return;
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) return;
@@ -74,7 +77,7 @@ export function loadLog() {
 }
 
 /** Clear persisted log (new game). Called by Engine.clearSave(). */
-export function clearLog() {
+export function clearLog(slotId) {
     log.length = 0;
-    try { localStorage.removeItem(LOG_KEY); } catch (_) { /* ignore */ }
+    try { localStorage.removeItem(logKey(slotId)); } catch (_) { /* ignore */ }
 }

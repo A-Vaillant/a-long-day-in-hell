@@ -779,8 +779,7 @@ Engine.register("Win", {
         if (link) {
             link.addEventListener("click", function (ev) {
                 ev.preventDefault();
-                Engine.clearSave();
-                window.location.reload();
+                Engine.newGame();
             });
         }
     },
@@ -794,12 +793,13 @@ Engine.register("Menu", {
         if (!state._menuReturn) state._menuReturn = "Corridor";
         if (state._menuSaved === undefined) state._menuSaved = false;
         if (state._menuConfirmNew === undefined) state._menuConfirmNew = false;
+        if (state._menuConfirmDelete === undefined) state._menuConfirmDelete = null;
     },
     render() {
         let html = '<div id="menu-view">';
         html += '<p class="location-header">Menu</p>';
 
-        // Save slot summary
+        // Current save summary
         let saveLabel = "No save";
         if (state._savedAt) {
             const d = new Date(state._savedAt);
@@ -816,12 +816,31 @@ Engine.register("Menu", {
         }
 
         if (state._menuConfirmNew) {
-            html += '<p class="menu-warning">Start a new game? Current progress will be lost.</p>';
-            html += '<p><a id="menu-confirm-new">Yes, start over</a> | <a data-goto="Menu" data-action="menu-cancel-new">No, go back</a></p>';
+            html += '<p class="menu-warning">Start a new game? Your current save will be kept.</p>';
+            html += '<p><a id="menu-confirm-new">Yes, new game</a> | <a data-goto="Menu" data-action="menu-cancel-new">No, go back</a></p>';
+        } else if (state._menuConfirmDelete) {
+            html += '<p class="menu-warning">Delete this save permanently?</p>';
+            html += '<p><a id="menu-confirm-delete">Yes, delete</a> | <a data-goto="Menu" data-action="menu-cancel-delete">No, go back</a></p>';
         } else {
             html += '<p><a data-goto="' + esc(state._menuReturn) + '"><kbd>Esc</kbd> Resume</a></p>';
             html += '<p><a id="menu-save">Save game</a></p>';
             html += '<p><a id="menu-new-game">New game</a></p>';
+
+            // Other save slots
+            const index = Engine.getSlotIndex();
+            const otherSlots = index.slots.filter(function (s) { return s.id !== state._slotId; });
+            if (otherSlots.length > 0) {
+                html += '<p class="menu-section-header">Other saves</p>';
+                for (const slot of otherSlots) {
+                    const label = esc(slot.name || "?") + " · Day " + slot.day +
+                        (slot.godmoded ? " (godmode)" : "") +
+                        (slot.deaths ? " · " + slot.deaths + " deaths" : "");
+                    html += '<p class="menu-slot-entry">';
+                    html += '<a class="menu-slot-load" data-slot-id="' + esc(slot.id) + '">' + label + '</a>';
+                    html += ' <a class="menu-slot-delete" data-slot-delete="' + esc(slot.id) + '">[x]</a>';
+                    html += '</p>';
+                }
+            }
         }
 
         html += '</div>';
@@ -831,6 +850,9 @@ Engine.register("Menu", {
         Engine.action("menu-cancel-new", function () {
             state._menuConfirmNew = false;
             state._menuSaved = false;
+        });
+        Engine.action("menu-cancel-delete", function () {
+            state._menuConfirmDelete = null;
         });
         const saveLink = document.getElementById("menu-save");
         if (saveLink) {
@@ -853,8 +875,33 @@ Engine.register("Menu", {
         if (confirmLink) {
             confirmLink.addEventListener("click", function (ev) {
                 ev.preventDefault();
-                Engine.clearSave();
-                window.location.reload();
+                Engine.save(); // persist current game before switching
+                Engine.newGame();
+            });
+        }
+        // Slot load links
+        document.querySelectorAll(".menu-slot-load").forEach(function (el) {
+            el.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                Engine.save(); // persist current game before switching
+                Engine.loadSlot(el.getAttribute("data-slot-id"));
+            });
+        });
+        // Slot delete links
+        document.querySelectorAll(".menu-slot-delete").forEach(function (el) {
+            el.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                state._menuConfirmDelete = el.getAttribute("data-slot-delete");
+                Engine.goto("Menu");
+            });
+        });
+        const confirmDelete = document.getElementById("menu-confirm-delete");
+        if (confirmDelete) {
+            confirmDelete.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                Engine.deleteSlot(state._menuConfirmDelete);
+                state._menuConfirmDelete = null;
+                Engine.goto("Menu");
             });
         }
     },

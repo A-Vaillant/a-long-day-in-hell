@@ -94,13 +94,13 @@ describe("Menu screen", () => {
 
     it("does not save when entering Menu screen", () => {
         const { Engine, window } = bootGame();
-        // Clear any existing save
-        window.localStorage.removeItem("hell_save");
+        // Clear any existing slot data
+        window.localStorage.clear();
 
         Engine.goto("Menu");
 
-        // Engine.goto skips save for Menu screen
-        const saved = window.localStorage.getItem("hell_save");
-        assert.equal(saved, null, "Menu should not trigger auto-save");
+        // Engine.goto skips save for Menu screen — no slot index should be created
+        const slotsRaw = window.localStorage.getItem("hell_slots");
+        assert.equal(slotsRaw, null, "Menu should not trigger auto-save");
     });
 });

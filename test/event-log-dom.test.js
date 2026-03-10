@@ -1,16 +1,35 @@
 /**
  * DOM integration tests for event-log save/load/clear via localStorage.
  * Tests the full round-trip through Engine.save() and Engine.init() load path.
+ *
+ * Save slots: state is stored under hell_save_<id>, logs under hell_eventlog_<id>.
+ * The slot index (hell_slots) tracks which slot is active.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { bootGame, createGame } from "./dom-harness.js";
 
-const LOG_KEY = "hell_eventlog";
-const SAVE_KEY = "hell_save";
+const SLOTS_KEY = "hell_slots";
+
+/** Get the active slot id from localStorage. */
+function activeSlotId(win) {
+    const raw = win.localStorage.getItem(SLOTS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw).activeSlot;
+}
+
+/** Get the state save key for the active slot. */
+function saveKey(win) {
+    return "hell_save_" + activeSlotId(win);
+}
+
+/** Get the log save key for the active slot. */
+function logKey(win) {
+    return "hell_eventlog_" + activeSlotId(win);
+}
 
 describe("event-log localStorage serialization", () => {
-    it("Engine.save() writes hell_eventlog to localStorage", () => {
+    it("Engine.save() writes event log to slotted localStorage key", () => {
         const { Engine, EventLog, window } = bootGame();
 
         EventLog.appendEvents([
@@ -20,8 +39,10 @@ describe("event-log localStorage serialization", () => {
 
         Engine.save();
 
-        const raw = window.localStorage.getItem(LOG_KEY);
-        assert.ok(raw, "hell_eventlog key should exist after save");
+        const slotId = activeSlotId(window);
+        assert.ok(slotId, "should have an active slot after save");
+        const raw = window.localStorage.getItem(logKey(window));
+        assert.ok(raw, "event log key should exist after save");
         const parsed = JSON.parse(raw);
         assert.ok(Array.isArray(parsed), "should be an array");
         assert.strictEqual(parsed.length, 2);
@@ -42,25 +63,27 @@ describe("event-log localStorage serialization", () => {
         Engine.save();
         const after = Date.now();
 
-        const savedState = JSON.parse(window.localStorage.getItem(SAVE_KEY));
+        const savedState = JSON.parse(window.localStorage.getItem(saveKey(window)));
         assert.strictEqual(savedState._savedLogCount, 3, "_savedLogCount should reflect event count");
         assert.ok(savedState._savedAt >= before && savedState._savedAt <= after,
             "_savedAt should be a recent timestamp");
     });
 
-    it("Engine.clearSave() removes both hell_save and hell_eventlog", () => {
+    it("Engine.clearSave() removes slot state and log", () => {
         const { Engine, EventLog, window } = bootGame();
 
         EventLog.appendEvents([{ tick: 1, day: 1, type: "death", text: "x", npcIds: [0] }]);
         Engine.save();
 
-        assert.ok(window.localStorage.getItem(SAVE_KEY), "state save should exist");
-        assert.ok(window.localStorage.getItem(LOG_KEY), "log save should exist");
+        const sk = saveKey(window);
+        const lk = logKey(window);
+        assert.ok(window.localStorage.getItem(sk), "state save should exist");
+        assert.ok(window.localStorage.getItem(lk), "log save should exist");
 
         Engine.clearSave();
 
-        assert.strictEqual(window.localStorage.getItem(SAVE_KEY), null, "state save should be gone");
-        assert.strictEqual(window.localStorage.getItem(LOG_KEY), null, "log save should be gone");
+        assert.strictEqual(window.localStorage.getItem(sk), null, "state save should be gone");
+        assert.strictEqual(window.localStorage.getItem(lk), null, "log save should be gone");
     });
 
     it("event log is cleared in memory when clearSave() is called", () => {
@@ -84,13 +107,17 @@ describe("event-log localStorage serialization", () => {
         ]);
         game1.Engine.save();
 
-        const savedState = game1.window.localStorage.getItem(SAVE_KEY);
-        const savedLog   = game1.window.localStorage.getItem(LOG_KEY);
+        // Grab everything from localStorage — slots index + slot data + slot log
+        const slotsRaw = game1.window.localStorage.getItem(SLOTS_KEY);
+        const slotId = activeSlotId(game1.window);
+        const savedState = game1.window.localStorage.getItem("hell_save_" + slotId);
+        const savedLog   = game1.window.localStorage.getItem("hell_eventlog_" + slotId);
 
         // Phase 2: create a fresh game, pre-seed localStorage, then init
         const game2 = createGame();
-        game2.window.localStorage.setItem(SAVE_KEY, savedState);
-        game2.window.localStorage.setItem(LOG_KEY, savedLog);
+        game2.window.localStorage.setItem(SLOTS_KEY, slotsRaw);
+        game2.window.localStorage.setItem("hell_save_" + slotId, savedState);
+        game2.window.localStorage.setItem("hell_eventlog_" + slotId, savedLog);
         game2.Engine.init();
 
         // Log should be restored
@@ -104,37 +131,41 @@ describe("event-log localStorage serialization", () => {
             "bond event should have both NPC ids");
     });
 
-    it("load with missing hell_eventlog leaves log empty", () => {
+    it("load with missing event log leaves log empty", () => {
         const game1 = bootGame("missing-log-seed");
         game1.Engine.save();
 
-        const savedState = game1.window.localStorage.getItem(SAVE_KEY);
-        // Deliberately do NOT store the log
+        const slotsRaw = game1.window.localStorage.getItem(SLOTS_KEY);
+        const slotId = activeSlotId(game1.window);
+        const savedState = game1.window.localStorage.getItem("hell_save_" + slotId);
 
         const game2 = createGame();
-        game2.window.localStorage.setItem(SAVE_KEY, savedState);
-        // No LOG_KEY set
+        game2.window.localStorage.setItem(SLOTS_KEY, slotsRaw);
+        game2.window.localStorage.setItem("hell_save_" + slotId, savedState);
+        // Deliberately do NOT store the log
         game2.Engine.init();
 
         assert.strictEqual(game2.EventLog.count(), 0, "missing log should restore as empty");
     });
 
-    it("load with corrupt hell_eventlog leaves log empty", () => {
+    it("load with corrupt event log leaves log empty", () => {
         const game1 = bootGame("corrupt-log-seed");
         game1.Engine.save();
 
-        const savedState = game1.window.localStorage.getItem(SAVE_KEY);
+        const slotsRaw = game1.window.localStorage.getItem(SLOTS_KEY);
+        const slotId = activeSlotId(game1.window);
+        const savedState = game1.window.localStorage.getItem("hell_save_" + slotId);
 
         const game2 = createGame();
-        game2.window.localStorage.setItem(SAVE_KEY, savedState);
-        game2.window.localStorage.setItem(LOG_KEY, "this is not json {{{{");
+        game2.window.localStorage.setItem(SLOTS_KEY, slotsRaw);
+        game2.window.localStorage.setItem("hell_save_" + slotId, savedState);
+        game2.window.localStorage.setItem("hell_eventlog_" + slotId, "this is not json {{{{");
         game2.Engine.init();
 
         assert.strictEqual(game2.EventLog.count(), 0, "corrupt log should restore as empty");
     });
 
     it("RESTORE_CAP: loading a huge log keeps only the newest 10000 entries", () => {
-        // Build a log of 10100 entries in localStorage directly
         const entries = [];
         for (let i = 0; i < 10100; i++) {
             entries.push({ tick: i, day: 1, type: "death", text: "x " + i, npcIds: [0] });
@@ -142,15 +173,17 @@ describe("event-log localStorage serialization", () => {
 
         const game1 = bootGame("cap-seed");
         game1.Engine.save();
-        const savedState = game1.window.localStorage.getItem(SAVE_KEY);
+        const slotsRaw = game1.window.localStorage.getItem(SLOTS_KEY);
+        const slotId = activeSlotId(game1.window);
+        const savedState = game1.window.localStorage.getItem("hell_save_" + slotId);
 
         const game2 = createGame();
-        game2.window.localStorage.setItem(SAVE_KEY, savedState);
-        game2.window.localStorage.setItem(LOG_KEY, JSON.stringify(entries));
+        game2.window.localStorage.setItem(SLOTS_KEY, slotsRaw);
+        game2.window.localStorage.setItem("hell_save_" + slotId, savedState);
+        game2.window.localStorage.setItem("hell_eventlog_" + slotId, JSON.stringify(entries));
         game2.Engine.init();
 
         assert.strictEqual(game2.EventLog.count(), 10000, "should cap at 10000");
-        // Should keep the newest (last 10000), so first entry is index 100
         assert.strictEqual(game2.EventLog.getAll()[0].text, "x 100",
             "should keep newest entries (skip oldest 100)");
     });
@@ -168,5 +201,28 @@ describe("event-log localStorage serialization", () => {
         assert.ok(html.includes("menu-save-slot"), "should render save slot element");
         assert.ok(html.includes("Day"), "should show current day in save slot");
         assert.ok(html.includes("event"), "should show event count in save slot");
+    });
+
+    it("legacy single-save migrates to slot on load", () => {
+        const game1 = bootGame("legacy-migrate");
+        game1.Engine.save();
+
+        // Simulate legacy: grab slotted data and move it to old keys
+        const slotId = activeSlotId(game1.window);
+        const stateJson = game1.window.localStorage.getItem("hell_save_" + slotId);
+        const logJson = game1.window.localStorage.getItem("hell_eventlog_" + slotId);
+
+        const game2 = createGame();
+        // Set legacy keys, remove slot infrastructure
+        game2.window.localStorage.setItem("hell_save", stateJson);
+        if (logJson) game2.window.localStorage.setItem("hell_eventlog", logJson);
+        // No hell_slots key — triggers migration
+        game2.Engine.init();
+
+        // After init, the legacy keys should be gone and a slot should exist
+        assert.strictEqual(game2.window.localStorage.getItem("hell_save"), null, "legacy state key should be removed");
+        const newSlots = JSON.parse(game2.window.localStorage.getItem(SLOTS_KEY));
+        assert.ok(newSlots && newSlots.slots.length > 0, "should have at least one slot");
+        assert.strictEqual(newSlots.activeSlot, "legacy", "migrated slot id should be 'legacy'");
     });
 });
