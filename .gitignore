@@ -17,7 +17,7 @@ CHANGELOG.md
 
 # Source material (not redistributable)
 *.epub
-*.pdf
+*.[pP][dD][fF]
 A Short Stay in Hell.txt
 The Library of Babel.txt
 mock/lifestory_book.txt
