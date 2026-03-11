@@ -1162,7 +1162,8 @@ describe("bond encounter tracking", () => {
             familiarity: 10, affinity: 5,
             firstContact: 0, lastContact: 0, encounters: 1,
         };
-        accumulateBond(bond, 500);
+        // reencounterGap = 1440 ticks (1 day); tick 1500 > 1440
+        accumulateBond(bond, 1500);
         assert.strictEqual(bond.encounters, 2);
     });
 
@@ -1180,7 +1181,8 @@ describe("bond encounter tracking", () => {
             familiarity: 10, affinity: 5,
             firstContact: 0, lastContact: 0,
         };
-        accumulateBond(bond, 500);
+        // reencounterGap = 1440 ticks (1 day); tick 1500 > 1440
+        accumulateBond(bond, 1500);
         assert.strictEqual(bond.encounters, 2);
     });
 });

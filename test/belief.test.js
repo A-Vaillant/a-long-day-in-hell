@@ -309,7 +309,7 @@ describe("belief trajectory", () => {
         const stances = [b.stance];
 
         // Simulate with stable psychology (lucidity 80, hope 70)
-        for (let i = 0; i < 600 * 240; i++) {
+        for (let i = 0; i < 600 * 1440; i++) {
             evolveBelief(b);
             updateStance(b, 80, 70, 0);
         }
@@ -329,7 +329,7 @@ describe("belief trajectory", () => {
         };
 
         let seekerTick = -1;
-        for (let i = 0; i < 2000 * 240; i++) {
+        for (let i = 0; i < 2000 * 1440; i++) {
             evolveBelief(b);
             if (updateStance(b, 80, 70, 0) && b.stance === "seeker") {
                 seekerTick = i;
@@ -379,12 +379,12 @@ describe("Soren's arc", () => {
         const stanceLog = [];
         let prevStance = b.stance;
 
-        // ~2000 days, 240 ticks/day, stable psychology (companion helps)
-        for (let tick = 0; tick < 2000 * 240; tick++) {
+        // ~2000 days, 1440 ticks/day, stable psychology (companion helps)
+        for (let tick = 0; tick < 2000 * 1440; tick++) {
             evolveBelief(b);
             // Soren has a companion (Rachel), so psychology decays slowly
             // Lucidity stays high, hope drifts down but not critically
-            const hope = Math.max(35, 80 - tick * 0.0003);
+            const hope = Math.max(35, 80 - tick * 0.00005);
             updateStance(b, 75, hope, 0);
             if (b.stance !== prevStance) {
                 stanceLog.push({ tick, stance: b.stance });
@@ -440,7 +440,7 @@ describe("Dire Dan's arc", () => {
 
         let wasDireite = false;
         let becameNihilist = false;
-        for (let i = 0; i < 3000 * 240; i++) {
+        for (let i = 0; i < 3000 * 1440; i++) {
             evolveBelief(b);
             const mod = beliefDecayMod(b);
             decayPsychology(psych, false, DEFAULT_DECAY, mod);
@@ -487,7 +487,7 @@ describe("the atheist who finds God", () => {
             acceptance: 0, stance: "undecided",
         };
 
-        for (let i = 0; i < 2000 * 240; i++) {
+        for (let i = 0; i < 2000 * 1440; i++) {
             evolveBelief(b);
             updateStance(b, 80, 70, 0);
             assert.notEqual(b.stance, "holdout",
@@ -513,7 +513,7 @@ describe("the atheist who finds God", () => {
         let devoutHoldout = false;
         let atheistHoldout = false;
         let bothSeeker = false;
-        for (let i = 0; i < 2000 * 240; i++) {
+        for (let i = 0; i < 2000 * 1440; i++) {
             evolveBelief(atheist);
             evolveBelief(devout);
             updateStance(atheist, 80, 70, 0);

@@ -61,27 +61,27 @@ describe("processTime", () => {
         assert.deepStrictEqual(result.tickEvents, []);
     });
 
-    it("fires lightsOut when crossing tick 160", () => {
+    it("fires lightsOut when crossing tick 960", () => {
         const events = [];
         reg.on("lightsOut", () => events.push("lightsOut"));
-        const result = processTime({ tick: 155, day: 1 }, 10, reg);
+        const result = processTime({ tick: 955, day: 1 }, 10, reg);
         assert.deepStrictEqual(events, ["lightsOut"]);
         assert.ok(result.tickEvents.includes("lightsOut"));
     });
 
-    it("fires dawn when crossing tick 240", () => {
+    it("fires dawn when crossing tick 1440", () => {
         const events = [];
         reg.on("dawn", () => events.push("dawn"));
-        const result = processTime({ tick: 235, day: 1 }, 10, reg);
+        const result = processTime({ tick: 1435, day: 1 }, 10, reg);
         assert.ok(events.includes("dawn"));
         assert.equal(result.finalDay, 2);
         assert.equal(result.days, 1);
     });
 
-    it("fires resetHour when crossing tick 230", () => {
+    it("fires resetHour when crossing tick 1380", () => {
         const events = [];
         reg.on("resetHour", () => events.push("resetHour"));
-        processTime({ tick: 225, day: 1 }, 10, reg);
+        processTime({ tick: 1375, day: 1 }, 10, reg);
         assert.deepStrictEqual(events, ["resetHour"]);
     });
 
@@ -90,17 +90,18 @@ describe("processTime", () => {
         reg.on("lightsOut", () => events.push("lightsOut"));
         reg.on("resetHour", () => events.push("resetHour"));
         reg.on("dawn", () => events.push("dawn"));
-        processTime({ tick: 0, day: 1 }, 240, reg);
+        processTime({ tick: 0, day: 1 }, 1440, reg);
         assert.deepStrictEqual(events, ["lightsOut", "resetHour", "dawn"]);
     });
 
-    it("fires multiple dawn events for multi-day skip", () => {
+    it("fires one dawn event for multi-day request (clamped to 2400 < 2*1440)", () => {
+        // MAX_ADVANCE_TICKS=2400 < 2*1440=2880 → request for 2 days clamps to 1 dawn
         const dawnCount = { n: 0 };
         reg.on("dawn", () => dawnCount.n++);
-        const result = processTime({ tick: 0, day: 1 }, 480, reg);
-        assert.equal(dawnCount.n, 2);
-        assert.equal(result.days, 2);
-        assert.equal(result.finalDay, 3);
+        const result = processTime({ tick: 0, day: 1 }, 2880, reg);
+        assert.equal(dawnCount.n, 1);
+        assert.equal(result.days, 1);
+        assert.equal(result.finalDay, 2);
     });
 
     it("clamps to minimum of 1", () => {
@@ -108,19 +109,20 @@ describe("processTime", () => {
         assert.equal(result.finalTick, 1);
     });
 
-    it("clamps to maximum of 2400", () => {
+    it("clamps to maximum of 2400 ticks (~1.67 days)", () => {
         const dawnCount = { n: 0 };
         reg.on("dawn", () => dawnCount.n++);
         const result = processTime({ tick: 0, day: 1 }, 99999, reg);
-        assert.equal(dawnCount.n, 10); // 2400 ticks = 10 days
-        assert.equal(result.days, 10);
+        // MAX_ADVANCE_TICKS=2400; 2400/1440=1.67 days → 1 dawn
+        assert.equal(dawnCount.n, 1);
+        assert.equal(result.days, 1);
     });
 
     it("handler errors do not stop event processing", () => {
         const events = [];
         reg.on("lightsOut", () => { throw new Error("fail"); });
         reg.on("dawn", () => events.push("dawn"));
-        processTime({ tick: 0, day: 1 }, 240, reg);
+        processTime({ tick: 0, day: 1 }, 1440, reg);
         assert.deepStrictEqual(events, ["dawn"]);
     });
 });

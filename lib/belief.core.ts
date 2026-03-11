@@ -18,6 +18,7 @@
  */
 
 import { getComponent } from "./ecs.core.ts";
+import { perDay } from "./scale.core.ts";
 
 // --- Types ---
 
@@ -122,11 +123,11 @@ export function generateBelief(rng: Rng): BeliefComponent {
 
 export const DEFAULT_CRISIS = {
     /** Base rate of faith crisis growth per tick. Cosmic scale — takes years. */
-    crisisGrowthBase: 0.000005,
+    crisisGrowthBase: perDay(0.0012),     // ~0.0012/day base
     /** How much devotion amplifies crisis growth (more devout = harder fall). */
     devotionAmplifier: 1.5,
     /** Base rate of acceptance growth per tick. Slower than crisis — acceptance lags. */
-    acceptanceGrowthBase: 0.000002,
+    acceptanceGrowthBase: perDay(0.00048), // ~0.00048/day base
     /** Acceptance grows faster when faith crisis is high. */
     acceptanceCrisisBoost: 2.0,
     /** Floor for crisis growth (even atheists feel the ground shift). */

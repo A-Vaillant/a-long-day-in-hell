@@ -88,27 +88,27 @@ describe("hunger/thirst monotonic progression", () => {
         let stats = defaultStats();
         stats.thirst = 100; // start parched
         let ticks = 0;
-        while (!stats.dead && ticks < 500) {
+        while (!stats.dead && ticks < 1500) {
             stats = applyMoveTick(stats);
             ticks++;
         }
         assert.ok(stats.dead, "should die from dehydration");
-        // 0.83/tick drain rate, 100 mortality -> ~120 ticks (~0.5 days)
-        assert.ok(ticks < 200, `death took ${ticks} ticks, expected < 200`);
-        assert.ok(ticks > 50, `death too fast at ${ticks} ticks`);
+        // MORTALITY_PARCHED_ONLY = perDay(200) ≈ 0.139/tick → 100/0.139 ≈ 720 ticks (~12 hours)
+        assert.ok(ticks < 1000, `death took ${ticks} ticks, expected < 1000`);
+        assert.ok(ticks > 500, `death too fast at ${ticks} ticks`);
     });
 
     it("starvation kills within expected timeframe", () => {
         let stats = defaultStats();
         stats.hunger = 100; // start starving
         let ticks = 0;
-        while (!stats.dead && ticks < 500) {
+        while (!stats.dead && ticks < 2000) {
             stats = applyMoveTick(stats);
             ticks++;
         }
         assert.ok(stats.dead, "should die from starvation");
-        // 0.42/tick drain rate, 100 mortality -> ~238 ticks (~1 day)
-        assert.ok(ticks < 350, `death took ${ticks} ticks, expected < 350`);
-        assert.ok(ticks > 100, `death too fast at ${ticks} ticks`);
+        // MORTALITY_STARVED_ONLY = perDay(100) ≈ 0.069/tick → 100/0.069 ≈ 1440 ticks (~1 day)
+        assert.ok(ticks < 1600, `death took ${ticks} ticks, expected < 1600`);
+        assert.ok(ticks > 1000, `death too fast at ${ticks} ticks`);
     });
 });

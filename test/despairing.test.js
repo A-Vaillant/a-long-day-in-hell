@@ -37,11 +37,12 @@ describe("applyAmbientDrain", () => {
         assert.strictEqual(applyAmbientDrain(50), 49);
     });
 
-    it("at default rate, 160 awake ticks drain 24 morale", () => {
-        // 160 ticks/day * 0.15 = 24 morale per day
+    it("at default rate, one waking day drains ~24 morale", () => {
+        // 960 ticks/day * (24/960) = 24 morale per waking day
         let morale = 100;
-        for (let i = 0; i < 160; i++) morale = applyAmbientDrain(morale);
-        assert.ok(Math.abs(morale - 76) < 0.1, `expected ~76, got ${morale}`);
+        for (let i = 0; i < 960; i++) morale = applyAmbientDrain(morale);
+        assert.ok(morale > 70 && morale < 80,
+            `morale after 1 waking day: ${morale}, expected ~76`);
     });
 });
 

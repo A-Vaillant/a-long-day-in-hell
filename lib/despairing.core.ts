@@ -12,6 +12,8 @@
  * @module despairing.core
  */
 
+import { WAKING_TICKS, TICKS_PER_HOUR } from "./scale.core.ts";
+
 /** Shape of the tunable CONFIG object. */
 export interface DespairingConfig {
     /** Ambient morale drain per move tick. The monotony of hell. */
@@ -108,8 +110,8 @@ export interface SimulateResult {
 
 /** Tunable parameters. Override fields for simulation/testing. */
 export const CONFIG: DespairingConfig = {
-    /** Ambient morale drain per move tick. The monotony of hell. */
-    ambientDrain: 0.15,
+    /** Ambient morale drain per move tick. ~24 morale per waking day. */
+    ambientDrain: 24 / WAKING_TICKS,
 
     /** Morale recovery multiplier while despairing (applied to sleep recovery). */
     sleepRecoveryMult: 0.3,
@@ -333,7 +335,10 @@ export function simulate(opts: SimulateOpts, survFns: SurvivalFns, tickFns: Tick
             const isResetHour = tickFns.isResetHour(tickState.tick);
 
             if (isResetHour || !lightsOn) {
-                if (beh.sleeps) applySleepWithDespairing();
+                // applySleep is per-hour, not per-tick — only call on hour boundaries
+                if (beh.sleeps && tickState.tick % TICKS_PER_HOUR === 0) {
+                    applySleepWithDespairing();
+                }
                 continue;
             }
 

@@ -6,6 +6,7 @@ import { isRestArea } from "../lib/library.core.ts";
 import { spawnNPCs } from "../lib/npc.core.ts";
 import { seedFromString } from "../lib/prng.core.ts";
 import { PLAYABLE_ADDRESS_MAX, addressToCoords } from "../lib/invertible.core.ts";
+import { BOOKS_PER_GALLERY } from "../lib/scale.core.ts";
 
 const SEED = "test-seed-42";
 
@@ -88,7 +89,7 @@ describe("generateNPCLifeStory", () => {
         for (let i = 0; i < 20; i++) {
             const story = npcStory(i);
             assert.ok(story.bookCoords.bookIndex >= 0, "bookIndex >= 0");
-            assert.ok(story.bookCoords.bookIndex < 192, "bookIndex < BOOKS_PER_GALLERY");
+            assert.ok(story.bookCoords.bookIndex < BOOKS_PER_GALLERY, "bookIndex < BOOKS_PER_GALLERY");
         }
     });
 });
@@ -146,7 +147,7 @@ describe("player book address system", () => {
 
     it("player bookCoords match addressToCoords(bookAddress), modulo rest-area nudge", () => {
         const story = generateLifeStory("coords-derive-test");
-        const derived = addressToCoords(story.bookAddress, 192);
+        const derived = addressToCoords(story.bookAddress, BOOKS_PER_GALLERY);
         assert.strictEqual(derived.side, story.bookCoords.side);
         assert.strictEqual(derived.floor, story.bookCoords.floor);
         assert.strictEqual(derived.bookIndex, story.bookCoords.bookIndex);

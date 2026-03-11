@@ -13,6 +13,7 @@
 
 import type { Entity, World } from "./ecs.core.ts";
 import { getComponent } from "./ecs.core.ts";
+import { perDay } from "./scale.core.ts";
 
 // --- Component ---
 
@@ -171,7 +172,7 @@ export interface FatigueConfig {
 
 export const DEFAULT_FATIGUE: FatigueConfig = {
     thresholdScale: 1.0,
-    frictionRate: 0.12,
+    frictionRate: perDay(28.8),  // ~28.8/day of friction erosion
 };
 
 /**

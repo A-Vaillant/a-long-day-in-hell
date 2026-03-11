@@ -5,6 +5,7 @@ import {
     searchSystem, SEARCHING, DEFAULT_SEARCH,
     countWordsFromSeed,
 } from "../lib/search.core.ts";
+import { BOOKS_PER_GALLERY } from "../lib/scale.core.ts";
 import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
 import { POSITION, IDENTITY, PSYCHOLOGY } from "../lib/social.core.ts";
 import { PERSONALITY } from "../lib/personality.core.ts";
@@ -99,7 +100,7 @@ describe("claimBookIndex", () => {
     it("claims a book index", () => {
         const claimed = new Set();
         const idx = claimBookIndex(claimed, makeRng());
-        assert.ok(idx >= 0 && idx < 192);
+        assert.ok(idx >= 0 && idx < BOOKS_PER_GALLERY);
         assert.ok(claimed.has(idx));
     });
 
@@ -112,7 +113,7 @@ describe("claimBookIndex", () => {
 
     it("returns -1 when gallery is full", () => {
         const claimed = new Set();
-        for (let i = 0; i < 192; i++) claimed.add(i);
+        for (let i = 0; i < BOOKS_PER_GALLERY; i++) claimed.add(i);
         assert.strictEqual(claimBookIndex(claimed, makeRng()), -1);
     });
 });

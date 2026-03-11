@@ -23,6 +23,7 @@ import {
     type PrebuiltIndex, type AwarenessConfig, DEFAULT_AWARENESS,
 } from "./social.core.ts";
 import { applyShockToEntity, type ShockConfig, DEFAULT_SHOCKS } from "./psych.core.ts";
+import { perDay, days as daysToTicks } from "./scale.core.ts";
 
 // --- Memory types ---
 
@@ -80,22 +81,25 @@ export interface MemoryConfig {
     dedupWindow: number;        // ticks within which same type+subject is deduped
 }
 
+// Memory rates expressed in per-day real-time units, converted to per-tick.
+// decayRate: how fast the memory weight decays. hopeDrainPerTick/lucidityDrainPerTick: ongoing psych effects.
+const D = perDay; // shorthand
 export const DEFAULT_MEMORY_TYPES: Record<MemoryType, MemoryTypeConfig> = {
-    witnessChasm:    { initialWeight: 10, decayRate: 0.0001,  floor: 2.0, permanent: true,  contagious: false, shockKey: "witnessChasm",    hopeDrainPerTick: -0.00005, lucidityDrainPerTick: -0.00002 },
-    foundBody:       { initialWeight: 5,  decayRate: 0.001,   floor: 0,   permanent: false, contagious: false, shockKey: "foundBody",       hopeDrainPerTick: -0.00003, lucidityDrainPerTick: 0 },
-    companionDied:   { initialWeight: 12, decayRate: 0.00005, floor: 3.0, permanent: true,  contagious: false, shockKey: "companionDied",   hopeDrainPerTick: -0.00008, lucidityDrainPerTick: -0.00003 },
-    groupDissolved:  { initialWeight: 6,  decayRate: 0.0005,  floor: 0,   permanent: false, contagious: false, shockKey: "groupDissolved",  hopeDrainPerTick: -0.00004, lucidityDrainPerTick: 0 },
-    witnessEscape:   { initialWeight: 8,  decayRate: 0.0003,  floor: 0,   permanent: false, contagious: false, shockKey: "witnessEscape",   hopeDrainPerTick: 0.00006,  lucidityDrainPerTick: 0 },
-    foundWords:      { initialWeight: 3,  decayRate: 0.002,   floor: 0,   permanent: false, contagious: false, shockKey: null,              hopeDrainPerTick: 0.00003,  lucidityDrainPerTick: 0 },
-    witnessMadness:  { initialWeight: 7,  decayRate: 0.0003,  floor: 1.0, permanent: true,  contagious: false, shockKey: "witnessMadness",  hopeDrainPerTick: -0.00002, lucidityDrainPerTick: -0.00006 },
-    companionMad:    { initialWeight: 9,  decayRate: 0.0002,  floor: 2.0, permanent: true,  contagious: false, shockKey: "companionMad",    hopeDrainPerTick: -0.00003, lucidityDrainPerTick: -0.00005 },
-    metSomeone:      { initialWeight: 2,  decayRate: 0.0008,  floor: 0,   permanent: false, contagious: false, shockKey: null,              hopeDrainPerTick: 0.00001,  lucidityDrainPerTick: 0 },
+    witnessChasm:    { initialWeight: 10, decayRate: D(0.024),   floor: 2.0, permanent: true,  contagious: false, shockKey: "witnessChasm",    hopeDrainPerTick: D(-0.012),  lucidityDrainPerTick: D(-0.0048) },
+    foundBody:       { initialWeight: 5,  decayRate: D(0.24),    floor: 0,   permanent: false, contagious: false, shockKey: "foundBody",       hopeDrainPerTick: D(-0.0072), lucidityDrainPerTick: 0 },
+    companionDied:   { initialWeight: 12, decayRate: D(0.012),   floor: 3.0, permanent: true,  contagious: false, shockKey: "companionDied",   hopeDrainPerTick: D(-0.0192), lucidityDrainPerTick: D(-0.0072) },
+    groupDissolved:  { initialWeight: 6,  decayRate: D(0.12),    floor: 0,   permanent: false, contagious: false, shockKey: "groupDissolved",  hopeDrainPerTick: D(-0.0096), lucidityDrainPerTick: 0 },
+    witnessEscape:   { initialWeight: 8,  decayRate: D(0.072),   floor: 0,   permanent: false, contagious: false, shockKey: "witnessEscape",   hopeDrainPerTick: D(0.0144),  lucidityDrainPerTick: 0 },
+    foundWords:      { initialWeight: 3,  decayRate: D(0.48),    floor: 0,   permanent: false, contagious: false, shockKey: null,              hopeDrainPerTick: D(0.0072),  lucidityDrainPerTick: 0 },
+    witnessMadness:  { initialWeight: 7,  decayRate: D(0.072),   floor: 1.0, permanent: true,  contagious: false, shockKey: "witnessMadness",  hopeDrainPerTick: D(-0.0048), lucidityDrainPerTick: D(-0.0144) },
+    companionMad:    { initialWeight: 9,  decayRate: D(0.048),   floor: 2.0, permanent: true,  contagious: false, shockKey: "companionMad",    hopeDrainPerTick: D(-0.0072), lucidityDrainPerTick: D(-0.012) },
+    metSomeone:      { initialWeight: 2,  decayRate: D(0.192),   floor: 0,   permanent: false, contagious: false, shockKey: null,              hopeDrainPerTick: D(0.0024),  lucidityDrainPerTick: 0 },
 };
 
 export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
     capacity: 32,
     types: DEFAULT_MEMORY_TYPES,
-    dedupWindow: 240,  // 1 day
+    dedupWindow: daysToTicks(1),  // 1 day
 };
 
 // --- Helpers ---

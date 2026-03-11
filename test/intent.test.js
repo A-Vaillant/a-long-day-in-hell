@@ -96,6 +96,7 @@ describe("DEFAULT_SCORERS", () => {
     });
 
     it("return_home returns -Infinity before evening", () => {
+        // Evening starts at tick 840 (8pm = 14h * 60); tick 100 is well before
         const s = DEFAULT_SCORERS.return_home(makeCtx({ tick: 100 }), DEFAULT_INTENT);
         assert.strictEqual(s, -Infinity);
     });
@@ -104,7 +105,7 @@ describe("DEFAULT_SCORERS", () => {
         const ctx = makeCtx({
             position: { side: 0, position: 5n, floor: 0n },
             sleep: { home: { side: 0, position: 10n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
-            tick: 150, // near lights-out
+            tick: 950, // near lights-out (960)
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
         assert.ok(s > 0.5, `return_home score ${s} should be > 0.5 near lights-out`);
@@ -114,7 +115,7 @@ describe("DEFAULT_SCORERS", () => {
         const ctx = makeCtx({
             position: { side: 0, position: 10n, floor: 0n },
             sleep: { home: { side: 0, position: 10n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
-            tick: 150,
+            tick: 950,
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
         assert.strictEqual(s, -Infinity);
@@ -124,29 +125,30 @@ describe("DEFAULT_SCORERS", () => {
         const ctx = makeCtx({
             position: { side: 0, position: 100n, floor: 0n },
             sleep: { home: { side: 0, position: 10n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false },
-            tick: 150,
+            tick: 950,
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
         assert.strictEqual(s, -Infinity);
     });
 
     it("return_home returns -Infinity without sleep component", () => {
-        const s = DEFAULT_SCORERS.return_home(makeCtx({ sleep: null, tick: 150 }), DEFAULT_INTENT);
+        const s = DEFAULT_SCORERS.return_home(makeCtx({ sleep: null, tick: 950 }), DEFAULT_INTENT);
         assert.strictEqual(s, -Infinity);
     });
 
     it("return_home returns -Infinity for nomadic NPCs", () => {
         const ctx = makeCtx({
             sleep: { home: { side: 0, position: 10n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: true },
-            tick: 150,
+            tick: 950,
         });
         const s = DEFAULT_SCORERS.return_home(ctx, DEFAULT_INTENT);
         assert.strictEqual(s, -Infinity);
     });
 
     it("return_home urgency increases toward lights-out", () => {
-        const early = makeCtx({ tick: 125 });
-        const late = makeCtx({ tick: 155 });
+        // Both ticks must be in the evening window (>= 840)
+        const early = makeCtx({ tick: 875 });
+        const late = makeCtx({ tick: 950 });
         assert.ok(
             DEFAULT_SCORERS.return_home(late, DEFAULT_INTENT) >
             DEFAULT_SCORERS.return_home(early, DEFAULT_INTENT),
@@ -265,7 +267,7 @@ describe("evaluateIntent", () => {
             { lucidity: 80, hope: 80 },
             true, null, null, makeRng(),
             undefined, undefined, undefined, undefined,
-            160, // tick 160 = lights off
+            960, // tick 960 = lights off
         );
         assert.deepStrictEqual(r, { behavior: "idle", cooldown: 0 });
     });
@@ -278,7 +280,7 @@ describe("evaluateIntent", () => {
             { hunger: 99, thirst: 99, exhaustion: 99 },
             null, makeRng(),
             undefined, undefined, undefined, undefined,
-            170,
+            970, // tick 970 = past lights-out
         );
         assert.deepStrictEqual(r, { behavior: "idle", cooldown: 0 });
     });
@@ -289,7 +291,7 @@ describe("evaluateIntent", () => {
             { lucidity: 80, hope: 80 },
             true, null, null, makeRng(),
             undefined, undefined, undefined, undefined,
-            200,
+            1000, // tick 1000 = lights off
         );
         assert.strictEqual(r, null);
     });

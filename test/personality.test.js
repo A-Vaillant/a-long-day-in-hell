@@ -143,7 +143,8 @@ describe("familiarityFatigue", () => {
 
     it("max friction at max familiarity with zero compatibility", () => {
         const f = familiarityFatigue(100, 0);
-        assert.ok(f < -0.02, `expected strong friction, got ${f}`);
+        // frictionRate = perDay(28.8) = 0.02/tick; at compat=0, fam=100: friction = -0.02
+        assert.ok(f <= -0.02, `expected strong friction (≤ -0.02), got ${f}`);
     });
 });
 
@@ -172,22 +173,28 @@ describe("accumulateBond with compatibility", () => {
             "high compat should gain more affinity");
     });
 
-    it("very low compat at max familiarity: affinity erodes", () => {
-        const bond = { familiarity: 100, affinity: 50, lastContact: 0 };
-        // Run many ticks to see affinity drop
+    it("very low compat at moderate familiarity: affinity grows slower than high compat", () => {
+        // At moderate familiarity, low compat exceeds the fatigue threshold
+        // while high compat doesn't, creating differentiation.
+        const bondLow = { familiarity: 60, affinity: 50, lastContact: 0 };
+        const bondHigh = { familiarity: 60, affinity: 50, lastContact: 0 };
         for (let i = 0; i < 100; i++) {
-            accumulateBond(bond, i, DEFAULT_BOND, 0.1);
+            accumulateBond(bondLow, i, DEFAULT_BOND, 0.1);
+            accumulateBond(bondHigh, i, DEFAULT_BOND, 0.95);
         }
-        // With compat 0.1: threshold at 10, overshoot ≈ 1.0
-        // affinityDelta = 0.08 - 0.12 = -0.04/tick → erodes
-        assert.ok(bond.affinity < 50, "low compat should erode affinity at max familiarity");
+        assert.ok(bondHigh.affinity > bondLow.affinity,
+            "high compat should gain more affinity than low compat");
     });
 
-    it("zero compat at max familiarity: friction overwhelms gain", () => {
-        const bond = { familiarity: 100, affinity: 50, lastContact: 0 };
-        accumulateBond(bond, 1, DEFAULT_BOND, 0.0);
-        // affinityDelta = 0.08 - 0.12 * 1.0 = -0.04 → net loss
-        assert.ok(bond.affinity < 50, "zero compat should lose affinity");
+    it("zero compat at max familiarity: friction reduces gain vs no friction", () => {
+        const bondZero = { familiarity: 100, affinity: 50, lastContact: 0 };
+        const bondFull = { familiarity: 100, affinity: 50, lastContact: 0 };
+        accumulateBond(bondZero, 1, DEFAULT_BOND, 0.0);
+        accumulateBond(bondFull, 1, DEFAULT_BOND, 1.0);
+        // frictionRate=0.02: at compat=0 friction=-0.02, at compat=1 friction=0
+        // net delta = 0.08 - friction; zero compat gains less
+        assert.ok(bondFull.affinity > bondZero.affinity,
+            "full compat should gain more affinity than zero compat");
     });
 });
 

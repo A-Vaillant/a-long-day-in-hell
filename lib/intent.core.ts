@@ -31,6 +31,7 @@ import { NEEDS, type Needs } from "./needs.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
 import { KNOWLEDGE, type Knowledge, isSearched } from "./knowledge.core.ts";
 import { LIGHTS_ON_TICKS } from "./tick.core.ts";
+import { TICKS_PER_HOUR } from "./scale.core.ts";
 
 // --- Behavior type ---
 
@@ -210,9 +211,9 @@ const scorers: Record<string, BehaviorScorer> = {
         // Too far from home — nearest rest area via seek_rest is better
         if (distToHome > 30) return -Infinity;
 
-        // Time pressure: ramps from tick 120 to LIGHTS_ON_TICKS (160)
-        // Before tick 120: no urgency
-        const eveningStart = 120; // ~8:00 PM
+        // Time pressure: ramps from 8 PM to LIGHTS_ON_TICKS (10 PM)
+        // Before 8 PM: no urgency
+        const eveningStart = 14 * TICKS_PER_HOUR; // 8:00 PM (14h after 6 AM)
         if (ctx.tick < eveningStart) return -Infinity;
 
         const timeUrgency = Math.min(1, (ctx.tick - eveningStart) / (LIGHTS_ON_TICKS - eveningStart));

@@ -149,38 +149,43 @@ describe("movementSystem", () => {
 
     it("seek_rest steps toward nearest rest area", () => {
         const w = createWorld();
+        // GALLERIES_PER_SEGMENT=5, rest areas at 0,5,10,...
+        // position 7: nearest is 5 (dist 2) vs 10 (dist 3), step left toward 5
         const e = makeNpc(w, { position: 7n, behavior: "seek_rest" });
         movementSystem(w, makeRng([0.5]));
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 8n); // toward 10
+        assert.equal(pos.position, 6n); // toward 5
         const mov = getComponent(w, e, MOVEMENT);
-        assert.equal(mov.targetPosition, 10n);
+        assert.equal(mov.targetPosition, 5n);
     });
 
     it("seek_rest steps left toward lower rest area", () => {
         const w = createWorld();
+        // position 3: nearest is 5 (dist 2) vs 0 (dist 3), step right toward 5
         const e = makeNpc(w, { position: 3n, behavior: "seek_rest" });
         movementSystem(w, makeRng([0.5]));
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 2n); // toward 0
+        assert.equal(pos.position, 4n); // toward 5
     });
 
-    it("seek_rest from position 13 steps toward 10", () => {
+    it("seek_rest from position 13 steps toward 15", () => {
         const w = createWorld();
+        // position 13: nearest is 15 (dist 2) vs 10 (dist 3), step right toward 15
         const e = makeNpc(w, { position: 13n, behavior: "seek_rest" });
         movementSystem(w, makeRng([0.5]));
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 12n);
+        assert.equal(pos.position, 14n);
     });
 
     // --- Batch mode ---
 
     it("batch: seek_rest teleports when n >= distance", () => {
         const w = createWorld();
+        // position 7, nearest rest area is 5
         const e = makeNpc(w, { position: 7n, behavior: "seek_rest" });
         movementSystem(w, makeRng([0.5]), undefined, 100);
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 10n);
+        assert.equal(pos.position, 5n);
     });
 
     it("batch: explore moves n steps in heading", () => {

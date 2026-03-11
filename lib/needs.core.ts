@@ -37,16 +37,86 @@ export interface NeedsConfig {
     drinkRelief: number;     // thirst reduction per drink
 }
 
+import { perDay } from "./scale.core.ts";
+
 export const DEFAULT_NEEDS: NeedsConfig = {
-    hungerRate: 0.017,      // ~25 days to 100
-    thirstRate: 0.037,      // ~11 days to 100
-    exhaustionRate: 0.083,  // ~5 days to 100
+    hungerRate: perDay(100 / 25),      // ~25 days to 100
+    thirstRate: perDay(100 / 11),      // ~11 days to 100
+    exhaustionRate: perDay(100 / 5),   // ~5 days to 100
     eatThreshold: 50,
     drinkThreshold: 50,
     sleepThreshold: 70,
     eatRelief: 40,
     drinkRelief: 40,
 };
+
+// --- Pure computation ---
+
+export interface ComputeNeedsInput {
+    needs: Needs;
+    atRest: boolean;
+    lightsOn: boolean;
+    enduranceMod: number;
+    config: NeedsConfig;
+    n: number;
+}
+
+export interface ComputeNeedsResult {
+    died: boolean;
+}
+
+/**
+ * Pure needs computation. Mutates `input.needs` in place, returns whether
+ * the entity died. No ECS queries — caller resolves all component data.
+ */
+export function computeNeeds(input: ComputeNeedsInput): ComputeNeedsResult {
+    const { needs, atRest, lightsOn, enduranceMod: eMod, config, n } = input;
+
+    if (n <= 1) {
+        // Single tick
+        needs.hunger += config.hungerRate * eMod;
+        needs.thirst += config.thirstRate * eMod;
+        needs.exhaustion += config.exhaustionRate * eMod;
+
+        if (atRest && lightsOn) {
+            if (needs.hunger >= config.eatThreshold) {
+                needs.hunger = Math.max(0, needs.hunger - config.eatRelief);
+            }
+            if (needs.thirst >= config.drinkThreshold) {
+                needs.thirst = Math.max(0, needs.thirst - config.drinkRelief);
+            }
+            if (needs.exhaustion >= config.sleepThreshold) {
+                needs.exhaustion = 0;
+            }
+        }
+    } else {
+        // Batch: accumulate needs analytically, then apply relief.
+        // Rest areas are every 10 segments — NPCs always pass through them.
+        // Over any multi-day batch, everyone eats/drinks/sleeps regularly.
+        needs.hunger += config.hungerRate * eMod * n;
+        needs.thirst += config.thirstRate * eMod * n;
+        needs.exhaustion += config.exhaustionRate * eMod * n;
+
+        // All NPCs get relief in batch — rest areas are ubiquitous
+        while (needs.hunger >= config.eatThreshold) {
+            needs.hunger -= config.eatRelief;
+        }
+        needs.hunger = Math.max(0, needs.hunger);
+
+        while (needs.thirst >= config.drinkThreshold) {
+            needs.thirst -= config.drinkRelief;
+        }
+        needs.thirst = Math.max(0, needs.thirst);
+
+        if (needs.exhaustion >= config.sleepThreshold) {
+            needs.exhaustion = 0;
+        }
+    }
+
+    // Death from starvation/dehydration
+    const died = needs.hunger >= 100 || needs.thirst >= 100;
+    return { died };
+}
 
 // --- Systems ---
 
@@ -55,6 +125,7 @@ export const DEFAULT_NEEDS: NeedsConfig = {
  * When hunger>=100 or thirst>=100, kill the NPC.
  *
  * Batch mode (n>1): accumulates needs, simulates eat/sleep cycles analytically.
+ * Thin wrapper over computeNeeds().
  */
 export function needsSystem(
     world: World,
@@ -70,54 +141,19 @@ export function needsSystem(
         const ident = tuple[3] as Identity;
         if (!ident.alive) continue;
 
-        const atRest = isRestArea(pos.position);
-        // High endurance = slower need accumulation
         const stats = getComponent<Stats>(world, entity, STATS);
         const eMod = stats ? enduranceMod(stats) : 1.0;
 
-        if (n <= 1) {
-            // Single tick
-            needs.hunger += config.hungerRate * eMod;
-            needs.thirst += config.thirstRate * eMod;
-            needs.exhaustion += config.exhaustionRate * eMod;
+        const result = computeNeeds({
+            needs,
+            atRest: isRestArea(pos.position),
+            lightsOn,
+            enduranceMod: eMod,
+            config,
+            n,
+        });
 
-            if (atRest && lightsOn) {
-                if (needs.hunger >= config.eatThreshold) {
-                    needs.hunger = Math.max(0, needs.hunger - config.eatRelief);
-                }
-                if (needs.thirst >= config.drinkThreshold) {
-                    needs.thirst = Math.max(0, needs.thirst - config.drinkRelief);
-                }
-                if (needs.exhaustion >= config.sleepThreshold) {
-                    needs.exhaustion = 0;
-                }
-            }
-        } else {
-            // Batch: accumulate needs analytically, then apply relief.
-            // Rest areas are every 10 segments — NPCs always pass through them.
-            // Over any multi-day batch, everyone eats/drinks/sleeps regularly.
-            needs.hunger += config.hungerRate * eMod * n;
-            needs.thirst += config.thirstRate * eMod * n;
-            needs.exhaustion += config.exhaustionRate * eMod * n;
-
-            // All NPCs get relief in batch — rest areas are ubiquitous
-            while (needs.hunger >= config.eatThreshold) {
-                needs.hunger -= config.eatRelief;
-            }
-            needs.hunger = Math.max(0, needs.hunger);
-
-            while (needs.thirst >= config.drinkThreshold) {
-                needs.thirst -= config.drinkRelief;
-            }
-            needs.thirst = Math.max(0, needs.thirst);
-
-            if (needs.exhaustion >= config.sleepThreshold) {
-                needs.exhaustion = 0;
-            }
-        }
-
-        // Death from starvation/dehydration
-        if (needs.hunger >= 100 || needs.thirst >= 100) {
+        if (result.died) {
             ident.alive = false;
         }
     }

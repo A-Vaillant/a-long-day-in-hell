@@ -30,30 +30,30 @@ describe("advanceTick", () => {
     });
 
     it("emits lightsOut when crossing LIGHTS_ON_TICKS", () => {
-        const { state, events } = advanceTick({ tick: 159, day: 1 }, 1);
-        assert.strictEqual(state.tick, 160);
+        const { state, events } = advanceTick({ tick: 959, day: 1 }, 1);
+        assert.strictEqual(state.tick, 960);
         assert.ok(events.includes("lightsOut"));
     });
 
     it("does not emit lightsOut if already past it", () => {
-        const { state, events } = advanceTick({ tick: 161, day: 1 }, 1);
+        const { state, events } = advanceTick({ tick: 961, day: 1 }, 1);
         assert.deepStrictEqual(events, []);
     });
 
     it("emits dawn and wraps tick when crossing TICKS_PER_DAY", () => {
-        const { state, events } = advanceTick({ tick: 239, day: 1 }, 1);
+        const { state, events } = advanceTick({ tick: 1439, day: 1 }, 1);
         assert.strictEqual(state.tick, 0);
         assert.strictEqual(state.day, 2);
         assert.ok(events.includes("dawn"));
     });
 
     it("emits both lightsOut and dawn when skipping from pre-lights-out to next day", () => {
-        // Jump from tick 150 by 100 ticks: crosses 160 (lightsOut) and 240 (dawn)
-        const { state, events } = advanceTick({ tick: 150, day: 1 }, 100);
+        // Jump from tick 900 by 600 ticks: crosses 960 (lightsOut) and 1440 (dawn)
+        const { state, events } = advanceTick({ tick: 900, day: 1 }, 600);
         assert.ok(events.includes("lightsOut"), "should emit lightsOut");
         assert.ok(events.includes("dawn"), "should emit dawn");
         assert.strictEqual(state.day, 2);
-        assert.strictEqual(state.tick, 10); // 150+100=250, 250%240=10
+        assert.strictEqual(state.tick, 60); // 900+600=1500, 1500%1440=60
     });
 
     it("does not emit lightsOut on a new day tick already past lights-on window", () => {
@@ -84,16 +84,16 @@ describe("isLightsOn", () => {
 
 describe("tickToTimeString", () => {
     it("tick 0 = 6:00 AM", () => assert.strictEqual(tickToTimeString(0), "6:00 AM"));
-    it("tick 160 = 10:00 PM", () => assert.strictEqual(tickToTimeString(160), "10:00 PM"));
-    it("tick 60 = 12:00 PM", () => assert.strictEqual(tickToTimeString(60), "12:00 PM"));
-    it("tick 70 = 1:00 PM",  () => assert.strictEqual(tickToTimeString(70), "1:00 PM"));
-    it("tick 10 = 7:00 AM",  () => assert.strictEqual(tickToTimeString(10), "7:00 AM"));
+    it("tick 960 = 10:00 PM", () => assert.strictEqual(tickToTimeString(960), "10:00 PM"));
+    it("tick 360 = 12:00 PM", () => assert.strictEqual(tickToTimeString(360), "12:00 PM"));
+    it("tick 420 = 1:00 PM",  () => assert.strictEqual(tickToTimeString(420), "1:00 PM"));
+    it("tick 60 = 7:00 AM",   () => assert.strictEqual(tickToTimeString(60), "7:00 AM"));
 });
 
 describe("ticksUntilDawn / hoursUntilDawn", () => {
-    it("at tick 0, 240 ticks until dawn", () => assert.strictEqual(ticksUntilDawn(0), 240));
-    it("at tick 239, 1 tick until dawn", () => assert.strictEqual(ticksUntilDawn(239), 1));
-    it("hoursUntilDawn rounds up", () => assert.strictEqual(hoursUntilDawn(231), 1));
+    it("at tick 0, 1440 ticks until dawn", () => assert.strictEqual(ticksUntilDawn(0), 1440));
+    it("at tick 1439, 1 tick until dawn", () => assert.strictEqual(ticksUntilDawn(1439), 1));
+    it("hoursUntilDawn rounds up", () => assert.strictEqual(hoursUntilDawn(1381), 1));
     it("hoursUntilDawn at tick 0 = 24", () => assert.strictEqual(hoursUntilDawn(0), 24));
 });
 
@@ -173,7 +173,7 @@ describe("applyMoveTick", () => {
     });
 
     it("activates mortality when thirst hits 100", () => {
-        const stats = { ...defaultStats(), thirst: 99.95 }; // will clamp to 100 after move
+        const stats = { ...defaultStats(), thirst: 99.999 }; // will clamp to 100 after move
         const s = applyMoveTick(stats);
         assert.strictEqual(s.thirst, 100);
         assert.ok(s.mortality < 100, "mortality should start draining");
@@ -208,7 +208,9 @@ describe("mortality", () => {
     });
 
     it("sets dead when mortality reaches 0", () => {
-        const s = applyMoveTick({ ...defaultStats(), hunger: 100, thirst: 100, mortality: 0.5 });
+        // mortality drains per tick at MORTALITY_BOTH rate; use a value just above 0
+        // that will drop to 0 or below after one move tick
+        const s = applyMoveTick({ ...defaultStats(), hunger: 100, thirst: 100, mortality: 0.01 });
         assert.strictEqual(s.dead, true);
     });
 });

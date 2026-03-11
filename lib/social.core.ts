@@ -25,6 +25,7 @@ import { NEEDS, type Needs, needsDecayMultiplier } from "./needs.core.ts";
 import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
 import { STATS, type Stats, influenceMod } from "./stats.core.ts";
 import { HABITUATION, type Habituation, applyShock as applyHabituatedShock } from "./psych.core.ts";
+import { perDay, perHour, days as daysToTicks } from "./scale.core.ts";
 
 // --- Component keys ---
 
@@ -149,13 +150,15 @@ export const DEFAULT_DECAY: DecayConfig = {
     // Non-linear: decay accelerates as stats drop (despair feedback).
     // High stats decay very slowly (functional people stay functional for centuries).
     // rate = base * (1 + accel * (1 - stat/100)^curve)
-    lucidityBase: 0.00003,
-    hopeBase: 0.00004,
+    // Base rates: at stat=100, lucidity drops ~1 point per ~23 days.
+    // At stat=50, acceleration kicks in: ~1 point per ~4 days.
+    lucidityBase: perDay(0.0072),   // ~0.0072/day base (was 0.00003/tick × 240 ticks/day)
+    hopeBase: perDay(0.0096),       // ~0.0096/day base (was 0.00004/tick × 240 ticks/day)
     accel: 12.0,
     curve: 2.0,
     isolationMultiplier: 1.0,
-    companionDamper: 0.1,       // companion slows decay to 10% of base
-    companionRestore: 0.000008, // per tick — very slow healing from social contact
+    companionDamper: 0.1,                // companion slows decay to 10% of base
+    companionRestore: perDay(0.00192),   // very slow healing (~0.00192/day, was 0.000008/tick × 240)
     lucidityFloor: 0,
     hopeFloor: 0,
 };
@@ -335,15 +338,15 @@ export interface BondConfig {
 }
 
 export const DEFAULT_BOND: BondConfig = {
-    familiarityPerTick: 0.15,   // ~36/day co-located → grouping threshold (10) in ~67 ticks
-    affinityPerTick: 0.08,      // ~19/day co-located → grouping threshold (5) in ~63 ticks
-    familiarityDecayRate: 0.002, // very slow — you don't forget people
-    affinityDecayRate: 0.02,    // feelings fade faster than memory
+    familiarityPerTick: perHour(9),        // ~9/hour co-located → grouping threshold (10) in ~67 min
+    affinityPerTick: perHour(4.8),         // ~4.8/hour co-located → grouping threshold (5) in ~63 min
+    familiarityDecayRate: perDay(0.48),    // ~200 days to lose 100 familiarity
+    affinityDecayRate: perDay(4.8),        // feelings reset in ~20 days
     maxFamiliarity: 100,
     maxAffinity: 100,
     minAffinity: -100,
     contactThreshold: 0,
-    reencounterGap: 240,        // 1 day of absence = new encounter
+    reencounterGap: daysToTicks(1),        // 1 day of absence = new encounter
 };
 
 /**

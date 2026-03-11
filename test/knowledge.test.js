@@ -289,7 +289,7 @@ describe("escape resolution", () => {
 
         movementSystem(world, makeRng(0.01));
         const pos = getComponent(world, entity, POSITION);
-        // Position 7 → nearest rest area is 10, should step toward it
-        assert.equal(pos.position, 8n, "should step toward rest area");
+        // Position 7 → nearest rest area is 5 (GALLERIES_PER_SEGMENT=5), should step toward it
+        assert.equal(pos.position, 6n, "should step toward rest area at 5");
     });
 });

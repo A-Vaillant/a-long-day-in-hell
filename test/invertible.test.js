@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { LIBRARY_MAX, PLAYABLE_ADDRESS_MAX, textToAddress, isInBounds, isAddressInBounds, computeBookAddress, addressToCoords } from "../lib/invertible.core.ts";
 import { generateLifeStory } from "../lib/lifestory.core.ts";
+import { BOOKS_PER_GALLERY } from "../lib/scale.core.ts";
 
 describe("LIBRARY_MAX", () => {
     it("equals 95^66", () => {
@@ -145,7 +146,7 @@ describe("player is never damned", () => {
 
     it("addressToCoords round-trips through bookAddress for player (modulo rest-area nudge)", () => {
         const story = generateLifeStory("roundtrip-test");
-        const coords = addressToCoords(story.bookAddress, 192);
+        const coords = addressToCoords(story.bookAddress, BOOKS_PER_GALLERY);
         assert.strictEqual(coords.side, story.bookCoords.side);
         assert.strictEqual(coords.floor, story.bookCoords.floor);
         assert.strictEqual(coords.bookIndex, story.bookCoords.bookIndex);

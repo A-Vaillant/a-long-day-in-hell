@@ -7,17 +7,12 @@
  * Morale counts DOWNWARD — 100 = fine, 0 = despairing.
  * Mortality counts DOWNWARD — 100 = alive, 0 = dead.
  *
- * Depletion rates (per tick):
- *   Move/Wait: Thirst +0.11, Hunger +0.05, Exhaustion +0.25
- *   Sleep (per hour):
- *     Exhaustion → 0, Hunger +0.5, Thirst +0.4, Morale +5
+ * Depletion rates (real-time, converted to per-tick via scale.core):
+ *   Thirst: 0→100 in ~4 days without drinking
+ *   Hunger: 0→100 in ~8 days without eating
+ *   Exhaustion: 0→100 in ~1.7 days — enforces sleep rhythm
  *   Eat:   Hunger -40 (relief)
  *   Drink: Thirst -40 (relief)
- *
- * Rate targets:
- *   Thirst: 0→100 in ~720 ticks (~3 days) without drinking
- *   Hunger: 0→100 in ~1600 ticks (~6.7 days) without eating
- *   Exhaustion: 0→100 in ~400 ticks (~1.7 days) — enforces sleep rhythm
  *
  * Conditions:
  *   Parched   — thirst >= 100
@@ -27,9 +22,9 @@
  * Mortality:
  *   Activates when Parched or Starving. Drains toward 0.
  *   Rates:
- *     Parched only:  -0.83/tick (~0.5 days to death)
- *     Starving only: -0.42/tick (~1 day to death)
- *     Both:          -1.67/tick (~0.25 days to death)
+ *     Parched only:  ~12 hours to death
+ *     Starving only: ~1 day to death
+ *     Both:          ~6 hours to death
  *   Resets to 100 when neither Parched nor Starving.
  *   Mortality = 0 → dead = true.
  *
@@ -71,15 +66,20 @@ export interface ThresholdResult {
 export const STAT_MAX: number = 100;
 export const STAT_MIN: number = 0;
 
-// Growth rates per tick (hunger/thirst/exhaustion go UP)
-const THIRST_RATE: number     = 0.11;
-const HUNGER_RATE: number     = 0.05;
-const EXHAUSTION_RATE: number = 0.25;
+// Growth rates expressed in real-time units, converted to per-tick.
+// Thirst: 0→100 in ~4 days.  Hunger: 0→100 in ~8 days.
+// Exhaustion: 0→100 in ~1.7 waking days.
+import { perDay, WAKING_TICKS as _WAKING_TICKS, TICKS_PER_HOUR as _TPH } from "./scale.core.ts";
 
-// Mortality drain rates per tick
-const MORTALITY_PARCHED_ONLY: number  = 0.83;
-const MORTALITY_STARVING_ONLY: number = 0.42;
-const MORTALITY_BOTH: number          = 1.67;
+const THIRST_RATE: number     = perDay(100 / 4);     // ~4 days to full
+const HUNGER_RATE: number     = perDay(100 / 8);     // ~8 days to full
+const EXHAUSTION_RATE: number = perDay(100 / 1.7);   // ~1.7 days to collapse
+
+// Mortality drain rates: how fast you die once starving/parched.
+// Parched only: ~12 hours. Starving only: ~1 day. Both: ~6 hours.
+const MORTALITY_PARCHED_ONLY: number  = perDay(100 / 0.5);  // 12 hours
+const MORTALITY_STARVING_ONLY: number = perDay(100 / 1);    // 1 day
+const MORTALITY_BOTH: number          = perDay(100 / 0.25); // 6 hours
 
 /** Default starting state — hunger/thirst/exhaustion start at 0 (no suffering). */
 export function defaultStats(): SurvivalStats {
@@ -233,7 +233,7 @@ export function applyAlcohol(stats: SurvivalStats): SurvivalStats {
 export const SLEEP_EXHAUSTION_THRESHOLD: number = 30;
 
 /** Tick at which "near bedtime" begins (1 hour before lights out). */
-export const NEAR_BEDTIME_TICK: number = 150; // 9:00 PM
+export const NEAR_BEDTIME_TICK: number = _WAKING_TICKS - _TPH; // 9:00 PM
 
 /**
  * Whether the player can sleep voluntarily.

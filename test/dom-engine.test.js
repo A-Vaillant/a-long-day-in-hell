@@ -44,8 +44,8 @@ describe("DOM: Engine boundary registry", () => {
         const game = bootGame();
         game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 5 };
         game.state.openPage = 3;
-        // Advance past reset hour (tick 230)
-        game.state.tick = 225;
+        // Advance past reset hour (tick 1380)
+        game.state.tick = 1375;
         game.Tick.advance(10);
         assert.strictEqual(game.state.openBook, null, "book closed at reset hour");
         assert.strictEqual(game.state.openPage, 0, "page reset at reset hour");
@@ -65,16 +65,16 @@ describe("DOM: Engine.advanceTime batch mode", () => {
 
     it("fires boundary handlers and updates lightsOn", () => {
         const game = bootGame();
-        game.state.tick = 155;
+        game.state.tick = 955;
         game.state.day = 1;
         game.state.lightsOn = true;
         game.Engine.advanceTime(10);
-        assert.strictEqual(game.state.lightsOn, false, "lights off after crossing tick 160");
+        assert.strictEqual(game.state.lightsOn, false, "lights off after crossing tick 960");
     });
 
     it("fires dawn handlers on day boundary", () => {
         const game = bootGame();
-        game.state.tick = 235;
+        game.state.tick = 1435;
         game.state.day = 1;
         game.state.dead = true;
         game.state.deathCause = "test";
@@ -91,7 +91,7 @@ describe("DOM: Engine.advanceTime batch mode", () => {
             handlerRan = true;
             game.Engine.goto("Menu");
         });
-        game.state.tick = 235;
+        game.state.tick = 1435;
         game.state.day = 1;
         game.Engine.advanceTime(10);
         assert.ok(handlerRan, "handler executed");
@@ -105,7 +105,7 @@ describe("DOM: Engine.advanceTime batch mode", () => {
             game.Engine.goto("Death");
             game.Engine.goto("Menu");
         });
-        game.state.tick = 235;
+        game.state.tick = 1435;
         game.state.day = 1;
         game.Engine.advanceTime(10);
         assert.strictEqual(game.state.screen, "Menu");

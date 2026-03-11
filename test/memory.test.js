@@ -328,7 +328,7 @@ describe("witnessSystem — deduplication", () => {
 
         const event = makeEvent("foundBody", subject, { side: 0, position: 5, floor: 0 });
         witnessSystem(world, [event], 100, prebuilt);
-        witnessSystem(world, [event], 200, prebuilt); // within 240-tick window
+        witnessSystem(world, [event], 1000, prebuilt); // within 1440-tick dedup window
 
         const mem = getComponent(world, witness, MEMORY);
         assert.equal(mem.entries.length, 1, "duplicate within window should be skipped");
@@ -344,7 +344,7 @@ describe("witnessSystem — deduplication", () => {
         const event = makeEvent("foundBody", subject, { side: 0, position: 5, floor: 0 });
 
         witnessSystem(world, [event], 0, prebuilt);
-        witnessSystem(world, [event], 300, prebuilt); // outside 240-tick window
+        witnessSystem(world, [event], 1500, prebuilt); // outside 1440-tick dedup window
 
         const mem = getComponent(world, witness, MEMORY);
         assert.equal(mem.entries.length, 2, "event allowed after window expires");
@@ -427,8 +427,9 @@ describe("memoryDecaySystem — weight decay", () => {
 
         memoryDecaySystem(world, DEFAULT_MEMORY_CONFIG, 1);
 
-        // foundBody decayRate = 0.001
-        assert.ok(Math.abs(mem.entries[0].weight - (5 - 0.001)) < 1e-10);
+        // foundBody decayRate from config (perDay-based; ~0.000167/tick at 1440 ticks/day)
+        const expectedDecayRate = DEFAULT_MEMORY_CONFIG.types.foundBody.decayRate;
+        assert.ok(Math.abs(mem.entries[0].weight - (5 - expectedDecayRate)) < 1e-10);
     });
 
     it("clamps to floor for permanent entries", () => {
@@ -450,12 +451,14 @@ describe("memoryDecaySystem — weight decay", () => {
         const world = makeWorld();
         const e = spawnWithMemory(world);
         const mem = getComponent(world, e, MEMORY);
+        // Use a weight that is less than one tick of decay for foundBody
+        const decayRate = DEFAULT_MEMORY_CONFIG.types.foundBody.decayRate;
         addMemory(mem, {
-            id: 0, type: "foundBody", tick: 0, weight: 0.0005, initialWeight: 5,
+            id: 0, type: "foundBody", tick: 0, weight: decayRate / 2, initialWeight: 5,
             permanent: false, subject: null, contagious: false,
         });
 
-        // decayRate 0.001 over 1 tick → goes to 0 (clamped)
+        // Weight < decayRate → decays to 0 (clamped), then evicted
         memoryDecaySystem(world, DEFAULT_MEMORY_CONFIG, 1);
         assert.equal(mem.entries.length, 0, "zeroed non-permanent entry should be evicted");
     });

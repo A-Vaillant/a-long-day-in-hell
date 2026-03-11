@@ -53,7 +53,9 @@ describe("needsSystem", () => {
 
     it("does NOT auto-eat when not at rest area", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5n, hunger: 55 });
+        // GALLERIES_PER_SEGMENT=5, so position 5n is a rest area.
+        // Use position 7n (not a multiple of 5) for a non-rest-area test.
+        const e = makeNpc(w, { position: 7n, hunger: 55 });
         needsSystem(w, true);
         const n = getComponent(w, e, NEEDS);
         assert.ok(n.hunger > 55); // only accumulated, no relief
@@ -69,7 +71,8 @@ describe("needsSystem", () => {
 
     it("kills NPC when hunger >= 100", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5n, hunger: 99.99 });
+        // position 7n is not a rest area (GALLERIES_PER_SEGMENT=5, rest at multiples of 5)
+        const e = makeNpc(w, { position: 7n, hunger: 99.999 });
         needsSystem(w, true);
         const ident = getComponent(w, e, IDENTITY);
         assert.equal(ident.alive, false);
@@ -77,7 +80,7 @@ describe("needsSystem", () => {
 
     it("kills NPC when thirst >= 100", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5n, thirst: 99.99 });
+        const e = makeNpc(w, { position: 7n, thirst: 99.999 });
         needsSystem(w, true);
         const ident = getComponent(w, e, IDENTITY);
         assert.equal(ident.alive, false);
@@ -112,10 +115,10 @@ describe("needsSystem", () => {
 
     it("batch 1-year advance does not kill any NPC", () => {
         const w = createWorld();
-        const YEAR = 365 * 240;
+        const YEAR = 365 * 1440;
         // Rest areas are ubiquitous — all NPCs get relief in batch mode
         const eRest = makeNpc(w, { position: 0n });
-        const eWander = makeNpc(w, { position: 5n });
+        const eWander = makeNpc(w, { position: 7n }); // non-rest-area (GALLERIES_PER_SEGMENT=5)
         needsSystem(w, true, undefined, YEAR);
         const identR = getComponent(w, eRest, IDENTITY);
         const identW = getComponent(w, eWander, IDENTITY);
@@ -125,8 +128,8 @@ describe("needsSystem", () => {
 
     it("batch multi-day lights-off does not kill NPC", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 5n }); // not even at rest area
-        needsSystem(w, false, undefined, 5 * 240);
+        const e = makeNpc(w, { position: 7n }); // not a rest area (GALLERIES_PER_SEGMENT=5)
+        needsSystem(w, false, undefined, 5 * 1440);
         const ident = getComponent(w, e, IDENTITY);
         assert.equal(ident.alive, true, "NPC survives batch regardless of lightsOn or position");
     });
