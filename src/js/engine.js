@@ -17,7 +17,7 @@ import { createBoundaryRegistry, processTime } from "../../lib/engine.core.ts";
 import { Godmode } from "./godmode.js";
 import { saveLog, loadLog, clearLog, count as logCount } from "./event-log.js";
 import * as Slots from "./save-slots.js";
-import { SAVE_VERSION, checkSaveCompatibility } from "../../lib/save-version.core.ts";
+import { SAVE_VERSION, checkSaveCompatibility, needsMigration, savedMinor, parseSaveVersion } from "../../lib/save-version.core.ts";
 import { BOOKS_PER_GALLERY } from "../../lib/scale.core.ts";
 
 export { state };
@@ -385,7 +385,8 @@ export const Engine = {
         if (useSave) {
             const compat = checkSaveCompatibility(saved._saveVersion);
             if (compat) {
-                console.warn("Incompatible save (version " + (saved._saveVersion ?? 0) + "):", compat);
+                const sv = parseSaveVersion(saved._saveVersion);
+                console.warn("Incompatible save (v" + sv.major + "." + sv.minor + "):", compat);
                 const index = Slots.loadIndex();
                 const badId = saved._slotId || index.activeSlot;
                 if (badId) Slots.deleteSlot(index, badId);
@@ -407,6 +408,12 @@ export const Engine = {
             if (!state.eventDeck) Events.init();
             if (!state.npcs) Npc.init();
             Social.init();
+            // Minor version migrations (same major, older minor)
+            if (needsMigration(saved._saveVersion)) {
+                const minor = savedMinor(saved._saveVersion);
+                // if (minor < 1) { /* migrate 2.0 → 2.1 */ }
+                state._saveVersion = SAVE_VERSION;
+            }
             state._debugAllowed = false;
             state.debug = false;
         } else {
