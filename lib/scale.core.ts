@@ -146,11 +146,8 @@ export function days(d: number): number {
  */
 export const BASE_SPEED: number = 1;
 
-/**
- * Segments (kiosk-to-kiosk) a walker covers in one waking day.
- * 960 waking ticks ÷ 5 positions/segment = 192 segments.
- */
-export const SEGMENTS_PER_WAKING_DAY: number = Math.floor(WAKING_TICKS / GALLERIES_PER_SEGMENT); // 192
+/** Segments (kiosk-to-kiosk) a walker covers in one waking day. */
+export const SEGMENTS_PER_WAKING_DAY: number = Math.floor(WAKING_TICKS / GALLERIES_PER_SEGMENT);
 
 /**
  * Positions a walker covers in one waking day (at base speed).
