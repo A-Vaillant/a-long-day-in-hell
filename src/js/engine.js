@@ -17,6 +17,8 @@ import { createBoundaryRegistry, processTime } from "../../lib/engine.core.ts";
 import { Godmode } from "./godmode.js";
 import { saveLog, loadLog, clearLog, count as logCount } from "./event-log.js";
 import * as Slots from "./save-slots.js";
+import { SAVE_VERSION, checkSaveCompatibility } from "../../lib/save-version.core.ts";
+import { BOOKS_PER_GALLERY } from "../../lib/scale.core.ts";
 
 export { state };
 
@@ -292,6 +294,7 @@ export const Engine = {
             var cur = this._screens[state.screen];
             if (cur && cur.kind === "transition") return; // never save on a transition
             if (state._possessedNpcId != null) return; // don't save during possession
+            state._saveVersion = SAVE_VERSION;
             state._savedLogCount = logCount();
             state._savedAt = Date.now();
 
@@ -377,32 +380,24 @@ export const Engine = {
         const isDebugGoto = params.has("vohu");
         const hasSeedParam = params.has("seed");
 
-        if (saved && saved.seed != null && !hasSeedParam && !isDebugGoto) {
+        // Check save compatibility; discard incompatible saves
+        let useSave = saved && saved.seed != null && !hasSeedParam && !isDebugGoto;
+        if (useSave) {
+            const compat = checkSaveCompatibility(saved._saveVersion);
+            if (compat) {
+                console.warn("Incompatible save (version " + (saved._saveVersion ?? 0) + "):", compat);
+                const index = Slots.loadIndex();
+                const badId = saved._slotId || index.activeSlot;
+                if (badId) Slots.deleteSlot(index, badId);
+                useSave = false;
+            }
+        }
+
+        if (useSave) {
             Object.assign(state, saved);
             PRNG.seed(state.seed);
             loadLog(state._slotId);
-            // Migrate BigInt fields from pre-migration saves
-            if (typeof state.position !== 'bigint') state.position = BigInt(state.position || 0);
-            if (typeof state.floor !== 'bigint') state.floor = BigInt(state.floor || 0);
-            if (state.heldBook) {
-                if (typeof state.heldBook.position !== 'bigint') state.heldBook.position = BigInt(state.heldBook.position || 0);
-                if (typeof state.heldBook.floor !== 'bigint') state.heldBook.floor = BigInt(state.heldBook.floor || 0);
-            }
-            if (state.openBook) {
-                if (typeof state.openBook.position !== 'bigint') state.openBook.position = BigInt(state.openBook.position || 0);
-                if (typeof state.openBook.floor !== 'bigint') state.openBook.floor = BigInt(state.openBook.floor || 0);
-            }
-            if (state.targetBook) {
-                if (typeof state.targetBook.position !== 'bigint') state.targetBook.position = BigInt(state.targetBook.position || 0);
-                if (typeof state.targetBook.floor !== 'bigint') state.targetBook.floor = BigInt(state.targetBook.floor || 0);
-            }
-            if (state.npcs) {
-                for (const npc of state.npcs) {
-                    if (typeof npc.position !== 'bigint') npc.position = BigInt(npc.position || 0);
-                    if (typeof npc.floor !== 'bigint') npc.floor = BigInt(npc.floor || 0);
-                }
-            }
-            // Migrate missing fields from older saves
+            // Migrate missing fields from older saves (within compatible versions)
             if (state.mortality === undefined) state.mortality = 100;
             if (state.despairing === undefined) state.despairing = false;
             if (state.deaths === undefined) state.deaths = 0;
@@ -446,7 +441,7 @@ export const Engine = {
             // player's book is always deep in the stacks, never near the ground.
             // This only constrains the game's placement roll — the bijection is untouched.
             {
-                const _bpg = 192n, _floors = 100_000n;
+                const _bpg = BigInt(BOOKS_PER_GALLERY), _floors = 100_000n;
                 const _floorMin = 2000n, _floorRange = 93000n;
                 const _bookIdx = state.randomOrigin % _bpg;
                 const _floorRaw = (state.randomOrigin / _bpg) % _floors;

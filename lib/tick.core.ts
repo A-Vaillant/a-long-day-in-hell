@@ -1,15 +1,27 @@
 /** Tick / time-of-day system.
  *
- * One tick = one player action. The day runs from 6:00am (tick 0) to the
- * following 6:00am (tick 240). Lights go out at 10:00pm (tick 160).
+ * One tick = one minute = one player action. The day runs from 6:00am (tick 0)
+ * to the following 6:00am (tick 1440). Lights go out at 10:00pm (tick 960).
+ *
+ * Time constants imported from scale.core.ts.
  *
  * Boundary events emitted by advanceTick:
- *   "lightsOut"  — tick crossed LIGHTS_OFF_TICK
+ *   "lightsOut"  — tick crossed LIGHTS_ON_TICKS (end of waking day)
  *   "resetHour"  — tick crossed RESET_HOUR_TICK (5:00 AM, enforced sleep + library reset)
  *   "dawn"       — tick crossed TICKS_PER_DAY (day incremented, tick wrapped)
  *
  * @module tick.core
  */
+
+import {
+    TICKS_PER_HOUR as _TICKS_PER_HOUR,
+    HOURS_PER_DAY as _HOURS_PER_DAY,
+    TICKS_PER_DAY as _TICKS_PER_DAY,
+    DAY_START_HOUR as _DAY_START_HOUR,
+    LIGHTS_OFF_HOUR as _LIGHTS_OFF_HOUR,
+    WAKING_TICKS as _WAKING_TICKS,
+    RESET_HOUR_TICK as _RESET_HOUR_TICK,
+} from "./scale.core.ts";
 
 export interface TickState {
     tick: number;
@@ -23,13 +35,13 @@ export interface AdvanceTickResult {
     events: TickEvent[];
 }
 
-export const TICKS_PER_HOUR: number  = 10;
-export const HOURS_PER_DAY: number   = 24;
-export const TICKS_PER_DAY: number   = TICKS_PER_HOUR * HOURS_PER_DAY; // 240
-export const DAY_START_HOUR: number  = 6;   // 6:00am
-export const LIGHTS_OFF_HOUR: number = 22;  // 10:00pm
-export const LIGHTS_ON_TICKS: number = (LIGHTS_OFF_HOUR - DAY_START_HOUR) * TICKS_PER_HOUR; // 160
-export const RESET_HOUR_TICK: number = TICKS_PER_DAY - TICKS_PER_HOUR; // 230 = 5:00 AM
+export const TICKS_PER_HOUR: number  = _TICKS_PER_HOUR;
+export const HOURS_PER_DAY: number   = _HOURS_PER_DAY;
+export const TICKS_PER_DAY: number   = _TICKS_PER_DAY;
+export const DAY_START_HOUR: number  = _DAY_START_HOUR;
+export const LIGHTS_OFF_HOUR: number = _LIGHTS_OFF_HOUR;
+export const LIGHTS_ON_TICKS: number = _WAKING_TICKS;
+export const RESET_HOUR_TICK: number = _RESET_HOUR_TICK;
 
 /** @returns {{ tick: number, day: number }} */
 export function defaultTickState(): TickState {
@@ -110,7 +122,7 @@ export function isResetHour(tick: number): boolean {
 
 /**
  * Convert a tick value to a 12-hour clock string.
- * Tick 0 = 6:00 AM, tick 160 = 10:00 PM, tick 239 = 5:50 AM.
+ * Tick 0 = 6:00 AM, tick 960 = 10:00 PM, tick 1439 = 5:59 AM.
  *
  * @param {number} tick
  * @returns {string}  e.g. "6:00 AM", "10:40 PM"
@@ -130,7 +142,7 @@ export function tickToTimeString(tick: number): string {
 }
 
 /**
- * Number of ticks remaining until dawn (tick 240, i.e. next 6:00am).
+ * Number of ticks remaining until dawn (tick 1440, i.e. next 6:00am).
  *
  * @param {number} tick
  * @returns {number}

@@ -20,12 +20,11 @@
  */
 
 import { hash } from "./prng.core.ts";
+import { BOOKS_PER_GALLERY, CHARSET_SIZE, CHARS_PER_LINE, LINES_PER_PAGE } from "./scale.core.ts";
 
 /* ---- Constants ---- */
 
-const CHARSET_LEN: number = 95;
-const CHARS_PER_LINE: number = 80;
-const LINES_PER_PAGE: number = 40;
+const CHARSET_LEN: number = CHARSET_SIZE;
 
 /**
  * The library's address space: 95^66.
@@ -112,7 +111,7 @@ export const MAX_BOOK_POSITION: bigint = 10_000_000_000n; // 10B segments total 
  * randomOrigin should be drawn from [0, PLAYABLE_ADDRESS_MAX].
  */
 export const PLAYABLE_ADDRESS_MAX: bigint =
-    MAX_BOOK_POSITION * 2n * 100_000n * 192n; // position * sides * floors * booksPerGallery
+    MAX_BOOK_POSITION * 2n * 100_000n * BigInt(BOOKS_PER_GALLERY); // position * sides * floors * booksPerGallery
 
 /**
  * Decompose a book address into library coordinates.

@@ -1,19 +1,20 @@
 /** Library geometry and segment generation.
  *
  * The library is two parallel corridors (side 0 and side 1) separated by an
- * infinite chasm. Each corridor is divided into discrete segments by rest areas.
- * Floors are stacked vertically; floor 0 is the bottom where the chasm ends and
- * the two sides connect via a bridge.
+ * infinite chasm. Each corridor is divided into discrete segments by rest areas
+ * (kiosks). Floors are stacked vertically; floor 0 is the bottom where the
+ * chasm ends and the two sides connect via a bridge.
  *
  * Coordinates: { side, position, floor }
  *   side     : 0 or 1 (the two sides of the chasm)
- *   position : bigint segment index along the corridor (unbounded)
+ *   position : bigint gallery index along the corridor (unbounded)
  *   floor    : bigint, 0 = bottom, increases upward
  *
- * Each segment contains:
- *   - A stretch of shelved corridor (~300 yards of books)
- *   - A rest area at the END of the segment (right boundary):
- *       clock, kiosk, bedroom (7 beds), bathroom, submission slot, stairs
+ * Segment layout (kiosk to kiosk): K, S, S, S, S
+ *   Position 0 (mod 5): rest area (kiosk, beds, stairs, submission slot)
+ *   Positions 1–4: shelving galleries (200 ft of shelving on the outer wall)
+ *
+ * Physical constants imported from scale.core.ts.
  *
  * Movement:
  *   left      : position - 1
@@ -56,12 +57,19 @@ export interface Rng {
     next(): number;
 }
 
+import {
+    BOOKS_PER_GALLERY as _BOOKS_PER_GALLERY,
+    GALLERIES_PER_SEGMENT as _GALLERIES_PER_SEGMENT,
+    BOOKS_PER_SEGMENT as _BOOKS_PER_SEGMENT,
+} from "./scale.core.ts";
+
 export type Direction = "left" | "right" | "up" | "down" | "cross";
 
 export const BOTTOM_FLOOR: bigint = 0n;
-export const BOOKS_PER_GALLERY: number   = 192;  // 24 wide × 8 tall — one shelf face
-export const GALLERIES_PER_SEGMENT: bigint = 10n; // gallery pages between rest areas
-export const SEGMENT_BOOK_COUNT: number  = BOOKS_PER_GALLERY * Number(GALLERIES_PER_SEGMENT); // 1920
+/** Re-exported from scale.core.ts for backward compatibility. */
+export const BOOKS_PER_GALLERY: number = _BOOKS_PER_GALLERY;
+export const GALLERIES_PER_SEGMENT: bigint = BigInt(_GALLERIES_PER_SEGMENT);
+export const SEGMENT_BOOK_COUNT: number = _BOOKS_PER_SEGMENT;
 
 /** True when a position falls on a rest area (kiosk, beds, stairs). */
 export function isRestArea(position: bigint): boolean {

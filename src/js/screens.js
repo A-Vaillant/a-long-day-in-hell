@@ -13,6 +13,7 @@ import { Npc } from "./npc.js";
 import { Despair } from "./despairing.js";
 import { Chasm } from "./chasm.js";
 import { Social } from "./social.js";
+import { distanceToHumanTime } from "../../lib/scale.core.ts";
 import { Actions } from "./actions.js";
 
 function esc(s) {
@@ -559,21 +560,8 @@ function mercyDistanceText(playerLoc, targetBook) {
     const segDir = targetBook.position > playerLoc.position ? "to your right" : "to your left";
     const floorDir = targetBook.floor > playerLoc.floor ? "above" : "below";
     const sameSide = playerLoc.side === targetBook.side;
-    const targetSide = targetBook.side === 0 ? "west" : "east";
-    const SEGMENTS_PER_DAY = 160n;
-    const days = segDist / SEGMENTS_PER_DAY;
 
-    let distStr;
-    if (days < 2n) {
-        distStr = commas(segDist) + " segment" + (segDist === 1n ? "" : "s");
-    } else if (days < 365n) {
-        distStr = commas(days) + " days' walk";
-    } else {
-        const years = days / 365n;
-        distStr = commas(years) + " year" + (years === 1n ? "" : "s") + " of walking";
-    }
-
-    let location = distStr + " " + segDir;
+    let location = distanceToHumanTime(segDist) + " " + segDir;
     if (!sameSide) location += ", on the other side";
     if (floorDist > 0n) location += ", " + commas(floorDist) + " floor" + (floorDist === 1n ? "" : "s") + " " + floorDir;
 
