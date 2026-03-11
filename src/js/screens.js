@@ -47,7 +47,7 @@ function debugPanelHTML() {
         "Position: " + state.position + "\n" +
         "Floor:    " + state.floor + "\n" +
         "Screen:   " + esc(state.screen) + "\n" +
-        "Tick:     " + state.tick + " / 240  (" + Tick.getTimeString() + ")\n" +
+        "Tick:     " + state.tick + " / " + Tick.TICKS_PER_DAY + "  (" + Tick.getTimeString() + ")\n" +
         "Day:      " + state.day + "\n" +
         "Lights:   " + (state.lightsOn ? "on" : "OFF") + "\n" +
         Lib.debugSegment(state.side, state.position, state.floor) + "\n" +
@@ -292,7 +292,7 @@ Engine.register("Corridor", {
         // Shelf grid (only in non-rest-area segments)
         const seg = Lib.getSegment(state.side, state.position, state.floor);
         if (!seg.restArea) {
-            const COUNT = 192;
+            const COUNT = Lib.BOOKS_PER_GALLERY;
             const grid = document.createElement("div");
             const playerKnow = Social.getPlayerKnowledge();
             const segSearched = playerKnow && playerKnow.searchedSegments.has(
@@ -1330,7 +1330,7 @@ function memoryVividness(weight, initialWeight) {
 
 function memoryAgeStr(tick, currentTick) {
     const age = currentTick - tick;
-    const days = Math.floor(age / 240);
+    const days = Math.floor(age / Tick.TICKS_PER_DAY);
     if (days === 0) return "today";
     if (days === 1) return "yesterday";
     return days + " days ago";
@@ -1342,7 +1342,7 @@ Engine.register("Memory", {
     kind: "state",
     render() {
         const mem = Social.getPlayerMemory();
-        const currentTick = (state.day - 1) * 240 + state.tick;
+        const currentTick = (state.day - 1) * Tick.TICKS_PER_DAY + state.tick;
 
         let html = '<div class="memory-view">';
         html += '<p class="location-header">Memory</p>';

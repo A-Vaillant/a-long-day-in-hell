@@ -277,7 +277,7 @@ describe("countWordsFromSeed", () => {
         // 4+ letter words are rare (~0.4%), need many samples
         let found = 0;
         for (let i = 0; i < 5000; i++) {
-            if (countWordsFromSeed("seed", 0, i, 100, i % 192, 0) > 0) found++;
+            if (countWordsFromSeed("seed", 0, i, 100, i % BOOKS_PER_GALLERY, 0) > 0) found++;
         }
         assert.ok(found > 0, "should find at least one word in 5000 pages");
         assert.ok(found < 5000, "should not find words on every page");
@@ -287,7 +287,7 @@ describe("countWordsFromSeed", () => {
         let zeroCount = 0;
         const N = 1000;
         for (let i = 0; i < N; i++) {
-            if (countWordsFromSeed("test", 0, i, 100, i % 192, 0) === 0) zeroCount++;
+            if (countWordsFromSeed("test", 0, i, 100, i % BOOKS_PER_GALLERY, 0) === 0) zeroCount++;
         }
         assert.ok(zeroCount > N * 0.95, `expected >95% zero-word pages, got ${zeroCount}/${N}`);
     });

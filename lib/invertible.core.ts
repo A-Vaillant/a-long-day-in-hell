@@ -124,7 +124,7 @@ export const PLAYABLE_ADDRESS_MAX: bigint =
  *   position  : [0, MAX_BOOK_POSITION)
  *
  * @param addr - a bigint in [0, PLAYABLE_ADDRESS_MAX]
- * @param booksPerGallery - e.g. 192
+ * @param booksPerGallery - e.g. 200 (from scale.core.ts)
  * @returns BookCoords
  */
 export function addressToCoords(addr: bigint, booksPerGallery: number): { side: number; position: bigint; floor: bigint; bookIndex: number } {

@@ -47,23 +47,17 @@ export const SHELVES_PER_WALL: number = 8;
 /** Shelf height in feet (floor-to-floor per shelf). */
 export const SHELF_HEIGHT_FT: number = 1.5;
 
-/** Shelving galleries (non-kiosk) per segment. */
-export const SHELVING_PER_SEGMENT: number = 4;
-
-/** Shelf length per gallery (200 ft / 4 galleries = 50 ft). */
-export const GALLERY_LENGTH_FT: number = SHELF_LENGTH_FT / SHELVING_PER_SEGMENT; // 50
-
-/** Books per shelf per gallery (50 ft / 1.5 in = 400). */
-export const BOOKS_PER_SHELF: number = Math.floor(GALLERY_LENGTH_FT * 12 / BOOK_SPINE_INCHES); // 400
+/** Columns of books visible per gallery (one screen-width). */
+export const BOOKS_PER_SHELF_ROW: number = 25;
 
 /**
- * Books per gallery (one traversable position).
- *
- * Each gallery is a 50 ft stretch of corridor with shelving on the
- * outer wall (the inner side is a guardrail over the chasm).
- * 50 ft of shelf × 8 shelves = 3,200 books.
+ * Books per gallery (one traversable position = one screen of books).
+ * 25 columns × 8 shelves = 200 books.
  */
-export const BOOKS_PER_GALLERY: number = BOOKS_PER_SHELF * SHELVES_PER_WALL; // 3200
+export const BOOKS_PER_GALLERY: number = BOOKS_PER_SHELF_ROW * SHELVES_PER_WALL; // 200
+
+/** Shelving galleries (non-kiosk) per segment. */
+export const SHELVING_PER_SEGMENT: number = 16;
 
 // ---- Segment geometry (kiosk to kiosk) ----
 
@@ -71,24 +65,24 @@ export const BOOKS_PER_GALLERY: number = BOOKS_PER_SHELF * SHELVES_PER_WALL; // 
 export const KIOSK_SPACING_YARDS: number = 300;
 
 /**
- * Positions per segment: K, S, S, S, S — 5 positions from one kiosk
- * to the next. Position 0 (mod 5) is a rest area (kiosk); positions
- * 1–4 are shelving galleries.
+ * Positions per segment: K + 16 shelving galleries = 17 positions from
+ * one kiosk to the next. Position 0 (mod 17) is a rest area (kiosk);
+ * positions 1–16 are shelving galleries.
  *
- * 4 galleries of ~50 ft shelving each + kiosk facilities ≈ 300 yd.
+ * 16 galleries × 200 books + kiosk = ~300 yards of corridor.
  */
-export const GALLERIES_PER_SEGMENT: number = SHELVING_PER_SEGMENT + 1; // 5
+export const GALLERIES_PER_SEGMENT: number = SHELVING_PER_SEGMENT + 1; // 17
 
-/** Total books between two kiosks (4 shelving galleries × 3,200). */
-export const BOOKS_PER_SEGMENT: number = SHELVING_PER_SEGMENT * BOOKS_PER_GALLERY; // 12,800
+/** Total books between two kiosks (16 shelving galleries × 200). */
+export const BOOKS_PER_SEGMENT: number = SHELVING_PER_SEGMENT * BOOKS_PER_GALLERY; // 3,200
 
 // ---- Time ----
 
 /**
  * Ticks per hour. 1 tick = 1 minute.
  *
- * At walking pace (~3 mph), 200 ft of corridor takes ~45 seconds.
- * 1 minute per position is a comfortable browsing amble (~2.3 mph).
+ * Each gallery is a few paces of shelf. At browsing pace, 1 minute
+ * per gallery. Movement mode may traverse multiple galleries per tick.
  */
 export const TICKS_PER_HOUR: number = 60;
 

@@ -27,6 +27,7 @@ import { SEARCHING, searchSystem, scoreBigram, scoreFromSeed, countWordsFromSeed
 import { INTENT, intentSystem } from "../lib/intent.core.ts";
 import { SLEEP, nearestRestArea } from "../lib/sleep.core.ts";
 import { generateBookPage } from "../lib/book.core.ts";
+import { BOOKS_PER_GALLERY } from "../lib/scale.core.ts";
 import * as NpcCore from "../lib/npc.core.ts";
 
 const SEED = "perf-bench-42";
@@ -324,7 +325,7 @@ describe("perf: scoreFromSeed vs generateBookPage+scoreBigram", () => {
         // Slow path: generate 400-char page + score
         const start1 = performance.now();
         for (let i = 0; i < N; i++) {
-            const text = generateBookPage(0, i, 100, i % 192, 0, SEED, 400);
+            const text = generateBookPage(0, i, 100, i % BOOKS_PER_GALLERY, 0, SEED, 400);
             scoreBigram(text);
         }
         const slow = performance.now() - start1;
@@ -332,7 +333,7 @@ describe("perf: scoreFromSeed vs generateBookPage+scoreBigram", () => {
         // Fast path: scoreFromSeed
         const start2 = performance.now();
         for (let i = 0; i < N; i++) {
-            scoreFromSeed(SEED, 0, i, 100, i % 192, 0);
+            scoreFromSeed(SEED, 0, i, 100, i % BOOKS_PER_GALLERY, 0);
         }
         const fast = performance.now() - start2;
 

@@ -23,8 +23,8 @@ export interface SaveVersion {
  * History:
  *   0.0 — pre-versioning (no _saveVersion field)
  *   1.0 — BigInt coords, save slots, godmoded flag
- *   2.0 — scale overhaul: BOOKS_PER_GALLERY 192→12800,
- *         GALLERIES_PER_SEGMENT 10→5, TICKS_PER_HOUR 10→60,
+ *   2.0 — scale overhaul: BOOKS_PER_GALLERY 192→200,
+ *         GALLERIES_PER_SEGMENT 10→17, TICKS_PER_HOUR 10→60,
  *         address space recalculated. All coordinates invalidated.
  */
 export const SAVE_VERSION: SaveVersion = { major: 2, minor: 0 };

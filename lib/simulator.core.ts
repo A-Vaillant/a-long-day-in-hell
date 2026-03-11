@@ -632,7 +632,7 @@ export const strategies = {
 
                 // At a gallery (not rest area): read books systematically
                 if (!gs.isRestArea && gs.lightsOn) {
-                    if (currentBookIndex < 192) {
+                    if (currentBookIndex < Lib.BOOKS_PER_GALLERY) {
                         // Check if this is the target book
                         const tb = gs.targetBook;
                         if (gs.side === tb.side && gs.position === tb.position &&
@@ -681,7 +681,7 @@ export const strategies = {
 
                 // Occasionally read
                 if (!gs.isRestArea && gs.lightsOn && walkRng.next() < cfg.readChance) {
-                    return { type: "read", bookIndex: walkRng.nextInt(192) };
+                    return { type: "read", bookIndex: walkRng.nextInt(Lib.BOOKS_PER_GALLERY) };
                 }
 
                 // Random move
