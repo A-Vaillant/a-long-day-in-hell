@@ -38,7 +38,7 @@ export const CHARS_PER_BOOK: number = PAGES_PER_BOOK * LINES_PER_PAGE * CHARS_PE
 /** Book spine thickness in inches. */
 export const BOOK_SPINE_INCHES: number = 1.5;
 
-/** Shelf length in feet. One wall of one section of corridor. */
+/** Total shelf length in feet between two kiosks (from the book). */
 export const SHELF_LENGTH_FT: number = 200;
 
 /** Shelves stacked vertically per wall. */
@@ -47,19 +47,23 @@ export const SHELVES_PER_WALL: number = 8;
 /** Shelf height in feet (floor-to-floor per shelf). */
 export const SHELF_HEIGHT_FT: number = 1.5;
 
-/** Books fitting on one shelf (200 ft / 1.5 in = 1,600). */
-export const BOOKS_PER_SHELF: number = Math.floor(SHELF_LENGTH_FT * 12 / BOOK_SPINE_INCHES); // 1600
+/** Shelving galleries (non-kiosk) per segment. */
+export const SHELVING_PER_SEGMENT: number = 4;
 
-/** Books on one wall of one section (1,600 × 8 = 12,800). */
-export const BOOKS_PER_WALL: number = BOOKS_PER_SHELF * SHELVES_PER_WALL; // 12800
+/** Shelf length per gallery (200 ft / 4 galleries = 50 ft). */
+export const GALLERY_LENGTH_FT: number = SHELF_LENGTH_FT / SHELVING_PER_SEGMENT; // 50
+
+/** Books per shelf per gallery (50 ft / 1.5 in = 400). */
+export const BOOKS_PER_SHELF: number = Math.floor(GALLERY_LENGTH_FT * 12 / BOOK_SPINE_INCHES); // 400
 
 /**
  * Books per gallery (one traversable position).
  *
- * Each gallery is a stretch of corridor with shelving on the outer wall
- * (the inner wall faces the chasm). 200 ft × 8 shelves = 12,800 books.
+ * Each gallery is a 50 ft stretch of corridor with shelving on the
+ * outer wall (the inner side is a guardrail over the chasm).
+ * 50 ft of shelf × 8 shelves = 3,200 books.
  */
-export const BOOKS_PER_GALLERY: number = BOOKS_PER_WALL; // 12800
+export const BOOKS_PER_GALLERY: number = BOOKS_PER_SHELF * SHELVES_PER_WALL; // 3200
 
 // ---- Segment geometry (kiosk to kiosk) ----
 
@@ -71,15 +75,12 @@ export const KIOSK_SPACING_YARDS: number = 300;
  * to the next. Position 0 (mod 5) is a rest area (kiosk); positions
  * 1–4 are shelving galleries.
  *
- * 4 galleries × 200 ft = 800 ft of shelving + ~100 ft of kiosk = 900 ft ≈ 300 yd.
+ * 4 galleries of ~50 ft shelving each + kiosk facilities ≈ 300 yd.
  */
-export const GALLERIES_PER_SEGMENT: number = 5;
+export const GALLERIES_PER_SEGMENT: number = SHELVING_PER_SEGMENT + 1; // 5
 
-/** Shelving galleries (non-kiosk) per segment. */
-export const SHELVING_PER_SEGMENT: number = GALLERIES_PER_SEGMENT - 1; // 4
-
-/** Total books between two kiosks (4 shelving galleries × 12,800). */
-export const BOOKS_PER_SEGMENT: number = SHELVING_PER_SEGMENT * BOOKS_PER_GALLERY; // 51,200
+/** Total books between two kiosks (4 shelving galleries × 3,200). */
+export const BOOKS_PER_SEGMENT: number = SHELVING_PER_SEGMENT * BOOKS_PER_GALLERY; // 12,800
 
 // ---- Time ----
 
