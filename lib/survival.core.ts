@@ -222,6 +222,41 @@ export function applyAlcohol(stats: SurvivalStats): SurvivalStats {
     return applyMortality(stats);
 }
 
+/** Result of applyReadNonsense. */
+export interface ReadNonsenseResult<T> {
+    stats: T;
+    nonsensePagesRead: number;
+}
+
+/**
+ * Apply the morale penalty for reading a nonsense book page.
+ * Diminishing drain: 2 / (1 + pagesAlreadyRead). Increments the counter.
+ */
+export function applyReadNonsense<T extends { morale: number; despairing: boolean }>(
+    stats: T, nonsensePagesRead: number,
+): ReadNonsenseResult<T> {
+    const penalty = 2 / (1 + nonsensePagesRead);
+    stats.morale = Math.max(STAT_MIN, Math.min(STAT_MAX, stats.morale - penalty));
+    if (stats.morale <= 0) stats.despairing = true;
+    return { stats, nonsensePagesRead: nonsensePagesRead + 1 };
+}
+
+/** Result of applyDawnReset. */
+export interface DawnResetResult {
+    nonsensePagesRead: number;
+    despairDays: number;
+}
+
+/**
+ * Dawn bookkeeping: halve nonsense fatigue, track consecutive despair days.
+ */
+export function applyDawnReset(nonsensePagesRead: number, despairing: boolean, despairDays: number): DawnResetResult {
+    return {
+        nonsensePagesRead: Math.floor(nonsensePagesRead / 2),
+        despairDays: despairing ? despairDays + 1 : 0,
+    };
+}
+
 /**
  * Get a severity label for a hunger/thirst/exhaustion value (higher = worse).
  *

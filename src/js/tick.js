@@ -5,6 +5,7 @@ import {
     TICKS_PER_HOUR, TICKS_PER_DAY, defaultTickState, advanceTick, isLightsOn,
     isResetHour, tickToTimeString, hoursUntilDawn,
 } from "../../lib/tick.core.ts";
+import { applyDawnReset } from "../../lib/survival.core.ts";
 import { Surv } from "./survival.js";
 import { Npc } from "./npc.js";
 import { Events } from "./events.js";
@@ -41,9 +42,11 @@ export const Tick = {
             if (state.dead) Surv.onResurrection();
             Npc.onDawn();
             Social.onDawn();
-            if (state.nonsensePagesRead) {
-                state.nonsensePagesRead = Math.floor(state.nonsensePagesRead / 2);
-            }
+            const dawnReset = applyDawnReset(
+                state.nonsensePagesRead || 0, state.despairing, state._despairDays || 0,
+            );
+            state.nonsensePagesRead = dawnReset.nonsensePagesRead;
+            state._despairDays = dawnReset.despairDays;
         });
     },
 

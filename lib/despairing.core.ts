@@ -13,6 +13,7 @@
  */
 
 import { WAKING_TICKS, TICKS_PER_HOUR } from "./scale.core.ts";
+import { applyReadNonsense } from "./survival.core.ts";
 
 /** Shape of the tunable CONFIG object. */
 export interface DespairingConfig {
@@ -47,7 +48,7 @@ export interface AlcoholStats {
 export interface SurvivalFns {
     defaultStats(): AlcoholStats;
     applyMoveTick(stats: AlcoholStats): AlcoholStats;
-    applySleep(stats: AlcoholStats): AlcoholStats;
+    applySleep(stats: AlcoholStats, inBedroom?: boolean): AlcoholStats;
     applyResurrection(stats: AlcoholStats): AlcoholStats;
     applyEat(stats: AlcoholStats): AlcoholStats;
     applyDrink(stats: AlcoholStats): AlcoholStats;
@@ -175,6 +176,35 @@ export function shouldClearDespairing(morale: number): boolean {
 }
 
 /**
+ * Apply sleep recovery with despairing modifier.
+ * Calls the provided applySleep, then scales back morale gain if despairing.
+ * Clears despairing if morale reaches the exit threshold.
+ *
+ * @param stats — must have morale and despairing fields
+ * @param applySleepFn — the base sleep function (e.g. Surv.applySleep)
+ * @returns stats with morale and despairing updated
+ */
+export function applySleepWithDespairing<T extends { morale: number; despairing: boolean }>(
+    stats: T,
+    applySleepFn: (s: T) => T,
+): T {
+    const wasDespairing = stats.despairing;
+    const moraleBefore = stats.morale;
+    stats = applySleepFn(stats);
+    if (wasDespairing) {
+        const fullGain = stats.morale - moraleBefore;
+        if (fullGain > 0) {
+            stats.morale = Math.max(0, moraleBefore + fullGain * CONFIG.sleepRecoveryMult);
+            stats.despairing = true;
+        }
+        if (shouldClearDespairing(stats.morale)) {
+            stats.despairing = false;
+        }
+    }
+    return stats;
+}
+
+/**
  * Corrupt a stat value for display purposes. Adds random noise
  * so the player can't trust their sidebar.
  *
@@ -270,21 +300,8 @@ export function simulate(opts: SimulateOpts, survFns: SurvivalFns, tickFns: Tick
     let diedThisDay = false;
     let wasDespairing = false;
 
-    function applySleepWithDespairing(): void {
-        const wasDespairing = stats.despairing;
-        const moraleBefore = stats.morale;
-        stats = survFns.applySleep(stats, true);
-        if (wasDespairing) {
-            // applySleep gave full recovery; scale it down
-            const fullGain = stats.morale - moraleBefore;
-            if (fullGain > 0) {
-                const effectiveGain = fullGain * CONFIG.sleepRecoveryMult;
-                stats = { ...stats, morale: Math.max(0, moraleBefore + effectiveGain), despairing: true };
-            }
-            if (shouldClearDespairing(stats.morale)) {
-                stats = { ...stats, despairing: false };
-            }
-        }
+    function doSleepWithDespairing(): void {
+        stats = applySleepWithDespairing(stats, (s) => survFns.applySleep(s, true));
     }
 
     function recordDay(): void {
@@ -317,7 +334,7 @@ export function simulate(opts: SimulateOpts, survFns: SurvivalFns, tickFns: Tick
             tickState = result.state;
 
             if (result.events.includes("dawn")) {
-                nonsensePagesRead = Math.floor(nonsensePagesRead / 2);
+                nonsensePagesRead = Math.floor(nonsensePagesRead / 2);  // applyDawnReset half
                 if (stats.dead) {
                     stats = survFns.applyResurrection(stats);
                 }
@@ -337,7 +354,7 @@ export function simulate(opts: SimulateOpts, survFns: SurvivalFns, tickFns: Tick
             if (isResetHour || !lightsOn) {
                 // applySleep is per-hour, not per-tick — only call on hour boundaries
                 if (beh.sleeps && tickState.tick % TICKS_PER_HOUR === 0) {
-                    applySleepWithDespairing();
+                    doSleepWithDespairing();
                 }
                 continue;
             }
@@ -362,15 +379,15 @@ export function simulate(opts: SimulateOpts, survFns: SurvivalFns, tickFns: Tick
             // Reading: all books are symbol slop, minor morale drain with diminishing returns
             if (nonsenseInterval > 0 && readingsThisDay.nonsense < beh.nonsensePerDay &&
                 awakeTicks % nonsenseInterval === 0) {
-                const penalty = 2 / (1 + nonsensePagesRead);
-                stats = { ...stats, morale: Math.max(0, Math.min(100, stats.morale - penalty)) };
-                nonsensePagesRead++;
+                const readResult = applyReadNonsense(stats, nonsensePagesRead);
+                stats = readResult.stats;
+                nonsensePagesRead = readResult.nonsensePagesRead;
                 readingsThisDay.nonsense++;
             }
 
             // Voluntary nap if exhausted
             if (beh.sleeps && (stats.exhaustion as number) >= beh.sleepAt) {
-                applySleepWithDespairing();
+                doSleepWithDespairing();
             }
         }
 

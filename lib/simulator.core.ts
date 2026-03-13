@@ -25,7 +25,7 @@ import * as EventsCore from "./events.core.ts";
 import type { EventCard } from "./events.core.ts";
 import * as NpcCore from "./npc.core.ts";
 import type { NPC, DialogueTable } from "./npc.core.ts";
-import { applyAmbientDrain, modifySleepRecovery, shouldClearDespairing, isReadingBlocked, CONFIG as DespairConfig } from "./despairing.core.ts";
+import { applyAmbientDrain, shouldClearDespairing, isReadingBlocked, applySleepWithDespairing } from "./despairing.core.ts";
 
 // Auto-drink threshold — aligned with NPC needs system (needs.core.ts).
 // Hunger stays manual: starvation is a real consequence of mindless walking.
@@ -105,6 +105,7 @@ export interface GameState {
     heldBook: BookCoords | null;
     dead: boolean;
     despairing: boolean;
+    despairDays: number;
     deaths: number;
     won: boolean;
     stats: SurvivalStats;
@@ -155,6 +156,7 @@ interface InternalState {
     heldBook: BookCoords | null;
     dead: boolean;
     despairing: boolean;
+    despairDays: number;
     deathCause: string | null;
     deaths: number;
     won: boolean;
@@ -261,6 +263,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         lastEvent: null,
         npcs: [],
         nonsensePagesRead: 0,
+        despairDays: 0,
         // Tracking
         totalMoves: 0,
         segmentsVisited: 0,
@@ -298,6 +301,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         get heldBook() { return gs.heldBook; },
         get dead() { return gs.dead; },
         get despairing() { return gs.despairing; },
+        get despairDays() { return gs.despairDays || 0; },
         get deaths() { return gs.deaths; },
         get won() { return gs.won; },
         get stats() { return gs.stats; },
@@ -410,11 +414,9 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                 const bookKey = `${gs.side}:${gs.position}:${gs.floor}:${bi}`;
                 gs.booksRead.add(bookKey);
 
-                // Reading symbol slop — minor morale drain with diminishing returns
-                const penalty = 2 / (1 + (gs.nonsensePagesRead || 0));
-                gs.stats.morale = Math.max(0, Math.min(100, gs.stats.morale - penalty));
-                gs.nonsensePagesRead = (gs.nonsensePagesRead || 0) + 1;
-                if (gs.stats.morale <= 0) gs.stats.despairing = true;
+                const readResult = Surv.applyReadNonsense(gs.stats, gs.nonsensePagesRead);
+                gs.stats = readResult.stats;
+                gs.nonsensePagesRead = readResult.nonsensePagesRead;
                 gs.despairing = gs.stats.despairing;
 
                 advanceOneTick();
@@ -502,8 +504,9 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         const npcDetRng = seedFromString(seed + ":npc-det:" + gs.day);
         gs.npcs = gs.npcs.map(n => NpcCore.deteriorate(n, gs.day, npcDetRng));
 
-        // Nonsense fatigue halves at dawn
-        gs.nonsensePagesRead = Math.floor(gs.nonsensePagesRead / 2);
+        const dawnReset = Surv.applyDawnReset(gs.nonsensePagesRead, gs.despairing, gs.despairDays);
+        gs.nonsensePagesRead = dawnReset.nonsensePagesRead;
+        gs.despairDays = dawnReset.despairDays;
 
         // Nightly book return: held book stays (possession rule)
         // but other books reset (we don't track that at sim level)
@@ -512,21 +515,8 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     }
 
     function applySleepHour(): void {
-        const wasDespairing = gs.despairing;
-        const moraleBefore = gs.stats.morale;
-        gs.stats = Surv.applySleep(gs.stats, Lib.isRestArea(gs.position));
-        if (wasDespairing) {
-            // applySleep gave full recovery; scale it down
-            const fullGain = gs.stats.morale - moraleBefore;
-            if (fullGain > 0) {
-                const effectiveGain = fullGain * DespairConfig.sleepRecoveryMult;
-                gs.stats.morale = Math.max(0, moraleBefore + effectiveGain);
-                gs.stats.despairing = true;
-            }
-            if (shouldClearDespairing(gs.stats.morale)) {
-                gs.stats.despairing = false;
-            }
-        }
+        const inBedroom = Lib.isRestArea(gs.position);
+        gs.stats = applySleepWithDespairing(gs.stats, (s) => Surv.applySleep(s, inBedroom));
         gs.despairing = gs.stats.despairing;
         gs.dead = gs.stats.dead;
     }
