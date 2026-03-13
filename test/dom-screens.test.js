@@ -7,6 +7,8 @@ import assert from "node:assert/strict";
 import { bootGame } from "./dom-harness.js";
 import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
 
+import { RESET_HOUR_TICK } from "../lib/tick.core.ts";
+
 const G = GALLERIES_PER_SEGMENT;
 
 function getHTML(game) {
@@ -294,5 +296,77 @@ describe("morale desaturation", () => {
 
         assert.strictEqual(s0, "0%", "cover should be fully desaturated at morale 0");
         assert.ok(parseInt(s100) > 0, "cover should have saturation at morale 100");
+    });
+});
+
+// --- Pass-out screen at reset hour ---
+
+describe("pass-out at reset hour", () => {
+    it("moving at tick just before reset hour triggers pass-out screen", () => {
+        const game = bootGame();
+        game.state.tick = RESET_HOUR_TICK - 1;
+        game.state.position = 1n;
+        game.state.screen = "Corridor";
+        const result = game.window.Actions.resolve({ type: "move", dir: "right" });
+        assert.strictEqual(result.screen, "Passing Out",
+            "should redirect to Passing Out screen");
+    });
+
+    it("waiting at tick just before reset hour triggers pass-out", () => {
+        const game = bootGame();
+        game.state.tick = RESET_HOUR_TICK - 1;
+        game.state.screen = "Corridor";
+        const result = game.window.Actions.resolve({ type: "wait" });
+        assert.strictEqual(result.screen, "Passing Out",
+            "wait should trigger pass-out at reset hour");
+    });
+
+    it("eating at kiosk at tick just before reset hour triggers pass-out", () => {
+        const game = bootGame();
+        game.state.tick = RESET_HOUR_TICK - 1;
+        game.state.position = 0n; // rest area
+        game.state.lightsOn = true;
+        const result = game.window.Actions.resolve({ type: "eat" });
+        assert.strictEqual(result.screen, "Passing Out",
+            "eating should trigger pass-out at reset hour");
+    });
+
+    it("talking to NPC at tick just before reset hour triggers pass-out", () => {
+        const game = bootGame();
+        game.state.tick = RESET_HOUR_TICK - 1;
+        // Need an NPC nearby to talk to
+        if (game.state.npcs && game.state.npcs.length > 0) {
+            const npc = game.state.npcs[0];
+            npc.side = game.state.side;
+            npc.position = game.state.position;
+            npc.floor = game.state.floor;
+            game.Social.syncNpcPositions();
+            const result = game.window.Actions.resolve({ type: "talk", npcId: npc.id, approach: "neutral" });
+            if (result.resolved) {
+                assert.strictEqual(result.screen, "Passing Out",
+                    "talking should trigger pass-out at reset hour");
+            }
+        }
+    });
+
+    it("after pass-out, time has advanced to dawn", () => {
+        const game = bootGame();
+        game.state.tick = RESET_HOUR_TICK - 1;
+        game.state.position = 1n;
+        game.state.screen = "Corridor";
+        game.window.Actions.resolve({ type: "move", dir: "right" });
+        // onForcedSleep advances to dawn — lights should be on, tick < reset hour
+        assert.ok(game.state.lightsOn, "should be daytime after pass-out");
+        assert.ok(game.state.tick < RESET_HOUR_TICK,
+            "tick should be before reset hour (new day)");
+    });
+
+    it("moving well before reset hour does NOT trigger pass-out", () => {
+        const game = bootGame();
+        game.state.tick = 500; // midday
+        game.state.position = 1n;
+        const result = game.window.Actions.resolve({ type: "move", dir: "right" });
+        assert.notStrictEqual(result.screen, "Passing Out",
+            "should not pass out during the day");
     });
 });

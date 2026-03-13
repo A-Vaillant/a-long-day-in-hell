@@ -26,6 +26,13 @@ export const Tick = {
         Engine.onBoundary("resetHour", function () {
             state.openBook = null;
             state.openPage = 0;
+            // Any tick crossing the reset hour triggers forced sleep + pass-out screen.
+            // Guard against re-entrance: onForcedSleep calls advance which could
+            // cross another day's resetHour in edge cases.
+            if (!state.dead && !state.falling && !Tick._inForcedSleep) {
+                Tick.onForcedSleep();
+                state._passedOut = true;
+            }
         });
         Engine.onBoundary("lightsOut", function () {
             Social.onLightsOut();
@@ -70,31 +77,28 @@ export const Tick = {
         return result.events;
     },
     onMove() {
-        if (isResetHour(state.tick)) {
-            this.onForcedSleep();
-            state._passedOut = true;
-            return [];
-        }
         const events = this.advance(1);
         Surv.onMove();
-        Events.draw();
+        if (!state._passedOut) Events.draw();
         return events;
     },
     onSleep() {
-        while (!isResetHour(state.tick) && !state.dead) {
+        const startDay = state.day;
+        while (!isResetHour(state.tick) && !state.dead && state.day === startDay) {
             this.advance(TICKS_PER_HOUR);
             Surv.onSleep();
         }
-        if (!state.dead && isResetHour(state.tick)) {
-            this.onForcedSleep();
-        }
+        // If we hit reset hour, boundary handler already called onForcedSleep
     },
+    _inForcedSleep: false,
     onForcedSleep() {
+        this._inForcedSleep = true;
         while (!state.lightsOn || isResetHour(state.tick)) {
             const events = this.advance(TICKS_PER_HOUR);
             Surv.onSleep();
             if (events.includes("dawn")) break;
         }
+        this._inForcedSleep = false;
     },
     /** Advance to next dawn — used for death. Time passes, fall continues. */
     advanceToDawn() {

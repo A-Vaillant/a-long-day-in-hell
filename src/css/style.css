@@ -287,6 +287,14 @@ button:disabled {
     margin-top: 0.5rem;
 }
 
+.sb-day {
+    letter-spacing: 0.15em;
+    font-size: 0.8em;
+    color: var(--text-dim);
+    opacity: 0.6;
+    margin-bottom: 0.1rem;
+}
+
 .sb-time {
     letter-spacing: 0.1em;
     text-transform: uppercase;

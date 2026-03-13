@@ -98,6 +98,7 @@ export function createGame() {
         get Npc() { return win.Npc; },
         get Social() { return win.Social; },
         get Despair() { return win.Despair; },
+        get Actions() { return win.Actions; },
         get EventLog() { return win.EventLog; },
         dom,
     };

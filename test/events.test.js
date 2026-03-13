@@ -71,7 +71,7 @@ describe("drawEvent", () => {
     });
 
     it("draws from deck when RNG roll is below threshold", () => {
-        const rng = stubRng([0.1]);
+        const rng = stubRng([0.01]);
         const deck = [3, 1, 4, 0, 2];
         const result = drawEvent(deck, TEST_CARDS, rng);
         assert.ok(result.event !== null);
@@ -80,7 +80,7 @@ describe("drawEvent", () => {
     });
 
     it("refills and reshuffles when deck is empty", () => {
-        const rng = stubRng([0.1, 0.5, 0.3, 0.7, 0.2, 0.8, 0.4, 0.6, 0.9, 0.15,
+        const rng = stubRng([0.01, 0.5, 0.3, 0.7, 0.2, 0.8, 0.4, 0.6, 0.9, 0.15,
                              0.85, 0.35, 0.65, 0.45, 0.75, 0.25, 0.55, 0.95, 0.05, 0.5]);
         const result = drawEvent([], TEST_CARDS, rng);
         assert.ok(result.event !== null);

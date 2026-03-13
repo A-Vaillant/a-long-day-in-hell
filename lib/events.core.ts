@@ -11,8 +11,8 @@ export interface Rng {
     next(): number;
 }
 
-/** Draw probability per move. */
-const DRAW_CHANCE = 0.2;
+/** Draw probability per move (~1 event per segment of 17 galleries). */
+const DRAW_CHANCE = 0.06;
 
 /** Fisher-Yates shuffle, returns new array. */
 function shuffle(arr: number[], rng: Rng): number[] {

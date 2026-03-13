@@ -17,6 +17,7 @@ import { Chasm } from "./chasm.js";
 import { Debug } from "./debug.js";
 import { GodmodeMap } from "./godmode-map.js";
 import { doMove } from "./screens.js";
+import { Actions } from "./actions.js";
 import * as EventLog from "./event-log.js";
 import "./keybindings.js";
 
@@ -39,6 +40,7 @@ window.Debug    = Debug;
 window.GodmodeMap = GodmodeMap;
 window.Godmode   = Godmode;
 window.doMove    = doMove;
+window.Actions   = Actions;
 window.EventLog  = EventLog;
 
 // Boot when DOM is ready

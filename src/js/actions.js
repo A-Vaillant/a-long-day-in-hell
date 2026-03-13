@@ -32,46 +32,54 @@ const AUTO_DRINK_THRESHOLD = 50;
  * @returns {{ resolved: boolean, screen?: string, data?: any }}
  */
 function resolve(action) {
+    var result;
     switch (action.type) {
         case "move":
-            return resolveMove(action.dir);
+            result = resolveMove(action.dir); break;
         case "wait":
-            return resolveWait();
+            result = resolveWait(); break;
         case "sleep":
-            return resolveSleep();
+            result = resolveSleep(); break;
         case "eat":
-            return resolveEat();
+            result = resolveEat(); break;
         case "drink":
-            return resolveDrink();
+            result = resolveDrink(); break;
         case "alcohol":
-            return resolveAlcohol();
+            result = resolveAlcohol(); break;
         case "read_book":
-            return resolveReadBook(action.bookIndex);
+            result = resolveReadBook(action.bookIndex); break;
         case "take_book":
-            return resolveTakeBook(action.bookIndex);
+            result = resolveTakeBook(action.bookIndex); break;
         case "drop_book":
-            return resolveDropBook();
+            result = resolveDropBook(); break;
         case "submit":
-            return resolveSubmit();
+            result = resolveSubmit(); break;
         case "chasm_jump":
-            return resolveChasmJump();
+            result = resolveChasmJump(); break;
         case "grab_railing":
-            return resolveGrabRailing();
+            result = resolveGrabRailing(); break;
         case "throw_book":
-            return resolveThrowBook();
+            result = resolveThrowBook(); break;
         case "fall_wait":
-            return resolveFallWait();
+            result = resolveFallWait(); break;
         case "talk":
-            return resolveTalk(action.npcId, action.approach);
+            result = resolveTalk(action.npcId, action.approach); break;
         case "spend_time":
-            return resolveSpendTime(action.npcId);
+            result = resolveSpendTime(action.npcId); break;
         case "recruit":
-            return resolveRecruit(action.npcId);
+            result = resolveRecruit(action.npcId); break;
         case "dismiss":
-            return resolveDismiss(action.npcId);
+            result = resolveDismiss(action.npcId); break;
         default:
             return { resolved: false };
     }
+    // Any action that advanced time past the reset hour triggers pass-out
+    if (state._passedOut) {
+        state._passedOut = false;
+        result.resolved = true;
+        result.screen = "Passing Out";
+    }
+    return result;
 }
 
 function resolveMove(dir) {
@@ -88,12 +96,6 @@ function resolveMove(dir) {
     if (dir === "up") Surv.exhaust(1.5);
     else if (dir === "down") Surv.exhaust(0.75);
 
-    // Forced sleep — player passed out, show the screen
-    if (state._passedOut) {
-        state._passedOut = false;
-        return { resolved: true, screen: "Passing Out" };
-    }
-
     // Auto-drink at rest area kiosks (no extra tick cost, mirrors NPC behavior).
     // Hunger stays manual — starvation is the cost of mindless walking.
     if (Lib.isRestArea(state.position) && state.lightsOn) {
@@ -105,10 +107,6 @@ function resolveMove(dir) {
 
 function resolveWait() {
     Tick.onMove();
-    if (state._passedOut) {
-        state._passedOut = false;
-        return { resolved: true, screen: "Passing Out" };
-    }
     return { resolved: true, screen: "Wait" };
 }
 
