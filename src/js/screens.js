@@ -36,6 +36,10 @@ function ordinal(n) {
 
 export function doMove(dir) {
     const result = Actions.resolve({ type: "move", dir });
+    if (result.screen && result.screen !== "Corridor") {
+        Engine.goto(result.screen);
+        return false; // signal caller not to goto Corridor
+    }
     return result.resolved;
 }
 

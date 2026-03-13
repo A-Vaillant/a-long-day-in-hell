@@ -9,7 +9,10 @@ export const Events = {
     createDeck,
     drawEvent,
 
+    enabled: false, // feature flag — set to true to re-enable event deck
+
     draw() {
+        if (!this.enabled) return null;
         const cards = this.cards || TEXT.events;
         const rng = PRNG.fork("event:" + state.tick + ":" + state.day);
         const result = drawEvent(state.eventDeck || [], cards, rng);

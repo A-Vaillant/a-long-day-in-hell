@@ -283,7 +283,6 @@ button:disabled {
     font-family: var(--font-mono);
     font-size: 0.75em;
     color: var(--text-dim);
-    border-top: 1px solid var(--border);
     margin-top: 0.5rem;
 }
 

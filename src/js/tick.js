@@ -83,10 +83,11 @@ export const Tick = {
         return events;
     },
     onSleep() {
+        const inBedroom = state._lastScreen === "Bedroom";
         const startDay = state.day;
         while (!isResetHour(state.tick) && !state.dead && state.day === startDay) {
             this.advance(TICKS_PER_HOUR);
-            Surv.onSleep();
+            Surv.onSleep(inBedroom);
         }
         // If we hit reset hour, boundary handler already called onForcedSleep
     },

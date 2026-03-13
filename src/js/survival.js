@@ -30,9 +30,9 @@ export const Surv = {
         Object.assign(state, applyMoraleTick(statsFromState()));
         Despair.applyAmbientDrain();
     },
-    onSleep() {
+    onSleep(inBedroom) {
         const moraleBefore = state.morale;
-        Object.assign(state, applySleep(statsFromState()));
+        Object.assign(state, applySleep(statsFromState(), !!inBedroom));
         if (state.despairing) {
             const baseDelta = state.morale - moraleBefore;
             if (baseDelta > 0) {

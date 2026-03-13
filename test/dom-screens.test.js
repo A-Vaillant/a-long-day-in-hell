@@ -369,4 +369,85 @@ describe("pass-out at reset hour", () => {
         assert.notStrictEqual(result.screen, "Passing Out",
             "should not pass out during the day");
     });
+
+    it("doMove returns false on pass-out (prevents Corridor goto)", () => {
+        const game = bootGame();
+        game.state.tick = RESET_HOUR_TICK - 1;
+        game.state.position = 1n;
+        game.state.screen = "Corridor";
+        const moved = game.window.doMove("right");
+        assert.strictEqual(moved, false,
+            "doMove should return false when redirecting to pass-out");
+        assert.strictEqual(game.state.screen, "Passing Out",
+            "screen should be Passing Out, not Corridor");
+    });
+});
+
+// --- Sleep morale ---
+
+describe("sleep morale recovery", () => {
+    it("sleeping on corridor floor does not restore morale", () => {
+        const game = bootGame();
+        game.state.morale = 50;
+        game.state.exhaustion = 100;
+        game.state.tick = 500;
+        game.state._lastScreen = "Corridor";
+        game.Tick.onSleep();
+        assert.strictEqual(game.state.morale, 50,
+            "corridor floor sleep should not change morale");
+    });
+
+    it("sleeping in bedroom restores a small amount of morale", () => {
+        const game = bootGame();
+        game.state.morale = 50;
+        game.state.exhaustion = 100;
+        game.state.tick = 500;
+        game.state._lastScreen = "Bedroom";
+        game.Tick.onSleep();
+        assert.ok(game.state.morale > 50,
+            "bedroom sleep should restore some morale");
+        // +1 per hour of sleep — modest, not a full reset
+        assert.ok(game.state.morale < 80,
+            "bedroom morale boost should be modest (got " + game.state.morale + ")");
+    });
+
+    it("forced sleep (pass-out) does not restore morale", () => {
+        const game = bootGame();
+        game.state.morale = 50;
+        game.state.tick = RESET_HOUR_TICK - 1;
+        game.state.position = 1n;
+        game.window.Actions.resolve({ type: "move", dir: "right" });
+        // Move itself costs a tiny morale tick; pass-out should not add any back
+        assert.ok(game.state.morale <= 50,
+            "pass-out should not restore morale (got " + game.state.morale + ")");
+    });
+});
+
+// --- Dark corridor despairing ---
+
+describe("dark corridor despairing", () => {
+    it("dark corridor shows ellipsis when despairing", () => {
+        const game = bootGame();
+        game.state.position = 1n;
+        game.state.lightsOn = false;
+        game.state.despairing = true;
+        game.state.morale = 0;
+        game.Engine.goto("Corridor");
+        const html = getHTML(game);
+        assert.ok(html.includes("corridor-despair"),
+            "dark despairing corridor should have despair class");
+        assert.ok(html.includes("..."),
+            "dark despairing corridor should show ellipsis");
+    });
+
+    it("dark corridor shows prose when not despairing", () => {
+        const game = bootGame();
+        game.state.position = 1n;
+        game.state.lightsOn = false;
+        game.state.despairing = false;
+        game.Engine.goto("Corridor");
+        const html = getHTML(game);
+        assert.ok(!html.includes("corridor-despair"),
+            "dark non-despairing corridor should not have despair class");
+    });
 });

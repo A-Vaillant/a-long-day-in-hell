@@ -161,12 +161,13 @@ export function applyMoraleTick(stats: SurvivalStats): SurvivalStats {
  * @param {SurvivalStats} stats
  * @returns {SurvivalStats}
  */
-export function applySleep(stats: SurvivalStats): SurvivalStats {
+export function applySleep(stats: SurvivalStats, inBedroom: boolean = false): SurvivalStats {
     let { hunger, thirst, morale, despairing } = stats;
 
     hunger = clamp(hunger + 0.5);
     thirst = clamp(thirst + 0.4);
-    morale = clamp(morale + 5);
+    // Sleeping on the corridor floor gives nothing. A bed helps a little.
+    if (inBedroom) morale = clamp(morale + 1);
     if (morale > STAT_MIN) despairing = false;
 
     return applyMortality({ ...stats, hunger, thirst, exhaustion: STAT_MIN, morale, despairing });

@@ -188,10 +188,8 @@ export const Engine = {
         var timeStr = Tick.getTimeString();
         if (state.tick >= 1380) {
             html += '<div class="sb-sleeping-hour">the sleeping hour</div>';
-            html += '<div class="sb-clock">' + timeStr + '</div>';
         } else if (!state.lightsOn) {
             html += '<div class="sb-dark">dark</div>';
-            html += '<div class="sb-clock">' + timeStr + '</div>';
         } else if (state.tick >= 900) {
             html += '<div class="sb-time sb-dusk">' + timeStr + '</div>';
         } else {
