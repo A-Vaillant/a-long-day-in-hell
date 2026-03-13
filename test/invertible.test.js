@@ -1,17 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { LIBRARY_MAX, PLAYABLE_ADDRESS_MAX, textToAddress, isInBounds, isAddressInBounds, computeBookAddress, addressToCoords } from "../lib/invertible.core.ts";
+import { TEXT_ADDRESS_EARLY_EXIT, PLAYABLE_ADDRESS_MAX, textToAddress, isInBounds, isAddressInBounds, computeBookAddress, addressToCoords } from "../lib/invertible.core.ts";
 import { generateLifeStory } from "../lib/lifestory.core.ts";
 import { BOOKS_PER_GALLERY } from "../lib/scale.core.ts";
 
-describe("LIBRARY_MAX", () => {
-    it("equals 95^66", () => {
-        assert.strictEqual(LIBRARY_MAX, 95n ** 66n);
-    });
-
-    it("is a large but finite bigint (~131 decimal digits)", () => {
-        assert.ok(LIBRARY_MAX > 0n);
-        assert.ok(LIBRARY_MAX.toString().length >= 130 && LIBRARY_MAX.toString().length <= 132);
+describe("TEXT_ADDRESS_EARLY_EXIT", () => {
+    it("equals PLAYABLE_ADDRESS_MAX", () => {
+        assert.strictEqual(TEXT_ADDRESS_EARLY_EXIT, PLAYABLE_ADDRESS_MAX);
     });
 });
 
@@ -39,10 +34,9 @@ describe("textToAddress", () => {
     });
 
     it("exits early when address exceeds limit", () => {
-        // '~' repeated 67 times blows past LIBRARY_MAX early
         const longText = '~'.repeat(1000);
-        const result = textToAddress(longText, LIBRARY_MAX);
-        assert.ok(result > LIBRARY_MAX);
+        const result = textToAddress(longText, TEXT_ADDRESS_EARLY_EXIT);
+        assert.ok(result > TEXT_ADDRESS_EARLY_EXIT);
     });
 
     it("deterministic — same text same result", () => {
@@ -56,23 +50,21 @@ describe("isInBounds", () => {
         assert.ok(isInBounds(""));
     });
 
-    it("short text (≤66 chars) is in bounds", () => {
-        assert.ok(isInBounds("You were born."));
-        assert.ok(isInBounds(" ".repeat(65)));
-        assert.ok(isInBounds("~".repeat(66)));
+    it("very short text can be in bounds", () => {
+        assert.ok(isInBounds(" "));        // 0 — in bounds
+        assert.ok(isInBounds("!"));        // 1 — in bounds
+        assert.ok(isInBounds(" ".repeat(9))); // 0 — in bounds
     });
 
-    it("text exceeding 66 high chars is out of bounds", () => {
-        assert.ok(!isInBounds("~".repeat(67)));
+    it("text longer than ~9 chars is out of bounds", () => {
+        // 95^10 ≈ 5.99×10^19 > PLAYABLE_ADDRESS_MAX ≈ 4×10^17
+        assert.ok(!isInBounds("~".repeat(10)));
+        assert.ok(!isInBounds("You were born."));
     });
 
     it("typical NPC prose is out of bounds (damned)", () => {
         const prose = "Your name was Rosa Ingram. You were a librarian, from Portland. You died of heart failure. Before you died, you were thinking about the garden.";
         assert.ok(!isInBounds(prose));
-    });
-
-    it("any text over ~130 chars of max-value chars is definitely out", () => {
-        assert.ok(!isInBounds("~".repeat(200)));
     });
 });
 

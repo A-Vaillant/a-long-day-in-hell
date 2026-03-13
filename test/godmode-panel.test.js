@@ -313,7 +313,7 @@ describe("GodmodePanel — Searching section", () => {
 });
 
 // Helper: NPC with a knowledge component containing a life story
-// bookAddress: bigint used for damnation check (in-bounds iff <= LIBRARY_MAX)
+// bookAddress: bigint used for damnation check (in-bounds iff <= PLAYABLE_ADDRESS_MAX)
 function makeNpcWithKnowledge(bookAddress, bookCoords, npcOverrides) {
     const bc = bookCoords || { side: 0, position: 100n, floor: 5n, bookIndex: 3 };
     return makeNpc({

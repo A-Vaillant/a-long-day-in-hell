@@ -6,7 +6,7 @@ import { CHARS_PER_BOOK } from "../../lib/scale.core.ts";
 
 describe("textToAddressFull (divide-and-conquer)", () => {
     it("matches textToAddress for short in-bounds strings", () => {
-        // Short strings that stay within LIBRARY_MAX — both functions should agree
+        // Short strings that stay within PLAYABLE_ADDRESS_MAX — both functions should agree
         const short = "Hello";
         const naive = textToAddress(short, null);
         const dc = textToAddressFull(short);

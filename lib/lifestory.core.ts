@@ -14,7 +14,7 @@ import { seedFromString, type Xoshiro128ss } from "./prng.core.ts";
 import { BOOKS_PER_GALLERY, GALLERIES_PER_SEGMENT, isRestArea } from "./library.core.ts";
 import { PAGES_PER_BOOK } from "./book.core.ts";
 import { bigAbs } from "./bigint-utils.core.ts";
-import { textToAddress, addressToCoords, computeBookAddress, LIBRARY_MAX, PLAYABLE_ADDRESS_MAX } from "./invertible.core.ts";
+import { textToAddress, addressToCoords, computeBookAddress, PLAYABLE_ADDRESS_MAX } from "./invertible.core.ts";
 import { FLOORS, BOOK_FLOOR_MIN, BOOK_FLOOR_MAX } from "./scale.core.ts";
 
 export interface BookCoords {
@@ -34,7 +34,7 @@ export interface LifeStoryOptions {
     startLoc?: StartLocation;
     /** Raw textToAddress of the player's storyText. Required for NPCs; omit for the player. */
     playerRawAddress?: bigint;
-    /** Random origin for the coordinate system, in [0, LIBRARY_MAX]. Derived from game seed. */
+    /** Random origin for the coordinate system, in [0, PLAYABLE_ADDRESS_MAX]. Derived from game seed. */
     randomOrigin?: bigint;
 }
 
@@ -51,7 +51,7 @@ export interface LifeStory {
     playerStart: StartLocation;
     /** textToAddress(storyText) with no early-exit limit. Cached for coordinate system anchoring. */
     rawBookAddress: bigint;
-    /** Offset address in the anchored coordinate system. In [0, LIBRARY_MAX] iff not damned. */
+    /** Offset address in the anchored coordinate system. In [0, PLAYABLE_ADDRESS_MAX] iff not damned. */
     bookAddress: bigint;
 }
 
@@ -174,8 +174,8 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     // For the player: rawAddress IS playerRawAddress, so bookAddress = randomOrigin (in bounds).
     // For NPCs: big - big + small; usually still huge → damned.
     //
-    // bookCoords = addressToCoords(bookAddress % LIBRARY_MAX) — always a valid shelf location,
-    // but only meaningful (reachable) when bookAddress <= LIBRARY_MAX.
+    // bookCoords = addressToCoords(bookAddress % PLAYABLE_ADDRESS_MAX) — always a valid shelf location,
+    // but only meaningful (reachable) when bookAddress <= PLAYABLE_ADDRESS_MAX.
     const rawBookAddress: bigint = textToAddress(story.storyText, null);
     story.rawBookAddress = rawBookAddress;
 
