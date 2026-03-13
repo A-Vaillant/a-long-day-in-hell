@@ -1,6 +1,31 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { bootGame } from "./dom-harness.js";
+import { generateLifeStory } from "../lib/lifestory.core.ts";
+
+describe("target book placement consistency", () => {
+    it("targetBook coords match re-derivation with state.randomOrigin", () => {
+        const game = bootGame();
+        const { seed, randomOrigin, targetBook } = game.state;
+        // Re-derive the life story using the same randomOrigin the game stored
+        const story = generateLifeStory(seed, { randomOrigin });
+        const bc = story.bookCoords;
+        assert.strictEqual(bc.side, targetBook.side, "side mismatch");
+        assert.strictEqual(bc.position, targetBook.position, "position mismatch");
+        assert.strictEqual(bc.floor, targetBook.floor, "floor mismatch");
+        assert.strictEqual(bc.bookIndex, targetBook.bookIndex, "bookIndex mismatch");
+    });
+
+    it("player bookAddress equals randomOrigin (identity property)", () => {
+        const game = bootGame();
+        const { seed, randomOrigin } = game.state;
+        const story = generateLifeStory(seed, { randomOrigin });
+        // For the player, rawBookAddress IS playerRawAddress, so
+        // bookAddress = raw - raw + randomOrigin = randomOrigin
+        assert.strictEqual(story.bookAddress, randomOrigin,
+            "player's bookAddress must equal randomOrigin");
+    });
+});
 
 describe("DOM: book rendering", () => {
     it("book page displays random ASCII text", () => {

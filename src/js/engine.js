@@ -3,7 +3,6 @@
 
 import { PRNG } from "./prng.js";
 import { seedFromString } from "../../lib/prng.core.ts";
-import { PLAYABLE_ADDRESS_MAX } from "../../lib/invertible.core.ts";
 import { state } from "./state.js";
 import { Lib } from "./library.js";
 import { Book } from "./book.js";
@@ -19,7 +18,6 @@ import { Godmode } from "./godmode.js";
 import { saveLog, loadLog, clearLog, count as logCount } from "./event-log.js";
 import * as Slots from "./save-slots.js";
 import { SAVE_VERSION, checkSaveCompatibility, needsMigration, savedMinor, parseSaveVersion } from "../../lib/save-version.core.ts";
-import { BOOKS_PER_GALLERY } from "../../lib/scale.core.ts";
 
 export { state };
 
@@ -415,7 +413,12 @@ export const Engine = {
             // Minor version migrations (same major, older minor)
             if (needsMigration(saved._saveVersion)) {
                 const minor = savedMinor(saved._saveVersion);
-                // if (minor < 1) { /* migrate 2.0 → 2.1 */ }
+                if (minor < 1) {
+                    // 3.0 → 3.1: add release field
+                    if (!state._saveVersion || state._saveVersion.release == null) {
+                        state._saveVersion = { release: 0, major: state._saveVersion?.major ?? 3, minor: 1 };
+                    }
+                }
                 state._saveVersion = SAVE_VERSION;
             }
             state._debugAllowed = false;
@@ -438,28 +441,10 @@ export const Engine = {
             state.deaths      = 0;
             state.deathCause  = null;
 
-            const story = LifeStory.generate(seed);
+            const { randomOrigin, story } = LifeStory.generatePlayerWorld(seed);
+            state.randomOrigin = randomOrigin;
             state.lifeStory  = story;
             state.targetBook = story.bookCoords;
-            // Anchor the coordinate system: randomOrigin is a small in-bounds offset
-            // derived from the seed. playerRawAddress anchors all NPC addresses relative
-            // to the player — cached here so NPCs can use them at init time.
-            const originRng = seedFromString("origin:" + seed);
-            const originLo = BigInt(originRng.nextInt(0x100000000));
-            const originHi = BigInt(originRng.nextInt(0x100000000));
-            state.randomOrigin = (originHi * 0x100000000n + originLo) % PLAYABLE_ADDRESS_MAX;
-            // Clamp the floor component of randomOrigin to [2000, 95000] so the
-            // player's book is always deep in the stacks, never near the ground.
-            // This only constrains the game's placement roll — the bijection is untouched.
-            {
-                const _bpg = BigInt(BOOKS_PER_GALLERY), _floors = 100_000n;
-                const _floorMin = 2000n, _floorRange = 93000n;
-                const _bookIdx = state.randomOrigin % _bpg;
-                const _floorRaw = (state.randomOrigin / _bpg) % _floors;
-                const _rest = state.randomOrigin / (_bpg * _floors);
-                const _clampedFloor = _floorMin + (_floorRaw % _floorRange);
-                state.randomOrigin = _bookIdx + _bpg * (_clampedFloor + _floors * _rest);
-            }
             state.playerRawAddress = story.rawBookAddress;
             // Player wakes up cosmically far from their book
             state.side     = story.playerStart.side;

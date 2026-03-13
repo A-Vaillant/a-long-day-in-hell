@@ -59,6 +59,22 @@ snap "03_corridor_gallery" "Corridor"        "#corridor-view" \
 snap_url "04_book_cover" "${BASE}/?seed=${SEED}&vohu=Shelf%20Open%20Book&openBook=0,0,10,0" "#book-view"
 snap_url "05_book_page" "${BASE}/?seed=${SEED}&vohu=Shelf%20Open%20Book&openBook=0,0,10,0&spread=5" "#book-view"
 
+# --- Target (winning) book pages ---
+TB_JS='var tb = state.targetBook;
+     state.side = tb.side; state.position = tb.position; state.floor = tb.floor;
+     state.openBook = { side: tb.side, position: tb.position, floor: tb.floor, bookIndex: tb.bookIndex };'
+
+snap "05a_target_cover" "Shelf Open Book" "#book-view" \
+    "${TB_JS} state.openPage = 0; Engine.goto('Shelf Open Book');"
+snap "05b_target_p1"    "Shelf Open Book" "#book-view" \
+    "${TB_JS} state.openPage = 1; Engine.goto('Shelf Open Book');"
+snap "05c_target_p50"   "Shelf Open Book" "#book-view" \
+    "${TB_JS} state.openPage = 50; Engine.goto('Shelf Open Book');"
+snap "05d_target_p200"  "Shelf Open Book" "#book-view" \
+    "${TB_JS} state.openPage = 200; Engine.goto('Shelf Open Book');"
+snap "05e_target_p409"  "Shelf Open Book" "#book-view" \
+    "${TB_JS} state.openPage = 409; Engine.goto('Shelf Open Book');"
+
 # --- Facilities ---
 snap "06_kiosk"            "Kiosk"           "#kiosk-view"
 snap "07_bedroom"          "Bedroom"         "#bedroom-view"

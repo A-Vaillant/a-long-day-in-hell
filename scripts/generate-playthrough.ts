@@ -17,7 +17,7 @@
  */
 
 import { createSimulation, strategies, type GameState, type Action, type Strategy } from "../lib/simulator.core.ts";
-import { generateLifeStory } from "../lib/lifestory.core.ts";
+import { generatePlayerWorld } from "../lib/lifestory.core.ts";
 import { BOOKS_PER_GALLERY, GALLERIES_PER_SEGMENT, isRestArea } from "../lib/library.core.ts";
 import * as fs from "node:fs";
 
@@ -58,6 +58,7 @@ interface Keyframe {
     isTarget?: boolean;
     won?: boolean;
     heldBook?: unknown;
+    despairing?: boolean;
 }
 
 // --- Playthrough strategy ---
@@ -211,7 +212,7 @@ function playthroughStrategy(): { strategy: Strategy; getPhase: () => string } {
 // --- Main ---
 
 function main() {
-    const ls = generateLifeStory(SEED);
+    const { randomOrigin, story: ls } = generatePlayerWorld(SEED);
     const tb = ls.bookCoords;
     const ps = ls.playerStart;
     const dPos = ps.position > tb.position ? ps.position - tb.position : tb.position - ps.position;
@@ -241,6 +242,7 @@ function main() {
             deaths: gs.deaths,
             totalMoves: gs.totalMoves,
             booksRead: gs.booksRead,
+            despairing: gs.despairing,
         };
     }
 
@@ -273,7 +275,10 @@ function main() {
             if (phase === "navigate" || phase === "descend") {
                 const daysSinceLog = gs.day - lastDay;
                 // Log at days 1-10 (every day), 10-100 (every 10), 100-1000 (every 100), etc.
-                const logInterval = Math.max(1, Math.pow(10, Math.floor(Math.log10(Math.max(1, gs.day))) - 1));
+                const baseInterval = Math.max(1, Math.pow(10, Math.floor(Math.log10(Math.max(1, gs.day))) - 1));
+                // Jitter: 70-130% of base interval so day numbers aren't all round
+                const jitterHash = ((gs.day * 2654435761) >>> 0) / 0x100000000;
+                const logInterval = Math.max(1, Math.round(baseInterval * (0.7 + 0.6 * jitterHash)));
                 if (daysSinceLog >= logInterval || gs.day <= 10) {
                     keyframes.push({ type: "day", ...snap(gs) });
                     lastDay = gs.day;

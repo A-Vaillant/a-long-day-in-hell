@@ -125,12 +125,13 @@ export function bootGame(seed = "test-seed-42") {
     win.state.deaths = 0;
     win.state.deathCause = null;
 
-    const story = win.LifeStory.generate(seed, {
-        placement: "gaussian",
+    const { randomOrigin, story } = win.LifeStory.generatePlayerWorld(seed, {
         startLoc: { side: 0, position: 0n, floor: 10n },
     });
+    win.state.randomOrigin = randomOrigin;
     win.state.lifeStory = story;
     win.state.targetBook = story.bookCoords;
+    win.state.playerRawAddress = story.rawBookAddress;
     win.state._spawnSide = win.state.side;
     win.state._spawnPosition = win.state.position;
     win.state._spawnFloor = win.state.floor;

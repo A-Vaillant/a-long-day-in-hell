@@ -13,6 +13,7 @@
  */
 
 export interface SaveVersion {
+    release: number;
     major: number;
     minor: number;
 }
@@ -26,24 +27,28 @@ export interface SaveVersion {
  *   2.0 — scale overhaul: BOOKS_PER_GALLERY 192→200,
  *         GALLERIES_PER_SEGMENT 10→17, TICKS_PER_HOUR 10→60,
  *         address space recalculated. All coordinates invalidated.
+ *   3.0 — target book placed with real randomOrigin instead of default.
+ *         All book coordinates changed.
+ *   3.1 — added release field (default 0).
  */
-export const SAVE_VERSION: SaveVersion = { major: 2, minor: 0 };
+export const SAVE_VERSION: SaveVersion = { release: 0, major: 3, minor: 1 };
 
 /**
  * Parse a saved version. Pre-versioning saves have no field (→ 0.0).
  * Accepts the old single-number format (→ { major: n, minor: 0 }).
  */
 export function parseSaveVersion(raw: unknown): SaveVersion {
-    if (raw == null) return { major: 0, minor: 0 };
-    if (typeof raw === "number") return { major: raw, minor: 0 };
+    if (raw == null) return { release: 0, major: 0, minor: 0 };
+    if (typeof raw === "number") return { release: 0, major: raw, minor: 0 };
     if (typeof raw === "object" && "major" in (raw as object)) {
         const obj = raw as Record<string, unknown>;
         return {
+            release: typeof obj.release === "number" ? obj.release : 0,
             major: typeof obj.major === "number" ? obj.major : 0,
             minor: typeof obj.minor === "number" ? obj.minor : 0,
         };
     }
-    return { major: 0, minor: 0 };
+    return { release: 0, major: 0, minor: 0 };
 }
 
 /**
@@ -54,6 +59,11 @@ export function parseSaveVersion(raw: unknown): SaveVersion {
  */
 export function checkSaveCompatibility(raw: unknown): string | null {
     const v = parseSaveVersion(raw);
+    if (v.release !== SAVE_VERSION.release) {
+        return v.release > SAVE_VERSION.release
+            ? "This save was created with a newer release of the game. It cannot be loaded in this version."
+            : "This save is from an older release of the game and is no longer compatible. You'll need to start a new game.";
+    }
     if (v.major === SAVE_VERSION.major) return null;
     if (v.major > SAVE_VERSION.major) {
         return "This save was created with a newer version of the game. " +

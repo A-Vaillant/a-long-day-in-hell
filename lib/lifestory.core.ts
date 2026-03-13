@@ -257,6 +257,40 @@ export function generateNPCLifeStory(
     return generateLifeStory(seed, { playerRawAddress, randomOrigin });
 }
 
+export interface PlayerWorld {
+    randomOrigin: bigint;
+    story: LifeStory;
+}
+
+/**
+ * Derive randomOrigin from the seed and generate the player's life story
+ * in one atomic step. This prevents origin/story desync — the bug where
+ * the book is placed with a different randomOrigin than the game uses.
+ *
+ * All callers that need a player life story should use this instead of
+ * calling generateLifeStory directly.
+ */
+export function generatePlayerWorld(seed: string, opts?: { startLoc?: StartLocation }): PlayerWorld {
+    // Derive randomOrigin from the game seed
+    const originRng = seedFromString("origin:" + seed);
+    const originLo = BigInt(originRng.nextInt(0x100000000));
+    const originHi = BigInt(originRng.nextInt(0x100000000));
+    let randomOrigin = (originHi * 0x100000000n + originLo) % PLAYABLE_ADDRESS_MAX;
+    // Clamp floor component to [2000, 95000]
+    {
+        const _bpg = BigInt(BOOKS_PER_GALLERY), _floors = 100_000n;
+        const _floorMin = 2000n, _floorRange = 93000n;
+        const _bookIdx = randomOrigin % _bpg;
+        const _floorRaw = (randomOrigin / _bpg) % _floors;
+        const _rest = randomOrigin / (_bpg * _floors);
+        const _clampedFloor = _floorMin + (_floorRaw % _floorRange);
+        randomOrigin = _bookIdx + _bpg * (_clampedFloor + _floors * _rest);
+    }
+
+    const story = generateLifeStory(seed, { randomOrigin, startLoc: opts?.startLoc });
+    return { randomOrigin, story };
+}
+
 /**
  * Compute the distance (in segments + floors) between a location and book coords.
  * This is a simple Manhattan distance — segments walked + floors climbed.
