@@ -215,7 +215,7 @@ const DEATH_LINES: readonly string[] = [
     "There was no tunnel. No light. Just a stopping.",
     "You did not know it was happening. That was the mercy of it.",
     "The body did what bodies do. It stopped.",
-    "Everything went quiet. Not peaceful — just quiet.",
+    "Everything went quiet. Not peaceful - just quiet.",
     "You had been meaning to do something. You didn't do it.",
     "The world continued. You did not.",
     "It was over before you could be afraid.",
@@ -319,6 +319,34 @@ export function generateStoryPage(
         pos += CHARS_PER_LINE;
     }
     return lines.join("\n");
+}
+
+/**
+ * Generate the full flat text of a life-story book (1,312,000 characters).
+ *
+ * Concatenates all 410 pages as flat character streams (no newlines).
+ * Every character is in the printable ASCII range [32, 126], making the
+ * result valid input for textToAddressFull / addressToText.
+ *
+ * Deterministic from storyText + fields alone.
+ */
+export function generateFullStoryBook(
+    storyText: string,
+    fields: StoryFields,
+): string {
+    let book = "";
+    for (let p = 0; p < PAGES_PER_BOOK; p++) {
+        const page = generateStoryPage(storyText, fields, p);
+        // Strip newlines — page is 40 lines of 80 chars joined by \n
+        book += page.replace(/\n/g, "");
+    }
+    // Pad or truncate to exactly CHARS_PER_BOOK
+    if (book.length < CHARS_PER_BOOK) {
+        book += " ".repeat(CHARS_PER_BOOK - book.length);
+    } else if (book.length > CHARS_PER_BOOK) {
+        book = book.slice(0, CHARS_PER_BOOK);
+    }
+    return book;
 }
 
 /**

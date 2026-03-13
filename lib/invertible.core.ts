@@ -428,6 +428,78 @@ export function textToAddressFull(text: string): bigint {
     return _convertRange(codes, 0, codes.length);
 }
 
+/* ---- Inverse: address → text (D&C) ---- */
+
+import { CHARS_PER_BOOK } from "./scale.core.ts";
+
+/**
+ * Convert a bigint address back to a base-95 string of the given length.
+ * D&C approach: divmod by 95^(n/2) splits the string into left and right
+ * halves, same complexity class as textToAddressFull.
+ *
+ * @param addr - the bigint address
+ * @param length - output string length (default CHARS_PER_BOOK)
+ * @returns the base-95 decoded string
+ */
+export function addressToText(addr: bigint, length: number = CHARS_PER_BOOK): string {
+    if (addr < 0n) throw new RangeError("addressToText: address must be non-negative");
+    const buf = new Uint8Array(length);
+    _fillRange(buf, 0, length, addr);
+    // Convert digit values to characters
+    let s = "";
+    for (let i = 0; i < length; i++) s += String.fromCharCode(buf[i] + 32);
+    return s;
+}
+
+function _fillRange(buf: Uint8Array, start: number, end: number, value: bigint): void {
+    const n = end - start;
+    if (n === 0) return;
+    if (n === 1) {
+        buf[start] = Number(value % 95n);
+        return;
+    }
+    if (n === 2) {
+        buf[start + 1] = Number(value % 95n);
+        buf[start] = Number((value / 95n) % 95n);
+        return;
+    }
+    const rightLen = n >>> 1;
+    const leftLen = n - rightLen;
+    const divisor = _pow95(rightLen);
+    const left = value / divisor;
+    const right = value % divisor;
+    _fillRange(buf, start, start + leftLen, left);
+    _fillRange(buf, start + leftLen, end, right);
+}
+
+/**
+ * Unified book content function (feature flag: experimental).
+ *
+ * Every book's content is determined by its address in the text-address space.
+ * The mapping is anchored to the player's story:
+ *
+ *   bookText(address) = addressToText(address - randomOrigin + playerRawAddress)
+ *
+ * At the player's book location (address = randomOrigin), this produces
+ * the player's life story text exactly. Neighboring books differ by one
+ * or two characters in the low-order positions.
+ *
+ * @param address - the book's address in the playable coordinate space
+ * @param playerRawAddress - textToAddressFull(playerStoryText)
+ * @param randomOrigin - the seed-derived origin
+ * @param length - output string length (default CHARS_PER_BOOK)
+ * @returns the book's full text
+ */
+export function unifiedBookText(
+    address: bigint,
+    playerRawAddress: bigint,
+    randomOrigin: bigint,
+    length: number = CHARS_PER_BOOK,
+): string {
+    const textAddress = address - randomOrigin + playerRawAddress;
+    return addressToText(textAddress, length);
+}
+
 /* ---- Exports for solver/test use ---- */
 export { LCG_A, LCG_C, LCG_A_INV, CHARSET_LEN };
 export { packCoords, unpackCoords, mix32, unmix32, seedKey };
