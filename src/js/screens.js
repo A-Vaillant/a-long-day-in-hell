@@ -160,18 +160,23 @@ Engine.register("Corridor", {
             html += '</p>';
         }
 
+        const npcsHere = Npc.here();
+
         if (state._readBlocked) {
             html += '<p class="despair-notice">' + esc(T(TEXT.screens.despair_read_blocked, "despair_read:" + state.tick)) + '</p>';
             state._readBlocked = false;
         }
 
-        html += '<p>' + esc(Madlib(TEXT.madlibs.corridor, "corridor:" + locKey(loc))) + '</p>';
+        if (state.despairing) {
+            html += '<p class="corridor-despair">...</p>';
+        } else {
+            html += '<p>' + esc(Madlib(TEXT.madlibs.corridor, "corridor:" + locKey(loc))) + '</p>';
+        }
 
         if (state.lastEvent) {
             html += '<p class="event-text">' + esc(T(state.lastEvent.text, "event:" + state.lastEvent.id + ":" + state.tick)) + '</p>';
         }
 
-        const npcsHere = Npc.here();
         if (npcsHere.length > 0) {
             html += '<div class="npc-list">';
             for (let ni = 0; ni < npcsHere.length; ni++) {
@@ -213,34 +218,38 @@ Engine.register("Corridor", {
         }
 
         if (seg.restArea) {
-            html += '<p class="feature">' + esc(Madlib(TEXT.madlibs.corridor_rest, "corridor_rest:" + locKey(loc)));
-            html += (state.floor > 0n) ? ' Stairs lead up and down.' : ' Stairs lead up.';
-            html += '</p>';
+            if (state.despairing) {
+                html += '<p class="feature">' + ((state.floor > 0n) ? 'Stairs lead up and down.' : 'Stairs lead up.') + '</p>';
+            } else {
+                html += '<p class="feature">' + esc(Madlib(TEXT.madlibs.corridor_rest, "corridor_rest:" + locKey(loc)));
+                html += (state.floor > 0n) ? ' Stairs lead up and down.' : ' Stairs lead up.';
+                html += '</p>';
 
-            // Kiosk distance from spawn (only shown on same side)
-            if (state._spawnPosition !== undefined && state.side === state._spawnSide) {
-                const posDiff = state.position - state._spawnPosition;
-                const absDiff = posDiff < 0n ? -posDiff : posDiff;
-                const kioskCount = absDiff / GALLERIES_PER_SEGMENT;
-                const floorDiff = state.floor - state._spawnFloor;
-                const absFloorDiff = floorDiff < 0n ? -floorDiff : floorDiff;
+                // Kiosk distance from spawn (only shown on same side)
+                if (state._spawnPosition !== undefined && state.side === state._spawnSide) {
+                    const posDiff = state.position - state._spawnPosition;
+                    const absDiff = posDiff < 0n ? -posDiff : posDiff;
+                    const kioskCount = absDiff / GALLERIES_PER_SEGMENT;
+                    const floorDiff = state.floor - state._spawnFloor;
+                    const absFloorDiff = floorDiff < 0n ? -floorDiff : floorDiff;
 
-                let kioskText;
-                if (kioskCount === 0n && absFloorDiff === 0n) {
-                    kioskText = "This is where you began.";
-                } else if (kioskCount === 0n) {
-                    const floorDir = floorDiff > 0n ? "above" : "below";
-                    kioskText = "This kiosk is " + commas(absFloorDiff) + " floor" + (absFloorDiff === 1n ? "" : "s") + " " + floorDir + " where you began.";
-                } else {
-                    const dir = posDiff > 0n ? "to the right" : "to the left";
-                    kioskText = "This is the " + ordinal(kioskCount) + " kiosk " + dir + " of where you began";
-                    if (absFloorDiff > 0n) {
-                        const floorDir = floorDiff > 0n ? "up" : "down";
-                        kioskText += ", " + commas(absFloorDiff) + " floor" + (absFloorDiff === 1n ? "" : "s") + " " + floorDir;
+                    let kioskText;
+                    if (kioskCount === 0n && absFloorDiff === 0n) {
+                        kioskText = "This is where you began.";
+                    } else if (kioskCount === 0n) {
+                        const floorDir = floorDiff > 0n ? "above" : "below";
+                        kioskText = "This kiosk is " + commas(absFloorDiff) + " floor" + (absFloorDiff === 1n ? "" : "s") + " " + floorDir + " where you began.";
+                    } else {
+                        const dir = posDiff > 0n ? "to the right" : "to the left";
+                        kioskText = "This is the " + ordinal(kioskCount) + " kiosk " + dir + " of where you began";
+                        if (absFloorDiff > 0n) {
+                            const floorDir = floorDiff > 0n ? "up" : "down";
+                            kioskText += ", " + commas(absFloorDiff) + " floor" + (absFloorDiff === 1n ? "" : "s") + " " + floorDir;
+                        }
+                        kioskText += ".";
                     }
-                    kioskText += ".";
+                    html += '<p class="kiosk-hint">' + esc(kioskText) + '</p>';
                 }
-                html += '<p class="kiosk-hint">' + esc(kioskText) + '</p>';
             }
 
         } else {
