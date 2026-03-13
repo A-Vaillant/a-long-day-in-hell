@@ -14,10 +14,22 @@ import { Despair } from "./despairing.js";
 import { Chasm } from "./chasm.js";
 import { Social } from "./social.js";
 import { distanceToHumanTime } from "../../lib/scale.core.ts";
+import { GALLERIES_PER_SEGMENT } from "../../lib/library.core.ts";
 import { Actions } from "./actions.js";
 
 function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function ordinal(n) {
+    var s = n.toString();
+    var last2 = Number(n % 100n);
+    var last1 = Number(n % 10n);
+    if (last2 >= 11 && last2 <= 13) return commas(n) + "th";
+    if (last1 === 1) return commas(n) + "st";
+    if (last1 === 2) return commas(n) + "nd";
+    if (last1 === 3) return commas(n) + "rd";
+    return commas(n) + "th";
 }
 
 /* ---------- helpers ---------- */
@@ -204,6 +216,119 @@ Engine.register("Corridor", {
             html += '<p class="feature">' + esc(Madlib(TEXT.madlibs.corridor_rest, "corridor_rest:" + locKey(loc)));
             html += (state.floor > 0n) ? ' Stairs lead up and down.' : ' Stairs lead up.';
             html += '</p>';
+
+            // Kiosk distance from spawn
+            if (state._spawnPosition !== undefined) {
+                const posDiff = state.position - state._spawnPosition;
+                const absDiff = posDiff < 0n ? -posDiff : posDiff;
+                const kioskCount = absDiff / GALLERIES_PER_SEGMENT;
+                const floorDiff = state.floor - state._spawnFloor;
+                const absFloorDiff = floorDiff < 0n ? -floorDiff : floorDiff;
+                const sameSide = state.side === state._spawnSide;
+
+                let kioskText;
+                if (kioskCount === 0n && absFloorDiff === 0n && sameSide) {
+                    kioskText = "This is where you began.";
+                } else {
+                    const dir = posDiff > 0n ? "to the right" : "to the left";
+                    kioskText = "This is the " + ordinal(kioskCount) + " kiosk " + dir + " of where you began";
+                    if (absFloorDiff > 0n) {
+                        const floorDir = floorDiff > 0n ? "up" : "down";
+                        kioskText += ", " + commas(absFloorDiff) + " floor" + (absFloorDiff === 1n ? "" : "s") + " " + floorDir;
+                    }
+                    if (!sameSide) kioskText += ", across the chasm";
+                    kioskText += ".";
+                }
+                html += '<p class="kiosk-hint">' + esc(kioskText) + '</p>';
+
+                // Book location hint
+                if (state.targetBook) {
+                    const bookPosDiff = state.targetBook.position - state._spawnPosition;
+                    const absBookPosDiff = bookPosDiff < 0n ? -bookPosDiff : bookPosDiff;
+                    const bookKiosk = absBookPosDiff / GALLERIES_PER_SEGMENT;
+                    const bookFloorDiff = state.targetBook.floor - state._spawnFloor;
+                    const absBookFloorDiff = bookFloorDiff < 0n ? -bookFloorDiff : bookFloorDiff;
+                    const bookSameSide = state.targetBook.side === state._spawnSide;
+
+                    let bookText;
+                    if (bookKiosk === 0n) {
+                        bookText = "Your book is near where you began";
+                    } else {
+                        const bookDir = bookPosDiff > 0n ? "to the right" : "to the left";
+                        bookText = "Your book is between the " + ordinal(bookKiosk) + " and " + ordinal(bookKiosk + 1n) + " kiosks " + bookDir + " of where you began";
+                    }
+                    if (absBookFloorDiff > 0n) {
+                        const bookFloorDir = bookFloorDiff > 0n ? "up" : "down";
+                        bookText += ", " + commas(absBookFloorDiff) + " floor" + (absBookFloorDiff === 1n ? "" : "s") + " " + bookFloorDir;
+                    }
+                    if (!bookSameSide) bookText += ", across the chasm";
+                    bookText += ".";
+
+                    // Walking time from current position
+                    const walkDist = state.position > state.targetBook.position
+                        ? state.position - state.targetBook.position
+                        : state.targetBook.position - state.position;
+                    bookText += " Walking from here would take " + distanceToHumanTime(walkDist) + ".";
+
+                    html += '<p class="book-hint">' + esc(bookText) + '</p>';
+                }
+            }
+
+            // Kiosk distance from spawn
+            if (state._spawnPosition !== undefined) {
+                var kioskDist = state.position > state._spawnPosition
+                    ? (state.position - state._spawnPosition) / GALLERIES_PER_SEGMENT
+                    : (state._spawnPosition - state.position) / GALLERIES_PER_SEGMENT;
+                var kioskDir = state.position > state._spawnPosition ? "to the right" : "to the left";
+                var floorDiff = state.floor > state._spawnFloor
+                    ? state.floor - state._spawnFloor
+                    : state._spawnFloor - state.floor;
+                var floorLabel = state.floor > state._spawnFloor ? "up" : "down";
+                var sameFloor = state.floor === state._spawnFloor;
+                var sameSide = state.side === state._spawnSide;
+
+                var kioskText;
+                if (kioskDist === 0n && sameFloor && sameSide) {
+                    kioskText = "This is where you began.";
+                } else {
+                    kioskText = "This is the " + ordinal(kioskDist) + " kiosk " + kioskDir + " of where you began";
+                    if (!sameFloor) kioskText += ", " + commas(floorDiff) + " floor" + (floorDiff === 1n ? "" : "s") + " " + floorLabel;
+                    if (!sameSide) kioskText += ", across the chasm";
+                    kioskText += ".";
+                }
+                html += '<p class="kiosk-hint">' + esc(kioskText) + '</p>';
+
+                // Book location hint relative to spawn
+                var tb = state.targetBook;
+                if (tb) {
+                    var bookPosDist = tb.position > state._spawnPosition
+                        ? tb.position - state._spawnPosition
+                        : state._spawnPosition - tb.position;
+                    var bookKioskDist = bookPosDist / GALLERIES_PER_SEGMENT;
+                    var bookDir = tb.position > state._spawnPosition ? "to the right" : "to the left";
+                    var bookFloorDiff = tb.floor > state._spawnFloor
+                        ? tb.floor - state._spawnFloor
+                        : state._spawnFloor - tb.floor;
+                    var bookFloorLabel = tb.floor > state._spawnFloor ? "up" : "down";
+                    var bookSameFloor = tb.floor === state._spawnFloor;
+                    var bookSameSide = tb.side === state._spawnSide;
+                    var walkDist = tb.position > state.position
+                        ? tb.position - state.position
+                        : state.position - tb.position;
+                    var walkTime = distanceToHumanTime(walkDist);
+
+                    var bookText;
+                    if (bookKioskDist === 0n && bookSameFloor && bookSameSide) {
+                        bookText = "Your book is in this very segment. Walking from here would take " + walkTime + ".";
+                    } else {
+                        bookText = "Your book is between the " + ordinal(bookKioskDist) + " and " + ordinal(bookKioskDist + 1n) + " kiosks " + bookDir + " of where you began";
+                        if (!bookSameFloor) bookText += ", " + commas(bookFloorDiff) + " floor" + (bookFloorDiff === 1n ? "" : "s") + " " + bookFloorLabel;
+                        if (!bookSameSide) bookText += ", across the chasm";
+                        bookText += ". Walking from here would take " + walkTime + ".";
+                    }
+                    html += '<p class="book-hint">' + esc(bookText) + '</p>';
+                }
+            }
         } else {
             html += '<div id="corridor-grid"></div>';
             html += '<p class="shelf-hint">Click a spine to read.</p>';
