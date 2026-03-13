@@ -8,7 +8,7 @@ The library contains every possible 410-page book printable in 95 ASCII characte
 
 Indexing a specific book takes a number with roughly 2.6 million digits — about a megabyte. You can point at any book, but you can't search the space. The game defines a *playable* subset: a coordinate system of `side` (0 or 1), `position` (gallery index, ±5 billion), `floor` (0-99,999 for book placement, unbounded for movement), and `bookIndex` (0-199 within a gallery). These four fields encode into a single address below `PLAYABLE_ADDRESS_MAX` ≈ 4 × 10^17. The full 95^1,312,000 space exists in principle — books outside the playable window simply can't be walked to.
 
-`lib/invertible.core.ts` defines the mapping. An address decomposes innermost-first: bookIndex occupies the low 200 values, then floor (100,000 values), then side (2), then position. The `addressToCoords` function reverses this packing.
+`lib/invertible.core.ts` defines the mapping. An address decomposes innermost-first: bookIndex occupies the low `BOOKS_PER_GALLERY` values (200), then floor (`FLOORS` values, default 100,000), then side (2), then position (`MAX_BOOK_POSITION`, default 10 billion). All three dimension constants live in `lib/scale.core.ts` and propagate to `PLAYABLE_ADDRESS_MAX` and `addressToCoords` automatically. The `addressToCoords` function reverses this packing.
 
 ## Placing the book
 
@@ -16,7 +16,7 @@ Indexing a specific book takes a number with roughly 2.6 million digits — abou
 
 1. **Derive `randomOrigin` from the seed.** Two 32-bit PRNG outputs combine into a 64-bit value, taken mod `PLAYABLE_ADDRESS_MAX`. This origin anchors the entire coordinate system for this run.
 
-2. **Clamp the floor.** The raw origin might place the book on floor 7 or floor 99,998 — both bad for gameplay. The floor component is extracted, clamped to [2,000, 95,000], and packed back in. The book sits deep in the library, never near ground level.
+2. **Clamp the floor.** The raw origin might place the book on floor 7 or floor 99,998 — both bad for gameplay. The floor component is extracted, clamped to [`BOOK_FLOOR_MIN`, `BOOK_FLOOR_MAX`] (default [2,000, 95,000]), and packed back in. The book sits deep in the library, never near ground level. These bounds live in `scale.core.ts`.
 
 3. **Nudge off rest areas.** Rest areas (every 17th gallery) have kiosks and stairs but no shelves. If the position lands on one, it shifts to position + 1.
 
@@ -57,3 +57,27 @@ An NPC's book exists in the library only if cosmic coincidence places their addr
 Godmode (`src/js/godmode-panel.js`) makes this visible. Clicking the `[?]` next to an NPC's book stat computes their `bookAddress` via `computeBookAddress` and checks it against `isAddressInBounds`. When the address falls outside the playable range — which it will — the panel renders a red **damned** label instead of a distance. The NPC has no book to find. Their search has no end.
 
 NPCs search anyway. The ECS psychology system in `lib/psych.core.ts` models their decay over decades of fruitless searching: lucidity erodes, hope drains, dispositions shift from calm to anxious to catatonic. They don't know their search is impossible. Neither does the player, at first — the difference is that the player's book actually exists in the walkable library.
+
+## Full-precision verification
+
+The runtime `textToAddress` uses Horner's method with an early-exit at `LIBRARY_MAX` (95^66). Most texts blow past that limit within 66 characters, making the check nearly free. For the player, the subtraction `rawAddress - rawAddress` cancels out regardless of precision, so the early exit doesn't affect correctness.
+
+`textToAddressFull` in `lib/invertible.core.ts` computes the true address without any early exit. It uses divide-and-conquer base conversion: split the string in half, convert each half recursively, combine as `left * 95^(right_length) + right`. V8's BigInt multiplication is fast for balanced operands (Karatsuba), making this O(n log²n) instead of O(n²). A full 1,312,000-character book produces a ~2.6 million digit number in about 300ms.
+
+The naive Horner's approach takes ~150 seconds for the same input. The difference is that Horner's multiplies a huge accumulator by 95 at each step — an operation that grows linearly in the accumulator's size, yielding quadratic total work. The D&C approach keeps operands balanced at every level.
+
+`test/slow/full-precision.test.js` verifies three things: that D&C and Horner's agree on short texts, that the player's book address always equals `randomOrigin`, and that all NPCs are damned.
+
+## Tuning the library
+
+All library dimension constants live in `lib/scale.core.ts`:
+
+| Constant | Default | Controls |
+|----------|---------|----------|
+| `FLOORS` | 100,000 | Addressable floors for book placement (movement is unbounded) |
+| `MAX_BOOK_POSITION` | 10,000,000,000 | Gallery index range (±5B from origin) |
+| `BOOK_FLOOR_MIN` | 2,000 | Lowest floor a player's book can occupy |
+| `BOOK_FLOOR_MAX` | 95,000 | Highest floor a player's book can occupy |
+| `BOOKS_PER_GALLERY` | 200 | Books per screen (25 columns × 8 shelves) |
+
+`PLAYABLE_ADDRESS_MAX` derives from `MAX_BOOK_POSITION × 2 × FLOORS × BOOKS_PER_GALLERY`. Changing any of these changes the walkable library's size and the damnation odds. `LIBRARY_MAX` (95^66) is independent — it governs how many characters of text are interpreted before the early-exit fires, not the walkable geometry.
