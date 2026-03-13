@@ -503,7 +503,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     function applySleepHour(): void {
         const wasDespairing = gs.despairing;
         const moraleBefore = gs.stats.morale;
-        gs.stats = Surv.applySleep(gs.stats);
+        gs.stats = Surv.applySleep(gs.stats, Lib.isRestArea(gs.position));
         if (wasDespairing) {
             // applySleep gave full recovery; scale it down
             const fullGain = gs.stats.morale - moraleBefore;

@@ -273,7 +273,7 @@ export function simulate(opts: SimulateOpts, survFns: SurvivalFns, tickFns: Tick
     function applySleepWithDespairing(): void {
         const wasDespairing = stats.despairing;
         const moraleBefore = stats.morale;
-        stats = survFns.applySleep(stats);
+        stats = survFns.applySleep(stats, true);
         if (wasDespairing) {
             // applySleep gave full recovery; scale it down
             const fullGain = stats.morale - moraleBefore;
