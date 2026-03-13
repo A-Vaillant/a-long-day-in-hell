@@ -17,6 +17,7 @@ import {
     accumulateBond, decayPsychology,
     DEFAULT_BOND, DEFAULT_DECAY,
 } from "../lib/social.core.ts";
+import { TICKS_PER_DAY } from "../lib/scale.core.ts";
 
 // --- Helpers ---
 
@@ -297,7 +298,7 @@ describe("personality disposition trajectory", () => {
 
         // Cosmic scale: needs thousands of days
         for (let day = 0; day < 50000; day++) {
-            for (let t = 0; t < 240; t++) {
+            for (let t = 0; t < TICKS_PER_DAY; t++) {
                 decayPsychology(psych, false, DEFAULT_DECAY, bias);
             }
             if (psych.lucidity <= 40 && !hitMad) { hitMad = true; madDay = day; }
@@ -320,7 +321,7 @@ describe("personality disposition trajectory", () => {
 
         // Cosmic scale: needs thousands of days
         for (let day = 0; day < 50000; day++) {
-            for (let t = 0; t < 240; t++) {
+            for (let t = 0; t < TICKS_PER_DAY; t++) {
                 decayPsychology(psych, false, DEFAULT_DECAY, bias);
             }
             if (psych.lucidity <= 40 && !hitMad) { hitMad = true; madDay = day; }

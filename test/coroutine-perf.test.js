@@ -26,6 +26,7 @@ import { SLEEP, nearestRestArea } from "../lib/sleep.core.ts";
 import { KNOWLEDGE, createKnowledge } from "../lib/knowledge.core.ts";
 import { generateBookPage } from "../lib/book.core.ts";
 import { seedFromString } from "../lib/prng.core.ts";
+import { TICKS_PER_DAY, WAKING_TICKS } from "../lib/scale.core.ts";
 import * as NpcCore from "../lib/npc.core.ts";
 
 const SEED = "coroutine-perf-bench";
@@ -82,8 +83,8 @@ function createBenchWorld(npcCount, { spread = "nearby" } = {}) {
 
 /** Run the full ECS tick pipeline (same as Social.onTick but headless). */
 function ecsTick(world, tick, day) {
-    const currentTick = (day - 1) * 240 + tick;
-    const lightsOn = tick < 160;
+    const currentTick = (day - 1) * TICKS_PER_DAY + tick;
+    const lightsOn = tick < WAKING_TICKS;
     const prebuilt = buildLocationIndex(world);
 
     relationshipSystem(world, currentTick, undefined, prebuilt, 1);
@@ -118,7 +119,7 @@ describe("coroutine-perf: per-tick baseline", () => {
 
         const start = performance.now();
         for (let i = 0; i < 1000; i++) {
-            ecsTickNoSearch(world, i % 240, Math.floor(i / 240) + 1);
+            ecsTickNoSearch(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1);
         }
         const elapsed = performance.now() - start;
 
@@ -131,7 +132,7 @@ describe("coroutine-perf: per-tick baseline", () => {
 
         const start = performance.now();
         for (let i = 0; i < 1000; i++) {
-            ecsTickNoSearch(world, i % 240, Math.floor(i / 240) + 1);
+            ecsTickNoSearch(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1);
         }
         const elapsed = performance.now() - start;
 
@@ -144,7 +145,7 @@ describe("coroutine-perf: per-tick baseline", () => {
 
         const start = performance.now();
         for (let i = 0; i < 10000; i++) {
-            ecsTickNoSearch(world, i % 240, Math.floor(i / 240) + 1);
+            ecsTickNoSearch(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1);
         }
         const elapsed = performance.now() - start;
 
@@ -157,7 +158,7 @@ describe("coroutine-perf: per-tick baseline", () => {
 
         const start = performance.now();
         for (let i = 0; i < 10000; i++) {
-            ecsTickNoSearch(world, i % 240, Math.floor(i / 240) + 1);
+            ecsTickNoSearch(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1);
         }
         const elapsed = performance.now() - start;
 
@@ -177,7 +178,7 @@ describe("coroutine-perf: NPC count scaling", () => {
 
             const start = performance.now();
             for (let i = 0; i < 500; i++) {
-                ecsTickNoSearch(world, i % 240, Math.floor(i / 240) + 1);
+                ecsTickNoSearch(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1);
             }
             const elapsed = performance.now() - start;
 
@@ -246,7 +247,7 @@ describe("coroutine-perf: system isolation", () => {
         const start = performance.now();
         for (let i = 0; i < 10000; i++) {
             const rng = seedFromString(SEED + ":intent:" + i);
-            intentSystem(world, rng, undefined, i % 240);
+            intentSystem(world, rng, undefined, i % TICKS_PER_DAY);
         }
         const elapsed = performance.now() - start;
 
@@ -399,7 +400,7 @@ describe("coroutine-perf: comparison", () => {
         const { world } = createBenchWorld(16, { spread: "scattered" });
         const ecsStart = performance.now();
         for (let i = 0; i < 1000; i++) {
-            ecsTickNoSearch(world, i % 240, Math.floor(i / 240) + 1);
+            ecsTickNoSearch(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1);
         }
         const ecsElapsed = performance.now() - ecsStart;
 

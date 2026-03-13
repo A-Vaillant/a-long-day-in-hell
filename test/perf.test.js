@@ -27,7 +27,7 @@ import { SEARCHING, searchSystem, scoreBigram, scoreFromSeed, countWordsFromSeed
 import { INTENT, intentSystem } from "../lib/intent.core.ts";
 import { SLEEP, nearestRestArea } from "../lib/sleep.core.ts";
 import { generateBookPage } from "../lib/book.core.ts";
-import { BOOKS_PER_GALLERY } from "../lib/scale.core.ts";
+import { BOOKS_PER_GALLERY, TICKS_PER_DAY } from "../lib/scale.core.ts";
 import * as NpcCore from "../lib/npc.core.ts";
 
 const SEED = "perf-bench-42";
@@ -88,7 +88,7 @@ function createBenchWorld(npcCount) {
 
 /** Run a full ECS tick (mirrors Social.onTick). */
 function ecsTick(world, tick, day) {
-    const currentTick = (day - 1) * 240 + tick;
+    const currentTick = (day - 1) * TICKS_PER_DAY + tick;
     const prebuilt = buildLocationIndex(world);
 
     relationshipSystem(world, currentTick, undefined, prebuilt, 1);
@@ -136,7 +136,7 @@ describe("perf: headless simulator (no ECS)", () => {
         });
         const result = sim.run();
         const elapsed = performance.now() - start;
-        const totalTicks = result.day * 240;
+        const totalTicks = result.day * TICKS_PER_DAY;
 
         console.log(`  Headless sim: ${totalTicks} ticks in ${elapsed.toFixed(0)}ms`);
         console.log(`  → ${Math.round(totalTicks / (elapsed / 1000))} ticks/sec`);
@@ -154,7 +154,7 @@ describe("perf: headless simulator (no ECS)", () => {
         });
         const result = sim.run();
         const elapsed = performance.now() - start;
-        const totalTicks = result.day * 240;
+        const totalTicks = result.day * TICKS_PER_DAY;
 
         console.log(`  Headless sim (365d): ${totalTicks} ticks in ${elapsed.toFixed(0)}ms`);
         console.log(`  → ${Math.round(totalTicks / (elapsed / 1000))} ticks/sec`);
@@ -166,7 +166,7 @@ describe("perf: headless simulator (no ECS)", () => {
 describe("perf: full ECS tick pipeline", () => {
     it("16 NPCs — single tick throughput", () => {
         const { world } = createBenchWorld(16);
-        const result = bench((i) => ecsTick(world, i % 240, Math.floor(i / 240) + 1));
+        const result = bench((i) => ecsTick(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1));
 
         console.log(`  ECS tick (16 NPCs): ${result.avgMs.toFixed(3)}ms/tick`);
         console.log(`  → ${result.ticksPerSec} ticks/sec`);
@@ -176,7 +176,7 @@ describe("perf: full ECS tick pipeline", () => {
 
     it("32 NPCs — single tick throughput", () => {
         const { world } = createBenchWorld(32);
-        const result = bench((i) => ecsTick(world, i % 240, Math.floor(i / 240) + 1));
+        const result = bench((i) => ecsTick(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1));
 
         console.log(`  ECS tick (32 NPCs): ${result.avgMs.toFixed(3)}ms/tick`);
         console.log(`  → ${result.ticksPerSec} ticks/sec`);
@@ -186,7 +186,7 @@ describe("perf: full ECS tick pipeline", () => {
 
     it("64 NPCs — single tick throughput", () => {
         const { world } = createBenchWorld(64);
-        const result = bench((i) => ecsTick(world, i % 240, Math.floor(i / 240) + 1));
+        const result = bench((i) => ecsTick(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1));
 
         console.log(`  ECS tick (64 NPCs): ${result.avgMs.toFixed(3)}ms/tick`);
         console.log(`  → ${result.ticksPerSec} ticks/sec`);
@@ -194,15 +194,13 @@ describe("perf: full ECS tick pipeline", () => {
 
     it("16 NPCs — sustained 1-day simulation", () => {
         const { world } = createBenchWorld(16);
-        const TICKS_PER_DAY = 240;
-
         const start = performance.now();
         for (let t = 0; t < TICKS_PER_DAY; t++) {
             ecsTick(world, t, 1);
         }
         const elapsed = performance.now() - start;
 
-        console.log(`  1 day (240 ticks, 16 NPCs): ${elapsed.toFixed(0)}ms`);
+        console.log(`  1 day (${TICKS_PER_DAY} ticks, 16 NPCs): ${elapsed.toFixed(0)}ms`);
         console.log(`  → ${Math.round(TICKS_PER_DAY / (elapsed / 1000))} ticks/sec`);
         console.log(`  → ${(elapsed / 1000).toFixed(2)}s per in-game day`);
 
@@ -250,7 +248,7 @@ describe("perf: individual ECS systems (16 NPCs)", () => {
         for (const npcCount of [16, 128, 512]) {
             const { world: w } = createBenchWorld(npcCount);
             // warmup
-            for (let i = 0; i < 10; i++) ecsTick(w, i % 240, 1);
+            for (let i = 0; i < 10; i++) ecsTick(w, i % TICKS_PER_DAY, 1);
 
             console.log(`  System breakdown (${N} iters, ${npcCount} NPCs):`);
             const localSystems = {
@@ -354,7 +352,7 @@ describe("perf: scaling", () => {
         for (const n of counts) {
             const { world } = createBenchWorld(n);
             const result = bench(
-                (i) => ecsTick(world, i % 240, Math.floor(i / 240) + 1),
+                (i) => ecsTick(world, i % TICKS_PER_DAY, Math.floor(i / TICKS_PER_DAY) + 1),
                 20, 100,
             );
             console.log(`    ${String(n).padStart(3)} NPCs: ${result.avgMs.toFixed(3)}ms/tick (${result.ticksPerSec} t/s)`);

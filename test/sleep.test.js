@@ -8,6 +8,7 @@ import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.
 import { POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP } from "../lib/social.core.ts";
 import { HABITUATION } from "../lib/psych.core.ts";
 import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
+import { TICKS_PER_DAY } from "../lib/scale.core.ts";
 
 const R1 = GALLERIES_PER_SEGMENT;       // first rest area (bigint)
 const R2 = 2n * GALLERIES_PER_SEGMENT;  // second rest area
@@ -196,7 +197,7 @@ describe("sleepWakeSystem", () => {
             sleep.bedIndex = 0;
             sleep.coSleepers = [];
 
-            sleepWakeSystem(world, 100 + night * 240);
+            sleepWakeSystem(world, 100 + night * TICKS_PER_DAY);
 
             penalties.push(hopeBefore - psych.hope);
 

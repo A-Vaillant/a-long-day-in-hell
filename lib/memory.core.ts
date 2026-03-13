@@ -143,7 +143,7 @@ export function hasRecentMemory(
     type: MemoryType,
     subject: Entity | null,
     currentTick: number,
-    window: number = 240,
+    window: number = daysToTicks(1),
 ): boolean {
     for (const e of mem.entries) {
         if (e.type === type && e.subject === subject && (currentTick - e.tick) < window) {
