@@ -145,11 +145,10 @@ describe("player book address system", () => {
         assert.strictEqual(story.bookAddress, PLAYABLE_ADDRESS_MAX / 2n);
     });
 
-    it("player bookCoords match addressToCoords(bookAddress), modulo rest-area nudge + floor clamp", () => {
+    it("player bookCoords match addressToCoords(bookAddress), modulo rest-area nudge + floor/bookIndex randomization", () => {
         const story = generateLifeStory("coords-derive-test");
         const derived = addressToCoords(story.bookAddress, BOOKS_PER_GALLERY);
         assert.strictEqual(derived.side, story.bookCoords.side);
-        assert.strictEqual(derived.bookIndex, story.bookCoords.bookIndex);
         // position may be nudged +1 if it landed on a rest area
         const pos = story.bookCoords.position;
         assert.ok(pos === derived.position || pos === derived.position + 1n,
@@ -157,6 +156,9 @@ describe("player book address system", () => {
         // floor is clamped to [2000, 95000]
         assert.ok(story.bookCoords.floor >= 2000n && story.bookCoords.floor <= 95000n,
             `floor ${story.bookCoords.floor} should be in [2000, 95000]`);
+        // bookIndex is randomized, not from address
+        assert.ok(story.bookCoords.bookIndex >= 0 && story.bookCoords.bookIndex < BOOKS_PER_GALLERY,
+            `bookIndex ${story.bookCoords.bookIndex} should be in [0, ${BOOKS_PER_GALLERY})`);
     });
 
     it("player storyText is on their target page", () => {

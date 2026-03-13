@@ -224,7 +224,11 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
 
     const playerStart: StartLocation = { side: playerSide, position: playerPos, floor: playerFloor };
 
-    story.bookCoords = { side, position, floor, bookIndex };
+    // Randomize shelf position — addressToCoords always gives bookIndex 0
+    // for the player since their bookAddress = randomOrigin (a fixed value).
+    const randomBookIndex = spawnRng.nextInt(BOOKS_PER_GALLERY);
+
+    story.bookCoords = { side, position, floor, bookIndex: randomBookIndex };
     story.playerStart = playerStart;
     // rawBookAddress and bookAddress already set above
 

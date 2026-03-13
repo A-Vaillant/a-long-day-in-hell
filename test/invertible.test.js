@@ -144,16 +144,18 @@ describe("player is never damned", () => {
         }
     });
 
-    it("addressToCoords round-trips through bookAddress for player (modulo rest-area nudge + floor clamp)", () => {
+    it("addressToCoords round-trips through bookAddress for player (modulo rest-area nudge + floor/bookIndex randomization)", () => {
         const story = generateLifeStory("roundtrip-test");
         const coords = addressToCoords(story.bookAddress, BOOKS_PER_GALLERY);
         assert.strictEqual(coords.side, story.bookCoords.side);
-        assert.strictEqual(coords.bookIndex, story.bookCoords.bookIndex);
         // position may be nudged +1 if it landed on a rest area
         const pos = story.bookCoords.position;
         assert.ok(pos === coords.position || pos === coords.position + 1n);
-        // floor is clamped to [2000, 95000] — may differ from raw addressToCoords
+        // floor is clamped to [2000, 95000]
         assert.ok(story.bookCoords.floor >= 2000n && story.bookCoords.floor <= 95000n,
             `floor ${story.bookCoords.floor} should be in [2000, 95000]`);
+        // bookIndex is randomized from spawnRng, not derived from address
+        assert.ok(story.bookCoords.bookIndex >= 0 && story.bookCoords.bookIndex < BOOKS_PER_GALLERY,
+            `bookIndex ${story.bookCoords.bookIndex} should be in [0, ${BOOKS_PER_GALLERY})`);
     });
 });
