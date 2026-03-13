@@ -518,6 +518,12 @@ button:disabled {
 
 #book-view br { display: none; }
 
+#book-view.despairing .book-page-left,
+#book-view.despairing .book-page-right,
+#book-view.despairing .book-single {
+    filter: saturate(0) brightness(0.85);
+}
+
 #book-view .location-header {
     text-align: center;
     border-bottom: none;
@@ -841,6 +847,14 @@ button:disabled {
 @keyframes pulse-spine {
     0%, 100% { filter: brightness(1); }
     50%      { filter: brightness(2.5) saturate(1.6); }
+}
+
+.book-spine.book-opened {
+    border-top: 2px solid rgba(255,255,255,0.15);
+    filter: brightness(0.7);
+}
+.book-spine.book-opened:hover {
+    filter: brightness(1.4);
 }
 
 .shelf-grid.shelf-searched {

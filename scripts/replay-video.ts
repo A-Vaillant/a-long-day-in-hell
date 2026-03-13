@@ -61,6 +61,7 @@ function corridorJS(kf: any): string {
         state.exhaustion = ${kf.stats.exhaustion};
         state.morale = ${kf.stats.morale};
         state.mortality = ${kf.stats.mortality};
+        state.despairing = ${kf.despairing ?? false};
         ` : ""}
         Engine.goto("Corridor");
     `;
@@ -95,10 +96,10 @@ async function main() {
 
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
-        viewport: { width: 1280, height: 800 },
+        viewport: { width: 1280, height: 1024 },
         recordVideo: {
             dir: OUT_DIR,
-            size: { width: 1280, height: 800 },
+            size: { width: 1280, height: 1024 },
         },
     });
 
@@ -109,7 +110,19 @@ async function main() {
     await page.waitForSelector("#corridor-view", { timeout: 10000 });
     console.log("Game loaded.");
 
-    await page.evaluate("state.debug = false; Engine.goto(state.screen);");
+    // Override targetBook to match the playthrough's coordinate system
+    const tb = log.targetBook;
+    await page.evaluate(`
+        state.debug = false;
+        state.targetBook = {
+            side: ${tb.side},
+            position: ${tb.position}n,
+            floor: ${tb.floor}n,
+            bookIndex: ${tb.bookIndex}
+        };
+        state.lifeStory = ${JSON.stringify(log.lifeStory)};
+        Engine.goto(state.screen);
+    `);
     await page.waitForTimeout(1500);
 
     let currentPhase = "navigate";
@@ -206,42 +219,40 @@ async function main() {
             bookCount++;
             const remaining = totalBooks - bookCount;
 
-            // First 8 books: open each one, look at it, close it
-            if (bookCount <= 8) {
+            // First 5 books: open each one, look at it, close it
+            if (bookCount <= 5) {
                 await page.evaluate(bookViewJS(kf));
-                await page.waitForTimeout(600);
+                await page.waitForTimeout(400);
                 await page.evaluate(corridorJS(kf));
-                await page.waitForTimeout(300);
+                await page.waitForTimeout(200);
                 continue;
             }
 
-            // Last 15 before the find: slow way down, open each
-            if (remaining <= 15) {
+            // Last 10 before the find: slow way down, open each
+            if (remaining <= 10) {
                 await page.evaluate(bookViewJS(kf));
-                // Slower and slower as we approach the last one
-                const slowdown = Math.max(200, 800 - remaining * 40);
+                const slowdown = Math.max(150, 600 - remaining * 40);
                 await page.waitForTimeout(slowdown);
                 await page.evaluate(corridorJS(kf));
-                await page.waitForTimeout(Math.max(100, 400 - remaining * 20));
+                await page.waitForTimeout(Math.max(80, 300 - remaining * 20));
                 continue;
             }
 
             // Middle: accelerating montage
-            // Show corridor updates at intervals, getting sparser
             let showEvery: number;
             let delay: number;
             if (bookCount <= 50) {
-                showEvery = 3;
-                delay = 100;
-            } else if (bookCount <= 200) {
-                showEvery = 10;
+                showEvery = 5;
                 delay = 60;
-            } else if (bookCount <= 1000) {
-                showEvery = 30;
+            } else if (bookCount <= 200) {
+                showEvery = 15;
                 delay = 40;
-            } else {
-                showEvery = 80;
+            } else if (bookCount <= 1000) {
+                showEvery = 50;
                 delay = 30;
+            } else {
+                showEvery = 100;
+                delay = 20;
             }
 
             if (bookCount % showEvery === 0) {
@@ -261,20 +272,20 @@ async function main() {
 
             let delay: number;
             if (navPct < 0.05) {
-                // First 5%: slow, establishing (~500ms)
-                delay = 500;
+                // First 5%: slow, establishing
+                delay = 300;
             } else if (navPct < 0.15) {
-                // Ramp up (~350ms)
-                delay = 350;
+                // Ramp up
+                delay = 200;
             } else if (navPct < 0.85) {
-                // Bulk of the journey: fast (~150ms)
-                delay = 150;
+                // Bulk of the journey: fast
+                delay = 80;
             } else if (navPct < 0.95) {
-                // Approaching destination: slow down (~350ms)
-                delay = 350;
+                // Approaching destination: slow down
+                delay = 200;
             } else {
-                // Last 5%: almost there (~500ms)
-                delay = 500;
+                // Last 5%: almost there
+                delay = 300;
             }
 
             await page.evaluate(corridorJS(kf));

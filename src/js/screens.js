@@ -128,7 +128,7 @@ function renderCorridorKeys(moves, seg, npcsHere) {
 function renderCorridorDark(loc, moves) {
     const seg = Lib.getSegment(loc.side, loc.position, loc.floor);
     let html = '<div id="corridor-view" class="mode-explore dark">';
-    html += '<p class="location-header">' + (state.side === 0 ? 'The Corridor' : 'The Other Corridor') + '</p>';
+    html += '<p class="location-header">' + (state.side === state._spawnSide ? 'The Corridor' : 'The Other Corridor') + '</p>';
 
     if (state.despairing) {
         html += '<p class="corridor-despair">...</p>';
@@ -165,7 +165,7 @@ Engine.register("Corridor", {
         const warnings = Surv.warnings();
 
         let html = '<div id="corridor-view" class="mode-explore">';
-        html += '<p class="location-header">' + (state.side === 0 ? 'The Corridor' : 'The Other Corridor') + '</p>';
+        html += '<p class="location-header">' + (state.side === state._spawnSide ? 'The Corridor' : 'The Other Corridor') + '</p>';
 
         if (state._lastMove === "up") {
             html += '<p class="stair-notice">You ascend.</p>';
@@ -358,12 +358,21 @@ Engine.register("Corridor", {
                     grid.appendChild(spine);
                     continue;
                 }
-                spine.className = "book-spine" + (isTarget ? " target-nearby" : "");
-                // Color drains from the library below 70 morale
-                const m = state.morale || 0;
-                const moraleFade = m >= 70 ? 1 : Math.max(0, m / 70);
-                const fadedS = Math.round(s * moraleFade);
-                spine.style.background = "hsl(" + h + "," + fadedS + "%," + l + "%)";
+                const dKey = state.side + ":" + state.position + ":" + state.floor + ":" + bi;
+                const wasOpened = state.dwellHistory && state.dwellHistory[dKey];
+                spine.className = "book-spine"
+                    + (isTarget ? " target-nearby" : "")
+                    + (wasOpened ? " book-opened" : "");
+                if (state.despairing) {
+                    // All books look the same when despairing
+                    spine.style.background = "hsl(0,0%," + l + "%)";
+                } else {
+                    // Color drains from the library below 70 morale
+                    const m = state.morale || 0;
+                    const moraleFade = m >= 70 ? 1 : Math.max(0, m / 70);
+                    const fadedS = Math.round(s * moraleFade);
+                    spine.style.background = "hsl(" + h + "," + fadedS + "%," + l + "%)";
+                }
                 spine.addEventListener("click", (function (idx) {
                     return function () {
                         const result = Actions.resolve({ type: "read_book", bookIndex: idx });
@@ -441,7 +450,7 @@ Engine.register("Shelf Open Book", {
             state.heldBook.position === bk.position && state.heldBook.floor === bk.floor &&
             state.heldBook.bookIndex === bk.bookIndex;
 
-        let html = '<div id="book-view" class="mode-book">';
+        let html = '<div id="book-view" class="mode-book' + (state.despairing ? ' despairing' : '') + '">';
 
         const bkLabel = esc(bookLabel(bk));
         if (pg === 0) {

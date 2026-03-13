@@ -148,6 +148,9 @@ function resolveReadBook(bookIndex) {
         floor: state.floor, bookIndex: bookIndex,
     };
     state.openPage = 1;
+    // Track opened books for shelf highlighting
+    if (!state.dwellHistory) state.dwellHistory = {};
+    state.dwellHistory[state.side + ":" + state.position + ":" + state.floor + ":" + bookIndex] = true;
     return { resolved: true, screen: "Shelf Open Book" };
 }
 
