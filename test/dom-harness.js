@@ -130,6 +130,9 @@ export function bootGame(seed = "test-seed-42") {
     });
     win.state.lifeStory = story;
     win.state.targetBook = story.bookCoords;
+    win.state._spawnSide = win.state.side;
+    win.state._spawnPosition = win.state.position;
+    win.state._spawnFloor = win.state.floor;
 
     game.Surv.init();
     game.Tick.init();

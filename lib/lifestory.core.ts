@@ -11,7 +11,7 @@
  */
 
 import { seedFromString, type Xoshiro128ss } from "./prng.core.ts";
-import { BOOKS_PER_GALLERY, isRestArea } from "./library.core.ts";
+import { BOOKS_PER_GALLERY, GALLERIES_PER_SEGMENT, isRestArea } from "./library.core.ts";
 import { PAGES_PER_BOOK } from "./book.core.ts";
 import { bigAbs } from "./bigint-utils.core.ts";
 import { textToAddress, addressToCoords, computeBookAddress, LIBRARY_MAX, PLAYABLE_ADDRESS_MAX } from "./invertible.core.ts";
@@ -210,7 +210,11 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const floorOffset = BigInt(20 + Math.floor(spawnRng.next() * 11));
     // Always spawn on the same side as the book — crossing is only at floor 0
     const playerSide  = side;
-    const playerPos   = position + dir * BigInt(ringR);
+    const playerPosRaw = position + dir * BigInt(ringR);
+    // Snap to nearest rest area (kiosk) so the player always starts at one
+    const G = GALLERIES_PER_SEGMENT;
+    const rem = ((playerPosRaw % G) + G) % G;
+    const playerPos = rem > G / 2n ? playerPosRaw - rem + G : playerPosRaw - rem;
     const playerFloor = floor + floorOffset;
 
     const playerStart: StartLocation = { side: playerSide, position: playerPos, floor: playerFloor };
