@@ -85,7 +85,9 @@ function renderCorridorDark(loc, moves) {
     let html = '<div id="corridor-view" class="mode-explore dark">';
     html += '<p class="location-header">' + (state.side === 0 ? 'The Corridor' : 'The Other Corridor') + '</p>';
 
-    if (seg.restArea) {
+    if (state.despairing) {
+        html += '<p class="corridor-despair">...</p>';
+    } else if (seg.restArea) {
         html += '<p>' + esc(T(TEXT.screens.darkness_rest_area, "darkness_rest_area:" + locKey(loc))) + '</p>';
     } else {
         html += '<p>' + esc(T(TEXT.screens.darkness_corridor, "darkness_corridor:" + locKey(loc))) + '</p>';
@@ -151,7 +153,7 @@ Engine.register("Corridor", {
             html += '<p class="stair-notice">You descend.</p>';
             state._lastMove = null;
         }
-        if (seg.lightLevel === "dim") {
+        if (seg.lightLevel === "dim" && !state.despairing) {
             html += '<p class="dim-notice">' + esc(Madlib(TEXT.madlibs.corridor_dim, "corridor_dim:" + locKey(loc))) + '</p>';
         }
         if (warnings.length > 0) {
