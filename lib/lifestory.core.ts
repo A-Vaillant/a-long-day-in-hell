@@ -160,8 +160,9 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const template = PROSE_TEMPLATES[rng.nextInt(PROSE_TEMPLATES.length)];
     story.storyText = template(story);
 
-    // Which page of the target book holds the life story (0-indexed)
-    story.targetPage = rng.nextInt(PAGES_PER_BOOK);
+    // targetPage formerly picked one page for the verbatim story paragraph.
+    // Now every page uses the life-arc generator; field kept for save compat.
+    story.targetPage = 0;
 
     // Book coordinates: derived from storyText via the address system.
     //

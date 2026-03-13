@@ -42,9 +42,6 @@ function findNPCStory(side, position, floor, bookIndex) {
  * target page, tedious life-arc content on all other pages.
  */
 function getStoryBookPage(story, pageIndex) {
-    if (pageIndex === story.targetPage) {
-        return story.storyText;
-    }
     return generateStoryPage(story.storyText, {
         name: story.name,
         occupation: story.occupation,
