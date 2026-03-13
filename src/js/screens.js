@@ -358,7 +358,11 @@ Engine.register("Corridor", {
                     continue;
                 }
                 spine.className = "book-spine" + (isTarget ? " target-nearby" : "");
-                spine.style.background = "hsl(" + h + "," + s + "%," + l + "%)";
+                // Color drains from the library below 70 morale
+                const m = state.morale || 0;
+                const moraleFade = m >= 70 ? 1 : Math.max(0, m / 70);
+                const fadedS = Math.round(s * moraleFade);
+                spine.style.background = "hsl(" + h + "," + fadedS + "%," + l + "%)";
                 spine.addEventListener("click", (function (idx) {
                     return function () {
                         const result = Actions.resolve({ type: "read_book", bookIndex: idx });
@@ -505,8 +509,10 @@ Engine.register("Shelf Open Book", {
             const h = Math.floor(rng.next() * 30);
             const s = 15 + Math.floor(rng.next() * 20);
             const l = 12 + Math.floor(rng.next() * 14);
+            const cm = state.morale || 0;
+            const coverFade = cm >= 70 ? 1 : Math.max(0, cm / 70);
             el.style.setProperty("--cover-h", h);
-            el.style.setProperty("--cover-s", s + "%");
+            el.style.setProperty("--cover-s", Math.round(s * coverFade) + "%");
             el.style.setProperty("--cover-l", l + "%");
         } else {
             el.className = "book-single book-page-symbols";
@@ -600,11 +606,11 @@ function mercyDistanceText(playerLoc, targetBook) {
     const floorDir = targetBook.floor > playerLoc.floor ? "above" : "below";
     const sameSide = playerLoc.side === targetBook.side;
 
-    let location;
+    let location = "Your book is located ";
     if (kioskDist === 0n) {
-        location = "near this very kiosk";
+        location += "near this very kiosk";
     } else {
-        location = "between the " + ordinal(kioskDist) + " and " + ordinal(kioskDist + 1n) + " kiosks " + posDir;
+        location += "between the " + ordinal(kioskDist) + " and " + ordinal(kioskDist + 1n) + " kiosks " + posDir;
     }
     if (!sameSide) location += ", across the chasm";
     if (floorDist > 0n) location += ", " + commas(floorDist) + " floor" + (floorDist === 1n ? "" : "s") + " " + floorDir;
@@ -1197,10 +1203,63 @@ Engine.register("Wait", {
 
 Engine.register("Sleep", {
     kind: "transition",
-    enter() { Actions.resolve({ type: "sleep" }); },
+    _inBedroom: false,
+    enter() {
+        this._inBedroom = state._lastScreen === "Bedroom";
+        Actions.resolve({ type: "sleep" });
+    },
     render() {
-        return '<p>' + esc(Madlib(TEXT.madlibs.sleep, "sleep:" + state.day)) + '</p>' +
-            '<a data-goto="Corridor"><kbd>⏎</kbd> Get up</a>';
+        const pool = this._inBedroom ? TEXT.madlibs.sleep : TEXT.madlibs.sleep_rough;
+        const text = pool ? Madlib(pool, "sleep:" + state.day) : Madlib(TEXT.madlibs.sleep, "sleep:" + state.day);
+        let html = '<p>' + esc(text) + '</p>';
+
+        // Mood line based on morale
+        const morale = state.morale || 0;
+        const moodPool = state.despairing ? TEXT.madlibs.sleep_mood_despairing
+            : morale < 40 ? TEXT.madlibs.sleep_mood_low
+            : null;
+        if (moodPool && moodPool.length > 0) {
+            const moodRng = seedFromString("sleep-mood:" + state.day + ":" + (state.deaths || 0));
+            const moodLine = moodPool[moodRng.nextInt(moodPool.length)];
+            html += '<p class="sleep-mood">' + esc(moodLine) + '</p>';
+        }
+
+        html += '<a data-goto="Corridor"><kbd>E</kbd> Get up</a>';
+        return html;
+    },
+});
+
+/* ---------- Passing Out ---------- */
+
+Engine.register("Passing Out", {
+    kind: "state",
+    render() {
+        const passoutPool = TEXT.screens.passing_out || [
+            "Your legs give out. The floor catches you. The lights are already gone."
+        ];
+        const rng = seedFromString("passout:" + state.day);
+        const text = passoutPool[rng.nextInt(passoutPool.length)];
+
+        let html = '<div id="passout-view">';
+        html += '<p>' + esc(text) + '</p>';
+        html += '<hr>';
+        html += '<p>' + esc(T(TEXT.screens.resurrection, "resurrection:" + state.day)) + '</p>';
+        html += '<p>Day ' + state.day + '.</p>';
+
+        // Mood line
+        const morale = state.morale || 0;
+        const moodPool = state.despairing ? TEXT.madlibs.sleep_mood_despairing
+            : morale < 40 ? TEXT.madlibs.sleep_mood_low
+            : null;
+        if (moodPool && moodPool.length > 0) {
+            const moodRng = seedFromString("passout-mood:" + state.day + ":" + (state.deaths || 0));
+            const moodLine = moodPool[moodRng.nextInt(moodPool.length)];
+            html += '<p class="sleep-mood">' + esc(moodLine) + '</p>';
+        }
+
+        html += '<p><a data-goto="Corridor"><kbd>E</kbd> Wake up</a></p>';
+        html += '</div>';
+        return html;
     },
 });
 
@@ -1477,7 +1536,7 @@ Engine.register("Death", {
             '<hr>' +
             '<p>' + esc(T(TEXT.screens.resurrection, "resurrection:" + state.day)) + '</p>' +
             '<p>Day ' + state.day + '. Deaths: ' + state.deaths + '.</p>' +
-            '<p><a data-goto="Corridor"><kbd>⏎</kbd> Continue</a></p>' +
+            '<p><a data-goto="Corridor"><kbd>E</kbd> Continue</a></p>' +
             '</div>';
     },
 });

@@ -227,6 +227,12 @@ button:disabled {
     font-style: italic;
 }
 
+.sleep-mood {
+    color: #6a5a4a;
+    font-style: italic;
+    margin-top: 0.6rem;
+}
+
 .grab-fail {
     color: #a05030;
     font-style: italic;
@@ -1074,6 +1080,25 @@ button:disabled {
 @keyframes death-enter {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
+}
+
+/* === PASSING OUT SCREEN === */
+
+#passout-view {
+    max-width: 560px;
+    animation: death-enter 0.8s ease-out;
+}
+
+#passout-view hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+}
+
+#passout-view > p:first-child {
+    font-size: 1.05em;
+    line-height: 1.8;
+    color: #8a7a66;
 }
 
 /* === WIN SCREEN === */

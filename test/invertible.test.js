@@ -139,19 +139,21 @@ describe("player is never damned", () => {
             const { position, floor } = story.bookCoords;
             assert.ok(position >= 0n && position < 10_000_000_000n,
                 `seed ${i}: position ${position} out of range`);
-            assert.ok(floor >= 0n && floor < 100_000n,
-                `seed ${i}: floor ${floor} out of range`);
+            assert.ok(floor >= 2000n && floor <= 95000n,
+                `seed ${i}: floor ${floor} out of clamped range [2000, 95000]`);
         }
     });
 
-    it("addressToCoords round-trips through bookAddress for player (modulo rest-area nudge)", () => {
+    it("addressToCoords round-trips through bookAddress for player (modulo rest-area nudge + floor clamp)", () => {
         const story = generateLifeStory("roundtrip-test");
         const coords = addressToCoords(story.bookAddress, BOOKS_PER_GALLERY);
         assert.strictEqual(coords.side, story.bookCoords.side);
-        assert.strictEqual(coords.floor, story.bookCoords.floor);
         assert.strictEqual(coords.bookIndex, story.bookCoords.bookIndex);
         // position may be nudged +1 if it landed on a rest area
         const pos = story.bookCoords.position;
         assert.ok(pos === coords.position || pos === coords.position + 1n);
+        // floor is clamped to [2000, 95000] — may differ from raw addressToCoords
+        assert.ok(story.bookCoords.floor >= 2000n && story.bookCoords.floor <= 95000n,
+            `floor ${story.bookCoords.floor} should be in [2000, 95000]`);
     });
 });

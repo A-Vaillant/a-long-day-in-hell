@@ -113,6 +113,7 @@ export const Engine = {
             try { oldScreen.exit(); } catch (e) { console.error("exit() error:", e); }
         }
 
+        state._lastScreen = this._currentScreen || null;
         this._currentScreen = name;
         state.screen = name;
         if (screen.enter) screen.enter();

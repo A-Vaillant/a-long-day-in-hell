@@ -21,6 +21,10 @@ import { PRNG } from "./prng.js";
 import { Book } from "./book.js";
 import { Social } from "./social.js";
 
+// Auto-drink threshold — aligned with NPC needs system (needs.core.ts).
+// Hunger stays manual: starvation is a real consequence of mindless walking.
+const AUTO_DRINK_THRESHOLD = 50;
+
 /**
  * Resolve a single action. Returns result object.
  *
@@ -84,11 +88,27 @@ function resolveMove(dir) {
     if (dir === "up") Surv.exhaust(1.5);
     else if (dir === "down") Surv.exhaust(0.75);
 
+    // Forced sleep — player passed out, show the screen
+    if (state._passedOut) {
+        state._passedOut = false;
+        return { resolved: true, screen: "Passing Out" };
+    }
+
+    // Auto-drink at rest area kiosks (no extra tick cost, mirrors NPC behavior).
+    // Hunger stays manual — starvation is the cost of mindless walking.
+    if (Lib.isRestArea(state.position) && state.lightsOn) {
+        if (state.thirst >= AUTO_DRINK_THRESHOLD) Surv.onDrink();
+    }
+
     return { resolved: true, screen: "Corridor" };
 }
 
 function resolveWait() {
     Tick.onMove();
+    if (state._passedOut) {
+        state._passedOut = false;
+        return { resolved: true, screen: "Passing Out" };
+    }
     return { resolved: true, screen: "Wait" };
 }
 

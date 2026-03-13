@@ -205,3 +205,94 @@ describe("screen render coverage: mercy hint", () => {
         assert.ok(html.includes("kiosk"), "mercy hint should mention kiosks");
     });
 });
+
+// --- Morale desaturation ---
+
+describe("morale desaturation", () => {
+    // jsdom converts hsl() to rgb(), so we measure saturation via channel spread
+    function rgbSpread(style) {
+        const m = style.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (!m) return null;
+        const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
+        return Math.max(r, g, b) - Math.min(r, g, b);
+    }
+
+    it("book spines at full morale have color (nonzero rgb spread)", () => {
+        const game = bootGame();
+        game.state.position = 1n;
+        game.state.morale = 100;
+        game.Engine.goto("Corridor");
+        const spine = game.document.querySelector(".book-spine:not(.book-gap)");
+        assert.ok(spine, "spine exists");
+        const spread = rgbSpread(spine.style.background);
+        assert.ok(spread !== null, "spine has rgb background: " + spine.style.background);
+        assert.ok(spread > 0, "should have color at full morale, spread=" + spread);
+    });
+
+    it("book spines at zero morale are grey (zero rgb spread)", () => {
+        const game = bootGame();
+        game.state.position = 1n;
+        game.state.morale = 0;
+        game.state.despairing = true;
+        game.Engine.goto("Corridor");
+        const spines = game.document.querySelectorAll(".book-spine:not(.book-gap)");
+        assert.ok(spines.length > 0, "spines exist");
+        for (const spine of spines) {
+            const spread = rgbSpread(spine.style.background);
+            assert.strictEqual(spread, 0,
+                "should be grey at zero morale: " + spine.style.background);
+        }
+    });
+
+    it("desaturation doesn't start until morale drops below 70", () => {
+        const game70 = bootGame();
+        game70.state.position = 1n;
+        game70.state.morale = 70;
+        game70.Engine.goto("Corridor");
+
+        const game100 = bootGame();
+        game100.state.position = 1n;
+        game100.state.morale = 100;
+        game100.Engine.goto("Corridor");
+
+        const spread70 = rgbSpread(game70.document.querySelector(".book-spine:not(.book-gap)").style.background);
+        const spread100 = rgbSpread(game100.document.querySelector(".book-spine:not(.book-gap)").style.background);
+        assert.strictEqual(spread70, spread100,
+            "morale 70 and 100 should have identical saturation");
+    });
+
+    it("morale below 70 reduces saturation vs full morale", () => {
+        const game35 = bootGame();
+        game35.state.position = 1n;
+        game35.state.morale = 35;
+        game35.Engine.goto("Corridor");
+
+        const game100 = bootGame();
+        game100.state.position = 1n;
+        game100.state.morale = 100;
+        game100.Engine.goto("Corridor");
+
+        const spread35 = rgbSpread(game35.document.querySelector(".book-spine:not(.book-gap)").style.background);
+        const spread100 = rgbSpread(game100.document.querySelector(".book-spine:not(.book-gap)").style.background);
+        assert.ok(spread35 < spread100,
+            `morale 35 spread ${spread35} should be less than full ${spread100}`);
+    });
+
+    it("book cover desaturates with morale", () => {
+        const game = bootGame();
+        game.state.position = 1n;
+        game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 3 };
+        game.state.openPage = 0;
+
+        game.state.morale = 100;
+        game.Engine.goto("Shelf Open Book");
+        const s100 = game.document.getElementById("book-single").style.getPropertyValue("--cover-s");
+
+        game.state.morale = 0;
+        game.Engine.goto("Shelf Open Book");
+        const s0 = game.document.getElementById("book-single").style.getPropertyValue("--cover-s");
+
+        assert.strictEqual(s0, "0%", "cover should be fully desaturated at morale 0");
+        assert.ok(parseInt(s100) > 0, "cover should have saturation at morale 100");
+    });
+});

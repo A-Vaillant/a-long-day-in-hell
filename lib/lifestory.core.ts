@@ -188,7 +188,12 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const addrForCoords: bigint = ((bookAddress % PLAYABLE_ADDRESS_MAX) + PLAYABLE_ADDRESS_MAX) % PLAYABLE_ADDRESS_MAX;
     const { side, position: rawPosition, floor: rawFloor, bookIndex } = addressToCoords(addrForCoords, BOOKS_PER_GALLERY);
     let position: bigint = rawPosition;
-    let floor: bigint = rawFloor;
+    // Clamp floor to deep library — book should never be near ground level
+    const BOOK_FLOOR_MIN = 2000n;
+    const BOOK_FLOOR_MAX = 95000n;
+    let floor: bigint = rawFloor < BOOK_FLOOR_MIN ? BOOK_FLOOR_MIN + (rawFloor % (BOOK_FLOOR_MAX - BOOK_FLOOR_MIN))
+        : rawFloor > BOOK_FLOOR_MAX ? BOOK_FLOOR_MIN + (rawFloor % (BOOK_FLOOR_MAX - BOOK_FLOOR_MIN))
+        : rawFloor;
 
     // Rest areas have no shelves — nudge to nearest gallery
     if (isRestArea(position)) position += 1n;

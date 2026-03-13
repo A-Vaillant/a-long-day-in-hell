@@ -72,6 +72,7 @@ export const Tick = {
     onMove() {
         if (isResetHour(state.tick)) {
             this.onForcedSleep();
+            state._passedOut = true;
             return [];
         }
         const events = this.advance(1);

@@ -219,6 +219,59 @@
       ]
     }
   },
+  "sleep_mood_low": [
+    "You wonder if tomorrow will be different. You know it won't.",
+    "Tomorrow you'll do this again. And the day after.",
+    "You try to remember something good. It takes a long time.",
+    "The weight of the days sits on your chest."
+  ],
+  "sleep_mood_despairing": [
+    "You don't want to wake up. You will anyway.",
+    "Sleep is the closest thing to escape this place offers.",
+    "You can't remember what hope felt like.",
+    "There is nothing waiting for you tomorrow. There is nothing waiting for you ever.",
+    "You close your eyes and wish they wouldn't open again.",
+    "The thought of standing up tomorrow is unbearable. You'll do it anyway."
+  ],
+  "sleep_rough": {
+    "templates": [
+      "{liedown}. {surface}. {unconscious}.",
+      "{liedown}. {unconscious}.",
+      "{surface}. {unconscious}.",
+      "{liedown}. {silence}."
+    ],
+    "pools": {
+      "liedown": [
+        "You sit down against the shelves and close your eyes",
+        "You curl up on the carpet",
+        "You lie down where you stand",
+        "You slump against the wall",
+        "You lower yourself to the floor",
+        "You stop walking and let your legs fold"
+      ],
+      "surface": [
+        "The carpet is thin over stone",
+        "The floor is not comfortable. It is what there is",
+        "The carpet smells faintly of dust and nothing else",
+        "You use your arm as a pillow",
+        "The shelves press against your back"
+      ],
+      "unconscious": [
+        "Sleep takes you anyway",
+        "Sleep comes. Dreamless, as always",
+        "The darkness behind your eyelids is no different from the darkness of the library",
+        "You dream of nothing. You always dream of nothing",
+        "Unconsciousness arrives like a door closing",
+        "You are asleep before you finish the thought",
+        "The strange mercy of unconsciousness in a place with no mercy"
+      ],
+      "silence": [
+        "The silence is absolute — not even the whisper of air movement",
+        "In the dark, the corridor is indistinguishable from any other",
+        "The quiet takes you down"
+      ]
+    }
+  },
 
   "kiosk_drink": {
     "templates": [

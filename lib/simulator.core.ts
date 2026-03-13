@@ -26,6 +26,9 @@ import * as NpcCore from "./npc.core.ts";
 import type { NPC, DialogueTable } from "./npc.core.ts";
 import { applyAmbientDrain, modifySleepRecovery, shouldClearDespairing, isReadingBlocked, CONFIG as DespairConfig } from "./despairing.core.ts";
 
+// Auto-drink threshold — aligned with NPC needs system (needs.core.ts).
+// Hunger stays manual: starvation is a real consequence of mindless walking.
+const AUTO_DRINK_THRESHOLD = 50;
 
 /* ---- Strategy interface ----
  *
@@ -163,7 +166,7 @@ interface InternalState {
     npcs: NPC[];
     nonsensePagesRead: number;
     totalMoves: number;
-    segmentsVisited: Set<string>;
+    segmentsVisited: number;
     booksRead: Set<string>;
 }
 
@@ -259,7 +262,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         nonsensePagesRead: 0,
         // Tracking
         totalMoves: 0,
-        segmentsVisited: new Set(),
+        segmentsVisited: 0,
         booksRead: new Set(),
     };
 
@@ -274,7 +277,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     }
 
     // Mark start segment
-    gs.segmentsVisited.add(Lib.locationKey({ side: gs.side, position: gs.position, floor: gs.floor }));
+    gs.segmentsVisited = 1;
 
     /** Expose a read-only snapshot for strategies. */
     function gameState(): GameState {
@@ -294,7 +297,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
             stats: { ...gs.stats },
             targetBook: gs.targetBook,
             totalMoves: gs.totalMoves,
-            segmentsVisited: gs.segmentsVisited.size,
+            segmentsVisited: gs.segmentsVisited,
             booksRead: gs.booksRead.size,
             submissionsAttempted: gs.submissionsAttempted,
             npcs: gs.npcs.map(n => ({ ...n })),
@@ -319,10 +322,16 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                 gs.position = dest.position;
                 gs.floor = dest.floor;
                 gs.totalMoves++;
-                gs.segmentsVisited.add(Lib.locationKey(dest));
+                gs.segmentsVisited++;
 
                 // Movement tick
                 advanceOneTick();
+
+                // Auto-drink at rest area kiosks (mirrors NPC needs + player actions.js).
+                // Hunger stays manual — starvation is the cost of mindless walking.
+                if (Lib.isRestArea(gs.position) && gs.lightsOn) {
+                    if (gs.stats.thirst >= AUTO_DRINK_THRESHOLD) gs.stats = Surv.applyDrink(gs.stats);
+                }
 
                 // Event draw
                 if (eventCards.length > 0) {
@@ -542,7 +551,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
             day: gs.day,
             deaths: gs.deaths,
             totalMoves: gs.totalMoves,
-            segmentsVisited: gs.segmentsVisited.size,
+            segmentsVisited: gs.segmentsVisited,
             booksRead: gs.booksRead.size,
             submissionsAttempted: gs.submissionsAttempted,
             finalStats: { ...gs.stats },

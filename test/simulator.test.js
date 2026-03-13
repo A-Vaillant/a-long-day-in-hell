@@ -300,3 +300,91 @@ describe("simulator: callbacks", () => {
         assert.ok(dayCalls >= 2, `onDay should fire per dawn, got ${dayCalls}`);
     });
 });
+
+/* ---- Auto-drink at rest areas (hunger stays manual) ---- */
+
+describe("simulator: auto-drink", () => {
+    // "Hold right" strategy: only walks right and sleeps. Never manually eats/drinks.
+    function holdRight() {
+        return strategies.custom("holdRight", (gs) => {
+            if (!gs.lightsOn || gs.stats.exhaustion >= 80) return { type: "sleep" };
+            return { type: "move", dir: "right" };
+        });
+    }
+
+    // Walks right but eats at kiosks when hungry — tests that eating + auto-drink
+    // together keep you alive indefinitely.
+    function holdRightWithEating() {
+        return strategies.custom("holdRightEat", (gs) => {
+            if (!gs.lightsOn || gs.stats.exhaustion >= 80) return { type: "sleep" };
+            if (gs.isRestArea && gs.stats.hunger >= 50) return { type: "eat" };
+            return { type: "move", dir: "right" };
+        });
+    }
+
+    it("hold-right walker who eats survives 30 days (auto-drink handles thirst)", () => {
+        const sim = createSimulation({
+            seed: "autodrink-eat-survive",
+            maxDays: 30,
+            strategy: holdRightWithEating(),
+        });
+        const result = sim.run();
+        assert.strictEqual(result.deaths, 0,
+            `expected 0 deaths when eating manually, got ${result.deaths}`);
+        assert.ok(result.finalStats.thirst < 80,
+            `thirst should stay manageable via auto-drink: ${result.finalStats.thirst}`);
+    });
+
+    it("hold-right walker who never eats dies of starvation", () => {
+        const sim = createSimulation({
+            seed: "autodrink-starve",
+            maxDays: 30,
+            maxDeaths: 20,
+            strategy: holdRight(),
+        });
+        const result = sim.run();
+        assert.ok(result.deaths > 0,
+            "should die from starvation without manual eating");
+    });
+
+    it("starvation deaths accumulate and grind morale down", () => {
+        const sim = createSimulation({
+            seed: "autodrink-morale-grind",
+            maxDays: 60,
+            maxDeaths: 50,
+            strategy: holdRight(),
+        });
+        const result = sim.run();
+        assert.ok(result.deaths >= 3,
+            `expected repeated starvation deaths, got ${result.deaths}`);
+        assert.ok(result.finalStats.morale < 80,
+            `morale should degrade from repeated deaths: ${result.finalStats.morale}`);
+    });
+
+    it("auto-drink keeps thirst manageable even without manual drinking", () => {
+        const sim = createSimulation({
+            seed: "autodrink-thirst",
+            maxDays: 30,
+            maxDeaths: 20,
+            strategy: holdRight(),
+        });
+        const result = sim.run();
+        // Deaths should be from hunger, not thirst — thirst is auto-managed
+        assert.ok(result.finalStats.thirst < 90,
+            `thirst should stay controlled via auto-drink: ${result.finalStats.thirst}`);
+    });
+
+    it("hold-right covers ground despite starvation deaths", () => {
+        const sim = createSimulation({
+            seed: "autodrink-distance",
+            maxDays: 10,
+            maxDeaths: 10,
+            strategy: holdRight(),
+        });
+        const result = sim.run();
+        assert.ok(result.totalMoves > 3000,
+            `expected movement despite deaths, got ${result.totalMoves} moves`);
+        assert.ok(result.segmentsVisited > 100,
+            `expected segment coverage, got ${result.segmentsVisited}`);
+    });
+});

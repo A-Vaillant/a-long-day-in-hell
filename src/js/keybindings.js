@@ -192,7 +192,7 @@ document.addEventListener("keydown", function (ev) {
                 return;
         }
         return;
-    } else if (screen === "Sleep") {
+    } else if (screen === "Sleep" || screen === "Passing Out") {
         if (key === "Enter" || key === " " || key === "e") {
             ev.preventDefault();
             Engine.goto("Corridor");
