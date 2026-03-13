@@ -8,26 +8,26 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createWorld, spawn, addComponent, getComponent, entitiesWith } from "../lib/ecs.core.ts";
+import { createWorld, spawn, addComponent, getComponent, entitiesWith } from "../../lib/ecs.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, AI, GROUP,
     psychologyDecaySystem, relationshipSystem,
     groupFormationSystem, socialPressureSystem, buildLocationIndex,
-} from "../lib/social.core.ts";
-import { HABITUATION } from "../lib/psych.core.ts";
-import { PERSONALITY, generatePersonality } from "../lib/personality.core.ts";
-import { BELIEF, generateBelief } from "../lib/belief.core.ts";
-import { STATS, generateStats } from "../lib/stats.core.ts";
-import { NEEDS, needsSystem } from "../lib/needs.core.ts";
-import { MOVEMENT, movementSystem } from "../lib/movement.core.ts";
-import { SEARCHING, searchSystem, findWordsFromSeed } from "../lib/search.core.ts";
-import { INTENT, intentSystem } from "../lib/intent.core.ts";
-import { SLEEP, nearestRestArea } from "../lib/sleep.core.ts";
-import { KNOWLEDGE, createKnowledge } from "../lib/knowledge.core.ts";
-import { generateBookPage } from "../lib/book.core.ts";
-import { seedFromString } from "../lib/prng.core.ts";
-import { TICKS_PER_DAY, WAKING_TICKS } from "../lib/scale.core.ts";
-import * as NpcCore from "../lib/npc.core.ts";
+} from "../../lib/social.core.ts";
+import { HABITUATION } from "../../lib/psych.core.ts";
+import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts";
+import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
+import { STATS, generateStats } from "../../lib/stats.core.ts";
+import { NEEDS, needsSystem } from "../../lib/needs.core.ts";
+import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
+import { SEARCHING, searchSystem, findWordsFromSeed } from "../../lib/search.core.ts";
+import { INTENT, intentSystem } from "../../lib/intent.core.ts";
+import { SLEEP, nearestRestArea } from "../../lib/sleep.core.ts";
+import { KNOWLEDGE, createKnowledge } from "../../lib/knowledge.core.ts";
+import { generateBookPage } from "../../lib/book.core.ts";
+import { seedFromString } from "../../lib/prng.core.ts";
+import { TICKS_PER_DAY, WAKING_TICKS } from "../../lib/scale.core.ts";
+import * as NpcCore from "../../lib/npc.core.ts";
 
 const SEED = "coroutine-perf-bench";
 
@@ -287,7 +287,7 @@ describe("coroutine-perf: system isolation", () => {
 import {
     advanceSolo, advanceSoloTick, advanceSoloFastForward,
     ticksToNextThreshold,
-} from "../lib/solo-coroutine.core.ts";
+} from "../../lib/solo-coroutine.core.ts";
 
 function createSoloState(opts = {}) {
     const {

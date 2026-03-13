@@ -12,23 +12,23 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
+import { createWorld, spawn, addComponent, getComponent } from "../../lib/ecs.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, AI, GROUP,
     psychologyDecaySystem, relationshipSystem, groupFormationSystem,
     socialPressureSystem, npcDismissSystem, buildLocationIndex,
     deriveDisposition, getOrCreateBond, hasMutualBond,
     DEFAULT_THRESHOLDS, DEFAULT_BOND, DEFAULT_DECAY,
-} from "../lib/social.core.ts";
-import { NEEDS, needsSystem, DEFAULT_NEEDS } from "../lib/needs.core.ts";
-import { MOVEMENT, movementSystem } from "../lib/movement.core.ts";
-import { INTENT, intentSystem } from "../lib/intent.core.ts";
-import { PERSONALITY, generatePersonality } from "../lib/personality.core.ts";
-import { BELIEF, generateBelief } from "../lib/belief.core.ts";
-import { STATS, generateStats, influenceMod } from "../lib/stats.core.ts";
-import { HABITUATION } from "../lib/psych.core.ts";
-import { SLEEP, nearestRestArea } from "../lib/sleep.core.ts";
-import { seedFromString } from "../lib/prng.core.ts";
+} from "../../lib/social.core.ts";
+import { NEEDS, needsSystem, DEFAULT_NEEDS } from "../../lib/needs.core.ts";
+import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
+import { INTENT, intentSystem } from "../../lib/intent.core.ts";
+import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts";
+import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
+import { STATS, generateStats, influenceMod } from "../../lib/stats.core.ts";
+import { HABITUATION } from "../../lib/psych.core.ts";
+import { SLEEP, nearestRestArea } from "../../lib/sleep.core.ts";
+import { seedFromString } from "../../lib/prng.core.ts";
 
 const SEED = "group-coroutine-test";
 

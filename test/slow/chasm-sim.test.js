@@ -1,9 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createSimulation, strategies } from "../lib/simulator.core.ts";
-import * as ChasmCore from "../lib/chasm.core.ts";
-import * as Surv from "../lib/survival.core.ts";
-import * as Tick from "../lib/tick.core.ts";
+import { createSimulation, strategies } from "../../lib/simulator.core.ts";
+import * as ChasmCore from "../../lib/chasm.core.ts";
+import * as Surv from "../../lib/survival.core.ts";
+import * as Tick from "../../lib/tick.core.ts";
 
 /**
  * Simulate a freefall manually using core modules.

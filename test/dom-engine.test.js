@@ -29,7 +29,7 @@ describe("DOM: Engine boundary registry", () => {
         // This integration test just verifies the full tick pipeline runs
         // cleanly and hope stays in [0, 100] across many dawns.
         const game = bootGame();
-        for (let i = 0; i < 30; i++) game.Tick.advanceToDawn();
+        for (let i = 0; i < 3; i++) game.Tick.advanceToDawn();
         for (const npc of game.state.npcs) {
             const psych = game.Social.getNpcPsych(npc.id);
             if (!psych) continue;

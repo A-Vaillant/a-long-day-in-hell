@@ -8,30 +8,30 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
+import { createWorld, spawn, addComponent, getComponent } from "../../lib/ecs.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, AI,
     psychologyDecaySystem, deriveDisposition,
     DEFAULT_DECAY, DEFAULT_THRESHOLDS,
-} from "../lib/social.core.ts";
-import { NEEDS, needsSystem, DEFAULT_NEEDS } from "../lib/needs.core.ts";
-import { MOVEMENT, movementSystem } from "../lib/movement.core.ts";
-import { INTENT, intentSystem, evaluateIntent, DEFAULT_INTENT } from "../lib/intent.core.ts";
-import { PERSONALITY, generatePersonality } from "../lib/personality.core.ts";
-import { BELIEF, generateBelief } from "../lib/belief.core.ts";
-import { STATS, generateStats, enduranceMod } from "../lib/stats.core.ts";
-import { SLEEP, nearestRestArea } from "../lib/sleep.core.ts";
-import { SEARCHING, searchSystem, findWordsFromSeed } from "../lib/search.core.ts";
-import { HABITUATION } from "../lib/psych.core.ts";
-import { KNOWLEDGE, createKnowledge } from "../lib/knowledge.core.ts";
-import { seedFromString } from "../lib/prng.core.ts";
-import { isRestArea } from "../lib/library.core.ts";
-import { generateBookPage } from "../lib/book.core.ts";
+} from "../../lib/social.core.ts";
+import { NEEDS, needsSystem, DEFAULT_NEEDS } from "../../lib/needs.core.ts";
+import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
+import { INTENT, intentSystem, evaluateIntent, DEFAULT_INTENT } from "../../lib/intent.core.ts";
+import { PERSONALITY, generatePersonality } from "../../lib/personality.core.ts";
+import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
+import { STATS, generateStats, enduranceMod } from "../../lib/stats.core.ts";
+import { SLEEP, nearestRestArea } from "../../lib/sleep.core.ts";
+import { SEARCHING, searchSystem, findWordsFromSeed } from "../../lib/search.core.ts";
+import { HABITUATION } from "../../lib/psych.core.ts";
+import { KNOWLEDGE, createKnowledge } from "../../lib/knowledge.core.ts";
+import { seedFromString } from "../../lib/prng.core.ts";
+import { isRestArea } from "../../lib/library.core.ts";
+import { generateBookPage } from "../../lib/book.core.ts";
 import {
     advanceSoloTick, advanceSolo, ticksToNextThreshold,
     DEFAULT_SOLO_CONFIG,
-} from "../lib/solo-coroutine.core.ts";
-import { TICKS_PER_DAY, WAKING_TICKS } from "../lib/scale.core.ts";
+} from "../../lib/solo-coroutine.core.ts";
+import { TICKS_PER_DAY, WAKING_TICKS } from "../../lib/scale.core.ts";
 
 const SEED = "solo-coroutine-test";
 

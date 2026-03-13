@@ -9,7 +9,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
     createWorld, spawn, addComponent, getComponent,
-} from "../lib/ecs.core.ts";
+} from "../../lib/ecs.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, AI,
     deriveDisposition,
@@ -18,13 +18,13 @@ import {
     groupFormationSystem,
     socialPressureSystem,
     buildLocationIndex,
-} from "../lib/social.core.ts";
-import { PERSONALITY, generatePersonality, applySideBias, SIDE_PROFILES, compatibility } from "../lib/personality.core.ts";
-import { BELIEF, generateBelief } from "../lib/belief.core.ts";
-import { HABITUATION } from "../lib/psych.core.ts";
-import { NEEDS } from "../lib/needs.core.ts";
-import { STATS, generateStats } from "../lib/stats.core.ts";
-import { seedFromString } from "../lib/prng.core.ts";
+} from "../../lib/social.core.ts";
+import { PERSONALITY, generatePersonality, applySideBias, SIDE_PROFILES, compatibility } from "../../lib/personality.core.ts";
+import { BELIEF, generateBelief } from "../../lib/belief.core.ts";
+import { HABITUATION } from "../../lib/psych.core.ts";
+import { NEEDS } from "../../lib/needs.core.ts";
+import { STATS, generateStats } from "../../lib/stats.core.ts";
+import { seedFromString } from "../../lib/prng.core.ts";
 
 // --- Helpers ---
 
