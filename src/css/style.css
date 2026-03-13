@@ -179,6 +179,16 @@ button:disabled {
     opacity: 0.8;
 }
 
+#corridor-view {
+    display: flex;
+    flex-direction: column;
+    min-height: 80vh;
+}
+
+#corridor-view .corridor-keys {
+    margin-top: auto;
+}
+
 #corridor-view p {
     margin: 0 0 0.7rem;
 }

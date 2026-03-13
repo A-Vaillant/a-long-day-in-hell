@@ -84,6 +84,47 @@ function locKey(loc) {
 
 /* ---------- Corridor ---------- */
 
+const MOVE_LINKS = [
+    { dir: "left",  label: "\u2190", key: "h" },
+    { dir: "right", label: "\u2192", key: "l" },
+    { dir: "up",    label: "\u2191", key: "k" },
+    { dir: "down",  label: "\u2193", key: "j" },
+    { dir: "cross", label: "\u21cc", key: "x" },
+];
+
+function renderCorridorKeys(moves, seg, npcsHere) {
+    let html = '<div class="corridor-keys">';
+    html += '<div id="moves"><strong>Move:</strong> ';
+    for (let m = 0; m < MOVE_LINKS.length; m++) {
+        if (moves.indexOf(MOVE_LINKS[m].dir) !== -1) {
+            html += '<a data-goto="Corridor" data-action="move-' + MOVE_LINKS[m].dir + '"><kbd>' + MOVE_LINKS[m].key + '</kbd> ' + MOVE_LINKS[m].label + '</a> ';
+        }
+    }
+    html += '</div>';
+
+    html += '<div id="actions">';
+    html += '<a data-goto="Wait"><kbd>.</kbd> wait</a>';
+    if (Surv.canSleep()) html += ' <a data-goto="Sleep"><kbd>z</kbd> sleep</a>';
+    if (state.lightsOn && state.heldBook !== null) {
+        var heldLabel = getBookName(state.heldBook);
+        html += ' <a data-goto="Read Held Book"><kbd>r</kbd> read' + (heldLabel ? ' \u2018' + esc(heldLabel) + '\u2019' : '') + '</a>';
+    }
+    if (state.floor > 0n) {
+        html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
+    }
+    if (npcsHere && npcsHere.length > 0) {
+        html += ' <a id="corridor-talk"><kbd>t</kbd> talk</a>';
+    }
+    if (seg.restArea && state.lightsOn) {
+        html += '<a data-goto="Kiosk"><kbd>K</kbd> kiosk</a> <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a> <a data-goto="Submission Slot"><kbd>s</kbd> submit</a> <a data-goto="Sign"><kbd>R</kbd> sign</a>';
+    } else if (seg.restArea) {
+        html += ' <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a>';
+    }
+    html += '</div>';
+    html += '</div>';
+    return html;
+}
+
 function renderCorridorDark(loc, moves) {
     const seg = Lib.getSegment(loc.side, loc.position, loc.floor);
     let html = '<div id="corridor-view" class="mode-explore dark">';
@@ -104,31 +145,7 @@ function renderCorridorDark(loc, moves) {
         html += '</p>';
     }
 
-    html += '<div id="moves"><strong>Move:</strong> ';
-    const moveLinks = [
-        { dir: "left",  label: "\u2190", key: "h" },
-        { dir: "right", label: "\u2192", key: "l" },
-        { dir: "up",    label: "\u2191", key: "k" },
-        { dir: "down",  label: "\u2193", key: "j" },
-        { dir: "cross", label: "\u21cc", key: "x" },
-    ];
-    for (let m = 0; m < moveLinks.length; m++) {
-        if (moves.indexOf(moveLinks[m].dir) !== -1) {
-            html += '<a data-goto="Corridor" data-action="move-' + moveLinks[m].dir + '"><kbd>' + moveLinks[m].key + '</kbd> ' + moveLinks[m].label + '</a> ';
-        }
-    }
-    html += '</div>';
-
-    html += '<div id="actions">';
-    html += '<a data-goto="Wait"><kbd>.</kbd> wait</a>';
-    if (Surv.canSleep()) html += ' <a data-goto="Sleep"><kbd>z</kbd> sleep</a>';
-    if (state.floor > 0n) {
-        html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
-    }
-    if (seg.restArea) {
-        html += ' <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a>';
-    }
-    html += '</div>';
+    html += renderCorridorKeys(moves, seg);
 
     html += debugPanelHTML();
     html += '</div>';
@@ -267,38 +284,7 @@ Engine.register("Corridor", {
             html += '<p class="feature">' + esc(T(TEXT.screens.corridor_bridge, "corridor_bridge:" + locKey(loc))) + '</p>';
         }
 
-        html += '<div id="moves"><strong>Move:</strong> ';
-        const moveLinks = [
-            { dir: "left",  label: "\u2190", key: "h" },
-            { dir: "right", label: "\u2192", key: "l" },
-            { dir: "up",    label: "\u2191", key: "k" },
-            { dir: "down",  label: "\u2193", key: "j" },
-            { dir: "cross", label: "\u21cc", key: "x" },
-        ];
-        for (let m = 0; m < moveLinks.length; m++) {
-            if (moves.indexOf(moveLinks[m].dir) !== -1) {
-                html += '<a data-goto="Corridor" data-action="move-' + moveLinks[m].dir + '"><kbd>' + moveLinks[m].key + '</kbd> ' + moveLinks[m].label + '</a> ';
-            }
-        }
-        html += '</div>';
-
-        html += '<div id="actions">';
-        html += '<a data-goto="Wait"><kbd>.</kbd> wait</a>';
-        if (Surv.canSleep()) html += ' <a data-goto="Sleep"><kbd>z</kbd> sleep</a>';
-        if (state.heldBook !== null && state.lightsOn) {
-            var heldLabel = getBookName(state.heldBook);
-            html += ' <a data-goto="Read Held Book"><kbd>r</kbd> read' + (heldLabel ? ' \u2018' + esc(heldLabel) + '\u2019' : '') + '</a>';
-        }
-        if (state.floor > 0n) {
-            html += ' <a data-goto="Chasm"><kbd>J</kbd> ' + (state.despairing ? 'jump' : 'chasm') + '</a>';
-        }
-        if (npcsHere.length > 0) {
-            html += ' <a id="corridor-talk"><kbd>t</kbd> talk</a>';
-        }
-        if (seg.restArea) {
-            html += '<a data-goto="Kiosk"><kbd>K</kbd> kiosk</a> <a data-goto="Bedroom"><kbd>b</kbd> bedroom</a> <a data-goto="Submission Slot"><kbd>s</kbd> submit</a> <a data-goto="Sign"><kbd>R</kbd> sign</a>';
-        }
-        html += '</div>';
+        html += renderCorridorKeys(moves, seg, npcsHere);
 
         html += debugPanelHTML();
         html += '</div>';
