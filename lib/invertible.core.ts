@@ -20,7 +20,7 @@
  */
 
 import { hash } from "./prng.core.ts";
-import { BOOKS_PER_GALLERY, CHARSET_SIZE, CHARS_PER_LINE, LINES_PER_PAGE } from "./scale.core.ts";
+import { BOOKS_PER_GALLERY, CHARSET_SIZE, CHARS_PER_LINE, LINES_PER_PAGE, FLOORS, MAX_BOOK_POSITION } from "./scale.core.ts";
 
 /* ---- Constants ---- */
 
@@ -48,11 +48,11 @@ export const LIBRARY_MAX: bigint = 95n ** 66n;
  * @param limit - stop and return current value if it exceeds this
  * @returns the address (may exceed limit if text is in bounds)
  */
-export function textToAddress(text: string, limit: bigint | undefined = LIBRARY_MAX): bigint {
+export function textToAddress(text: string, limit: bigint | null = LIBRARY_MAX): bigint {
     let addr = 0n;
     for (let i = 0; i < text.length; i++) {
         addr = addr * 95n + BigInt(text.charCodeAt(i) - 32);
-        if (limit !== undefined && addr > limit) return addr;
+        if (limit !== null && addr > limit) return addr;
     }
     return addr;
 }
@@ -100,18 +100,17 @@ export function isAddressInBounds(bookAddress: bigint): boolean {
 }
 
 /**
- * Maximum position index used in addressToCoords decomposition.
- * Positions range from 0 to MAX_BOOK_POSITION - 1 (non-negative corridor segment index).
- * Chosen to cover ±5 billion segments from origin — comfortably within playable space.
+ * Re-export MAX_BOOK_POSITION from scale.core.ts for backward compatibility.
+ * @see scale.core.ts
  */
-export const MAX_BOOK_POSITION: bigint = 10_000_000_000n; // 10B segments total (±5B)
+export { MAX_BOOK_POSITION } from "./scale.core.ts";
 
 /**
  * The maximum address that maps to a sensible (walkable) library location.
  * randomOrigin should be drawn from [0, PLAYABLE_ADDRESS_MAX].
  */
 export const PLAYABLE_ADDRESS_MAX: bigint =
-    MAX_BOOK_POSITION * 2n * 100_000n * BigInt(BOOKS_PER_GALLERY); // position * sides * floors * booksPerGallery
+    MAX_BOOK_POSITION * 2n * BigInt(FLOORS) * BigInt(BOOKS_PER_GALLERY); // position * sides * floors * booksPerGallery
 
 /**
  * Decompose a book address into library coordinates.
@@ -119,7 +118,7 @@ export const PLAYABLE_ADDRESS_MAX: bigint =
  *
  * Layout (innermost first):
  *   bookIndex : [0, booksPerGallery)
- *   floor     : [0, 99999]           — 100_000 floors
+ *   floor     : [0, FLOORS-1]        — FLOORS floors
  *   side      : 0 or 1
  *   position  : [0, MAX_BOOK_POSITION)
  *
@@ -132,9 +131,9 @@ export function addressToCoords(addr: bigint, booksPerGallery: number): { side: 
     const bookIndex = Number(addr % bpg);
     addr = addr / bpg;
 
-    const FLOORS = 100_000n;
-    const floor = addr % FLOORS;
-    addr = addr / FLOORS;
+    const _FLOORS = BigInt(FLOORS);
+    const floor = addr % _FLOORS;
+    addr = addr / _FLOORS;
 
     const side = Number(addr % 2n);
     const position = addr / 2n; // [0, MAX_BOOK_POSITION)
@@ -383,6 +382,42 @@ function recoverOneChain(targets: number[]): number | null {
         if (match) return lcgPrev(a);
     }
     return null;
+}
+
+/* ---- Full-precision address computation ---- */
+
+const _pow95Cache: Map<number, bigint> = new Map();
+function _pow95(n: number): bigint {
+    let p = _pow95Cache.get(n);
+    if (p === undefined) {
+        p = 95n ** BigInt(n);
+        _pow95Cache.set(n, p);
+    }
+    return p;
+}
+
+function _convertRange(codes: Int32Array, start: number, end: number): bigint {
+    const n = end - start;
+    if (n === 0) return 0n;
+    if (n === 1) return BigInt(codes[start]);
+    if (n === 2) return BigInt(codes[start]) * 95n + BigInt(codes[start + 1]);
+    const mid = start + (n >>> 1);
+    return _convertRange(codes, start, mid) * _pow95(end - mid) + _convertRange(codes, mid, end);
+}
+
+/**
+ * Full-precision textToAddress using divide-and-conquer base conversion.
+ * O(n log²n) vs O(n²) for the naive Horner's method.
+ *
+ * Computes the true base-95 address of the full text without any early exit.
+ * For 1,312,000 characters this produces a ~2.6 million digit number in ~300ms.
+ *
+ * Use this for verification and testing, not in hot loops.
+ */
+export function textToAddressFull(text: string): bigint {
+    const codes = new Int32Array(text.length);
+    for (let i = 0; i < text.length; i++) codes[i] = text.charCodeAt(i) - 32;
+    return _convertRange(codes, 0, codes.length);
 }
 
 /* ---- Exports for solver/test use ---- */

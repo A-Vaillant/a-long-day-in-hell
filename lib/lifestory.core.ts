@@ -15,6 +15,7 @@ import { BOOKS_PER_GALLERY, GALLERIES_PER_SEGMENT, isRestArea } from "./library.
 import { PAGES_PER_BOOK } from "./book.core.ts";
 import { bigAbs } from "./bigint-utils.core.ts";
 import { textToAddress, addressToCoords, computeBookAddress, LIBRARY_MAX, PLAYABLE_ADDRESS_MAX } from "./invertible.core.ts";
+import { FLOORS, BOOK_FLOOR_MIN, BOOK_FLOOR_MAX } from "./scale.core.ts";
 
 export interface BookCoords {
     side: number;
@@ -175,7 +176,7 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     //
     // bookCoords = addressToCoords(bookAddress % LIBRARY_MAX) — always a valid shelf location,
     // but only meaningful (reachable) when bookAddress <= LIBRARY_MAX.
-    const rawBookAddress: bigint = textToAddress(story.storyText, undefined);
+    const rawBookAddress: bigint = textToAddress(story.storyText, null);
     story.rawBookAddress = rawBookAddress;
 
     const playerRawAddress: bigint = (opts && opts.playerRawAddress != null) ? opts.playerRawAddress : rawBookAddress;
@@ -190,10 +191,9 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const { side, position: rawPosition, floor: rawFloor, bookIndex } = addressToCoords(addrForCoords, BOOKS_PER_GALLERY);
     let position: bigint = rawPosition;
     // Clamp floor to deep library — book should never be near ground level
-    const BOOK_FLOOR_MIN = 2000n;
-    const BOOK_FLOOR_MAX = 95000n;
-    let floor: bigint = rawFloor < BOOK_FLOOR_MIN ? BOOK_FLOOR_MIN + (rawFloor % (BOOK_FLOOR_MAX - BOOK_FLOOR_MIN))
-        : rawFloor > BOOK_FLOOR_MAX ? BOOK_FLOOR_MIN + (rawFloor % (BOOK_FLOOR_MAX - BOOK_FLOOR_MIN))
+    const floorRange = BOOK_FLOOR_MAX - BOOK_FLOOR_MIN;
+    let floor: bigint = rawFloor < BOOK_FLOOR_MIN ? BOOK_FLOOR_MIN + (rawFloor % floorRange)
+        : rawFloor > BOOK_FLOOR_MAX ? BOOK_FLOOR_MIN + (rawFloor % floorRange)
         : rawFloor;
 
     // Rest areas have no shelves — nudge to nearest gallery
@@ -276,14 +276,14 @@ export function generatePlayerWorld(seed: string, opts?: { startLoc?: StartLocat
     const originLo = BigInt(originRng.nextInt(0x100000000));
     const originHi = BigInt(originRng.nextInt(0x100000000));
     let randomOrigin = (originHi * 0x100000000n + originLo) % PLAYABLE_ADDRESS_MAX;
-    // Clamp floor component to [2000, 95000]
+    // Clamp floor component to [BOOK_FLOOR_MIN, BOOK_FLOOR_MAX]
     {
-        const _bpg = BigInt(BOOKS_PER_GALLERY), _floors = 100_000n;
-        const _floorMin = 2000n, _floorRange = 93000n;
+        const _bpg = BigInt(BOOKS_PER_GALLERY), _floors = BigInt(FLOORS);
+        const _floorRange = BOOK_FLOOR_MAX - BOOK_FLOOR_MIN;
         const _bookIdx = randomOrigin % _bpg;
         const _floorRaw = (randomOrigin / _bpg) % _floors;
         const _rest = randomOrigin / (_bpg * _floors);
-        const _clampedFloor = _floorMin + (_floorRaw % _floorRange);
+        const _clampedFloor = BOOK_FLOOR_MIN + (_floorRaw % _floorRange);
         randomOrigin = _bookIdx + _bpg * (_clampedFloor + _floors * _rest);
     }
 

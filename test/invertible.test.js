@@ -96,8 +96,8 @@ describe("computeBookAddress", () => {
     });
 
     it("large NPC raw address stays large after shift", () => {
-        const playerRaw = textToAddress("Your name was Rosa Ingram. You were a librarian.", undefined);
-        const npcRaw = textToAddress("Oliver Ellison was a postal worker from a city.", undefined);
+        const playerRaw = textToAddress("Your name was Rosa Ingram. You were a librarian.", null);
+        const npcRaw = textToAddress("Oliver Ellison was a postal worker from a city.", null);
         const origin = PLAYABLE_ADDRESS_MAX / 2n;
         const bookAddr = computeBookAddress(npcRaw, playerRaw, origin);
         // Both raws are enormous; result is still large (different magnitudes)
