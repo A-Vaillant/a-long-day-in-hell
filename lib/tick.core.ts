@@ -103,6 +103,46 @@ export function advanceTick(state: TickState, n: number): AdvanceTickResult {
 }
 
 /**
+ * Zero-alloc variant: mutates `state` in place, pushes events into caller's
+ * reusable array (caller must clear it before calling). Returns event count.
+ */
+export function advanceTickMut(state: TickState, n: number, events: TickEvent[]): number {
+    let { tick, day } = state;
+    let evCount = 0;
+
+    let cursor = tick;
+    let remaining = n;
+
+    while (remaining > 0) {
+        const dawnAt      = TICKS_PER_DAY    - cursor;
+        const lightsOutAt = LIGHTS_ON_TICKS  - cursor;
+        const resetAt     = RESET_HOUR_TICK  - cursor;
+
+        if (remaining < dawnAt) {
+            if (cursor < LIGHTS_ON_TICKS && remaining >= lightsOutAt) {
+                events[evCount++] = "lightsOut";
+            }
+            if (cursor < RESET_HOUR_TICK && remaining >= resetAt) {
+                events[evCount++] = "resetHour";
+            }
+            cursor += remaining;
+            remaining = 0;
+        } else {
+            if (cursor < LIGHTS_ON_TICKS) events[evCount++] = "lightsOut";
+            if (cursor < RESET_HOUR_TICK) events[evCount++] = "resetHour";
+            events[evCount++] = "dawn";
+            day += 1;
+            remaining -= dawnAt;
+            cursor = 0;
+        }
+    }
+
+    state.tick = cursor;
+    state.day = day;
+    return evCount;
+}
+
+/**
  * Whether the lights are on at a given tick value.
  *
  * @param {number} tick

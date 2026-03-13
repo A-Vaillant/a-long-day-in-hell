@@ -65,6 +65,14 @@ import {
 
 export type Direction = "left" | "right" | "up" | "down" | "cross";
 
+// Bitmask constants for zero-alloc move availability checks.
+export const MOVE_LEFT  = 1;
+export const MOVE_RIGHT = 2;
+export const MOVE_UP    = 4;
+export const MOVE_DOWN  = 8;
+export const MOVE_CROSS = 16;
+const DIR_TO_BIT: Record<Direction, number> = { left: MOVE_LEFT, right: MOVE_RIGHT, up: MOVE_UP, down: MOVE_DOWN, cross: MOVE_CROSS };
+
 export const BOTTOM_FLOOR: bigint = 0n;
 /** Re-exported from scale.core.ts for backward compatibility. */
 export const BOOKS_PER_GALLERY: number = _BOOKS_PER_GALLERY;
@@ -161,6 +169,33 @@ export function applyMove({ side, position, floor }: Location, dir: Direction): 
             return { side: side === 0 ? 1 : 0, position, floor };
         default:
             throw new Error(`Unknown direction: ${dir}`);
+    }
+}
+
+/** Bitmask of available moves — zero allocation. */
+export function availableMovesMask(position: bigint, floor: bigint): number {
+    let mask = MOVE_LEFT | MOVE_RIGHT;
+    if (isRestArea(position)) {
+        if (floor > BOTTOM_FLOOR) mask |= MOVE_DOWN;
+        mask |= MOVE_UP;
+        if (floor === BOTTOM_FLOOR) mask |= MOVE_CROSS;
+    }
+    return mask;
+}
+
+/** Check a direction against a move bitmask. */
+export function moveAllowed(mask: number, dir: Direction): boolean {
+    return (mask & DIR_TO_BIT[dir]) !== 0;
+}
+
+/** Apply a move in-place, mutating the Location object. No validation. */
+export function applyMoveInPlace(loc: Location, dir: Direction): void {
+    switch (dir) {
+        case DIRS.LEFT:  loc.position -= 1n; break;
+        case DIRS.RIGHT: loc.position += 1n; break;
+        case DIRS.UP:    loc.floor += 1n; break;
+        case DIRS.DOWN:  loc.floor -= 1n; break;
+        case DIRS.CROSS: loc.side = loc.side === 0 ? 1 : 0; break;
     }
 }
 

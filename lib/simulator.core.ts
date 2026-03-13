@@ -16,6 +16,7 @@ import type { Xoshiro128ss } from "./prng.core.ts";
 import * as Surv from "./survival.core.ts";
 import type { SurvivalStats } from "./survival.core.ts";
 import * as Tick from "./tick.core.ts";
+import type { TickEvent } from "./tick.core.ts";
 import * as Lib from "./library.core.ts";
 import type { Location, Direction } from "./library.core.ts";
 import * as BookCore from "./book.core.ts";
@@ -279,6 +280,10 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     // Mark start segment
     gs.segmentsVisited = 1;
 
+    // Pre-allocated objects for hot-loop reuse (zero-alloc tick advancement)
+    const _tickState: Tick.TickState = { tick: 0, day: 1 };
+    const _tickEvents: TickEvent[] = new Array(4);  // max 3 events per call (lightsOut + resetHour + dawn)
+
     /** Lightweight view of internal state for strategies.
      *  Exposes gs fields directly — no cloning. Computed fields are lazy getters. */
     const _loc: Location = { side: 0, position: 0n, floor: 0n };
@@ -318,13 +323,13 @@ export function createSimulation(opts: SimulationOpts): Simulation {
 
         switch (action.type) {
             case "move": {
-                const loc: Location = { side: gs.side, position: gs.position, floor: gs.floor };
-                const available = Lib.availableMoves(loc);
-                if (available.indexOf(action.dir) === -1) return false;
-                const dest = Lib.applyMove(loc, action.dir);
-                gs.side = dest.side;
-                gs.position = dest.position;
-                gs.floor = dest.floor;
+                const mask = Lib.availableMovesMask(gs.position, gs.floor);
+                if (!Lib.moveAllowed(mask, action.dir)) return false;
+                _loc.side = gs.side; _loc.position = gs.position; _loc.floor = gs.floor;
+                Lib.applyMoveInPlace(_loc, action.dir);
+                gs.side = _loc.side;
+                gs.position = _loc.position;
+                gs.floor = _loc.floor;
                 gs.totalMoves++;
                 gs.segmentsVisited++;
 
@@ -466,13 +471,15 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     }
 
     function advanceTime(n: number): void {
-        const result = Tick.advanceTick({ tick: gs.tick, day: gs.day }, n);
-        gs.tick = result.state.tick;
-        gs.day = result.state.day;
+        _tickState.tick = gs.tick;
+        _tickState.day = gs.day;
+        const evCount = Tick.advanceTickMut(_tickState, n, _tickEvents);
+        gs.tick = _tickState.tick;
+        gs.day = _tickState.day;
         gs.lightsOn = Tick.isLightsOn(gs.tick);
 
-        for (const ev of result.events) {
-            if (ev === "dawn") {
+        for (let i = 0; i < evCount; i++) {
+            if (_tickEvents[i] === "dawn") {
                 onDawn();
             }
         }
