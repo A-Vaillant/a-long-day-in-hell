@@ -1,5 +1,7 @@
 /* Godmode event log — ring buffer, filters, and log rendering. */
 
+import { TICKS_PER_DAY } from "../../lib/tick.core.ts";
+
 function esc(s) {
     if (!s) return "";
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -182,7 +184,7 @@ export const GodmodeLog = {
         let count = 0;
         for (const ev of recent) {
             const color = LOG_COLORS[ev.type] || "#b8a878";
-            const mins = (ev.tick / 240) * 24 * 60 + 6 * 60;
+            const mins = (ev.tick / TICKS_PER_DAY) * 24 * 60 + 6 * 60;
             const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
             const mm = String(Math.floor(mins % 60)).padStart(2, "0");
             const tag = LOG_FILTER_LABELS[ev.type] || ev.type;

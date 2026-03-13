@@ -21,7 +21,7 @@ import {
     DEFAULT_BOND,
 } from "./social.core.ts";
 import { applyShockToEntity, type ShockConfig, DEFAULT_SHOCKS } from "./psych.core.ts";
-import { isRestArea } from "./library.core.ts";
+import { isRestArea, GALLERIES_PER_SEGMENT } from "./library.core.ts";
 
 // --- Component ---
 
@@ -78,8 +78,10 @@ export const DEFAULT_SLEEP: SleepConfig = {
 
 /** Nearest rest area to a position. */
 export function nearestRestArea(position: bigint): bigint {
-    const r = ((position % 10n) + 10n) % 10n;
-    return r >= 5n ? position - r + 10n : position - r;
+    const G = GALLERIES_PER_SEGMENT;
+    const half = G / 2n;
+    const r = ((position % G) + G) % G;
+    return r > half ? position - r + G : position - r;
 }
 
 /** Distance in segments between a position and a rest area. */

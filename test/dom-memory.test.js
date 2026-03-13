@@ -4,6 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { bootGame } from "./dom-harness.js";
+import { TICKS_PER_DAY } from "../lib/tick.core.ts";
 
 describe("Memory screen", () => {
     it("opens via Engine.goto and sets screen state", () => {
@@ -29,7 +30,7 @@ describe("Memory screen", () => {
         mem.entries.push({
             id: 0,
             type: "witnessEscape",
-            tick: (state.day - 1) * 240 + state.tick,
+            tick: (state.day - 1) * TICKS_PER_DAY + state.tick,
             weight: 8,
             initialWeight: 10,
             permanent: false,
@@ -51,7 +52,7 @@ describe("Memory screen", () => {
         mem.entries.push({
             id: 1,
             type: "witnessChasm",
-            tick: (state.day - 1) * 240 + state.tick,
+            tick: (state.day - 1) * TICKS_PER_DAY + state.tick,
             weight: 5,
             initialWeight: 10,
             permanent: true,
@@ -66,7 +67,7 @@ describe("Memory screen", () => {
 
     it("shows age as 'today' for current-tick memories", () => {
         const { Engine, Social, document, state } = bootGame();
-        const currentTick = (state.day - 1) * 240 + state.tick;
+        const currentTick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         const mem = Social.getPlayerMemory();
         mem.entries.push({
             id: 2, type: "witnessEscape", tick: currentTick,
@@ -80,10 +81,10 @@ describe("Memory screen", () => {
 
     it("shows age as 'yesterday' for memories from prior day", () => {
         const { Engine, Social, document, state } = bootGame();
-        const currentTick = (state.day - 1) * 240 + state.tick;
+        const currentTick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         const mem = Social.getPlayerMemory();
         mem.entries.push({
-            id: 3, type: "foundBody", tick: currentTick - 240, // 1 day ago
+            id: 3, type: "foundBody", tick: currentTick - TICKS_PER_DAY, // 1 day ago
             weight: 4, initialWeight: 10, permanent: false, subject: null, contagious: false,
         });
 
@@ -94,7 +95,7 @@ describe("Memory screen", () => {
 
     it("sorts entries by weight descending (most vivid first)", () => {
         const { Engine, Social, document, state } = bootGame();
-        const tick = (state.day - 1) * 240 + state.tick;
+        const tick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         const mem = Social.getPlayerMemory();
         // Push in reverse order — low weight first, high weight second
         // Sort should flip them so high-weight renders first.

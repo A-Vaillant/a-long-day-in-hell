@@ -3,6 +3,7 @@
  */
 
 import { STANCES } from "../../lib/belief.core.ts";
+import { TICKS_PER_DAY } from "../../lib/tick.core.ts";
 
 const SAMPLE_INTERVAL = 10;  // sample every N ticks
 let samples = [];             // [{ day, tick, avgHope, avgLuc, alive, dead, stances, npcs }]
@@ -46,7 +47,7 @@ function aggregateSide(alive, dead, escaped, side) {
 }
 
 function record(snap) {
-    const globalTick = (snap.day - 1) * 240 + snap.tick;
+    const globalTick = (snap.day - 1) * TICKS_PER_DAY + snap.tick;
     if (globalTick - lastSampleTick < SAMPLE_INTERVAL) return;
     lastSampleTick = globalTick;
 

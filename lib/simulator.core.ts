@@ -623,10 +623,10 @@ export const strategies = {
 
                 // Walk to rest area if starving/parched
                 if ((gs.stats.hunger >= 90 || gs.stats.thirst >= 90) && !gs.isRestArea) {
-                    // Head toward nearest rest area (position % 10 === 0)
-                    const mod = ((gs.position % 10n) + 10n) % 10n;
-                    const distRight = (10n - mod) % 10n || 10n;
-                    const distLeft = mod || 10n;
+                    const G = Lib.GALLERIES_PER_SEGMENT;
+                    const mod = ((gs.position % G) + G) % G;
+                    const distRight = (G - mod) % G || G;
+                    const distLeft = mod || G;
                     return { type: "move", dir: distLeft <= distRight ? "left" : "right" };
                 }
 
@@ -710,9 +710,10 @@ export const strategies = {
                 }
 
                 // Walk to nearest rest area
-                const mod = ((gs.position % 10n) + 10n) % 10n;
-                const distRight = (10n - mod) % 10n || 10n;
-                const distLeft = mod || 10n;
+                const G = Lib.GALLERIES_PER_SEGMENT;
+                const mod = ((gs.position % G) + G) % G;
+                const distRight = (G - mod) % G || G;
+                const distLeft = mod || G;
                 return { type: "move", dir: distLeft <= distRight ? "left" : "right" };
             }
         };
@@ -740,9 +741,10 @@ export const strategies = {
 
         /** Navigate to a rest area from current position. */
         function moveToRestArea(pos: bigint): MoveAction | null {
-            const mod = ((pos % 10n) + 10n) % 10n;
+            const G = Lib.GALLERIES_PER_SEGMENT;
+            const mod = ((pos % G) + G) % G;
             if (mod === 0n) return null; // already at rest area
-            const distRight = 10n - mod;
+            const distRight = G - mod;
             const distLeft = mod;
             return { type: "move", dir: distLeft <= distRight ? "left" : "right" };
         }

@@ -21,6 +21,9 @@ import { SLEEP } from "../lib/sleep.core.ts";
 import { KNOWLEDGE } from "../lib/knowledge.core.ts";
 import { dismiss } from "../lib/actions.core.ts";
 import { seedFromString } from "../lib/prng.core.ts";
+import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
+
+const G = GALLERIES_PER_SEGMENT;
 
 // --- Helpers ---
 
@@ -228,8 +231,9 @@ describe("Group movement bias", () => {
 
     it("follower on different floor chases leader", () => {
         const world = createWorld();
-        const leader = makeEntity(world, { name: "Leader", position: 50n, floor: 5n, influence: 18 });
-        const follower = makeEntity(world, { name: "Follower", position: 40n, floor: 3n, influence: 5 });
+        const restArea = 2n * G; // a rest area (multiple of GALLERIES_PER_SEGMENT)
+        const leader = makeEntity(world, { name: "Leader", position: restArea + 10n, floor: 5n, influence: 18 });
+        const follower = makeEntity(world, { name: "Follower", position: restArea, floor: 3n, influence: 5 });
         addMovement(world, leader, 1);
         addMovement(world, follower, -1);
         putInGroup(world, [leader, follower]);
@@ -238,8 +242,8 @@ describe("Group movement bias", () => {
         movementSystem(world, seedFromString("floor-test"));
 
         const fPos = getComponent(world, follower, POSITION);
-        // Follower is at rest area (40) — should change floor toward leader (floor 5)
-        assert.strictEqual(fPos.position, 40n,
+        // Follower is at rest area — should change floor toward leader (floor 5)
+        assert.strictEqual(fPos.position, restArea,
             "follower stays at rest area to change floor");
         assert.strictEqual(fPos.floor, 4n,
             "follower moves one floor toward leader");

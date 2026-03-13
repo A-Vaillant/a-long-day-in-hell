@@ -13,6 +13,7 @@ import { Tick } from "./tick.js";
 import { Events } from "./events.js";
 import { Npc } from "./npc.js";
 import { Social } from "./social.js";
+import { LIGHTS_ON_TICKS } from "../../lib/tick.core.ts";
 import { createBoundaryRegistry, processTime } from "../../lib/engine.core.ts";
 import { Godmode } from "./godmode.js";
 import { saveLog, loadLog, clearLog, count as logCount } from "./event-log.js";
@@ -156,7 +157,7 @@ export const Engine = {
 
         state.tick = result.finalTick;
         state.day = result.finalDay;
-        state.lightsOn = result.finalTick < 160; // LIGHTS_ON_TICKS
+        state.lightsOn = result.finalTick < LIGHTS_ON_TICKS;
 
         if (this._pendingGoto) {
             const target = this._pendingGoto;
@@ -405,6 +406,9 @@ export const Engine = {
             if (state.deathCause === undefined) state.deathCause = null;
             if (state.submissionsAttempted === undefined) state.submissionsAttempted = 0;
             if (state.won === undefined) state.won = false;
+            if (state._spawnSide === undefined) state._spawnSide = state.side;
+            if (state._spawnPosition === undefined) state._spawnPosition = state.position;
+            if (state._spawnFloor === undefined) state._spawnFloor = state.floor;
             if (!state.eventDeck) Events.init();
             if (!state.npcs) Npc.init();
             Social.init();
@@ -461,6 +465,9 @@ export const Engine = {
             state.side     = story.playerStart.side;
             state.position = story.playerStart.position;
             state.floor    = story.playerStart.floor;
+            state._spawnSide     = state.side;
+            state._spawnPosition = state.position;
+            state._spawnFloor    = state.floor;
 
             Surv.init();
             Tick.init();

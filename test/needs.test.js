@@ -53,8 +53,7 @@ describe("needsSystem", () => {
 
     it("does NOT auto-eat when not at rest area", () => {
         const w = createWorld();
-        // GALLERIES_PER_SEGMENT=5, so position 5n is a rest area.
-        // Use position 7n (not a multiple of 5) for a non-rest-area test.
+        // position 7n is not a rest area (not a multiple of GALLERIES_PER_SEGMENT).
         const e = makeNpc(w, { position: 7n, hunger: 55 });
         needsSystem(w, true);
         const n = getComponent(w, e, NEEDS);
@@ -71,7 +70,7 @@ describe("needsSystem", () => {
 
     it("kills NPC when hunger >= 100", () => {
         const w = createWorld();
-        // position 7n is not a rest area (GALLERIES_PER_SEGMENT=5, rest at multiples of 5)
+        // position 7n is not a rest area (not a multiple of GALLERIES_PER_SEGMENT)
         const e = makeNpc(w, { position: 7n, hunger: 99.999 });
         needsSystem(w, true);
         const ident = getComponent(w, e, IDENTITY);

@@ -6,6 +6,10 @@ import { NEEDS } from "../lib/needs.core.ts";
 import { MOVEMENT, movementSystem, DEFAULT_MOVEMENT } from "../lib/movement.core.ts";
 import { INTENT } from "../lib/intent.core.ts";
 import { KNOWLEDGE, markSearched } from "../lib/knowledge.core.ts";
+import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
+
+const G = GALLERIES_PER_SEGMENT; // bigint, rest areas at 0, G, 2G, 3G, ...
+const Gn = Number(G);           // numeric form for loop bounds
 
 function makeRng(values) {
     let i = 0;
@@ -70,8 +74,8 @@ describe("movementSystem", () => {
 
     it("explore heading reverses at rest area", () => {
         const w = createWorld();
-        // position 9, heading +1 → lands on 10 (rest area)
-        const e = makeNpc(w, { position: 9n, heading: 1, behavior: "explore" });
+        // 1 step before rest area G, heading +1 → lands on G (rest area)
+        const e = makeNpc(w, { position: G - 1n, heading: 1, behavior: "explore" });
         // rng: 0.1 < 0.3 (reverseChance) → reverse
         movementSystem(w, makeRng([0.1, 0.9]));
         const mov = getComponent(w, e, MOVEMENT);
@@ -80,7 +84,7 @@ describe("movementSystem", () => {
 
     it("explore heading does not reverse when roll is high", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 9n, heading: 1, behavior: "explore" });
+        const e = makeNpc(w, { position: G - 1n, heading: 1, behavior: "explore" });
         // rng: 0.5 >= 0.3 → no reverse
         movementSystem(w, makeRng([0.5, 0.9]));
         const mov = getComponent(w, e, MOVEMENT);
@@ -89,7 +93,7 @@ describe("movementSystem", () => {
 
     it("explore floor change at rest area", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 9n, floor: 3n, heading: 1, behavior: "explore" });
+        const e = makeNpc(w, { position: G - 1n, floor: 3n, heading: 1, behavior: "explore" });
         // rng: 0.5 (no reverse), 0.01 < 0.05 (floor change), 0.8 >= 0.5 (floor-1)
         movementSystem(w, makeRng([0.5, 0.01, 0.8]));
         const pos = getComponent(w, e, POSITION);
@@ -98,10 +102,11 @@ describe("movementSystem", () => {
 
     it("explore no floor change at non-rest area", () => {
         const w = createWorld();
+        // position 5 is not a rest area (rest areas at multiples of G)
         const e = makeNpc(w, { position: 5n, floor: 3n, heading: 1, behavior: "explore" });
         movementSystem(w, makeRng([0.01, 0.01, 0.01]));
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 6n); // not a rest area
+        assert.equal(pos.position, 6n);
         assert.equal(pos.floor, 3n);
     });
 
@@ -127,19 +132,19 @@ describe("movementSystem", () => {
 
     it("wander_mad floor change at rest area", () => {
         const w = createWorld();
-        // position 9, wander right (+1) → 10 (rest area)
-        const e = makeNpc(w, { position: 9n, floor: 3n, behavior: "wander_mad" });
-        // 0.3 < 0.5 → +1 (pos=10). 0.05 < 0.15 → floor change. 0.8 >= 0.5 → floor-1
+        // 1 step before rest area G, wander right (+1) → G (rest area)
+        const e = makeNpc(w, { position: G - 1n, floor: 3n, behavior: "wander_mad" });
+        // 0.3 < 0.5 → +1 (pos=G). 0.05 < 0.15 → floor change. 0.8 >= 0.5 → floor-1
         movementSystem(w, makeRng([0.3, 0.05, 0.8]));
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 10n);
+        assert.equal(pos.position, G);
         assert.equal(pos.floor, 2n);
     });
 
     it("floor cannot go below 0", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 9n, floor: 0n, behavior: "wander_mad" });
-        // moves right to 10, floor change tries -1 → clamped to 0
+        const e = makeNpc(w, { position: G - 1n, floor: 0n, behavior: "wander_mad" });
+        // moves right to G, floor change tries -1 → clamped to 0
         movementSystem(w, makeRng([0.3, 0.05, 0.8]));
         const pos = getComponent(w, e, POSITION);
         assert.equal(pos.floor, 0n);
@@ -149,43 +154,42 @@ describe("movementSystem", () => {
 
     it("seek_rest steps toward nearest rest area", () => {
         const w = createWorld();
-        // GALLERIES_PER_SEGMENT=5, rest areas at 0,5,10,...
-        // position 7: nearest is 5 (dist 2) vs 10 (dist 3), step left toward 5
-        const e = makeNpc(w, { position: 7n, behavior: "seek_rest" });
+        // position G+3: nearest is G (dist 3) vs 2G (dist G-3), step left toward G
+        const e = makeNpc(w, { position: G + 3n, behavior: "seek_rest" });
         movementSystem(w, makeRng([0.5]));
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 6n); // toward 5
+        assert.equal(pos.position, G + 2n);
         const mov = getComponent(w, e, MOVEMENT);
-        assert.equal(mov.targetPosition, 5n);
+        assert.equal(mov.targetPosition, G);
     });
 
-    it("seek_rest steps left toward lower rest area", () => {
+    it("seek_rest steps right toward higher rest area", () => {
         const w = createWorld();
-        // position 3: nearest is 5 (dist 2) vs 0 (dist 3), step right toward 5
-        const e = makeNpc(w, { position: 3n, behavior: "seek_rest" });
+        // position G-3: nearest is G (dist 3) vs 0 (dist G-3), step right toward G
+        const e = makeNpc(w, { position: G - 3n, behavior: "seek_rest" });
         movementSystem(w, makeRng([0.5]));
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 4n); // toward 5
+        assert.equal(pos.position, G - 2n);
     });
 
-    it("seek_rest from position 13 steps toward 15", () => {
+    it("seek_rest from far in segment steps toward closer end", () => {
         const w = createWorld();
-        // position 13: nearest is 15 (dist 2) vs 10 (dist 3), step right toward 15
-        const e = makeNpc(w, { position: 13n, behavior: "seek_rest" });
+        // position 2G+3: nearest is 2G (dist 3) vs 3G (dist G-3), step left toward 2G
+        const e = makeNpc(w, { position: 2n * G + 3n, behavior: "seek_rest" });
         movementSystem(w, makeRng([0.5]));
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 14n);
+        assert.equal(pos.position, 2n * G + 2n);
     });
 
     // --- Batch mode ---
 
     it("batch: seek_rest teleports when n >= distance", () => {
         const w = createWorld();
-        // position 7, nearest rest area is 5
-        const e = makeNpc(w, { position: 7n, behavior: "seek_rest" });
+        // position G+3, nearest rest area is G
+        const e = makeNpc(w, { position: G + 3n, behavior: "seek_rest" });
         movementSystem(w, makeRng([0.5]), undefined, 100);
         const pos = getComponent(w, e, POSITION);
-        assert.equal(pos.position, 5n);
+        assert.equal(pos.position, G);
     });
 
     it("batch: explore moves n steps in heading", () => {
@@ -218,12 +222,12 @@ describe("movementSystem", () => {
 
     it("explore reverses when forward span is fully searched", () => {
         const w = createWorld();
-        // At pos 9 heading +1 → lands on rest area 10
-        const e = makeNpc(w, { position: 9n, heading: 1, behavior: "explore", withKnowledge: true });
+        // 1 step before rest area G, heading +1 → lands on G
+        const e = makeNpc(w, { position: G - 1n, heading: 1, behavior: "explore", withKnowledge: true });
         const k = getComponent(w, e, KNOWLEDGE);
-        // Mark all 10 segments ahead (11–20) as searched
-        for (let i = 1; i <= 10; i++) markSearched(k, 0, BigInt(10 + i), 0n);
-        // Behind (1–9) not searched
+        // Mark all G-1 galleries ahead of rest area G as searched
+        for (let i = 1; i < Gn; i++) markSearched(k, 0, G + BigInt(i), 0n);
+        // Behind (1 to G-1) not searched
         movementSystem(w, makeRng([0.5]));
         const mov = getComponent(w, e, MOVEMENT);
         assert.equal(mov.heading, -1, "should reverse away from exhausted span");
@@ -231,10 +235,10 @@ describe("movementSystem", () => {
 
     it("explore keeps heading when forward span has unsearched segments", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 9n, heading: 1, behavior: "explore", withKnowledge: true });
+        const e = makeNpc(w, { position: G - 1n, heading: 1, behavior: "explore", withKnowledge: true });
         const k = getComponent(w, e, KNOWLEDGE);
-        // Mark backward span (1–9) searched, forward has work
-        for (let i = 1; i <= 9; i++) markSearched(k, 0, BigInt(i), 0n);
+        // Mark backward span searched, forward has work
+        for (let i = 1; i < Gn; i++) markSearched(k, 0, BigInt(i), 0n);
         movementSystem(w, makeRng([0.5]));
         const mov = getComponent(w, e, MOVEMENT);
         assert.equal(mov.heading, 1, "should keep heading toward unsearched span");
@@ -242,13 +246,13 @@ describe("movementSystem", () => {
 
     it("explore prefers floor change when both spans exhausted", () => {
         const w = createWorld();
-        // At pos 9, floor 2, heading +1 → lands on rest area 10
-        const e = makeNpc(w, { position: 9n, floor: 2n, heading: 1, behavior: "explore", withKnowledge: true });
+        // 1 step before rest area G, floor 2, heading +1 → lands on G
+        const e = makeNpc(w, { position: G - 1n, floor: 2n, heading: 1, behavior: "explore", withKnowledge: true });
         const k = getComponent(w, e, KNOWLEDGE);
-        // Exhaust both spans on floor 2
-        for (let i = 1; i <= 10; i++) {
-            markSearched(k, 0, BigInt(10 + i), 2n);
-            markSearched(k, 0, BigInt(10 - i), 2n);
+        // Exhaust both spans (G-1 galleries each direction) on floor 2
+        for (let i = 1; i < Gn; i++) {
+            markSearched(k, 0, G + BigInt(i), 2n);
+            markSearched(k, 0, G - BigInt(i), 2n);
         }
         // rng: first for direction (both exhausted, 0.5 > 0.3 so no reverse),
         //       then 0.2 < 0.5 (exhausted floor change chance) → floor change
@@ -260,17 +264,17 @@ describe("movementSystem", () => {
 
     it("explore prefers unsearched floor direction", () => {
         const w = createWorld();
-        const e = makeNpc(w, { position: 9n, floor: 2n, heading: 1, behavior: "explore", withKnowledge: true });
+        const e = makeNpc(w, { position: G - 1n, floor: 2n, heading: 1, behavior: "explore", withKnowledge: true });
         const k = getComponent(w, e, KNOWLEDGE);
         // Exhaust both spans on floor 2
-        for (let i = 1; i <= 10; i++) {
-            markSearched(k, 0, BigInt(10 + i), 2n);
-            markSearched(k, 0, BigInt(10 - i), 2n);
+        for (let i = 1; i < Gn; i++) {
+            markSearched(k, 0, G + BigInt(i), 2n);
+            markSearched(k, 0, G - BigInt(i), 2n);
         }
         // Also exhaust floor 3 (both spans)
-        for (let i = 1; i <= 10; i++) {
-            markSearched(k, 0, BigInt(10 + i), 3n);
-            markSearched(k, 0, BigInt(10 - i), 3n);
+        for (let i = 1; i < Gn; i++) {
+            markSearched(k, 0, G + BigInt(i), 3n);
+            markSearched(k, 0, G - BigInt(i), 3n);
         }
         // Floor 1 still has work
         // rng: direction (0.5), floor roll (0.2 < 0.5), floor preference → down
@@ -281,8 +285,8 @@ describe("movementSystem", () => {
 
     it("explore without knowledge falls back to random behavior", () => {
         const w = createWorld();
-        // No withKnowledge — original behavior
-        const e = makeNpc(w, { position: 9n, heading: 1, behavior: "explore" });
+        // No withKnowledge — 1 step before rest area G
+        const e = makeNpc(w, { position: G - 1n, heading: 1, behavior: "explore" });
         // rng: 0.1 < 0.3 → reverse
         movementSystem(w, makeRng([0.1, 0.9]));
         const mov = getComponent(w, e, MOVEMENT);

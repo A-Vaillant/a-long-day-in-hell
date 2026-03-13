@@ -162,7 +162,7 @@ describe("solo-coroutine: needs lifecycle", () => {
     it("NPC dies from thirst when away from rest area long enough", () => {
         const w = createWorld();
         // Start with high thirst, position away from rest area, intent=idle to prevent movement
-        // position 7n: not a rest area (GALLERIES_PER_SEGMENT=5, rest at multiples of 5)
+        // position 7n: not a rest area (not a multiple of GALLERIES_PER_SEGMENT)
         const e = createSoloNpc(w, { position: 7n, thirst: 95, behavior: "idle", cooldown: 99999 });
 
         // thirstRate ≈ 0.0174/tick: 5/0.0174 ≈ 288 ticks to reach 100 + 720 ticks mortality = ~1008
@@ -310,9 +310,8 @@ describe("solo-coroutine: movement", () => {
         runPerTickPipeline(w, e, 5);
 
         const pos = getComponent(w, e, POSITION);
-        // Nearest rest area from 7 is 5 (GALLERIES_PER_SEGMENT=5: rest at 0,5,10,...)
-        // 7 is closer to 5 (dist 2) than to 10 (dist 3), so moves left
-        assert.ok(pos.position <= 7n, "should move toward rest area at 5");
+        // Nearest rest area from 7 is 0 (dist 7) — moves left toward it
+        assert.ok(pos.position <= 7n, "should move toward nearest rest area");
     });
 });
 

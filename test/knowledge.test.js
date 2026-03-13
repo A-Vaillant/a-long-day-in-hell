@@ -18,6 +18,7 @@ import {
     DEFAULT_INTENT,
 } from "../lib/intent.core.ts";
 import { MOVEMENT, movementSystem } from "../lib/movement.core.ts";
+import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
 
 function makeRng(val = 0.5) {
     return { next() { return val; }, nextInt(n) { return Math.floor(val * n); } };
@@ -200,10 +201,11 @@ describe("pilgrimage movement", () => {
     });
 
     it("goes to rest area then changes floor", () => {
-        // NPC at rest area (pos 10), needs to go to floor 20
+        // NPC at rest area (multiple of GALLERIES_PER_SEGMENT), needs to go up
+        const restPos = GALLERIES_PER_SEGMENT;
         const { world, entity } = makeWorld(
-            { side: 0, position: 10n, floor: 10n },
-            { side: 0, position: 10n, floor: 20n, bookIndex: 0 },
+            { side: 0, position: restPos, floor: 10n },
+            { side: 0, position: restPos, floor: 20n, bookIndex: 0 },
         );
         movementSystem(world, makeRng(0.01));
         const pos = getComponent(world, entity, POSITION);
@@ -289,7 +291,7 @@ describe("escape resolution", () => {
 
         movementSystem(world, makeRng(0.01));
         const pos = getComponent(world, entity, POSITION);
-        // Position 7 → nearest rest area is 5 (GALLERIES_PER_SEGMENT=5), should step toward it
-        assert.equal(pos.position, 6n, "should step toward rest area at 5");
+        // Position 7 → nearest rest area is 0 (dist 7), should step toward it
+        assert.equal(pos.position, 6n, "should step toward nearest rest area");
     });
 });

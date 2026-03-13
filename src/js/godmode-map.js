@@ -5,6 +5,8 @@
  * Viewport scrolls to follow selected NPC or pans manually.
  */
 
+import { TICKS_PER_DAY } from "../../lib/tick.core.ts";
+
 const BASE_CELL_W = 18;
 const BASE_CELL_H = 14;
 const BASE_CHASM_W = 48;
@@ -659,8 +661,8 @@ export const GodmodeMap = {
         const tickEl = document.getElementById("gm-tick");
         if (dayEl) dayEl.textContent = "Day " + (snap.day - 1);
         if (tickEl) {
-            // Convert tick to time (0=6am, 160=10pm, 240=6am next)
-            const totalMinutes = (snap.tick / 240) * 24 * 60 + 6 * 60;
+            // Convert tick to time (0=6am, 960=10pm, 1440=6am next)
+            const totalMinutes = (snap.tick / TICKS_PER_DAY) * 24 * 60 + 6 * 60;
             const hours = Math.floor(totalMinutes / 60) % 24;
             const mins = Math.floor(totalMinutes % 60);
             tickEl.textContent = String(hours).padStart(2, "0") + ":" + String(mins).padStart(2, "0");

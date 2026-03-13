@@ -2,6 +2,7 @@
 
 import { state } from "./state.js";
 import { Engine } from "./engine.js";
+import { TICKS_PER_DAY, LIGHTS_ON_TICKS } from "../../lib/tick.core.ts";
 
 export const Debug = {
     goToLocation(side, position, floor) {
@@ -37,16 +38,16 @@ export const Debug = {
         window.location.href = url.toString();
     },
     setTick(n) {
-        state.tick     = Math.max(0, Math.min(239, n));
-        state.lightsOn = state.tick < 160;
+        state.tick     = Math.max(0, Math.min(TICKS_PER_DAY - 1, n));
+        state.lightsOn = state.tick < LIGHTS_ON_TICKS;
         Engine.goto(state.screen);
     },
     setDay(n) {
         state.day = Math.max(1, n);
         Engine.goto(state.screen);
     },
-    nearLightsOut() { this.setTick(155); },
-    nearDawn() { this.setTick(235); },
+    nearLightsOut() { this.setTick(LIGHTS_ON_TICKS - 5); },
+    nearDawn() { this.setTick(TICKS_PER_DAY - 5); },
     getTime() {
         return { tick: state.tick, day: state.day, lightsOn: state.lightsOn };
     },

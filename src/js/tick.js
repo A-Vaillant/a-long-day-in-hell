@@ -2,7 +2,7 @@
    Uses Engine's boundary registry for event handlers. */
 
 import {
-    TICKS_PER_HOUR, defaultTickState, advanceTick, isLightsOn,
+    TICKS_PER_HOUR, TICKS_PER_DAY, defaultTickState, advanceTick, isLightsOn,
     isResetHour, tickToTimeString, hoursUntilDawn,
 } from "../../lib/tick.core.ts";
 import { Surv } from "./survival.js";
@@ -104,6 +104,7 @@ export const Tick = {
             if (events.includes("dawn")) break;
         }
     },
+    TICKS_PER_DAY,
     getTimeString() { return tickToTimeString(state.tick); },
     getDayDisplay() { return "Day " + state.day; },
     hoursUntilDawn() { return hoursUntilDawn(state.tick); },

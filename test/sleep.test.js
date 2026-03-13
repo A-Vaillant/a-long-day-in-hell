@@ -7,10 +7,14 @@ import {
 import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
 import { POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, GROUP } from "../lib/social.core.ts";
 import { HABITUATION } from "../lib/psych.core.ts";
+import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
+
+const R1 = GALLERIES_PER_SEGMENT;       // first rest area (bigint)
+const R2 = 2n * GALLERIES_PER_SEGMENT;  // second rest area
 
 function spawnSleeper(world, overrides = {}) {
     const ent = spawn(world);
-    const pos = { side: 0, position: 10n, floor: 0n, ...overrides.position };
+    const pos = { side: 0, position: R1, floor: 0n, ...overrides.position };
     addComponent(world, ent, POSITION, pos);
     addComponent(world, ent, IDENTITY, { name: "Test", alive: true, ...overrides.identity });
     addComponent(world, ent, PSYCHOLOGY, { lucidity: 80, hope: 50, ...overrides.psychology });
@@ -28,14 +32,17 @@ function spawnSleeper(world, overrides = {}) {
 
 describe("nearestRestArea", () => {
     it("returns position itself if already at rest area", () => {
-        assert.strictEqual(nearestRestArea(10n), 10n);
+        assert.strictEqual(nearestRestArea(R1), R1);
         assert.strictEqual(nearestRestArea(0n), 0n);
     });
 
     it("rounds to nearest rest area", () => {
-        assert.strictEqual(nearestRestArea(7n), 10n);
+        // 3 galleries into segment → closer to start (0)
         assert.strictEqual(nearestRestArea(3n), 0n);
-        assert.strictEqual(nearestRestArea(5n), 10n); // rounds up at midpoint
+        // 1 past a rest area → closer to that rest area
+        assert.strictEqual(nearestRestArea(R1 + 1n), R1);
+        // 1 before a rest area → closer to that rest area
+        assert.strictEqual(nearestRestArea(R1 - 1n), R1);
     });
 });
 
@@ -44,7 +51,7 @@ describe("nearestRestArea", () => {
 describe("sleepOnsetSystem", () => {
     it("NPCs at rest areas claim beds and fall asleep", () => {
         const world = createWorld();
-        const ent = spawnSleeper(world, { position: { position: 10n } });
+        const ent = spawnSleeper(world, { position: { position: R1 } });
         sleepOnsetSystem(world);
         const sleep = getComponent(world, ent, SLEEP);
         assert.strictEqual(sleep.asleep, true);
@@ -63,7 +70,7 @@ describe("sleepOnsetSystem", () => {
     it("dead NPCs don't claim beds", () => {
         const world = createWorld();
         const ent = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             identity: { name: "Dead", alive: false },
         });
         sleepOnsetSystem(world);
@@ -76,7 +83,7 @@ describe("sleepOnsetSystem", () => {
         const ents = [];
         for (let i = 0; i < 9; i++) {
             ents.push(spawnSleeper(world, {
-                position: { position: 10n },
+                position: { position: R1 },
                 identity: { name: "NPC" + i },
             }));
         }
@@ -96,8 +103,8 @@ describe("sleepOnsetSystem", () => {
 
     it("co-sleepers list excludes self", () => {
         const world = createWorld();
-        const a = spawnSleeper(world, { position: { position: 10n }, identity: { name: "A" } });
-        const b = spawnSleeper(world, { position: { position: 10n }, identity: { name: "B" } });
+        const a = spawnSleeper(world, { position: { position: R1 }, identity: { name: "A" } });
+        const b = spawnSleeper(world, { position: { position: R1 }, identity: { name: "B" } });
         sleepOnsetSystem(world);
 
         const sleepA = getComponent(world, a, SLEEP);
@@ -110,9 +117,9 @@ describe("sleepOnsetSystem", () => {
 
     it("different rest areas get separate bed pools", () => {
         const world = createWorld();
-        const a = spawnSleeper(world, { position: { position: 10n }, identity: { name: "A" } });
-        const b = spawnSleeper(world, { position: { position: 20n }, identity: { name: "B" },
-            sleep: { home: { side: 0, position: 20n, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false } });
+        const a = spawnSleeper(world, { position: { position: R1 }, identity: { name: "A" } });
+        const b = spawnSleeper(world, { position: { position: R2 }, identity: { name: "B" },
+            sleep: { home: { side: 0, position: R2, floor: 0n }, bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false } });
         sleepOnsetSystem(world);
 
         const sleepA = getComponent(world, a, SLEEP);
@@ -123,8 +130,8 @@ describe("sleepOnsetSystem", () => {
 
     it("returns sleep onset events", () => {
         const world = createWorld();
-        spawnSleeper(world, { position: { position: 10n }, identity: { name: "Alice" } });
-        spawnSleeper(world, { position: { position: 10n }, identity: { name: "Bob" } });
+        spawnSleeper(world, { position: { position: R1 }, identity: { name: "Alice" } });
+        spawnSleeper(world, { position: { position: R1 }, identity: { name: "Bob" } });
         const events = sleepOnsetSystem(world);
         assert.strictEqual(events.length, 1);
         assert.deepStrictEqual(events[0].sleeperNames, ["Alice", "Bob"]);
@@ -138,7 +145,7 @@ describe("sleepWakeSystem", () => {
     it("sleeping alone penalizes hope", () => {
         const world = createWorld();
         const ent = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             psychology: { lucidity: 80, hope: 50 },
         });
         // Manually set asleep with a bed
@@ -157,7 +164,7 @@ describe("sleepWakeSystem", () => {
     it("no bed is worse than sleeping alone", () => {
         const world = createWorld();
         const ent = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             psychology: { lucidity: 80, hope: 50 },
         });
         const sleep = getComponent(world, ent, SLEEP);
@@ -174,7 +181,7 @@ describe("sleepWakeSystem", () => {
     it("sleeping alone habituates — penalty diminishes over consecutive nights", () => {
         const world = createWorld();
         const ent = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             psychology: { lucidity: 80, hope: 80 },
         });
 
@@ -208,12 +215,12 @@ describe("sleepWakeSystem", () => {
     it("co-sleeping boosts hope", () => {
         const world = createWorld();
         const a = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             identity: { name: "A" },
             psychology: { lucidity: 80, hope: 50 },
         });
         const b = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             identity: { name: "B" },
             psychology: { lucidity: 80, hope: 50 },
         });
@@ -239,11 +246,11 @@ describe("sleepWakeSystem", () => {
     it("co-sleeping bumps familiarity", () => {
         const world = createWorld();
         const a = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             identity: { name: "A" },
         });
         const b = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             identity: { name: "B" },
         });
         const sleepA = getComponent(world, a, SLEEP);
@@ -262,7 +269,7 @@ describe("sleepWakeSystem", () => {
 
     it("resets sleep state after wake", () => {
         const world = createWorld();
-        const ent = spawnSleeper(world, { position: { position: 10n } });
+        const ent = spawnSleeper(world, { position: { position: R1 } });
         const sleep = getComponent(world, ent, SLEEP);
         sleep.asleep = true;
         sleep.bedIndex = 3;
@@ -277,9 +284,9 @@ describe("sleepWakeSystem", () => {
     it("home shifts after sleeping away for threshold nights", () => {
         const world = createWorld();
         const ent = spawnSleeper(world, {
-            position: { position: 20n }, // at rest area 20
+            position: { position: R2 }, // at rest area 20
             sleep: {
-                home: { side: 0, position: 10n, floor: 0n }, // home is rest area 10
+                home: { side: 0, position: R1, floor: 0n }, // home is rest area 10
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: DEFAULT_SLEEP.homeShiftThreshold - 1,
             },
@@ -290,7 +297,7 @@ describe("sleepWakeSystem", () => {
         sleep.coSleepers = [];
 
         sleepWakeSystem(world, 100);
-        assert.strictEqual(sleep.home.position, 20n, "home should shift to current rest area");
+        assert.strictEqual(sleep.home.position, R2, "home should shift to current rest area");
         assert.strictEqual(sleep.home.side, 0);
         assert.strictEqual(sleep.home.floor, 0n);
         assert.strictEqual(sleep.awayStreak, 0, "away streak should reset");
@@ -299,9 +306,9 @@ describe("sleepWakeSystem", () => {
     it("sleeping at home resets away streak", () => {
         const world = createWorld();
         const ent = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             sleep: {
-                home: { side: 0, position: 10n, floor: 0n },
+                home: { side: 0, position: R1, floor: 0n },
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: 2,
             },
@@ -318,7 +325,7 @@ describe("sleepWakeSystem", () => {
     it("returns wake events", () => {
         const world = createWorld();
         const ent = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             identity: { name: "Alice" },
         });
         sleepOnsetSystem(world);
@@ -331,7 +338,7 @@ describe("sleepWakeSystem", () => {
     it("hope is clamped to 0-100", () => {
         const world = createWorld();
         const ent = spawnSleeper(world, {
-            position: { position: 10n },
+            position: { position: R1 },
             psychology: { lucidity: 80, hope: 1 },
         });
         const sleep = getComponent(world, ent, SLEEP);
@@ -351,19 +358,19 @@ describe("sleepWakeSystem group home alignment", () => {
     it("grouped NPC adopts rest area as home when sleeping with groupmate", () => {
         const world = createWorld();
         const a = spawnSleeper(world, {
-            position: { position: 20n },
+            position: { position: R2 },
             identity: { name: "A" },
             sleep: {
-                home: { side: 0, position: 10n, floor: 0n }, // home is elsewhere
+                home: { side: 0, position: R1, floor: 0n }, // home is elsewhere
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: 0, nomadic: false,
             },
         });
         const b = spawnSleeper(world, {
-            position: { position: 20n },
+            position: { position: R2 },
             identity: { name: "B" },
             sleep: {
-                home: { side: 0, position: 20n, floor: 0n },
+                home: { side: 0, position: R2, floor: 0n },
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: 0, nomadic: false,
             },
@@ -386,7 +393,7 @@ describe("sleepWakeSystem group home alignment", () => {
         sleepWakeSystem(world, 100);
 
         // A's home should shift to position 20 (where they slept with groupmate B)
-        assert.strictEqual(sleepA.home.position, 20n,
+        assert.strictEqual(sleepA.home.position, R2,
             "grouped NPC should adopt rest area as home when sleeping with groupmate");
         assert.strictEqual(sleepA.awayStreak, 0, "away streak should reset");
     });
@@ -394,16 +401,16 @@ describe("sleepWakeSystem group home alignment", () => {
     it("ungrouped NPC does not get instant home shift from co-sleeping", () => {
         const world = createWorld();
         const a = spawnSleeper(world, {
-            position: { position: 20n },
+            position: { position: R2 },
             identity: { name: "A" },
             sleep: {
-                home: { side: 0, position: 10n, floor: 0n },
+                home: { side: 0, position: R1, floor: 0n },
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: 0, nomadic: false,
             },
         });
         const b = spawnSleeper(world, {
-            position: { position: 20n },
+            position: { position: R2 },
             identity: { name: "B" },
         });
 
@@ -420,7 +427,7 @@ describe("sleepWakeSystem group home alignment", () => {
         sleepWakeSystem(world, 100);
 
         // A's home should NOT shift (no group, only 1 away night)
-        assert.strictEqual(sleepA.home.position, 10n,
+        assert.strictEqual(sleepA.home.position, R1,
             "ungrouped NPC should not get instant home shift");
         assert.strictEqual(sleepA.awayStreak, 1, "away streak should increment");
     });
@@ -428,16 +435,16 @@ describe("sleepWakeSystem group home alignment", () => {
     it("grouped NPC sleeping with non-groupmate does not shift home", () => {
         const world = createWorld();
         const a = spawnSleeper(world, {
-            position: { position: 20n },
+            position: { position: R2 },
             identity: { name: "A" },
             sleep: {
-                home: { side: 0, position: 10n, floor: 0n },
+                home: { side: 0, position: R1, floor: 0n },
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: 0, nomadic: false,
             },
         });
         const b = spawnSleeper(world, {
-            position: { position: 20n },
+            position: { position: R2 },
             identity: { name: "B" },
         });
 
@@ -457,23 +464,23 @@ describe("sleepWakeSystem group home alignment", () => {
         sleepWakeSystem(world, 100);
 
         // A's home should NOT shift — B is in a different group
-        assert.strictEqual(sleepA.home.position, 10n,
+        assert.strictEqual(sleepA.home.position, R1,
             "sleeping with non-groupmate should not shift home");
     });
 
     it("nomadic grouped NPC does not shift home", () => {
         const world = createWorld();
         const a = spawnSleeper(world, {
-            position: { position: 20n },
+            position: { position: R2 },
             identity: { name: "A" },
             sleep: {
-                home: { side: 0, position: 10n, floor: 0n },
+                home: { side: 0, position: R1, floor: 0n },
                 bedIndex: null, asleep: false, coSleepers: [],
                 awayStreak: 0, nomadic: true,
             },
         });
         const b = spawnSleeper(world, {
-            position: { position: 20n },
+            position: { position: R2 },
             identity: { name: "B" },
         });
 
@@ -492,7 +499,7 @@ describe("sleepWakeSystem group home alignment", () => {
         sleepWakeSystem(world, 100);
 
         // Nomadic NPCs don't have a meaningful home
-        assert.strictEqual(sleepA.home.position, 10n,
+        assert.strictEqual(sleepA.home.position, R1,
             "nomadic NPC should not shift home");
     });
 });

@@ -321,7 +321,7 @@ describe("batch: needsSystem", () => {
         // Single-tick mode only relieves if the NPC is actually at a rest area.
         // thirstRate ≈ 0.00631/tick; from thirst=90 to 100: ~1584 ticks; then mortality ~720 ticks.
         // Total ticks to kill iterative NPC at non-rest-area: ~2304.
-        // position 7n is not a rest area (GALLERIES_PER_SEGMENT=5, rest at multiples of 5).
+        // position 7n is not a rest area (not a multiple of GALLERIES_PER_SEGMENT).
         const N = 2400;
         const { wBatch, wIter, batchEnts, iterEnts } = twinWorlds([
             { name: "A", position: 7n, floor: 0n, withNeeds: true,

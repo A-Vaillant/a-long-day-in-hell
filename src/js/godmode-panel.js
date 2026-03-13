@@ -6,6 +6,7 @@
 
 import { getForNpc } from "./event-log.js";
 import { isAddressInBounds } from "../../lib/invertible.core.ts";
+import { TICKS_PER_DAY } from "../../lib/tick.core.ts";
 
 let callbacks = {};
 let lastHtml = "";
@@ -343,8 +344,8 @@ const componentRenderers = {
         for (const e of sorted) {
             const pct = Math.max(0, Math.min(100, (e.weight / (e.initialWeight || 1)) * 100));
             const color = e.permanent ? "#9a6a4a" : "#6a6050";
-            const age = snap ? (((snap.day - 1) * 240 + snap.tick) - e.tick) : 0;
-            const ageDays = Math.floor(age / 240);
+            const age = snap ? (((snap.day - 1) * TICKS_PER_DAY + snap.tick) - e.tick) : 0;
+            const ageDays = Math.floor(age / TICKS_PER_DAY);
             const ageStr = ageDays > 0 ? " · " + ageDays + "d ago" : "";
             const subjStr = e.subjectName ? " · " + e.subjectName : "";
             const permStr = e.permanent ? " ·\u202fperm" : "";
@@ -661,7 +662,7 @@ function renderDetail(npc, snap, pane) {
         // Show newest first
         for (let i = history.length - 1; i >= 0; i--) {
             const entry = history[i];
-            const mins = (entry.tick / 240) * 24 * 60 + 6 * 60;
+            const mins = (entry.tick / TICKS_PER_DAY) * 24 * 60 + 6 * 60;
             const hh = String(Math.floor(mins / 60) % 24).padStart(2, "0");
             const mm = String(Math.floor(mins % 60)).padStart(2, "0");
             html += '<div class="gm-narrative-entry">' +

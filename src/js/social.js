@@ -30,6 +30,7 @@ import {
 } from "../../lib/interaction.core.ts";
 import { dismiss as dismissCore } from "../../lib/actions.core.ts";
 import { isRestArea } from "../../lib/library.core.ts";
+import { TICKS_PER_DAY } from "../../lib/tick.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.ts";
@@ -210,7 +211,7 @@ export const Social = {
 
         this.syncPlayerPosition();
 
-        const currentTick = (state.day - 1) * 240 + state.tick;
+        const currentTick = (state.day - 1) * TICKS_PER_DAY + state.tick;
 
         // Build location index once, share between relationship + group systems
         const prebuilt = buildLocationIndex(world);
@@ -544,7 +545,7 @@ export const Social = {
     /** Dawn hook — resolve sleep effects, resurrect dead NPCs, reset needs. */
     onDawn() {
         if (!world) return;
-        const currentTick = (state.day - 1) * 240 + state.tick;
+        const currentTick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         sleepWakeSystem(world, currentTick);
         resetNeedsAtDawn(world);
         // Sync ECS resurrection back to state.npcs (skip escaped NPCs)
@@ -780,7 +781,7 @@ export const Social = {
                         const ident = getComponent(world, ent, IDENTITY);
                         if (ident) ident.alive = false;
                     }
-                    const tick = (state.day - 1) * 240 + state.tick;
+                    const tick = (state.day - 1) * TICKS_PER_DAY + state.tick;
                     appendEvents([{ tick, day: state.day, type: "death",
                         text: npc.name + " hit the ground at floor " + npc.floor + ".",
                         npcIds: [npc.id],
@@ -800,7 +801,7 @@ export const Social = {
                     const grabResult = attemptGrab(npc.falling.speed, grabRng, qBonus);
                     if (grabResult.success) {
                         npc.falling = null;
-                        const tick = (state.day - 1) * 240 + state.tick;
+                        const tick = (state.day - 1) * TICKS_PER_DAY + state.tick;
                         appendEvents([{ tick, day: state.day, type: "chasm",
                             text: npc.name + " caught a railing at floor " + npc.floor + ".",
                             npcIds: [npc.id],
@@ -816,7 +817,7 @@ export const Social = {
                                 const ident = getComponent(world, ent, IDENTITY);
                                 if (ident) ident.alive = false;
                             }
-                            const tick = (state.day - 1) * 240 + state.tick;
+                            const tick = (state.day - 1) * TICKS_PER_DAY + state.tick;
                             appendEvents([{ tick, day: state.day, type: "death",
                                 text: npc.name + " died from impact at floor " + npc.floor + ".",
                                 npcIds: [npc.id],
@@ -983,7 +984,7 @@ export const Social = {
         if (!world || playerEntity === null) return { success: false, reason: "no_world" };
         const ent = npcEntities.get(npcId);
         if (ent === undefined) return { success: false, reason: "not_found" };
-        const currentTick = (state.day - 1) * 240 + state.tick;
+        const currentTick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         this.syncPlayerPosition();
         return talkTo(world, playerEntity, ent, approach, currentTick);
     },
@@ -992,7 +993,7 @@ export const Social = {
         if (!world || playerEntity === null) return { success: false, reason: "no_world" };
         const ent = npcEntities.get(npcId);
         if (ent === undefined) return { success: false, reason: "not_found" };
-        const currentTick = (state.day - 1) * 240 + state.tick;
+        const currentTick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         this.syncPlayerPosition();
         return spendTimeCore(world, playerEntity, ent, currentTick);
     },
@@ -1001,7 +1002,7 @@ export const Social = {
         if (!world || playerEntity === null) return { success: false, reason: "no_world", joined: false };
         const ent = npcEntities.get(npcId);
         if (ent === undefined) return { success: false, reason: "not_found", joined: false };
-        const currentTick = (state.day - 1) * 240 + state.tick;
+        const currentTick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         this.syncPlayerPosition();
         return recruitCore(world, playerEntity, ent, currentTick);
     },

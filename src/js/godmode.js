@@ -324,7 +324,7 @@ function fastForward(n) {
     updatePlayButton();
 
     const useBatch = BATCH_MODE && n > 500;
-    const CHUNK = useBatch ? 240 : 50;
+    const CHUNK = useBatch ? TICKS_PER_DAY : 50;
     let remaining = n;
 
     function step() {
@@ -420,7 +420,7 @@ function loop(now) {
 
     // Batch multiple ticks per frame at high speeds
     let ticked = 0;
-    const maxPerFrame = BATCH_MODE && speed > 500 ? 240 : 50;
+    const maxPerFrame = BATCH_MODE && speed > 500 ? TICKS_PER_DAY : 50;
     if (BATCH_MODE && speed > 500) {
         // Batch mode: advance in chunks, skip per-tick event detection
         while (accumulator >= tickInterval && ticked < maxPerFrame) {
