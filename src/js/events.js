@@ -29,6 +29,12 @@ export const Events = {
     },
 
     init() {
+        if (!this.enabled) {
+            this.cards = [];
+            state.eventDeck = [];
+            state.lastEvent = null;
+            return;
+        }
         this.cards = TEXT.events;
         const rng = PRNG.fork("eventdeck:init");
         state.eventDeck = createDeck(this.cards.length, rng);

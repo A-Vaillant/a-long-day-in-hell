@@ -99,20 +99,19 @@ function clamp(v: number): number {
 }
 
 function applyMortality(stats: SurvivalStats): SurvivalStats {
-    let { thirst, hunger, mortality, dead } = stats;
-    const isParched: boolean  = thirst  >= STAT_MAX;
-    const isStarving: boolean = hunger  >= STAT_MAX;
+    const isParched: boolean  = stats.thirst  >= STAT_MAX;
+    const isStarving: boolean = stats.hunger  >= STAT_MAX;
 
     if (!isParched && !isStarving) {
-        mortality = STAT_MAX;
+        stats.mortality = STAT_MAX;
     } else {
         const rate: number = (isParched && isStarving) ? MORTALITY_BOTH
                    : isParched                 ? MORTALITY_PARCHED_ONLY
                                                : MORTALITY_STARVING_ONLY;
-        mortality = clamp(mortality - rate);
-        if (mortality <= STAT_MIN) dead = true;
+        stats.mortality = clamp(stats.mortality - rate);
+        if (stats.mortality <= STAT_MIN) stats.dead = true;
     }
-    return { ...stats, mortality, dead };
+    return stats;
 }
 
 /**
@@ -123,19 +122,17 @@ function applyMortality(stats: SurvivalStats): SurvivalStats {
  * @returns {SurvivalStats}
  */
 export function applyMoveTick(stats: SurvivalStats): SurvivalStats {
-    let { hunger, thirst, exhaustion, morale, despairing } = stats;
+    stats.hunger     = clamp(stats.hunger     + HUNGER_RATE);
+    stats.thirst     = clamp(stats.thirst     + THIRST_RATE);
+    stats.exhaustion = clamp(stats.exhaustion + EXHAUSTION_RATE);
 
-    hunger     = clamp(hunger     + HUNGER_RATE);
-    thirst     = clamp(thirst     + THIRST_RATE);
-    exhaustion = clamp(exhaustion + EXHAUSTION_RATE);
+    if (stats.hunger     >= STAT_MAX) stats.morale = clamp(stats.morale - 2);
+    if (stats.thirst     >= STAT_MAX) stats.morale = clamp(stats.morale - 4);
+    if (stats.exhaustion >= STAT_MAX) stats.morale = clamp(stats.morale - 1);
 
-    if (hunger     >= STAT_MAX) morale = clamp(morale - 2);
-    if (thirst     >= STAT_MAX) morale = clamp(morale - 4);
-    if (exhaustion >= STAT_MAX) morale = clamp(morale - 1);
+    if (stats.morale <= STAT_MIN) stats.despairing = true;
 
-    if (morale <= STAT_MIN) despairing = true;
-
-    return applyMortality({ ...stats, hunger, thirst, exhaustion, morale, despairing });
+    return applyMortality(stats);
 }
 
 /**
@@ -143,15 +140,13 @@ export function applyMoveTick(stats: SurvivalStats): SurvivalStats {
  * Does NOT accumulate needs — use when ECS needsSystem handles accumulation.
  */
 export function applyMoraleTick(stats: SurvivalStats): SurvivalStats {
-    let { morale, despairing } = stats;
+    if (stats.hunger     >= STAT_MAX) stats.morale = clamp(stats.morale - 2);
+    if (stats.thirst     >= STAT_MAX) stats.morale = clamp(stats.morale - 4);
+    if (stats.exhaustion >= STAT_MAX) stats.morale = clamp(stats.morale - 1);
 
-    if (stats.hunger     >= STAT_MAX) morale = clamp(morale - 2);
-    if (stats.thirst     >= STAT_MAX) morale = clamp(morale - 4);
-    if (stats.exhaustion >= STAT_MAX) morale = clamp(morale - 1);
+    if (stats.morale <= STAT_MIN) stats.despairing = true;
 
-    if (morale <= STAT_MIN) despairing = true;
-
-    return applyMortality({ ...stats, morale, despairing });
+    return applyMortality(stats);
 }
 
 /**
@@ -162,15 +157,14 @@ export function applyMoraleTick(stats: SurvivalStats): SurvivalStats {
  * @returns {SurvivalStats}
  */
 export function applySleep(stats: SurvivalStats, inBedroom: boolean = false): SurvivalStats {
-    let { hunger, thirst, morale, despairing } = stats;
-
-    hunger = clamp(hunger + 0.5);
-    thirst = clamp(thirst + 0.4);
+    stats.hunger = clamp(stats.hunger + 0.5);
+    stats.thirst = clamp(stats.thirst + 0.4);
+    stats.exhaustion = STAT_MIN;
     // Sleeping on the corridor floor gives nothing. A bed helps a little.
-    if (inBedroom) morale = clamp(morale + 1);
-    if (morale > STAT_MIN) despairing = false;
+    if (inBedroom) stats.morale = clamp(stats.morale + 1);
+    if (stats.morale > STAT_MIN) stats.despairing = false;
 
-    return applyMortality({ ...stats, hunger, thirst, exhaustion: STAT_MIN, morale, despairing });
+    return applyMortality(stats);
 }
 
 /**
@@ -181,12 +175,14 @@ export function applySleep(stats: SurvivalStats, inBedroom: boolean = false): Su
  * @returns {SurvivalStats}
  */
 export function applyResurrection(stats: SurvivalStats): SurvivalStats {
-    return {
-        ...defaultStats(),
-        morale: stats.morale,
-        despairing: stats.despairing,
-        mortality: 100,
-    };
+    const d = defaultStats();
+    stats.hunger = d.hunger;
+    stats.thirst = d.thirst;
+    stats.exhaustion = d.exhaustion;
+    stats.mortality = 100;
+    stats.dead = false;
+    // morale and despairing preserved — death is not an escape
+    return stats;
 }
 
 /**
@@ -196,7 +192,8 @@ export function applyResurrection(stats: SurvivalStats): SurvivalStats {
  * @returns {SurvivalStats}
  */
 export function applyEat(stats: SurvivalStats): SurvivalStats {
-    return applyMortality({ ...stats, hunger: clamp(stats.hunger - 40) });
+    stats.hunger = clamp(stats.hunger - 40);
+    return applyMortality(stats);
 }
 
 /**
@@ -206,7 +203,8 @@ export function applyEat(stats: SurvivalStats): SurvivalStats {
  * @returns {SurvivalStats}
  */
 export function applyDrink(stats: SurvivalStats): SurvivalStats {
-    return applyMortality({ ...stats, thirst: clamp(stats.thirst - 40) });
+    stats.thirst = clamp(stats.thirst - 40);
+    return applyMortality(stats);
 }
 
 /** Base morale boost from alcohol. */
@@ -219,9 +217,9 @@ const ALCOHOL_MORALE_BOOST: number = 20;
  * @returns {SurvivalStats}
  */
 export function applyAlcohol(stats: SurvivalStats): SurvivalStats {
-    let morale: number = Math.min(STAT_MAX, stats.morale + ALCOHOL_MORALE_BOOST);
-    let thirst: number = clamp(stats.thirst - 20);
-    return applyMortality({ ...stats, morale, thirst });
+    stats.morale = Math.min(STAT_MAX, stats.morale + ALCOHOL_MORALE_BOOST);
+    stats.thirst = clamp(stats.thirst - 20);
+    return applyMortality(stats);
 }
 
 /**

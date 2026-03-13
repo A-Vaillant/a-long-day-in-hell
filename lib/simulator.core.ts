@@ -279,33 +279,37 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     // Mark start segment
     gs.segmentsVisited = 1;
 
-    /** Expose a read-only snapshot for strategies. */
+    /** Lightweight view of internal state for strategies.
+     *  Exposes gs fields directly — no cloning. Computed fields are lazy getters. */
+    const _loc: Location = { side: 0, position: 0n, floor: 0n };
+    const gsView: GameState = {
+        get seed() { return gs.seed; },
+        get side() { return gs.side; },
+        get position() { return gs.position; },
+        get floor() { return gs.floor; },
+        get tick() { return gs.tick; },
+        get day() { return gs.day; },
+        get lightsOn() { return gs.lightsOn; },
+        get heldBook() { return gs.heldBook; },
+        get dead() { return gs.dead; },
+        get despairing() { return gs.despairing; },
+        get deaths() { return gs.deaths; },
+        get won() { return gs.won; },
+        get stats() { return gs.stats; },
+        get targetBook() { return gs.targetBook; },
+        get totalMoves() { return gs.totalMoves; },
+        get segmentsVisited() { return gs.segmentsVisited; },
+        get booksRead() { return gs.booksRead.size; },
+        get submissionsAttempted() { return gs.submissionsAttempted; },
+        get npcs() { return gs.npcs; },
+        get lastEvent() { return gs.lastEvent; },
+        get availableMoves() { _loc.side = gs.side; _loc.position = gs.position; _loc.floor = gs.floor; return Lib.availableMoves(_loc); },
+        get isRestArea() { return Lib.isRestArea(gs.position); },
+        get timeString() { return Tick.tickToTimeString(gs.tick); },
+    };
+
     function gameState(): GameState {
-        return {
-            seed: gs.seed,
-            side: gs.side,
-            position: gs.position,
-            floor: gs.floor,
-            tick: gs.tick,
-            day: gs.day,
-            lightsOn: gs.lightsOn,
-            heldBook: gs.heldBook,
-            dead: gs.dead,
-            despairing: gs.despairing,
-            deaths: gs.deaths,
-            won: gs.won,
-            stats: { ...gs.stats },
-            targetBook: gs.targetBook,
-            totalMoves: gs.totalMoves,
-            segmentsVisited: gs.segmentsVisited,
-            booksRead: gs.booksRead.size,
-            submissionsAttempted: gs.submissionsAttempted,
-            npcs: gs.npcs.map(n => ({ ...n })),
-            lastEvent: gs.lastEvent,
-            availableMoves: Lib.availableMoves({ side: gs.side, position: gs.position, floor: gs.floor }),
-            isRestArea: Lib.isRestArea(gs.position),
-            timeString: Tick.tickToTimeString(gs.tick),
-        };
+        return gsView;
     }
 
     /** Apply a single action. Returns true if action consumed a tick. */
@@ -340,7 +344,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                     gs.eventDeck = draw.deck;
                     gs.lastEvent = draw.event;
                     if (draw.event && draw.event.morale) {
-                        gs.stats = { ...gs.stats, morale: Math.max(0, Math.min(100, gs.stats.morale + draw.event.morale)) };
+                        gs.stats.morale = Math.max(0, Math.min(100, gs.stats.morale + draw.event.morale));
                     }
                     if (opts.onEvent && draw.event) opts.onEvent(draw.event, gameState());
                 }
@@ -382,7 +386,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                 if (!gs.lightsOn) return false;
                 gs.stats = Surv.applyAlcohol(gs.stats);
                 if (gs.stats.despairing && shouldClearDespairing(gs.stats.morale)) {
-                    gs.stats = { ...gs.stats, despairing: false };
+                    gs.stats.despairing = false;
                 }
                 gs.despairing = gs.stats.despairing;
                 advanceOneTick();
@@ -403,9 +407,9 @@ export function createSimulation(opts: SimulationOpts): Simulation {
 
                 // Reading symbol slop — minor morale drain with diminishing returns
                 const penalty = 2 / (1 + (gs.nonsensePagesRead || 0));
-                gs.stats = { ...gs.stats, morale: Math.max(0, Math.min(100, gs.stats.morale - penalty)) };
+                gs.stats.morale = Math.max(0, Math.min(100, gs.stats.morale - penalty));
                 gs.nonsensePagesRead = (gs.nonsensePagesRead || 0) + 1;
-                if (gs.stats.morale <= 0) gs.stats = { ...gs.stats, despairing: true };
+                if (gs.stats.morale <= 0) gs.stats.despairing = true;
                 gs.despairing = gs.stats.despairing;
 
                 advanceOneTick();
@@ -445,8 +449,8 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         gs.stats = Surv.applyMoveTick(gs.stats);
 
         // Ambient morale drain
-        gs.stats = { ...gs.stats, morale: applyAmbientDrain(gs.stats.morale) };
-        if (gs.stats.morale <= 0) gs.stats = { ...gs.stats, despairing: true };
+        gs.stats.morale = applyAmbientDrain(gs.stats.morale);
+        if (gs.stats.morale <= 0) gs.stats.despairing = true;
         gs.despairing = gs.stats.despairing;
 
         // Death check
@@ -509,10 +513,11 @@ export function createSimulation(opts: SimulationOpts): Simulation {
             const fullGain = gs.stats.morale - moraleBefore;
             if (fullGain > 0) {
                 const effectiveGain = fullGain * DespairConfig.sleepRecoveryMult;
-                gs.stats = { ...gs.stats, morale: Math.max(0, moraleBefore + effectiveGain), despairing: true };
+                gs.stats.morale = Math.max(0, moraleBefore + effectiveGain);
+                gs.stats.despairing = true;
             }
             if (shouldClearDespairing(gs.stats.morale)) {
-                gs.stats = { ...gs.stats, despairing: false };
+                gs.stats.despairing = false;
             }
         }
         gs.despairing = gs.stats.despairing;
