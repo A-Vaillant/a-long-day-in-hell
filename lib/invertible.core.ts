@@ -20,20 +20,29 @@
  */
 
 import { hash } from "./prng.core.ts";
-import { BOOKS_PER_GALLERY, CHARSET_SIZE, CHARS_PER_LINE, LINES_PER_PAGE, FLOORS, MAX_BOOK_POSITION } from "./scale.core.ts";
+import { BOOKS_PER_GALLERY, CHARSET_SIZE, CHARS_PER_LINE, LINES_PER_PAGE, FLOORS, POSITIONS_PER_SIDE } from "./scale.core.ts";
 
 /* ---- Constants ---- */
 
 const CHARSET_LEN: number = CHARSET_SIZE;
 
 /**
- * The library's address space: 95^66.
- * Any book whose text-as-base-95-number exceeds this is beyond the library's
- * edge — its location does not exist within the finite (but vast) library.
+ * Early-exit threshold for textToAddress.
  *
- * 95^66 ≈ 3.4 × 10^130. For comparison, atoms in the observable universe ≈ 10^80.
- * Most random book texts vastly exceed this within their first ~66 characters.
+ * When converting text to a base-95 number, most texts exceed the playable
+ * address space within the first few characters. This threshold lets
+ * textToAddress bail out early without computing the full (potentially
+ * million-digit) number.
+ *
+ * Set to PLAYABLE_ADDRESS_MAX — if the running total exceeds the walkable
+ * library, there's no point continuing. This fires after ~9 characters
+ * for random text.
+ *
+ * @see PLAYABLE_ADDRESS_MAX — the actual library boundary
  */
+export let TEXT_ADDRESS_EARLY_EXIT: bigint;  // initialized after PLAYABLE_ADDRESS_MAX
+
+/** @deprecated Use PLAYABLE_ADDRESS_MAX for bounds checks, TEXT_ADDRESS_EARLY_EXIT for early-exit. */
 export const LIBRARY_MAX: bigint = 95n ** 66n;
 
 /**
@@ -41,14 +50,14 @@ export const LIBRARY_MAX: bigint = 95n ** 66n;
  * Characters are treated as digits in [0, 94] (codepoint - 32).
  *
  * Exits early if the running value exceeds `limit` — since most texts blow
- * past LIBRARY_MAX within the first 66 characters, this is nearly free
+ * past the early-exit threshold within the first few characters, this is nearly free
  * for out-of-bounds books.
  *
  * @param text - the book's full text (or as much as needed)
  * @param limit - stop and return current value if it exceeds this
  * @returns the address (may exceed limit if text is in bounds)
  */
-export function textToAddress(text: string, limit: bigint | null = LIBRARY_MAX): bigint {
+export function textToAddress(text: string, limit: bigint | null = TEXT_ADDRESS_EARLY_EXIT): bigint {
     let addr = 0n;
     for (let i = 0; i < text.length; i++) {
         addr = addr * 95n + BigInt(text.charCodeAt(i) - 32);
@@ -58,11 +67,11 @@ export function textToAddress(text: string, limit: bigint | null = LIBRARY_MAX):
 }
 
 /**
- * Returns true if a book address is within the library.
- * False means the book's true location is beyond the edge — the soul is damned.
+ * Returns true if a book's text-as-number falls within the walkable library.
+ * False means the soul is damned — their book has no shelf location.
  */
 export function isInBounds(text: string): boolean {
-    return textToAddress(text) <= LIBRARY_MAX;
+    return textToAddress(text) <= PLAYABLE_ADDRESS_MAX;
 }
 
 /**
@@ -72,7 +81,7 @@ export function isInBounds(text: string): boolean {
  *   bookAddress = rawAddress - playerRawAddress + randomOrigin
  *
  * For the player themselves: rawAddress - rawAddress + randomOrigin = randomOrigin,
- * which is always within LIBRARY_MAX by construction.
+ * which is always within PLAYABLE_ADDRESS_MAX by construction.
  *
  * For NPCs: big number - big number + small number. Usually still enormous → damned.
  * By cosmic coincidence, an NPC whose rawAddress is close to the player's lands
@@ -80,7 +89,7 @@ export function isInBounds(text: string): boolean {
  *
  * @param rawAddress - textToAddress(storyText) for this soul, no early-exit limit
  * @param playerRawAddress - textToAddress(playerStoryText), no early-exit limit
- * @param randomOrigin - a bigint in [0, LIBRARY_MAX], derived from game seed
+ * @param randomOrigin - a bigint in [0, PLAYABLE_ADDRESS_MAX], derived from game seed
  * @returns bookAddress — use isAddressInBounds() to check damnation
  */
 export function computeBookAddress(
@@ -99,18 +108,17 @@ export function isAddressInBounds(bookAddress: bigint): boolean {
     return bookAddress >= 0n && bookAddress <= PLAYABLE_ADDRESS_MAX;
 }
 
-/**
- * Re-export MAX_BOOK_POSITION from scale.core.ts for backward compatibility.
- * @see scale.core.ts
- */
-export { MAX_BOOK_POSITION } from "./scale.core.ts";
+export { POSITIONS_PER_SIDE } from "./scale.core.ts";
 
 /**
  * The maximum address that maps to a sensible (walkable) library location.
  * randomOrigin should be drawn from [0, PLAYABLE_ADDRESS_MAX].
  */
 export const PLAYABLE_ADDRESS_MAX: bigint =
-    MAX_BOOK_POSITION * 2n * BigInt(FLOORS) * BigInt(BOOKS_PER_GALLERY); // position * sides * floors * booksPerGallery
+    POSITIONS_PER_SIDE * 2n * BigInt(FLOORS) * BigInt(BOOKS_PER_GALLERY); // position * sides * floors * booksPerGallery
+
+// Now that PLAYABLE_ADDRESS_MAX is defined, set the early-exit threshold.
+TEXT_ADDRESS_EARLY_EXIT = PLAYABLE_ADDRESS_MAX;
 
 /**
  * Decompose a book address into library coordinates.
@@ -120,7 +128,7 @@ export const PLAYABLE_ADDRESS_MAX: bigint =
  *   bookIndex : [0, booksPerGallery)
  *   floor     : [0, FLOORS-1]        — FLOORS floors
  *   side      : 0 or 1
- *   position  : [0, MAX_BOOK_POSITION)
+ *   position  : [0, POSITIONS_PER_SIDE)
  *
  * @param addr - a bigint in [0, PLAYABLE_ADDRESS_MAX]
  * @param booksPerGallery - e.g. 200 (from scale.core.ts)
@@ -136,7 +144,7 @@ export function addressToCoords(addr: bigint, booksPerGallery: number): { side: 
     addr = addr / _FLOORS;
 
     const side = Number(addr % 2n);
-    const position = addr / 2n; // [0, MAX_BOOK_POSITION)
+    const position = addr / 2n; // [0, POSITIONS_PER_SIDE)
 
     return { side, position, floor, bookIndex };
 }

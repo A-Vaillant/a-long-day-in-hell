@@ -18,6 +18,14 @@ const EXTREME_POSITIONS = [
     { label: "large positive", position: 10n ** 15n, floor: 50000n },
     { label: "large negative", position: -(10n ** 15n), floor: 50000n },
     { label: "max safe int", position: BigInt(Number.MAX_SAFE_INTEGER), floor: 1n },
+    { label: "beyond Number precision (10^18)", position: 10n ** 18n, floor: 50000n },
+    { label: "cosmological (10^30)", position: 10n ** 30n, floor: 10n ** 6n },
+    { label: "astronomical negative (10^30)", position: -(10n ** 30n), floor: 10n ** 6n },
+    { label: "near address space scale (10^100)", position: 10n ** 100n, floor: 10n ** 20n },
+    // ~95^507 books — half a page of base-95 address distance
+    { label: "half-page scale (10^1000)", position: 10n ** 1000n, floor: 10n ** 50n },
+    // ~95^2530 books — approaching the full 1,312,000-char search space
+    { label: "near-total library (10^5000)", position: 10n ** 5000n, floor: 10n ** 100n },
     { label: "very high floor", position: 0n, floor: 10n ** 9n },
     { label: "zero", position: 0n, floor: 0n },
     { label: "negative near zero", position: -1n, floor: 0n },
@@ -87,6 +95,117 @@ describe("awareness at extreme distances", () => {
         const a = { side: 0, position: -500n, floor: 1n };
         const b = { side: 0, position: 500n, floor: 1n };
         assert.strictEqual(segmentDistance(a, b), 1000);
+    });
+
+    it("co-located at 10^30 = distance 0, hear and see", () => {
+        const pos = { side: 0, position: 10n ** 30n, floor: 10n ** 6n };
+        assert.strictEqual(segmentDistance(pos, pos), 0);
+        assert.strictEqual(canHear(pos, pos), true);
+        assert.strictEqual(canSee(pos, pos), true);
+    });
+
+    it("5 apart at 10^30 = distance 5", () => {
+        const base = 10n ** 30n;
+        const a = { side: 0, position: base, floor: 1n };
+        const b = { side: 0, position: base + 5n, floor: 1n };
+        assert.strictEqual(segmentDistance(a, b), 5);
+    });
+
+    it("10^30 apart — Number() loses precision but hear/see still false", () => {
+        const a = { side: 0, position: 0n, floor: 1n };
+        const b = { side: 0, position: 10n ** 30n, floor: 1n };
+        const dist = segmentDistance(a, b);
+        // Number(10^30) is representable (1e30) but not integer-precise
+        assert.ok(dist > 0, "distance should be positive");
+        assert.ok(!Number.isSafeInteger(dist), "distance is beyond safe integer range");
+        assert.strictEqual(canHear(a, b), false);
+        assert.strictEqual(canSee(a, b), false);
+    });
+
+    it("10^100 apart — still no crash, hear/see false", () => {
+        const a = { side: 0, position: 0n, floor: 1n };
+        const b = { side: 0, position: 10n ** 100n, floor: 1n };
+        const dist = segmentDistance(a, b);
+        assert.ok(dist > 0);
+        assert.strictEqual(canHear(a, b), false);
+        assert.strictEqual(canSee(a, b), false);
+    });
+
+    // ~95^101 books — equivalent to ~101 chars of base-95 address difference
+    it("10^200 apart — deep cosmological distance, no crash", () => {
+        const a = { side: 0, position: 0n, floor: 1n };
+        const b = { side: 0, position: 10n ** 200n, floor: 1n };
+        const dist = segmentDistance(a, b);
+        assert.ok(dist > 0);
+        assert.strictEqual(canHear(a, b), false);
+        assert.strictEqual(canSee(a, b), false);
+    });
+
+    // ~95^507 books — roughly half a page of base-95 address space
+    it("10^1000 apart — half a page of address difference", () => {
+        const a = { side: 0, position: 0n, floor: 1n };
+        const b = { side: 0, position: 10n ** 1000n, floor: 1n };
+        const dist = segmentDistance(a, b);
+        assert.ok(dist > 0);
+        assert.strictEqual(canHear(a, b), false);
+        assert.strictEqual(canSee(a, b), false);
+    });
+
+    // ~95^1012 books — an entire page of base-95 address space
+    it("10^2000 apart — a full page of base-95 difference", () => {
+        const a = { side: 0, position: 0n, floor: 1n };
+        const b = { side: 0, position: 10n ** 2000n, floor: 1n };
+        const dist = segmentDistance(a, b);
+        assert.ok(dist > 0);
+        assert.strictEqual(canHear(a, b), false);
+        assert.strictEqual(canSee(a, b), false);
+    });
+
+    // ~95^2530 books — nearly the full 1,312,000-char address space
+    it("10^5000 apart — approaching total library scale", () => {
+        const a = { side: 0, position: 0n, floor: 1n };
+        const b = { side: 0, position: 10n ** 5000n, floor: 1n };
+        const dist = segmentDistance(a, b);
+        assert.ok(dist > 0);
+        assert.strictEqual(canHear(a, b), false);
+        assert.strictEqual(canSee(a, b), false);
+    });
+
+    // 95^1,312,000 ≈ 10^2,594,785 — this IS the full search space
+    // Use 10^2,600,000 to exceed it comfortably
+    it("10^2,600,000 apart — exceeds 95^1,312,000 total book count", () => {
+        const a = { side: 0, position: 0n, floor: 1n };
+        const b = { side: 0, position: 10n ** 2_600_000n, floor: 1n };
+        const dist = segmentDistance(a, b);
+        assert.ok(dist > 0);
+        assert.strictEqual(canHear(a, b), false);
+        assert.strictEqual(canSee(a, b), false);
+    });
+
+    it("negative 10^30 apart produces valid distance", () => {
+        const a = { side: 0, position: -(10n ** 30n), floor: 1n };
+        const b = { side: 0, position: 10n ** 30n, floor: 1n };
+        const dist = segmentDistance(a, b);
+        assert.ok(dist > 0);
+        assert.strictEqual(canHear(a, b), false);
+    });
+
+    // ~95^1012 books apart, mirrored around origin
+    it("negative 10^2000 to positive 10^2000 — two pages of address space", () => {
+        const a = { side: 0, position: -(10n ** 2000n), floor: 1n };
+        const b = { side: 0, position: 10n ** 2000n, floor: 1n };
+        const dist = segmentDistance(a, b);
+        assert.ok(dist > 0);
+        assert.strictEqual(canHear(a, b), false);
+        assert.strictEqual(canSee(a, b), false);
+    });
+
+    it("small delta at 10^5000 — co-located at library scale", () => {
+        const base = 10n ** 5000n;
+        const a = { side: 0, position: base, floor: 1n };
+        const b = { side: 0, position: base + 3n, floor: 1n };
+        assert.strictEqual(segmentDistance(a, b), 3);
+        assert.strictEqual(canHear(a, b), true);
     });
 });
 

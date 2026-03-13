@@ -143,8 +143,8 @@ export function days(d: number): number {
 /** Number of addressable floors for book placement. Movement is unbounded. */
 export const FLOORS: number = 100_000;
 
-/** Maximum position index (total segments, ±half from origin). */
-export const MAX_BOOK_POSITION: bigint = 10_000_000_000n; // ±5B segments
+/** Gallery positions per side in the addressable coordinate range. */
+export const POSITIONS_PER_SIDE: bigint = 10_000_000_000n; // 10B galleries per side
 
 /** Minimum floor for player book placement. */
 export const BOOK_FLOOR_MIN: bigint = 2000n;
