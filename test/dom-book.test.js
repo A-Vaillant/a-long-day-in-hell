@@ -31,21 +31,22 @@ describe("DOM: book rendering", () => {
         assert.ok(result.length > 50, "text has content");
     });
 
-    it("target book page displays life story text", () => {
+    it("every page of target book contains word-based prose", () => {
         const game = bootGame();
         const tb = game.state.targetBook;
-        // Move player to the target book's location
-        game.state.side = tb.side;
-        game.state.position = tb.position;
-        game.state.floor = tb.floor;
-        game.state.openBook = { side: tb.side, position: tb.position, floor: tb.floor, bookIndex: tb.bookIndex };
-        game.state.openPage = game.state.lifeStory.targetPage + 1; // openPage is 1-indexed (0=cover)
-        game.Engine.goto("Shelf Open Book");
-
-        const el = game.document.getElementById("book-single");
-        assert.ok(el, "book-single element exists");
-        const text = el.textContent;
-        assert.ok(text.includes(game.state.lifeStory.name), "contains player name");
+        const totalPages = game.window.Book.PAGES_PER_BOOK;
+        // Sample pages across the full range
+        const pagesToCheck = [0, 1, 2, 10, 50, 100, 200, 300, 409];
+        for (const p of pagesToCheck) {
+            assert.ok(p < totalPages, `page ${p} within bounds`);
+            const text = game.window.Book.getPage(tb.side, tb.position, tb.floor, tb.bookIndex, p);
+            assert.ok(text.length > 50, `page ${p} has content (${text.length} chars)`);
+            // Word-based prose has spaces and common lowercase letters
+            const spaceRatio = (text.match(/ /g) || []).length / text.length;
+            assert.ok(spaceRatio > 0.05, `page ${p} has word spaces (ratio ${spaceRatio.toFixed(3)})`);
+            const wordCount = (text.match(/[a-z]{3,}/g) || []).length;
+            assert.ok(wordCount >= 12, `page ${p} has enough words (${wordCount})`);
+        }
     });
 
     it("non-target pages of target book are random ASCII", () => {

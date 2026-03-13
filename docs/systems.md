@@ -71,11 +71,11 @@ Target book page 0 is a title page, page 1 is life story prose, pages 2+ are whi
 
 Four stats (0–100, up=worse for hunger/thirst/exhaustion, down=worse for morale) plus mortality and despairing flags.
 
-**Per-move depletion:** thirst +0.11, hunger +0.05, exhaustion +0.25, ambient morale drain -0.15 (via Despair module)
+**Per-move depletion:** thirst +0.11, hunger +0.05, exhaustion +0.25, ambient morale drain -0.0085/tick (~8.2/day, via Despair module)
 
 **Mortality:** activates when thirst or hunger maxed. Parched: -0.83/tick (~12h to death). Starving: -0.42/tick (~1 day). Both: -1.67/tick (~6h). Resets to 100 when neither condition active.
 
-**Recovery:** Sleep (exhaustion→0, morale +5/hour, hunger/thirst tick up slowly). Eat (hunger -40). Drink (thirst -40). Alcohol (thirst -20, morale +20, can clear despairing).
+**Recovery:** Sleep (exhaustion→0, morale +1/hour in bedroom only, hunger/thirst tick up slowly). Eat (hunger -40). Drink (thirst -40). Alcohol (thirst -20, morale +20, can clear despairing). Despairing sleep mult: 0.9× (nearly keeps up with drain, slow grind). ~500 days to despair from full morale with sleep alone.
 
 **Key functions:** `applyMoveTick()`, `applySleep()`, `applyEat()`, `applyDrink()`, `applyAlcohol()`, `applyResurrection()`, `getWarnings()`, `showMortality()`
 

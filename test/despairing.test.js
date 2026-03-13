@@ -29,7 +29,7 @@ describe("applyAmbientDrain", () => {
 
     it("clamps at 0", () => {
         assert.strictEqual(applyAmbientDrain(0), 0);
-        assert.strictEqual(applyAmbientDrain(0.01), 0);
+        assert.strictEqual(applyAmbientDrain(0.001), 0);
     });
 
     it("respects config override", () => {
@@ -37,12 +37,12 @@ describe("applyAmbientDrain", () => {
         assert.strictEqual(applyAmbientDrain(50), 49);
     });
 
-    it("at default rate, one waking day drains ~24 morale", () => {
-        // 960 ticks/day * (24/960) = 24 morale per waking day
+    it("at default rate, one waking day drains ~8 morale", () => {
+        // 960 ticks/day * (8.18/960) ≈ 8.18 morale per waking day
         let morale = 100;
         for (let i = 0; i < 960; i++) morale = applyAmbientDrain(morale);
-        assert.ok(morale > 70 && morale < 80,
-            `morale after 1 waking day: ${morale}, expected ~76`);
+        assert.ok(morale > 90 && morale < 93,
+            `morale after 1 waking day: ${morale}, expected ~91.8`);
     });
 });
 
