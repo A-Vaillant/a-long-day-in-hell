@@ -20,6 +20,8 @@ import { Despair } from "./despairing.js";
 import { PRNG } from "./prng.js";
 import { Book } from "./book.js";
 import { Social } from "./social.js";
+import { mercyKiosk } from "../../lib/library.core.ts";
+import { applyMercyKiosk } from "../../lib/survival.core.ts";
 
 // Auto-drink threshold — aligned with NPC needs system (needs.core.ts).
 // Hunger stays manual: starvation is a real consequence of mindless walking.
@@ -100,6 +102,21 @@ function resolveMove(dir) {
     // Hunger stays manual — starvation is the cost of mindless walking.
     if (Lib.isRestArea(state.position) && state.lightsOn) {
         if (state.thirst >= AUTO_DRINK_THRESHOLD) Surv.onDrink();
+    }
+
+    // Mercy kiosk: first arrival at a kiosk adjacent to your book
+    state._mercyArrival = null;
+    const mercy = mercyKiosk(
+        { side: state.side, position: state.position, floor: state.floor },
+        state.targetBook,
+    );
+    if (mercy) {
+        if (!state._mercyKiosks) state._mercyKiosks = {};
+        if (!state._mercyKiosks[mercy]) {
+            state._mercyKiosks[mercy] = true;
+            applyMercyKiosk(state);
+            state._mercyArrival = mercy;
+        }
     }
 
     return { resolved: true, screen: "Corridor" };
