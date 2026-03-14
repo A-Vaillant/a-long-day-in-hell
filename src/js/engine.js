@@ -17,13 +17,20 @@ import { createBoundaryRegistry, processTime } from "../../lib/engine.core.ts";
 import { Godmode } from "./godmode.js";
 import { saveLog, loadLog, clearLog, count as logCount } from "./event-log.js";
 import * as Slots from "./save-slots.js";
-import { SAVE_VERSION, checkSaveCompatibility, needsMigration, savedMinor, parseSaveVersion } from "../../lib/save-version.core.ts";
+import { SAVE_VERSION, checkSaveCompatibility, needsMigration, savedMinor, parseSaveVersion, featureFlags } from "../../lib/save-version.core.ts";
+import { feistelKey, buildOriginPad, buildPlayerDigits, coordsToAddress } from "../../lib/invertible.core.ts";
 
 export { state };
 
 const SAVE_KEY = "hell_save"; // legacy — kept for jsonReplacer/Reviver reuse only
 
+// Transient state fields — recomputed on load, never persisted.
+const TRANSIENT_KEYS = new Set([
+    "_featureFlags", "_feistelKey", "_originPad", "_playerDigits",
+]);
+
 function jsonReplacer(key, value) {
+    if (TRANSIENT_KEYS.has(key)) return undefined;
     if (typeof value === 'bigint') return { __bigint: value.toString() };
     return value;
 }
@@ -459,6 +466,25 @@ export const Engine = {
             Events.init();
             Npc.init();
             Social.init();
+        }
+
+        // Feature flags — derived from save version, never stored
+        state._featureFlags = featureFlags(state._saveVersion);
+
+        // Digit-wise book caches (computed once per save, not persisted)
+        if (state._featureFlags.digitWiseBooks) {
+            const key = feistelKey(state.seed);
+            state._feistelKey = key;
+            state._originPad = buildOriginPad(state.playerBookAddress, key);
+            state._playerDigits = buildPlayerDigits(
+                state.lifeStory.storyText,
+                {
+                    name: state.lifeStory.name,
+                    occupation: state.lifeStory.occupation,
+                    hometown: state.lifeStory.hometown,
+                    causeOfDeath: state.lifeStory.causeOfDeath,
+                },
+            );
         }
 
         // Register boundary handlers (must happen after subsystem init, before first goto)

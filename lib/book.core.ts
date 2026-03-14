@@ -346,6 +346,17 @@ export function generateFullStoryBook(
     } else if (book.length > CHARS_PER_BOOK) {
         book = book.slice(0, CHARS_PER_BOOK);
     }
+    // Guard: every character must be printable ASCII [32, 126].
+    // The digit-wise embedding operates mod 95 and cannot represent non-ASCII.
+    for (let i = 0; i < book.length; i++) {
+        const c = book.charCodeAt(i);
+        if (c < 32 || c > 126) {
+            throw new RangeError(
+                `generateFullStoryBook: non-ASCII character at position ${i}: ` +
+                `codepoint ${c} '${book[i]}'. All story text must use printable ASCII [32-126].`
+            );
+        }
+    }
     return book;
 }
 

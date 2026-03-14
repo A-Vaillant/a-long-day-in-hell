@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { TEXT_ADDRESS_EARLY_EXIT, PLAYABLE_ADDRESS_MAX, textToAddress, isInBounds, isAddressInBounds, computeBookAddress, addressToCoords } from "../lib/invertible.core.ts";
+import { TEXT_ADDRESS_EARLY_EXIT, PLAYABLE_ADDRESS_MAX, textToAddress, isInBounds, isAddressInBounds, computeBookAddress, addressToCoords, coordsToAddress } from "../lib/invertible.core.ts";
 import { generateLifeStory } from "../lib/lifestory.core.ts";
-import { BOOKS_PER_GALLERY } from "../lib/scale.core.ts";
+import { BOOKS_PER_GALLERY, FLOORS, POSITIONS_PER_SIDE } from "../lib/scale.core.ts";
 
 describe("TEXT_ADDRESS_EARLY_EXIT", () => {
     it("equals PLAYABLE_ADDRESS_MAX", () => {
@@ -149,5 +149,44 @@ describe("player is never damned", () => {
         // bookIndex is randomized from spawnRng, not derived from address
         assert.ok(story.bookCoords.bookIndex >= 0 && story.bookCoords.bookIndex < BOOKS_PER_GALLERY,
             `bookIndex ${story.bookCoords.bookIndex} should be in [0, ${BOOKS_PER_GALLERY})`);
+    });
+});
+
+describe("coordsToAddress", () => {
+    it("round-trips with addressToCoords", () => {
+        const cases = [
+            { side: 0, position: 0n, floor: 0n, bookIndex: 0 },
+            { side: 1, position: 5000n, floor: 50000n, bookIndex: 99 },
+            { side: 0, position: BigInt(POSITIONS_PER_SIDE) - 1n, floor: BigInt(FLOORS) - 1n, bookIndex: BOOKS_PER_GALLERY - 1 },
+            { side: 1, position: 17n, floor: 2500n, bookIndex: 42 },
+        ];
+        for (const c of cases) {
+            const addr = coordsToAddress(c.side, c.position, c.floor, c.bookIndex);
+            assert.ok(addr >= 0n && addr <= PLAYABLE_ADDRESS_MAX,
+                `address ${addr} out of bounds for coords ${`s${c.side} p${c.position} f${c.floor} b${c.bookIndex}`}`);
+            const back = addressToCoords(addr, BOOKS_PER_GALLERY);
+            assert.strictEqual(back.side, c.side, `side mismatch for ${`s${c.side} p${c.position} f${c.floor} b${c.bookIndex}`}`);
+            assert.strictEqual(back.position, c.position, `position mismatch for ${`s${c.side} p${c.position} f${c.floor} b${c.bookIndex}`}`);
+            assert.strictEqual(back.floor, c.floor, `floor mismatch for ${`s${c.side} p${c.position} f${c.floor} b${c.bookIndex}`}`);
+            assert.strictEqual(back.bookIndex, c.bookIndex, `bookIndex mismatch for ${`s${c.side} p${c.position} f${c.floor} b${c.bookIndex}`}`);
+        }
+    });
+
+    it("addressToCoords → coordsToAddress recovers original address", () => {
+        const addrs = [0n, 1n, 12345678n, PLAYABLE_ADDRESS_MAX / 2n, PLAYABLE_ADDRESS_MAX];
+        for (const addr of addrs) {
+            const c = addressToCoords(addr, BOOKS_PER_GALLERY);
+            const recovered = coordsToAddress(c.side, c.position, c.floor, c.bookIndex);
+            assert.strictEqual(recovered, addr, `round-trip failed for address ${addr}`);
+        }
+    });
+
+    it("is fast: 100k calls under 50ms", () => {
+        const t0 = performance.now();
+        for (let i = 0; i < 100000; i++) {
+            coordsToAddress(i & 1, BigInt(i), BigInt(i % FLOORS), i % BOOKS_PER_GALLERY);
+        }
+        const elapsed = performance.now() - t0;
+        assert.ok(elapsed < 50, `${elapsed.toFixed(1)}ms for 100k calls — expected <50ms`);
     });
 });

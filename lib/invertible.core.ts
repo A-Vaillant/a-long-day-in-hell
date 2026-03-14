@@ -21,6 +21,7 @@
 
 import { hash } from "./prng.core.ts";
 import { BOOKS_PER_GALLERY, CHARSET_SIZE, CHARS_PER_LINE, LINES_PER_PAGE, CHARS_PER_PAGE, CHARS_PER_BOOK, PAGES_PER_BOOK, FLOORS, POSITIONS_PER_SIDE } from "./scale.core.ts";
+import { generateFullStoryBook } from "./book.core.ts";
 
 /* ---- Constants ---- */
 
@@ -147,6 +148,16 @@ export function addressToCoords(addr: bigint, booksPerGallery: number): { side: 
     const position = addr / 2n; // [0, POSITIONS_PER_SIDE)
 
     return { side, position, floor, bookIndex };
+}
+
+/**
+ * Pack library coordinates into a flat address.
+ * Inverse of addressToCoords.
+ */
+export function coordsToAddress(side: number, position: bigint, floor: bigint, bookIndex: number): bigint {
+    const bpg = BigInt(BOOKS_PER_GALLERY);
+    const _FLOORS = BigInt(FLOORS);
+    return BigInt(bookIndex) + bpg * (floor + _FLOORS * (BigInt(side) + 2n * position));
 }
 
 /** LCG parameters (mod 2^32). Multiplier from Numerical Recipes. */
@@ -665,6 +676,143 @@ function _miniRng(s0: number, s1: number): () => number {
         b = t;
         return (t >>> 0);
     };
+}
+
+/* ---- Carry-free digit-wise embedding ---- */
+
+/**
+ * Fast integer hash for counter-mode PRNG.
+ * Mixes a 32-bit counter with two 32-bit seed words.
+ * Based on splitmix32 / Wang hash.
+ */
+function counterHash(counter: number, seedLo: number, seedHi: number): number {
+    let x = (counter + seedLo) >>> 0;
+    x ^= seedHi;
+    x ^= x >>> 16;
+    x = Math.imul(x, 0x45d9f3b);
+    x ^= x >>> 16;
+    x = Math.imul(x, 0x45d9f3b);
+    x ^= x >>> 16;
+    return x >>> 0;
+}
+
+/**
+ * Split a bigint seed into two 32-bit words for counterHash.
+ */
+function seedWords(seed: bigint): [number, number] {
+    const lo = Number(seed & 0xFFFFFFFFn);
+    const hi = Number((seed >> 32n) & 0xFFFFFFFFn);
+    return [lo, hi];
+}
+
+/** Digits per hash call. 95^4 = 81,450,625 < 2^32, so 4 base-95 digits fit. */
+const DIGITS_PER_HASH = 4;
+
+/**
+ * Seekable expansion function: returns `count` pseudorandom digits in [0, 94],
+ * seeded from `seed` (bigint), starting at character position `offset`.
+ *
+ * Counter-mode: positions [4k, 4k+3] derive from counterHash(k, seedLo, seedHi),
+ * decomposed into 4 base-95 digits. Deterministic and seekable.
+ */
+export function expand(seed: bigint, offset: number, count: number): Uint8Array {
+    const [lo, hi] = seedWords(seed);
+    const out = new Uint8Array(count);
+
+    let i = 0;
+    const startBlock = (offset / DIGITS_PER_HASH) | 0;
+    const startLane = offset - startBlock * DIGITS_PER_HASH;
+
+    // Handle partial first block if offset isn't block-aligned
+    if (startLane > 0 && count > 0) {
+        let h = counterHash(startBlock, lo, hi);
+        for (let d = 0; d < startLane; d++) h = (h / 95) | 0;
+        for (let d = startLane; d < DIGITS_PER_HASH && i < count; d++, i++) {
+            out[i] = h % 95;
+            h = (h / 95) | 0;
+        }
+    }
+
+    // Process full blocks of 4
+    let block = startBlock + (startLane > 0 ? 1 : 0);
+    while (i + DIGITS_PER_HASH <= count) {
+        let h = counterHash(block, lo, hi);
+        out[i]     = h % 95; h = (h / 95) | 0;
+        out[i + 1] = h % 95; h = (h / 95) | 0;
+        out[i + 2] = h % 95; h = (h / 95) | 0;
+        out[i + 3] = h % 95;
+        i += DIGITS_PER_HASH;
+        block++;
+    }
+
+    // Handle partial last block
+    if (i < count) {
+        let h = counterHash(block, lo, hi);
+        while (i < count) {
+            out[i] = h % 95;
+            h = (h / 95) | 0;
+            i++;
+        }
+    }
+
+    return out;
+}
+
+/**
+ * Expand permute(playerBookAddress) over all 1,312,000 positions.
+ * Computed once at game start and cached.
+ */
+export function buildOriginPad(playerBookAddress: bigint, key: Uint32Array): Uint8Array {
+    const permuted = permute(playerBookAddress, key);
+    return expand(permuted, 0, CHARS_PER_BOOK);
+}
+
+/**
+ * Materialize the player's full book as digit values (charCode - 32).
+ * Computed once at game start and cached.
+ */
+export function buildPlayerDigits(storyText: string, fields: { name: string; occupation: string; hometown: string; causeOfDeath: string }): Uint8Array {
+    const fullBook: string = generateFullStoryBook(storyText, fields);
+    const digits = new Uint8Array(CHARS_PER_BOOK);
+    for (let i = 0; i < fullBook.length; i++) {
+        digits[i] = fullBook.charCodeAt(i) - 32;
+    }
+    return digits;
+}
+
+/**
+ * Unified book content function — no branch.
+ *
+ * For any address (including the player's), the content is:
+ *   digit(i) = (expand(permute(address), i) - originPad[i] + playerDigits[i]) mod 95
+ *
+ * At the player's address, permute(address) === permute(origin), so expand
+ * terms cancel, leaving playerDigits — the player's book exactly.
+ *
+ * @param address - shelf address in [0, PLAYABLE_ADDRESS_MAX]
+ * @param originPad - precomputed expand(permute(playerBookAddress)) for all positions
+ * @param playerDigits - precomputed player book digit values (charCode - 32)
+ * @param key - Feistel key from feistelKey(seed)
+ * @param pageIndex - 0-based page number [0, 409]
+ * @returns CHARS_PER_PAGE-character flat string (no newlines)
+ */
+export function digitWiseBookPage(
+    address: bigint,
+    originPad: Uint8Array,
+    playerDigits: Uint8Array,
+    key: Uint32Array,
+    pageIndex: number,
+): string {
+    const scrambled = permute(address, key);
+    const pageOffset = pageIndex * CHARS_PER_PAGE;
+    const addrDigits = expand(scrambled, pageOffset, CHARS_PER_PAGE);
+
+    let page = "";
+    for (let i = 0; i < CHARS_PER_PAGE; i++) {
+        const d = ((addrDigits[i] - originPad[pageOffset + i] + playerDigits[pageOffset + i]) % CHARSET_SIZE + CHARSET_SIZE) % CHARSET_SIZE;
+        page += String.fromCharCode(32 + d);
+    }
+    return page;
 }
 
 /* ---- Exports for solver/test use ---- */

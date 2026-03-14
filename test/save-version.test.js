@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
     SAVE_VERSION, parseSaveVersion, checkSaveCompatibility,
-    needsMigration, savedMinor,
+    needsMigration, savedMinor, featureFlags,
 } from "../lib/save-version.core.ts";
 
 describe("parseSaveVersion", () => {
@@ -107,7 +107,25 @@ describe("SAVE_VERSION shape", () => {
         assert.strictEqual(typeof SAVE_VERSION.minor, "number");
     });
 
-    it("current version is {release:0, major:3, minor:1}", () => {
-        assert.deepStrictEqual(SAVE_VERSION, { release: 0, major: 3, minor: 1 });
+    it("minor is at least 1 (post-release-field)", () => {
+        assert.ok(SAVE_VERSION.minor >= 1);
+    });
+});
+
+describe("featureFlags", () => {
+    it("current version enables digitWiseBooks", () => {
+        assert.strictEqual(featureFlags(SAVE_VERSION).digitWiseBooks, true);
+    });
+
+    it("pre-3.2 saves disable digitWiseBooks", () => {
+        assert.strictEqual(featureFlags({ release: 0, major: 3, minor: 1 }).digitWiseBooks, false);
+        assert.strictEqual(featureFlags({ release: 0, major: 3, minor: 0 }).digitWiseBooks, false);
+        assert.strictEqual(featureFlags({ release: 0, major: 2, minor: 0 }).digitWiseBooks, false);
+        assert.strictEqual(featureFlags(null).digitWiseBooks, false);
+    });
+
+    it("3.2+ saves enable digitWiseBooks", () => {
+        assert.strictEqual(featureFlags({ release: 0, major: 3, minor: 2 }).digitWiseBooks, true);
+        assert.strictEqual(featureFlags({ release: 0, major: 3, minor: 3 }).digitWiseBooks, true);
     });
 });

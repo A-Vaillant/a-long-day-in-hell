@@ -30,8 +30,37 @@ export interface SaveVersion {
  *   3.0 — target book placed with real playerBookAddress instead of default.
  *         All book coordinates changed.
  *   3.1 — added release field (default 0).
+ *   3.2 — digit-wise book embedding (unified codepath, no branch).
  */
-export const SAVE_VERSION: SaveVersion = { release: 0, major: 3, minor: 1 };
+export const SAVE_VERSION: SaveVersion = { release: 0, major: 3, minor: 2 };
+
+/* ---- Feature flags ---- */
+
+export interface FeatureFlags {
+    /** Digit-wise book embedding: unified content function, no special-case branch. */
+    digitWiseBooks: boolean;
+}
+
+/** Default flags for new saves at the current version. */
+const CURRENT_FLAGS: FeatureFlags = {
+    digitWiseBooks: true,
+};
+
+/** Default flags for pre-3.2 saves (before digit-wise existed). */
+const LEGACY_FLAGS: FeatureFlags = {
+    digitWiseBooks: false,
+};
+
+/**
+ * Derive feature flags from a save version.
+ * New saves get current flags. Migrated saves get flags appropriate
+ * to their original minor version — no retroactive behavior changes.
+ */
+export function featureFlags(raw: unknown): FeatureFlags {
+    const v = parseSaveVersion(raw);
+    if (v.major < 3 || (v.major === 3 && v.minor < 2)) return { ...LEGACY_FLAGS };
+    return { ...CURRENT_FLAGS };
+}
 
 /**
  * Parse a saved version. Pre-versioning saves have no field (→ 0.0).

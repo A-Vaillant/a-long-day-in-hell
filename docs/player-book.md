@@ -46,7 +46,7 @@ All the dimension constants live in `lib/scale.core.ts`. `PLAYABLE_ADDRESS_MAX` 
 
 `lib/lifestory.core.ts` runs on game start. The `playerBookAddress` is a packed address derived from the seed — a 4-tuple (bookIndex, floor, side, position) that anchors the player's book in the library for this run. The clamping and nudging steps constrain it to a subset of the full address range, though the position field dominates so completely that the effective range is ~[4 × 10^7, `PLAYABLE_ADDRESS_MAX`] — the floor and kiosk constraints are rounding errors. The sequence:
 
-1. **Derive raw origin from the seed.** The PRNG produces a value mod `PLAYABLE_ADDRESS_MAX`. Unpacked, this gives a random shelf on a random floor on a random side at a random position.
+1. **Derive raw address from the seed.** The PRNG produces a value mod `PLAYABLE_ADDRESS_MAX`. Unpacked, this gives a random shelf on a random floor on a random side at a random position.
 
 2. **Clamp the floor.** The floor component is extracted and clamped to [`BOOK_FLOOR_MIN`, `BOOK_FLOOR_MAX`] (default [2,000, 95,000]), then packed back in. The book sits deep in the library, never near ground level.
 
@@ -54,7 +54,7 @@ All the dimension constants live in `lib/scale.core.ts`. `PLAYABLE_ADDRESS_MAX` 
 
 4. **Randomize shelf slot.** `bookIndex` is rerolled mod `BOOKS_PER_GALLERY` so the book occupies a different shelf position each run.
 
-The player's story text converts to a `rawAddress` via `textToAddress` — interpreting characters as base-95 digits. This raw address is enormous (hundreds of digits for even short text). The book placement formula is `bookAddress = rawAddress % PLAYABLE_ADDRESS_MAX`. For the player, `computeBookAddress` computes `(rawAddress - playerRawAddress + playerBookAddress)`, which cancels to `playerBookAddress`. The player's book always lands at the origin.
+The player's story text converts to a `rawAddress` via `textToAddress` — interpreting characters as base-95 digits. This raw address is enormous (hundreds of digits for even short text). `computeBookAddress` computes `(rawAddress - playerRawAddress + playerBookAddress)`, which for the player cancels exactly to `playerBookAddress`. The player's book always lands at `playerBookAddress`.
 
 The quotient `rawAddress / PLAYABLE_ADDRESS_MAX` — the part discarded by the modulus — is a kind of universe index. Different players whose stories happen to share the same remainder mod `PLAYABLE_ADDRESS_MAX` would land on the same shelf in different universes. The game doesn't use this value, but it exists as a decomposition of the story into a shelf address and an unreachable remainder.
 
@@ -98,13 +98,15 @@ NPCs search anyway. The ECS psychology system in `lib/psych.core.ts` models thei
 
 ### Why full precision matters (and why the runtime skips it)
 
-The runtime `textToAddress` uses Horner's method: walk through the string left to right, accumulating `addr = addr × 95 + digit` at each character. It exits early when the running total exceeds `TEXT_ADDRESS_EARLY_EXIT` (set to `PLAYABLE_ADDRESS_MAX`). Most random texts blow past this threshold within 9 characters, so the check costs almost nothing.
+The runtime `textToAddress` uses Horner's method: walk through the string left to right, accumulating `addr = addr × 95 + digit` at each character. Left to right matters — that's most significant digit first, so the accumulator grows monotonically. The moment it exceeds `TEXT_ADDRESS_EARLY_EXIT` (set to `PLAYABLE_ADDRESS_MAX`), every subsequent character can only make it larger, so the function bails immediately. Most texts blow past this threshold within ~9 characters out of 1,312,000. Essentially free.
 
-For the player, the early exit doesn't matter. The `computeBookAddress` formula subtracts the player's raw address from itself: `rawAddress - rawAddress + playerBookAddress = playerBookAddress`. The cancellation holds regardless of whether `rawAddress` is the true value or a truncated one. Both sides of the subtraction are truncated identically.
+This is why Horner's over the faster divide-and-conquer method. D&C splits the string in half recursively and combines with `left × 95^halfLen + right`. The intermediate values are partial results from arbitrary string segments — there's no monotonically growing accumulator, so you can't check "have we exceeded the threshold?" until the final merge, by which point you've done the full O(n^1.585) computation. Horner's is asymptotically worse for full-length conversion (O(n²) vs O(n^1.585)), but it's the only method that supports early exit.
 
-For NPCs, the early exit also doesn't change the damnation verdict. Both `npcRawAddress` and `playerRawAddress` are enormous — far larger than `PLAYABLE_ADDRESS_MAX` — so their difference is enormous too. Whether you compute the exact difference or an approximate one, it's still outside the walkable range by hundreds of orders of magnitude.
+For the player, the early exit doesn't matter. `computeBookAddress` subtracts the player's raw address from itself: `rawAddress - rawAddress + playerBookAddress = playerBookAddress`. The cancellation holds regardless of whether `rawAddress` is the true value or a truncated one — both sides truncate identically.
 
-But a full-precision computation is useful as a verification tool: it confirms that the approximation gives the same answer as the exact math, and it opens the door to future mechanics that might care about the true address.
+For NPCs, the early exit doesn't change the damnation verdict either. Both `npcRawAddress` and `playerRawAddress` are enormous — far larger than `PLAYABLE_ADDRESS_MAX` — so their difference is enormous too. Whether you compute the exact difference or an approximate one, it lands outside the walkable range by hundreds of orders of magnitude.
+
+Full-precision computation (`textToAddressFull`, using D&C) is useful as a verification tool: it confirms the approximation gives the same answer as the exact math, and it opens the door to future mechanics that might care about the true address.
 
 ### Horner's method and why it's slow at scale
 
@@ -198,7 +200,7 @@ All library dimension constants live in `lib/scale.core.ts`:
 
 ## Unified content model (experimental)
 
-The game uses two codepaths for book content. `generateBookPage` seeds a PRNG from shelf coordinates and emits random printable ASCII. `generateStoryPage` seeds a PRNG from the player's story text and emits life-arc prose. A hard-coded check in `src/js/book.js` picks between them: if the coordinates match `state.targetBook`, use the story generator; otherwise, noise.
+The game uses two codepaths for book content. `generateBookPage` seeds a PRNG from shelf coordinates and emits random printable ASCII — called on demand for any book the player opens. `generateStoryPage` takes `state.lifeStory` — name, occupation, hometown, cause of death, and a seed story text — and generates a page of life-arc prose (birth, youth, work, aging, death). `state.lifeStory` is created once when a save file is initialized and persisted across sessions. A hard-coded check in `src/js/book.js` picks between them: if the coordinates match `state.targetBook`, use the story generator; otherwise, noise.
 
 A unified model would eliminate the branch. Every book — player's, NPCs', shelf filler — would derive its content from the same function, with the player's story emerging at one address and noise everywhere else. No special cases. `lib/invertible.core.ts` contains prototypes of several approaches.
 

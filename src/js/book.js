@@ -5,6 +5,7 @@ import {
     generateBookPage, generateStoryPage, bookMeta,
 } from "../../lib/book.core.ts";
 import { generateNPCLifeStory } from "../../lib/lifestory.core.ts";
+import { digitWiseBookPage, coordsToAddress } from "../../lib/invertible.core.ts";
 import { PRNG } from "./prng.js";
 import { state } from "./state.js";
 
@@ -52,16 +53,22 @@ function getStoryBookPage(story, pageIndex) {
 
 export const Book = {
     getPage(side, position, floor, bookIndex, pageIndex) {
-        // Player's book
+        // Unified digit-wise codepath — no branch between player/NPC/noise
+        if (state._featureFlags && state._featureFlags.digitWiseBooks) {
+            const address = coordsToAddress(side, position, floor, bookIndex);
+            return digitWiseBookPage(
+                address, state._originPad, state._playerDigits,
+                state._feistelKey, pageIndex,
+            );
+        }
+        // Legacy codepath (pre-3.2 saves)
         if (isTargetBook(side, position, floor, bookIndex)) {
             return getStoryBookPage(state.lifeStory, pageIndex);
         }
-        // NPC's book
         const npcStory = findNPCStory(side, position, floor, bookIndex);
         if (npcStory) {
             return getStoryBookPage(npcStory, pageIndex);
         }
-        // Random book
         return generateBookPage(
             side, position, floor, bookIndex, pageIndex,
             PRNG.getSeed()

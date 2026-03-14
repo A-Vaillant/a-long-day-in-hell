@@ -88,7 +88,7 @@ const CAUSE_OF_DEATH: readonly string[] = [
     "a stroke, in the night, without warning",
     "a car accident on a road you'd driven a hundred times",
     "a long illness you pretended wasn't serious",
-    "a fall — stupid, domestic, final",
+    "a fall - stupid, domestic, final",
     "a heart that simply stopped, as hearts do",
     "cancer, which took its time",
     "pneumonia, in a winter that was otherwise mild",
@@ -130,7 +130,7 @@ const PROSE_TEMPLATES: readonly ((s: StoryFields) => string)[] = [
 
     (s) => `This is the part where it says your name was ${s.name}. This is the part where it says you were a ${s.occupation} from ${s.hometown}, and that you died of ${s.causeOfDeath}. ${s.lastThing} This is the part where it tries to say something true about what it was like to be you, to have your particular hands and your particular way of walking into a room. But a book is not a life. A book is marks on a page. You were not marks on a page. You were a person who stood in kitchens and looked out windows and forgot things and remembered other things at the wrong time. The book cannot hold that. It tries. This is it trying.`,
 
-    (s) => `${s.name} died of ${s.causeOfDeath}. Before that, a life: ${s.occupation}, from ${s.hometown}. A bed that was slept in. A door that was opened and closed. Coffee or tea, depending on the year. Certain songs on the radio that meant something once. A way of folding towels. A preference for one chair over another. ${s.lastThing} None of this is important. All of this is important. That is the problem with lives — everything matters exactly as much as everything else, which is to say not much, which is to say completely. The book does not rank the moments. It just holds them. Page after page of held moments, most of them quiet, most of them ordinary, all of them yours.`,
+    (s) => `${s.name} died of ${s.causeOfDeath}. Before that, a life: ${s.occupation}, from ${s.hometown}. A bed that was slept in. A door that was opened and closed. Coffee or tea, depending on the year. Certain songs on the radio that meant something once. A way of folding towels. A preference for one chair over another. ${s.lastThing} None of this is important. All of this is important. That is the problem with lives - everything matters exactly as much as everything else, which is to say not much, which is to say completely. The book does not rank the moments. It just holds them. Page after page of held moments, most of them quiet, most of them ordinary, all of them yours.`,
 ];
 
 /**
