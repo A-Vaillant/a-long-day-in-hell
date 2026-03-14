@@ -981,7 +981,7 @@ button:disabled {
     color: var(--divine);
     font-style: italic;
     font-weight: bold;
-    text-shadow: 0 0 8px rgba(212, 168, 67, 0.3);
+    text-shadow: 0 0 6px rgba(212, 168, 67, 0.15);
 }
 
 @keyframes story-fade {

@@ -258,7 +258,7 @@ export function applyDawnReset(nonsensePagesRead: number, despairing: boolean, d
 }
 
 /** Morale boost granted at a mercy kiosk (adjacent to your book). */
-export const MERCY_KIOSK_MORALE: number = 40;
+export const MERCY_KIOSK_MORALE: number = 60;
 
 /**
  * Apply the morale boost from reaching a kiosk adjacent to your book.

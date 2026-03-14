@@ -387,7 +387,10 @@ Engine.register("Corridor", {
                 spine.className = "book-spine"
                     + (isTarget ? " target-nearby" : "")
                     + (wasOpened ? " book-opened" : "");
-                {
+                if (wasOpened) {
+                    // Searched books: uniform muted tone (checked off, done)
+                    spine.style.background = "hsl(30, 4%, 22%)";
+                } else {
                     // Color drains continuously: full color above 70 morale,
                     // desaturates to grey below, lightness converges to average when despairing.
                     const m = state.morale || 0;
@@ -396,7 +399,7 @@ Engine.register("Corridor", {
                     const dd = state._despairDays || 0;
                     const despairFade = dd > 0 ? Math.min(1, dd / 100) : 0;
                     const fadedS = Math.round(s * moraleFade * (1 - despairFade));
-                    const fadedL = Math.round(l + (19 - l) * despairFade);
+                    const fadedL = Math.round(l + (35 - l) * despairFade);
                     spine.style.background = "hsl(" + h + "," + fadedS + "%," + fadedL + "%)";
                 }
                 spine.addEventListener("click", (function (idx) {
