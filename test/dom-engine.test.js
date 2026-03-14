@@ -1,34 +1,30 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { bootGame } from "./dom-harness.js";
+import { bootGame, resetGame } from "./dom-harness.js";
+
+const game = bootGame();
 
 describe("DOM: Engine boundary registry", () => {
+    beforeEach(() => resetGame(game));
+
     it("dawn handler resurrects dead player", () => {
-        const game = bootGame();
         game.Surv.kill("test");
         assert.ok(game.state.dead);
 
-        // Advance to dawn — should trigger resurrection
         game.Tick.advanceToDawn();
         assert.strictEqual(game.state.dead, false, "player resurrected at dawn");
         assert.strictEqual(game.state.deathCause, null, "death cause cleared");
     });
 
     it("dawn handler moves NPCs", () => {
-        const game = bootGame();
         const positionsBefore = game.state.npcs.map(n => n.position);
         game.Tick.advanceToDawn();
         const positionsAfter = game.state.npcs.map(n => n.position);
-        // At least some NPCs should have moved
         const moved = positionsBefore.some((p, i) => p !== positionsAfter[i]);
         assert.ok(moved, "NPCs moved on dawn");
     });
 
     it("social physics runs without error and NPC hope stays bounded", () => {
-        // Unit-level decay is tested in psych.test.js.
-        // This integration test just verifies the full tick pipeline runs
-        // cleanly and hope stays in [0, 100] across many dawns.
-        const game = bootGame();
         for (let i = 0; i < 3; i++) game.Tick.advanceToDawn();
         for (const npc of game.state.npcs) {
             const psych = game.Social.getNpcPsych(npc.id);
@@ -41,10 +37,8 @@ describe("DOM: Engine boundary registry", () => {
     });
 
     it("resetHour handler closes open book", () => {
-        const game = bootGame();
         game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 5 };
         game.state.openPage = 3;
-        // Advance past reset hour (tick 1380)
         game.state.tick = 1375;
         game.Tick.advance(10);
         assert.strictEqual(game.state.openBook, null, "book closed at reset hour");
@@ -53,8 +47,9 @@ describe("DOM: Engine boundary registry", () => {
 });
 
 describe("DOM: Engine.advanceTime batch mode", () => {
+    beforeEach(() => resetGame(game));
+
     it("advances tick and day correctly", () => {
-        const game = bootGame();
         game.state.tick = 0;
         game.state.day = 1;
         const result = game.Engine.advanceTime(50);
@@ -64,7 +59,6 @@ describe("DOM: Engine.advanceTime batch mode", () => {
     });
 
     it("fires boundary handlers and updates lightsOn", () => {
-        const game = bootGame();
         game.state.tick = 955;
         game.state.day = 1;
         game.state.lightsOn = true;
@@ -73,7 +67,6 @@ describe("DOM: Engine.advanceTime batch mode", () => {
     });
 
     it("fires dawn handlers on day boundary", () => {
-        const game = bootGame();
         game.state.tick = 1435;
         game.state.day = 1;
         game.state.dead = true;
@@ -84,8 +77,6 @@ describe("DOM: Engine.advanceTime batch mode", () => {
     });
 
     it("defers goto during batch mode", () => {
-        const game = bootGame();
-        // Register a handler that tries to goto
         let handlerRan = false;
         game.Engine.onBoundary("dawn", function () {
             handlerRan = true;
@@ -95,12 +86,10 @@ describe("DOM: Engine.advanceTime batch mode", () => {
         game.state.day = 1;
         game.Engine.advanceTime(10);
         assert.ok(handlerRan, "handler executed");
-        // goto was deferred and executed — should be on Menu
         assert.strictEqual(game.state.screen, "Menu");
     });
 
     it("last deferred goto wins", () => {
-        const game = bootGame();
         game.Engine.onBoundary("dawn", function () {
             game.Engine.goto("Death");
             game.Engine.goto("Menu");
@@ -113,8 +102,9 @@ describe("DOM: Engine.advanceTime batch mode", () => {
 });
 
 describe("DOM: Screen kind taxonomy", () => {
+    beforeEach(() => resetGame(game));
+
     it("state screens have kind state", () => {
-        const game = bootGame();
         const stateScreens = ["Corridor", "Kiosk", "Bedroom", "Menu", "Win"];
         for (const name of stateScreens) {
             const screen = game.Engine._screens[name];
@@ -124,7 +114,6 @@ describe("DOM: Screen kind taxonomy", () => {
     });
 
     it("transition screens have kind transition", () => {
-        const game = bootGame();
         const transScreens = ["Wait", "Sleep", "Chasm", "Submission Attempt",
             "Kiosk Get Drink", "Kiosk Get Food", "Kiosk Get Alcohol"];
         for (const name of transScreens) {
@@ -136,20 +125,19 @@ describe("DOM: Screen kind taxonomy", () => {
 });
 
 describe("DOM: Screen exit lifecycle", () => {
+    beforeEach(() => resetGame(game));
+
     it("exit fires on screen transition", () => {
-        const game = bootGame();
         let exitFired = false;
         game.Engine._screens["Corridor"].exit = function () {
             exitFired = true;
         };
         game.Engine.goto("Kiosk");
         assert.ok(exitFired, "Corridor exit() fired when leaving");
-        // Cleanup
         delete game.Engine._screens["Corridor"].exit;
     });
 
     it("exit error does not prevent transition", () => {
-        const game = bootGame();
         game.Engine._screens["Corridor"].exit = function () {
             throw new Error("exit boom");
         };

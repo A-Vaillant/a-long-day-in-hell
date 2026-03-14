@@ -35,7 +35,9 @@ const bundledJS = bundleResult.outputFiles[0].text;
 
 // Strip the auto-boot block from the bundle so tests control init.
 // The boot code is at the end: `if (document.readyState ...` through to Engine.init()
-const bootPattern = /\/\/ Boot when DOM is ready[\s\S]*?Engine\.init\(\);\s*\}/;
+// Two patterns: one for the source comment (if esbuild preserves it),
+// one for the bare if/else readyState block (esbuild strips comments).
+const bootPattern = /(?:\/\/ Boot when DOM is ready\s*)?if\s*\(document\.readyState\s*===\s*"loading"\)\s*\{[\s\S]*?Engine\.init\(\);\s*\}\s*\)\s*;\s*\}\s*else\s*\{\s*Engine\.init\(\);\s*\}/;
 const testJS = bundledJS.replace(bootPattern, "// Auto-boot disabled for tests");
 
 // Build window.TEXT from content/*.json (mirrors build-vanilla.js)
@@ -156,6 +158,66 @@ export function bootGame(seed = "test-seed-42") {
     }
     game.document.getElementById("passage").addEventListener("click", handleDataGoto);
     game.document.getElementById("story-caption").addEventListener("click", handleDataGoto);
+
+    game.Engine.goto("Corridor");
+    return game;
+}
+
+/**
+ * Reset an existing game instance to boot-fresh state, reusing the JSDOM
+ * window. Much faster than bootGame() since it skips JSDOM + bundle setup.
+ * Boundary handlers and click delegation are already registered.
+ */
+export function resetGame(game, seed = "test-seed-42") {
+    const win = game.window;
+    game.PRNG.seed(seed);
+    win.state.seed = seed;
+    win.state.side = 0;
+    win.state.position = 0n;
+    win.state.floor = 10n;
+    win.state.move = "";
+    win.state.heldBook = null;
+    win.state.shelfOffset = 0;
+    win.state.openBook = null;
+    win.state.openPage = 0;
+    win.state.debug = true;
+    win.state.deaths = 0;
+    win.state.deathCause = null;
+    win.state.dead = false;
+    win.state.screen = null;
+    win.state.falling = false;
+    win.state.fallSpeed = 0;
+    win.state.fallDistance = 0n;
+    win.state.fallGrabFailed = false;
+    win.state.bookNames = {};
+    win.state.dwellHistory = {};
+    win.state._menuReturn = null;
+    win.state._menuConfirmNew = false;
+    win.state._menuConfirmDelete = null;
+    win.state._talkTarget = null;
+    win.state._debugAllowed = false;
+    win.state.lightsOn = true;
+    win.state.despairing = false;
+    win.state.godmoded = false;
+
+    const { playerBookAddress, story } = win.LifeStory.generatePlayerWorld(seed, {
+        startLoc: { side: 0, position: 0n, floor: 10n },
+    });
+    win.state.playerBookAddress = playerBookAddress;
+    win.state.lifeStory = story;
+    win.state.targetBook = story.bookCoords;
+    win.state.playerRawAddress = story.rawBookAddress;
+    win.state._spawnSide = win.state.side;
+    win.state._spawnPosition = win.state.position;
+    win.state._spawnFloor = win.state.floor;
+
+    // Re-init safe subsystems (all idempotent — overwrite state fields)
+    game.Surv.init();
+    game.Tick.init();
+    game.Events.init();
+    game.Npc.init();
+    game.Social.init();
+    // Skip registerBoundaryHandlers — already registered from initial boot
 
     game.Engine.goto("Corridor");
     return game;

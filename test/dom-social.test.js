@@ -1,7 +1,9 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { bootGame } from "./dom-harness.js";
+import { bootGame, resetGame } from "./dom-harness.js";
 import { getComponent } from "../lib/ecs.core.ts";
+
+const game = bootGame();
 
 /** Force an NPC co-located with the player, inject mutual bonds above group threshold. */
 function forceGroup(game, npcIndex) {
@@ -24,14 +26,14 @@ function forceGroup(game, npcIndex) {
 }
 
 describe("DOM: Social sidebar — group display", () => {
+    beforeEach(() => resetGame(game));
+
     it("getGroupMembers returns empty when no group formed", () => {
-        const game = bootGame();
         const members = game.Social.getGroupMembers();
         assert.strictEqual(members.length, 0, "no group initially");
     });
 
     it("sidebar has no companion entries when player is ungrouped", () => {
-        const game = bootGame();
         game.Engine.goto("Corridor");
         const sidebar = game.document.getElementById("story-caption");
         const companions = sidebar.querySelectorAll(".sb-companion");
@@ -39,7 +41,6 @@ describe("DOM: Social sidebar — group display", () => {
     });
 
     it("getGroupMembers returns NPCs after forced bond + co-location", () => {
-        const game = bootGame();
         const { npc } = forceGroup(game, 0);
 
         game.Social.onTick();
@@ -51,7 +52,6 @@ describe("DOM: Social sidebar — group display", () => {
     });
 
     it("sidebar shows companion entries when group exists", () => {
-        const game = bootGame();
         const { npc } = forceGroup(game, 0);
 
         game.Social.onTick();
@@ -64,7 +64,6 @@ describe("DOM: Social sidebar — group display", () => {
     });
 
     it("companion shows disposition-colored class", () => {
-        const game = bootGame();
         const { npcEnt } = forceGroup(game, 0);
 
         // Make NPC anxious by lowering lucidity
@@ -82,7 +81,6 @@ describe("DOM: Social sidebar — group display", () => {
     });
 
     it("group member removed from sidebar when NPC moves away", () => {
-        const game = bootGame();
         const { npc } = forceGroup(game, 0);
 
         game.Social.onTick();
@@ -107,8 +105,9 @@ describe("DOM: Social sidebar — group display", () => {
 });
 
 describe("DOM: Ambient muttering", () => {
+    beforeEach(() => resetGame(game));
+
     it("getNearbyMutterers returns NPCs within hearing range but not co-located", () => {
-        const game = bootGame();
         // Place an NPC 2 segments away, same side/floor
         const npc = game.state.npcs[0];
         npc.side = game.state.side;
@@ -122,7 +121,6 @@ describe("DOM: Ambient muttering", () => {
     });
 
     it("co-located NPCs are not mutterers", () => {
-        const game = bootGame();
         const npc = game.state.npcs[0];
         npc.side = game.state.side;
         npc.position = game.state.position;
@@ -135,7 +133,6 @@ describe("DOM: Ambient muttering", () => {
     });
 
     it("NPCs beyond hearing range are not mutterers", () => {
-        const game = bootGame();
         const npc = game.state.npcs[0];
         npc.side = game.state.side;
         npc.position = game.state.position + 10n;
@@ -148,7 +145,6 @@ describe("DOM: Ambient muttering", () => {
     });
 
     it("catatonic NPCs do not mutter", () => {
-        const game = bootGame();
         const npc = game.state.npcs[0];
         npc.side = game.state.side;
         npc.position = game.state.position + 1n;
@@ -166,7 +162,6 @@ describe("DOM: Ambient muttering", () => {
     });
 
     it("corridor renders muttering text for nearby NPCs", () => {
-        const game = bootGame();
         // Place NPC 1 segment away
         const npc = game.state.npcs[0];
         npc.side = game.state.side;
@@ -181,8 +176,9 @@ describe("DOM: Ambient muttering", () => {
 });
 
 describe("DOM: Social bridge — psychology sync", () => {
+    beforeEach(() => resetGame(game));
+
     it("player psychology accessible and starts at 100 lucidity / 50 hope", () => {
-        const game = bootGame();
         const psych = game.Social.getPlayerPsych();
         assert.ok(psych, "player psych exists");
         assert.strictEqual(psych.lucidity, 100);
@@ -190,12 +186,10 @@ describe("DOM: Social bridge — psychology sync", () => {
     });
 
     it("player disposition starts as calm", () => {
-        const game = bootGame();
         assert.strictEqual(game.Social.getPlayerDisposition(), "calm");
     });
 
     it("NPC disposition written back to state.npcs after tick", () => {
-        const game = bootGame();
         const npc = game.state.npcs[0];
         const npcEnt = game.Social.getNpcEntity(npc.id);
         const psych = getComponent(game.Social.getWorld(), npcEnt, "psychology");

@@ -1,20 +1,24 @@
 /**
  * DOM tests for the Memory screen and sidebar action registry.
  */
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { bootGame } from "./dom-harness.js";
+import { bootGame, resetGame } from "./dom-harness.js";
 import { TICKS_PER_DAY } from "../lib/tick.core.ts";
 
+const game = bootGame();
+
 describe("Memory screen", () => {
+    beforeEach(() => resetGame(game));
+
     it("opens via Engine.goto and sets screen state", () => {
-        const { Engine, state } = bootGame();
+        const { Engine, state } = game;
         Engine.goto("Memory");
         assert.strictEqual(state.screen, "Memory");
     });
 
     it("renders empty state prose when player has no memories", () => {
-        const { Engine, document } = bootGame();
+        const { Engine, document } = game;
         Engine.goto("Memory");
         const html = document.getElementById("passage").innerHTML;
         assert.ok(html.includes("memory-view"), "should have memory-view container");
@@ -22,7 +26,7 @@ describe("Memory screen", () => {
     });
 
     it("renders memory entries when player has memories", () => {
-        const { Engine, Social, document, state } = bootGame();
+        const { Engine, Social, document, state } = game;
 
         // Inject a memory entry directly into the player's ECS component
         const mem = Social.getPlayerMemory();
@@ -46,7 +50,7 @@ describe("Memory screen", () => {
     });
 
     it("shows permanence marker for permanent memories", () => {
-        const { Engine, Social, document, state } = bootGame();
+        const { Engine, Social, document, state } = game;
 
         const mem = Social.getPlayerMemory();
         mem.entries.push({
@@ -66,7 +70,7 @@ describe("Memory screen", () => {
     });
 
     it("shows age as 'today' for current-tick memories", () => {
-        const { Engine, Social, document, state } = bootGame();
+        const { Engine, Social, document, state } = game;
         const currentTick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         const mem = Social.getPlayerMemory();
         mem.entries.push({
@@ -80,7 +84,7 @@ describe("Memory screen", () => {
     });
 
     it("shows age as 'yesterday' for memories from prior day", () => {
-        const { Engine, Social, document, state } = bootGame();
+        const { Engine, Social, document, state } = game;
         const currentTick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         const mem = Social.getPlayerMemory();
         mem.entries.push({
@@ -94,7 +98,7 @@ describe("Memory screen", () => {
     });
 
     it("sorts entries by weight descending (most vivid first)", () => {
-        const { Engine, Social, document, state } = bootGame();
+        const { Engine, Social, document, state } = game;
         const tick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         const mem = Social.getPlayerMemory();
         // Push in reverse order — low weight first, high weight second
@@ -117,7 +121,7 @@ describe("Memory screen", () => {
     });
 
     it("q key returns to Corridor", () => {
-        const { Engine, state, window } = bootGame();
+        const { Engine, state, window } = game;
         Engine.goto("Memory");
         assert.strictEqual(state.screen, "Memory");
 
@@ -128,7 +132,7 @@ describe("Memory screen", () => {
     });
 
     it("Escape key returns to Corridor", () => {
-        const { Engine, state, window } = bootGame();
+        const { Engine, state, window } = game;
         Engine.goto("Memory");
 
         window.document.dispatchEvent(
@@ -138,7 +142,7 @@ describe("Memory screen", () => {
     });
 
     it("back link (q) is rendered in the screen", () => {
-        const { Engine, document } = bootGame();
+        const { Engine, document } = game;
         Engine.goto("Memory");
         const html = document.getElementById("passage").innerHTML;
         assert.ok(html.includes("kbd"), "should show a key hint");
@@ -148,8 +152,10 @@ describe("Memory screen", () => {
 });
 
 describe("Sidebar action registry", () => {
+    beforeEach(() => resetGame(game));
+
     it("memory action appears in sidebar sb-actions div", () => {
-        const { Engine, document } = bootGame();
+        const { Engine, document } = game;
         // Sidebar is rendered in updateSidebar — trigger a render
         Engine.goto("Corridor");
         const sidebar = document.getElementById("story-caption");
@@ -161,7 +167,7 @@ describe("Sidebar action registry", () => {
     });
 
     it("sidebar action link navigates to registered screen on click", () => {
-        const { Engine, document, state } = bootGame();
+        const { Engine, document, state } = game;
         Engine.goto("Corridor");
 
         const sidebar = document.getElementById("story-caption");
@@ -172,7 +178,7 @@ describe("Sidebar action registry", () => {
     });
 
     it("m key navigates to Memory from Corridor", () => {
-        const { Engine, state, window } = bootGame();
+        const { Engine, state, window } = game;
         assert.strictEqual(state.screen, "Corridor");
 
         window.document.dispatchEvent(
@@ -182,7 +188,7 @@ describe("Sidebar action registry", () => {
     });
 
     it("registered actions all appear in sidebar", () => {
-        const { Engine, document } = bootGame();
+        const { Engine, document } = game;
         Engine.goto("Corridor");
         const sidebarHtml = document.getElementById("story-caption").innerHTML;
 

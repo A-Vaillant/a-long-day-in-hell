@@ -1,6 +1,8 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { bootGame } from "./dom-harness.js";
+import { bootGame, resetGame } from "./dom-harness.js";
+
+const game = bootGame();
 
 /**
  * Collect all tappable action links within a rendered screen.
@@ -11,8 +13,9 @@ function getTapTargets(document) {
 }
 
 describe("Mobile tap targets", () => {
+    beforeEach(() => resetGame(game));
+
     it("corridor at rest area has tappable links for all facilities", () => {
-        const game = bootGame();
         game.state.position = 0n;
         game.Engine.goto("Corridor");
 
@@ -27,7 +30,6 @@ describe("Mobile tap targets", () => {
     });
 
     it("corridor at gallery has movement links with data-goto", () => {
-        const game = bootGame();
         game.state.position = 1n;
         game.Engine.goto("Corridor");
 
@@ -42,7 +44,6 @@ describe("Mobile tap targets", () => {
     });
 
     it("kiosk screen has tappable facility links", () => {
-        const game = bootGame();
         game.state.position = 0n;
         game.Engine.goto("Kiosk");
 
@@ -55,7 +56,6 @@ describe("Mobile tap targets", () => {
     });
 
     it("bedroom screen has tappable links", () => {
-        const game = bootGame();
         game.state.position = 0n;
         game.Engine.goto("Bedroom");
 
@@ -67,7 +67,6 @@ describe("Mobile tap targets", () => {
     });
 
     it("book view has navigation and action links", () => {
-        const game = bootGame();
         game.state.position = 1n;
         game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 0 };
         game.state.openPage = 2;
@@ -84,7 +83,6 @@ describe("Mobile tap targets", () => {
     });
 
     it("all tap targets across screens have consistent data-goto attributes", () => {
-        const game = bootGame();
         const screens = ["Corridor", "Kiosk", "Bedroom", "Sign"];
 
         for (const screen of screens) {
@@ -101,7 +99,6 @@ describe("Mobile tap targets", () => {
     });
 
     it("dark corridor still shows bedroom link", () => {
-        const game = bootGame();
         game.state.position = 0n;
         game.state.lightsOn = false;
         game.Engine.goto("Corridor");
@@ -113,7 +110,6 @@ describe("Mobile tap targets", () => {
     });
 
     it("rest area has enough distinct actions for mobile navigation", () => {
-        const game = bootGame();
         game.state.position = 0n;
         game.state.lightsOn = true;
         game.Engine.goto("Corridor");
@@ -121,7 +117,6 @@ describe("Mobile tap targets", () => {
         const targets = getTapTargets(game.document);
         const distinctGotos = new Set(targets.map(el => el.getAttribute("data-goto")));
 
-        // Rest area should offer: movement, wait, bedroom (at minimum — kiosk/submit/sign conditional)
         assert.ok(distinctGotos.size >= 3,
             `expected ≥3 distinct destinations at rest area, got ${distinctGotos.size}: ${[...distinctGotos].join(", ")}`);
     });

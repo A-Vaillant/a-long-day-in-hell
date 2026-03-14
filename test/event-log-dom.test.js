@@ -5,10 +5,11 @@
  * Save slots: state is stored under hell_save_<id>, logs under hell_eventlog_<id>.
  * The slot index (hell_slots) tracks which slot is active.
  */
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { bootGame, createGame } from "./dom-harness.js";
+import { bootGame, resetGame, createGame } from "./dom-harness.js";
 
+const game = bootGame();
 const SLOTS_KEY = "hell_slots";
 
 /** Get the active slot id from localStorage. */
@@ -29,8 +30,14 @@ function logKey(win) {
 }
 
 describe("event-log localStorage serialization", () => {
+    beforeEach(() => {
+        resetGame(game);
+        game.window.localStorage.clear();
+        game.EventLog.resetLog();
+    });
+
     it("Engine.save() writes event log to slotted localStorage key", () => {
-        const { Engine, EventLog, window } = bootGame();
+        const { Engine, EventLog, window } = game;
 
         EventLog.appendEvents([
             { tick: 10, day: 1, type: "death",  text: "Alice died.", npcIds: [0] },
@@ -51,7 +58,7 @@ describe("event-log localStorage serialization", () => {
     });
 
     it("Engine.save() embeds _savedLogCount and _savedAt in state", () => {
-        const { Engine, EventLog, state, window } = bootGame();
+        const { Engine, EventLog, state, window } = game;
 
         EventLog.appendEvents([
             { tick: 1, day: 1, type: "bond", text: "A met B.", npcIds: [0, 1] },
@@ -70,7 +77,7 @@ describe("event-log localStorage serialization", () => {
     });
 
     it("Engine.clearSave() removes slot state and log", () => {
-        const { Engine, EventLog, window } = bootGame();
+        const { Engine, EventLog, window } = game;
 
         EventLog.appendEvents([{ tick: 1, day: 1, type: "death", text: "x", npcIds: [0] }]);
         Engine.save();
@@ -87,7 +94,7 @@ describe("event-log localStorage serialization", () => {
     });
 
     it("event log is cleared in memory when clearSave() is called", () => {
-        const { Engine, EventLog, window } = bootGame();
+        const { Engine, EventLog, window } = game;
 
         EventLog.appendEvents([{ tick: 1, day: 1, type: "death", text: "x", npcIds: [0] }]);
         assert.strictEqual(EventLog.count(), 1);
@@ -189,7 +196,7 @@ describe("event-log localStorage serialization", () => {
     });
 
     it("save metadata shows in Menu screen", () => {
-        const { Engine, EventLog, window } = bootGame();
+        const { Engine, EventLog, window } = game;
 
         EventLog.appendEvents([
             { tick: 1, day: 1, type: "bond", text: "x", npcIds: [0] },

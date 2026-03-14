@@ -2,22 +2,26 @@
  * Screen render coverage — every registered screen renders without errors
  * and produces non-empty HTML in #passage.
  */
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { bootGame } from "./dom-harness.js";
+import { bootGame, resetGame } from "./dom-harness.js";
 import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
 
 import { RESET_HOUR_TICK } from "../lib/tick.core.ts";
 
 const G = GALLERIES_PER_SEGMENT;
 
-function getHTML(game) {
+const game = bootGame();
+
+function getHTML() {
     return game.document.getElementById("passage").innerHTML;
 }
 
 // --- Screens that work with default bootGame state (at rest area, floor 10) ---
 
 describe("screen render coverage: basic screens", () => {
+    beforeEach(() => resetGame(game));
+
     // Transition screens (Wait, Sleep, Read Held Book, Falling) redirect via
     // setTimeout and return empty — they're tested by asserting the redirect target.
     for (const screen of [
@@ -35,9 +39,8 @@ describe("screen render coverage: basic screens", () => {
         "Sign Intro",
     ]) {
         it(`"${screen}" renders non-empty HTML`, () => {
-            const game = bootGame();
             game.Engine.goto(screen);
-            const html = getHTML(game);
+            const html = getHTML();
             assert.ok(html.length > 0, `${screen} produced empty HTML`);
         });
     }
@@ -46,62 +49,57 @@ describe("screen render coverage: basic screens", () => {
 // --- Corridor at non-rest-area (shelf grid) ---
 
 describe("screen render coverage: corridor variants", () => {
+    beforeEach(() => resetGame(game));
+
     it("Corridor at non-rest-area renders shelf grid", () => {
-        const game = bootGame();
         game.state.position = 3n; // not a rest area
         game.Engine.goto("Corridor");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.includes("corridor-grid"), "should have shelf grid");
     });
 
     it("Corridor at rest area shows kiosk hint", () => {
-        const game = bootGame();
-        // bootGame starts at position 0 (rest area) with _spawnPosition = 0
+        // resetGame starts at position 0 (rest area) with _spawnPosition = 0
         game.Engine.goto("Corridor");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.includes("kiosk-hint"), "should have kiosk-hint");
         assert.ok(html.includes("where you began"), "should mention spawn");
     });
 
     it("Corridor at different rest area shows kiosk count", () => {
-        const game = bootGame();
         game.state.position = G; // 1 kiosk away
         game.Engine.goto("Corridor");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.includes("1st kiosk"), "should show 1st kiosk");
     });
 
     it("Corridor at spawn kiosk shows 'where you began'", () => {
-        const game = bootGame();
         // position 0, floor 10, same as spawn
         game.Engine.goto("Corridor");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.includes("This is where you began."), "exact spawn should say 'This is where you began.'");
     });
 
     it("Corridor same kiosk different floor shows floor offset", () => {
-        const game = bootGame();
         game.state.floor = 5n; // spawn was floor 10
         game.Engine.goto("Corridor");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.includes("kiosk-hint"), "should have kiosk hint");
         assert.ok(html.includes("5 floors below where you began"), "should show floor difference");
         assert.ok(!html.includes("0th"), "should not say 0th kiosk");
     });
 
     it("Corridor on other side hides kiosk hint", () => {
-        const game = bootGame();
         game.state.side = 1; // spawn was side 0
         game.Engine.goto("Corridor");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(!html.includes("kiosk-hint"), "should not show kiosk hint on other side");
     });
 
     it("Corridor dark renders when lights off", () => {
-        const game = bootGame();
         game.state.lightsOn = false;
         game.Engine.goto("Corridor");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.length > 0, "dark corridor should render");
     });
 });
@@ -109,19 +107,19 @@ describe("screen render coverage: corridor variants", () => {
 // --- Screens that need special state ---
 
 describe("screen render coverage: stateful screens", () => {
+    beforeEach(() => resetGame(game));
+
     it("Shelf Open Book renders with a book open", () => {
-        const game = bootGame();
         game.state.openBook = {
             side: 0, position: 0n, floor: 10n, bookIndex: 0,
         };
         game.state.openPage = 1;
         game.Engine.goto("Shelf Open Book");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.length > 0, "book view should render");
     });
 
     it("Read Held Book transitions to Shelf Open Book", () => {
-        const game = bootGame();
         game.state.heldBook = {
             side: 0, position: 0n, floor: 10n, bookIndex: 0,
         };
@@ -132,49 +130,44 @@ describe("screen render coverage: stateful screens", () => {
     });
 
     it("Chasm renders", () => {
-        const game = bootGame();
         // floor > 0 already (floor 10)
         game.Engine.goto("Chasm");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.length > 0, "chasm should render");
     });
 
     it("Death renders with death cause", () => {
-        const game = bootGame();
         game.state.dead = true;
         game.state.deathCause = "thirst";
         game.state.deaths = 1;
         game.Engine.goto("Death");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.length > 0, "death screen should render");
     });
 
     it("Submission Attempt renders", () => {
-        const game = bootGame();
         game.state.heldBook = {
             side: 0, position: 0n, floor: 10n, bookIndex: 0,
         };
         game.Engine.goto("Submission Attempt");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.length > 0, "submission attempt should render");
     });
 
     it("Win renders", () => {
-        const game = bootGame();
         game.state.won = true;
         game.Engine.goto("Win");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.length > 0, "win screen should render");
     });
 
     it("Talk renders with a talk target", () => {
-        const game = bootGame();
         // Need an NPC to talk to
         const npcs = game.Npc.here();
         if (npcs.length > 0) {
             game.state._talkTarget = npcs[0];
             game.Engine.goto("Talk");
-            const html = getHTML(game);
+            const html = getHTML();
             assert.ok(html.length > 0, "talk screen should render");
         } else {
             // No NPCs nearby — create a fake target
@@ -183,13 +176,12 @@ describe("screen render coverage: stateful screens", () => {
                 disposition: "neutral", side: 0, position: 0n, floor: 10n,
             };
             game.Engine.goto("Talk");
-            const html = getHTML(game);
+            const html = getHTML();
             assert.ok(html.length > 0, "talk screen should render");
         }
     });
 
     it("Falling sets screen state", () => {
-        const game = bootGame();
         game.Engine.goto("Falling");
         // Falling is an animation screen — may produce empty HTML initially
         assert.strictEqual(game.state.screen, "Falling");
@@ -199,10 +191,11 @@ describe("screen render coverage: stateful screens", () => {
 // --- Mercy / Life Story screen shows book distance ---
 
 describe("screen render coverage: mercy hint", () => {
+    beforeEach(() => resetGame(game));
+
     it("Life Story shows kiosk-based book distance", () => {
-        const game = bootGame();
         game.Engine.goto("Life Story");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.includes("divine"), "should have divine class on mercy text");
         assert.ok(html.includes("kiosk"), "mercy hint should mention kiosks");
     });
@@ -211,6 +204,8 @@ describe("screen render coverage: mercy hint", () => {
 // --- Morale desaturation ---
 
 describe("morale desaturation", () => {
+    beforeEach(() => resetGame(game));
+
     // jsdom converts hsl() to rgb(), so we measure saturation via channel spread
     function rgbSpread(style) {
         const m = style.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
@@ -220,7 +215,6 @@ describe("morale desaturation", () => {
     }
 
     it("book spines at full morale have color (nonzero rgb spread)", () => {
-        const game = bootGame();
         game.state.position = 1n;
         game.state.morale = 100;
         game.Engine.goto("Corridor");
@@ -232,7 +226,6 @@ describe("morale desaturation", () => {
     });
 
     it("book spines at zero morale are grey (zero rgb spread)", () => {
-        const game = bootGame();
         game.state.position = 1n;
         game.state.morale = 0;
         game.state.despairing = true;
@@ -247,41 +240,40 @@ describe("morale desaturation", () => {
     });
 
     it("desaturation doesn't start until morale drops below 70", () => {
-        const game70 = bootGame();
-        game70.state.position = 1n;
-        game70.state.morale = 70;
-        game70.Engine.goto("Corridor");
+        game.state.position = 1n;
+        game.state.morale = 70;
+        game.Engine.goto("Corridor");
+        const spread70 = rgbSpread(game.document.querySelector(".book-spine:not(.book-gap)").style.background);
 
-        const game100 = bootGame();
-        game100.state.position = 1n;
-        game100.state.morale = 100;
-        game100.Engine.goto("Corridor");
+        // Reset and render at morale 100 for comparison
+        resetGame(game);
+        game.state.position = 1n;
+        game.state.morale = 100;
+        game.Engine.goto("Corridor");
+        const spread100 = rgbSpread(game.document.querySelector(".book-spine:not(.book-gap)").style.background);
 
-        const spread70 = rgbSpread(game70.document.querySelector(".book-spine:not(.book-gap)").style.background);
-        const spread100 = rgbSpread(game100.document.querySelector(".book-spine:not(.book-gap)").style.background);
         assert.strictEqual(spread70, spread100,
             "morale 70 and 100 should have identical saturation");
     });
 
     it("morale below 70 reduces saturation vs full morale", () => {
-        const game35 = bootGame();
-        game35.state.position = 1n;
-        game35.state.morale = 35;
-        game35.Engine.goto("Corridor");
+        game.state.position = 1n;
+        game.state.morale = 35;
+        game.Engine.goto("Corridor");
+        const spread35 = rgbSpread(game.document.querySelector(".book-spine:not(.book-gap)").style.background);
 
-        const game100 = bootGame();
-        game100.state.position = 1n;
-        game100.state.morale = 100;
-        game100.Engine.goto("Corridor");
+        // Reset and render at morale 100 for comparison
+        resetGame(game);
+        game.state.position = 1n;
+        game.state.morale = 100;
+        game.Engine.goto("Corridor");
+        const spread100 = rgbSpread(game.document.querySelector(".book-spine:not(.book-gap)").style.background);
 
-        const spread35 = rgbSpread(game35.document.querySelector(".book-spine:not(.book-gap)").style.background);
-        const spread100 = rgbSpread(game100.document.querySelector(".book-spine:not(.book-gap)").style.background);
         assert.ok(spread35 < spread100,
             `morale 35 spread ${spread35} should be less than full ${spread100}`);
     });
 
     it("book cover desaturates with morale", () => {
-        const game = bootGame();
         game.state.position = 1n;
         game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 3 };
         game.state.openPage = 0;
@@ -302,8 +294,9 @@ describe("morale desaturation", () => {
 // --- Pass-out screen at reset hour ---
 
 describe("pass-out at reset hour", () => {
+    beforeEach(() => resetGame(game));
+
     it("moving at tick just before reset hour triggers pass-out screen", () => {
-        const game = bootGame();
         game.state.tick = RESET_HOUR_TICK - 1;
         game.state.position = 1n;
         game.state.screen = "Corridor";
@@ -313,7 +306,6 @@ describe("pass-out at reset hour", () => {
     });
 
     it("waiting at tick just before reset hour triggers pass-out", () => {
-        const game = bootGame();
         game.state.tick = RESET_HOUR_TICK - 1;
         game.state.screen = "Corridor";
         const result = game.window.Actions.resolve({ type: "wait" });
@@ -322,7 +314,6 @@ describe("pass-out at reset hour", () => {
     });
 
     it("eating at kiosk at tick just before reset hour triggers pass-out", () => {
-        const game = bootGame();
         game.state.tick = RESET_HOUR_TICK - 1;
         game.state.position = 0n; // rest area
         game.state.lightsOn = true;
@@ -332,7 +323,6 @@ describe("pass-out at reset hour", () => {
     });
 
     it("talking to NPC at tick just before reset hour triggers pass-out", () => {
-        const game = bootGame();
         game.state.tick = RESET_HOUR_TICK - 1;
         // Need an NPC nearby to talk to
         if (game.state.npcs && game.state.npcs.length > 0) {
@@ -350,7 +340,6 @@ describe("pass-out at reset hour", () => {
     });
 
     it("after pass-out, time has advanced to dawn", () => {
-        const game = bootGame();
         game.state.tick = RESET_HOUR_TICK - 1;
         game.state.position = 1n;
         game.state.screen = "Corridor";
@@ -362,7 +351,6 @@ describe("pass-out at reset hour", () => {
     });
 
     it("moving well before reset hour does NOT trigger pass-out", () => {
-        const game = bootGame();
         game.state.tick = 500; // midday
         game.state.position = 1n;
         const result = game.window.Actions.resolve({ type: "move", dir: "right" });
@@ -371,7 +359,6 @@ describe("pass-out at reset hour", () => {
     });
 
     it("doMove returns false on pass-out (prevents Corridor goto)", () => {
-        const game = bootGame();
         game.state.tick = RESET_HOUR_TICK - 1;
         game.state.position = 1n;
         game.state.screen = "Corridor";
@@ -386,8 +373,9 @@ describe("pass-out at reset hour", () => {
 // --- Sleep morale ---
 
 describe("sleep morale recovery", () => {
+    beforeEach(() => resetGame(game));
+
     it("sleeping on corridor floor does not restore morale", () => {
-        const game = bootGame();
         game.state.morale = 50;
         game.state.exhaustion = 100;
         game.state.tick = 500;
@@ -398,7 +386,6 @@ describe("sleep morale recovery", () => {
     });
 
     it("sleeping in bedroom restores a small amount of morale", () => {
-        const game = bootGame();
         game.state.morale = 50;
         game.state.exhaustion = 100;
         game.state.tick = 500;
@@ -412,7 +399,6 @@ describe("sleep morale recovery", () => {
     });
 
     it("forced sleep (pass-out) does not restore morale", () => {
-        const game = bootGame();
         game.state.morale = 50;
         game.state.tick = RESET_HOUR_TICK - 1;
         game.state.position = 1n;
@@ -426,14 +412,15 @@ describe("sleep morale recovery", () => {
 // --- Dark corridor despairing ---
 
 describe("dark corridor despairing", () => {
+    beforeEach(() => resetGame(game));
+
     it("dark corridor shows ellipsis when despairing", () => {
-        const game = bootGame();
         game.state.position = 1n;
         game.state.lightsOn = false;
         game.state.despairing = true;
         game.state.morale = 0;
         game.Engine.goto("Corridor");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(html.includes("corridor-despair"),
             "dark despairing corridor should have despair class");
         assert.ok(html.includes("..."),
@@ -441,12 +428,11 @@ describe("dark corridor despairing", () => {
     });
 
     it("dark corridor shows prose when not despairing", () => {
-        const game = bootGame();
         game.state.position = 1n;
         game.state.lightsOn = false;
         game.state.despairing = false;
         game.Engine.goto("Corridor");
-        const html = getHTML(game);
+        const html = getHTML();
         assert.ok(!html.includes("corridor-despair"),
             "dark non-despairing corridor should not have despair class");
     });

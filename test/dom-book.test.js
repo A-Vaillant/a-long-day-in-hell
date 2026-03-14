@@ -1,11 +1,16 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { bootGame } from "./dom-harness.js";
+import { bootGame, resetGame } from "./dom-harness.js";
 import { generateLifeStory } from "../lib/lifestory.core.ts";
 
+const game1 = bootGame();
+const game2 = bootGame();
+
 describe("target book placement consistency", () => {
+    const game = game1;
+    beforeEach(() => resetGame(game));
+
     it("targetBook coords match re-derivation with state.playerBookAddress", () => {
-        const game = bootGame();
         const { seed, playerBookAddress, targetBook } = game.state;
         // Re-derive the life story using the same playerBookAddress the game stored
         const story = generateLifeStory(seed, { playerBookAddress });
@@ -17,7 +22,6 @@ describe("target book placement consistency", () => {
     });
 
     it("player bookAddress equals playerBookAddress (identity property)", () => {
-        const game = bootGame();
         const { seed, playerBookAddress } = game.state;
         const story = generateLifeStory(seed, { playerBookAddress });
         // For the player, rawBookAddress IS playerRawAddress, so
@@ -28,8 +32,10 @@ describe("target book placement consistency", () => {
 });
 
 describe("DOM: book rendering", () => {
+    const game = game2;
+    beforeEach(() => resetGame(game));
+
     it("book page displays random ASCII text", () => {
-        const game = bootGame();
         // Move to a gallery position
         game.state.position = 1n;
         game.Engine.goto("Corridor");
@@ -50,14 +56,12 @@ describe("DOM: book rendering", () => {
     });
 
     it("Book.getPage returns a string", () => {
-        const game = bootGame();
-        const result = game.window.Book.getPage(0, 1, 10, 5, 0);
+        const result = game.window.Book.getPage(0, 1n, 10n, 5, 0);
         assert.ok(typeof result === "string", "returns string");
         assert.ok(result.length > 50, "text has content");
     });
 
     it("every page of target book contains word-based prose", () => {
-        const game = bootGame();
         const tb = game.state.targetBook;
         const totalPages = game.window.Book.PAGES_PER_BOOK;
         // Sample pages across the full range
@@ -75,7 +79,6 @@ describe("DOM: book rendering", () => {
     });
 
     it("non-target pages of target book are random ASCII", () => {
-        const game = bootGame();
         const tb = game.state.targetBook;
         const targetPage = game.state.lifeStory.targetPage;
         // Pick a content page that is NOT the target page
@@ -87,7 +90,6 @@ describe("DOM: book rendering", () => {
     });
 
     it("cover page is blank calfskin (no text)", () => {
-        const game = bootGame();
         game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 5 };
         game.state.openPage = 0;
         game.Engine.goto("Shelf Open Book");
@@ -98,7 +100,6 @@ describe("DOM: book rendering", () => {
     });
 
     it("books always open to cover regardless of morale", () => {
-        const game = bootGame();
         game.state.position = 1n;
         game.state.morale = 10;
         game.Engine.goto("Corridor");
@@ -112,7 +113,6 @@ describe("DOM: book rendering", () => {
     });
 
     it("cover element gets spine-matching color CSS variables", () => {
-        const game = bootGame();
         game.state.position = 1;
         game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 5 };
         game.state.openPage = 0;
@@ -129,7 +129,6 @@ describe("DOM: book rendering", () => {
     });
 
     it("book naming persists in header", () => {
-        const game = bootGame();
         const bk = { side: 0, position: 1n, floor: 10n, bookIndex: 5 };
         game.state.openBook = bk;
         game.state.openPage = 1;
@@ -150,7 +149,6 @@ describe("DOM: book rendering", () => {
     });
 
     it("book name shows in corridor read action", () => {
-        const game = bootGame();
         game.state.position = 1n;
         game.state.heldBook = { side: 0, position: 1n, floor: 10n, bookIndex: 3 };
         if (!game.state.bookNames) game.state.bookNames = {};
@@ -162,7 +160,6 @@ describe("DOM: book rendering", () => {
     });
 
     it("page navigation works", () => {
-        const game = bootGame();
         game.state.openBook = { side: 0, position: 1n, floor: 10n, bookIndex: 0 };
         game.state.openPage = 1;
         game.Engine.goto("Shelf Open Book");

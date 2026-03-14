@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --test 'test/!(browser).test.js'",
+    "test": "node --test 'test/!(browser|dom-*|*-dom|keybindings|spawn|godmode-panel|godmode-tabs).test.js'",
+    "test:dom": "node --test 'test/dom-*.test.js' 'test/*-dom.test.js' 'test/keybindings.test.js' 'test/spawn.test.js' 'test/godmode-panel.test.js' 'test/godmode-tabs.test.js'",
     "test:slow": "node --test 'test/slow/*.test.js'",
     "test:all": "node --test 'test/!(browser).test.js' 'test/slow/*.test.js'",
     "test:browser": "bash test/browser.sh",
