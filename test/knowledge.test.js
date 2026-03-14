@@ -197,6 +197,49 @@ describe("pilgrimage intent scorer", () => {
         assert.equal(pilgrim, undefined, "pilgrimage should not appear when at destination");
     });
 
+    it("pilgrimage excluded when pilgrimageExhausted", () => {
+        const world = createWorld();
+        const entity = makeEntity(world);
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVision(k, true);
+        k.pilgrimageExhausted = true;
+        addComponent(world, entity, KNOWLEDGE, k);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.equal(pilgrim, undefined, "pilgrimage should not appear when exhausted");
+    });
+
+    it("pilgrimage excluded when vague vision and within radius (search takes over)", () => {
+        const world = createWorld();
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        // Manually set up vague vision near entity
+        k.bookVision = { side: 0, position: 20n, floor: 10n, bookIndex: 5 };
+        k.visionVague = true;
+        k.visionRadius = 50;
+        k.visionAccurate = true;
+        // Entity at position 5, vision at position 20, radius 50 → within radius
+        const entity = makeEntity(world, { side: 0, position: 5n, floor: 10n });
+        addComponent(world, entity, KNOWLEDGE, k);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.equal(pilgrim, undefined, "pilgrimage should yield to search when in vision radius");
+    });
+
+    it("pilgrimage still scores when vague vision but outside radius", () => {
+        const world = createWorld();
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        k.bookVision = { side: 0, position: 500n, floor: 10n, bookIndex: 5 };
+        k.visionVague = true;
+        k.visionRadius = 50;
+        k.visionAccurate = true;
+        // Entity at position 5, vision at 500, radius 50 → NOT within radius
+        const entity = makeEntity(world, { side: 0, position: 5n, floor: 10n });
+        addComponent(world, entity, KNOWLEDGE, k);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.ok(pilgrim, "pilgrimage should still score when outside radius");
+    });
+
     it("pilgrimage excluded when entity is free (dead)", () => {
         const world = createWorld();
         const entity = makeEntity(world);

@@ -266,10 +266,24 @@ const scorers: Record<string, BehaviorScorer> = {
      */
     pilgrimage(ctx) {
         if (!ctx.knowledge || !ctx.knowledge.bookVision) return -Infinity;
+        // Pilgrimage is over — searched the whole zone, found nothing
+        if (ctx.knowledge.pilgrimageExhausted) return -Infinity;
         // Has book: keep pilgrimaging to nearest rest area for submission
         if (ctx.knowledge.hasBook) return 2.5;
-        // Already at the book location — no need to travel (pickup handled by escape system)
-        if (ctx.position) {
+        // Vague vision + within search radius → yield to search behavior
+        if (ctx.knowledge.visionVague && ctx.position) {
+            const v = ctx.knowledge.bookVision;
+            if (ctx.position.side === v.side && ctx.position.floor === v.floor) {
+                const dist = ctx.position.position > v.position
+                    ? ctx.position.position - v.position
+                    : v.position - ctx.position.position;
+                if (dist <= BigInt(ctx.knowledge.visionRadius)) {
+                    return -Infinity;
+                }
+            }
+        }
+        // Exact vision + already at book location → no need to travel
+        if (!ctx.knowledge.visionVague && ctx.position) {
             const v = ctx.knowledge.bookVision;
             if (ctx.position.side === v.side &&
                 ctx.position.position === v.position &&
@@ -277,8 +291,6 @@ const scorers: Record<string, BehaviorScorer> = {
                 return -Infinity;
             }
         }
-        // High base score — pilgrimage dominates normal activities
-        // but not forced states (mad=3.0) or critical needs (up to 2.0+)
         return 2.5;
     },
 };
