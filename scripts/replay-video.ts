@@ -62,6 +62,7 @@ function corridorJS(kf: any): string {
         state.morale = ${kf.stats.morale};
         state.mortality = ${kf.stats.mortality};
         state.despairing = ${kf.despairing ?? false};
+        state._despairDays = ${kf.despairDays ?? 0};
         ` : ""}
         Engine.goto("Corridor");
     `;
@@ -105,15 +106,30 @@ async function main() {
 
     const page = await context.newPage();
 
-    const url = `file://${DIST}?seed=${seed}&vohu=Corridor`;
+    // Prevent white flash on load
+    await page.addInitScript(() => {
+        document.addEventListener("DOMContentLoaded", () => {
+            document.documentElement.style.background = "#0a0806";
+        });
+    });
+
+    // Start with normal game flow (Life Story screen)
+    const url = `file://${DIST}?seed=${seed}`;
     await page.goto(url);
-    await page.waitForSelector("#corridor-view", { timeout: 10000 });
+    await page.waitForSelector("#lifestory-view", { timeout: 10000 });
     console.log("Game loaded.");
 
-    // Override targetBook to match the playthrough's coordinate system
+    // Override targetBook and position to match playthrough coordinates
     const tb = log.targetBook;
+    const ps = log.playerStart;
     await page.evaluate(`
         state.debug = false;
+        state.side = ${ps.side};
+        state.position = ${ps.position}n;
+        state.floor = ${ps.floor}n;
+        state._spawnSide = ${ps.side};
+        state._spawnPosition = ${ps.position}n;
+        state._spawnFloor = ${ps.floor}n;
         state.targetBook = {
             side: ${tb.side},
             position: ${tb.position}n,
@@ -121,9 +137,14 @@ async function main() {
             bookIndex: ${tb.bookIndex}
         };
         state.lifeStory = ${JSON.stringify(log.lifeStory)};
-        Engine.goto(state.screen);
+        Engine.goto("Life Story");
     `);
-    await page.waitForTimeout(1500);
+    // Hold on Life Story
+    await page.waitForTimeout(6000);
+
+    // Transition to Corridor
+    await page.evaluate(`Engine.goto("Corridor");`);
+    await page.waitForTimeout(2000);
 
     let currentPhase = "navigate";
     let bookCount = 0;
@@ -140,8 +161,25 @@ async function main() {
                 console.log(`Phase: ${currentPhase} (keyframe ${i}/${keyframes.length})`);
             }
             await page.evaluate(corridorJS(kf));
-            // Pause at phase transitions
-            await page.waitForTimeout(currentPhase === "sweep" ? 2000 : 500);
+            if (currentPhase === "sweep") {
+                await page.waitForTimeout(2000);
+            } else {
+                await page.waitForTimeout(500);
+            }
+            continue;
+        }
+
+        // --- Mercy kiosk ---
+        if (kf.type === "mercy") {
+            const side = kf.mercySide;
+            await page.evaluate(`
+                if (!state._mercyKiosks) state._mercyKiosks = {};
+                state._mercyKiosks["${side}"] = true;
+                state._mercyArrival = "${side}";
+                state.despairing = false;
+            `);
+            await page.evaluate(corridorJS(kf));
+            await page.waitForTimeout(5000);
             continue;
         }
 
@@ -167,8 +205,8 @@ async function main() {
             `);
             await page.waitForTimeout(4000);
 
-            // Flip a few pages — it's all legible
-            for (const pg of [3, 5]) {
+            // Flip through the book — it's all legible
+            for (const pg of [3, 70, 151, 366]) {
                 await page.evaluate(`state.openPage = ${pg}; Engine.goto("Shelf Open Book");`);
                 await page.waitForTimeout(1500);
             }
@@ -218,46 +256,30 @@ async function main() {
         if (kf.type === "book") {
             bookCount++;
             const remaining = totalBooks - bookCount;
+            // Track opened book in dwellHistory
+            const bi = kf.bookIndex ?? 0;
+            await page.evaluate(`
+                if (!state.dwellHistory) state.dwellHistory = {};
+                state.dwellHistory["${kf.side}:${kf.position}:${kf.floor}:${bi}"] = true;
+            `);
 
-            // First 5 books: open each one, look at it, close it
-            if (bookCount <= 5) {
+            // Show a couple books opened for flavor
+            const showOpen = bookCount === 1 || bookCount === 500;
+            if (showOpen) {
                 await page.evaluate(bookViewJS(kf));
-                await page.waitForTimeout(400);
+                await page.waitForTimeout(2000);
+                // Close — back to corridor
+                await page.evaluate(`state.openBook = null; state.openPage = 0;`);
                 await page.evaluate(corridorJS(kf));
-                await page.waitForTimeout(200);
-                continue;
-            }
-
-            // Last 10 before the find: slow way down, open each
-            if (remaining <= 10) {
-                await page.evaluate(bookViewJS(kf));
-                const slowdown = Math.max(150, 600 - remaining * 40);
-                await page.waitForTimeout(slowdown);
-                await page.evaluate(corridorJS(kf));
-                await page.waitForTimeout(Math.max(80, 300 - remaining * 20));
-                continue;
-            }
-
-            // Middle: accelerating montage
-            let showEvery: number;
-            let delay: number;
-            if (bookCount <= 50) {
-                showEvery = 5;
-                delay = 60;
-            } else if (bookCount <= 200) {
-                showEvery = 15;
-                delay = 40;
-            } else if (bookCount <= 1000) {
-                showEvery = 50;
-                delay = 30;
+                await page.waitForTimeout(300);
             } else {
-                showEvery = 100;
-                delay = 20;
-            }
-
-            if (bookCount % showEvery === 0) {
+                // Corridor view updates with each read
                 await page.evaluate(corridorJS(kf));
-                await page.waitForTimeout(delay);
+                if (bookCount <= 10) {
+                    await page.waitForTimeout(150);
+                } else {
+                    await page.waitForTimeout(30);
+                }
             }
             continue;
         }
@@ -270,22 +292,17 @@ async function main() {
             const navIndex = keyframes.slice(0, i + 1).filter((k: any) => k.type === "day").length;
             const navPct = navIndex / navKeyframes;
 
+            // Accelerate through the journey, hit the boundary abruptly
             let delay: number;
             if (navPct < 0.05) {
-                // First 5%: slow, establishing
-                delay = 300;
+                // First 5%: establishing
+                delay = 250;
             } else if (navPct < 0.15) {
                 // Ramp up
-                delay = 200;
-            } else if (navPct < 0.85) {
-                // Bulk of the journey: fast
-                delay = 80;
-            } else if (navPct < 0.95) {
-                // Approaching destination: slow down
-                delay = 200;
+                delay = 150;
             } else {
-                // Last 5%: almost there
-                delay = 300;
+                // Everything else: fast, accelerating slightly
+                delay = Math.max(40, Math.round(80 * (1 - navPct)));
             }
 
             await page.evaluate(corridorJS(kf));

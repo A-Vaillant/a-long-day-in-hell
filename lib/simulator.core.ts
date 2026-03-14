@@ -235,7 +235,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     const rng = seedFromString(seed);
 
     // Initialize life story + target book
-    const lifeStory: LifeStory = LifeStoryCore.generateLifeStory(seed);
+    const { story: lifeStory } = LifeStoryCore.generatePlayerWorld(seed);
     const targetBook: BookCoords = opts.targetBookOverride ?? lifeStory.bookCoords;
     let startLoc: Location;
     if (opts.startLoc) {

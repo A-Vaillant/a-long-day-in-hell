@@ -34,7 +34,7 @@ const OUT_FILE = arg("out", "");
 // --- Keyframe types ---
 
 interface Keyframe {
-    type: "day" | "phase" | "action" | "book" | "death" | "event" | "win";
+    type: "day" | "phase" | "action" | "book" | "death" | "event" | "win" | "mercy";
     day: number;
     tick: number;
     position: string;   // bigint as string
@@ -60,12 +60,13 @@ interface Keyframe {
     heldBook?: unknown;
     despairing?: boolean;
     despairDays?: number;
+    mercySide?: string;
 }
 
 // --- Playthrough strategy ---
 // Combines targeted navigation → systematic search → submit.
 
-function playthroughStrategy(): { strategy: Strategy; getPhase: () => string } {
+function playthroughStrategy(): { strategy: Strategy; getPhase: () => string; getBookIndex: () => number } {
     let phase: "descend" | "navigate" | "walkToEnd" | "sweep" | "take" | "toSubmit" | "submit" | "done" = "descend";
 
     // Search state
@@ -207,13 +208,13 @@ function playthroughStrategy(): { strategy: Strategy; getPhase: () => string } {
         return { type: "move", dir: distLeft <= distRight ? "left" : "right" };
     }
 
-    return { strategy, getPhase: () => phase };
+    return { strategy, getPhase: () => phase, getBookIndex: () => currentBookIndex };
 }
 
 // --- Main ---
 
 function main() {
-    const { playerBookAddress, story: ls } = generatePlayerWorld(SEED);
+    const { story: ls } = generatePlayerWorld(SEED);
     const tb = ls.bookCoords;
     const ps = ls.playerStart;
     const dPos = ps.position > tb.position ? ps.position - tb.position : tb.position - ps.position;
@@ -224,7 +225,7 @@ function main() {
     console.error(`Distance: ${dPos} galleries (~${Math.round(Number(dPos) / 960).toLocaleString()} days)`);
 
     const keyframes: Keyframe[] = [];
-    const { strategy, getPhase } = playthroughStrategy();
+    const { strategy, getPhase, getBookIndex } = playthroughStrategy();
 
     function snap(gs: GameState): Omit<Keyframe, "type"> {
         return {
@@ -251,6 +252,7 @@ function main() {
     let lastPhase = "";
     let lastDay = 0;
     let lastBooksRead = 0;
+    const seenMercyKiosks = new Set<string>();
     const t0 = Date.now();
     let lastLog = t0;
 
@@ -305,13 +307,22 @@ function main() {
             }
         },
         onTick: (gs: GameState) => {
+            // Mercy kiosk detection
+            for (const side of Object.keys(gs._mercyKiosks)) {
+                if (!seenMercyKiosks.has(side)) {
+                    seenMercyKiosks.add(side);
+                    keyframes.push({ type: "mercy", ...snap(gs), mercySide: side });
+                    console.error(`  Mercy kiosk: ${side} (day ${gs.day.toLocaleString()})`);
+                }
+            }
+
             const phase = getPhase();
             // During sweep: log each book read
             if (phase === "sweep" && gs.booksRead > lastBooksRead) {
                 keyframes.push({
                     type: "book",
                     ...snap(gs),
-                    bookIndex: Number(gs.booksRead - 1) % BOOKS_PER_GALLERY,
+                    bookIndex: Math.max(0, getBookIndex() - 1),
                     isTarget: false,
                 });
                 lastBooksRead = gs.booksRead;
