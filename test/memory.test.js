@@ -676,4 +676,16 @@ describe("witnessSystem — unknown event type", () => {
         const mem = getComponent(world, witness, MEMORY);
         assert.ok(!mem || mem.entries.length === 0, "unknown type should produce no memory");
     });
+
+    it("REACHED_MERCY type exists in MEMORY_TYPES", () => {
+        assert.ok(MEMORY_TYPES.REACHED_MERCY);
+        assert.strictEqual(MEMORY_TYPES.REACHED_MERCY, "reachedMercy");
+    });
+
+    it("REACHED_MERCY config has positive hope drain", () => {
+        const tc = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.REACHED_MERCY];
+        assert.ok(tc, "config exists");
+        assert.ok(tc.hopeDrainPerTick > 0, "hope drain is positive (boost)");
+        assert.strictEqual(tc.permanent, false, "not permanent — the hope fades");
+    });
 });
