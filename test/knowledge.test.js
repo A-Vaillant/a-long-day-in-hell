@@ -67,6 +67,13 @@ describe("knowledge.core", () => {
         assert.equal(k.searchedSegments.size, 0);
     });
 
+    it("createKnowledge initializes vague vision fields", () => {
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        assert.equal(k.visionVague, false);
+        assert.equal(k.visionRadius, 0);
+        assert.equal(k.pilgrimageExhausted, false);
+    });
+
     it("grantVision (accurate) sets bookVision to actual coords", () => {
         const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         grantVision(k, true);

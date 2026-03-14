@@ -26,6 +26,12 @@ export interface Knowledge {
     visionAccurate: boolean;
     /** Has this entity picked up their book? */
     hasBook: boolean;
+    /** Is the vision approximate (search a radius) or exact (one shelf)? */
+    visionVague: boolean;
+    /** Segments around the vision to search (only used when visionVague). */
+    visionRadius: number;
+    /** True once the NPC has searched the entire vision radius and found nothing. */
+    pilgrimageExhausted: boolean;
     /** Segments already searched (key: "side:position:floor"). */
     searchedSegments: Set<string>;
     /** Best word count found on any single page, ever. */
@@ -72,6 +78,9 @@ export function createKnowledge(
         bookVision: null,
         visionAccurate: true,
         hasBook: false,
+        visionVague: false,
+        visionRadius: 0,
+        pilgrimageExhausted: false,
         searchedSegments: new Set(),
         bestScore: 0,
         bestWords: [],
