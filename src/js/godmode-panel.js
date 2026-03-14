@@ -214,7 +214,7 @@ const componentRenderers = {
             if (cached) {
                 if (cached.damned) {
                     const oomTip = cached.ooms > 0
-                        ? "Their book exists " + cached.ooms + " orders of magnitude outside the walkable library. Same shelf, wrong universe."
+                        ? "Their book exists " + cached.ooms + " orders of magnitude outside the walkable library."
                         : "Story text exceeds library address space. No valid shelf location exists.";
                     html += '<div class="gm-stat"><span class="gm-tip" data-tip="' + esc(oomTip) + '">book</span>';
                     html += '<span class="gm-bar-num" style="color:#9a2a2a">';
