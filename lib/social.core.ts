@@ -308,7 +308,7 @@ export function psychologyDecaySystem(
 
         // Pilgrims have purpose — hope can't drop below catatonic threshold
         const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
-        if (knowledge && knowledge.bookVision && identity.alive) {
+        if (knowledge && knowledge.bookVision && identity.alive && !knowledge.pilgrimageExhausted) {
             const pilgrimHopeFloor = 20; // above catatonic (15)
             if (psychology.hope < pilgrimHopeFloor) {
                 psychology.hope = pilgrimHopeFloor;

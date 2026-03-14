@@ -164,7 +164,7 @@ function applyPsychologyDecay(state: SoloState, config: SoloConfig): void {
     decayPsychology(state.psych, false, config.decay, bias, 1.0);
 
     // Pilgrim hope floor
-    if (state.knowledge?.bookVision && state.alive) {
+    if (state.knowledge?.bookVision && state.alive && !state.knowledge.pilgrimageExhausted) {
         const pilgrimHopeFloor = 20;
         if (state.psych.hope < pilgrimHopeFloor) {
             state.psych.hope = pilgrimHopeFloor;
