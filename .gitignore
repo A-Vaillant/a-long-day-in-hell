@@ -38,6 +38,9 @@ node_modules/
 # Screenshots
 screenshots/
 
+# Recordings
+recordings/
+
 # Images (not yet finalized)
 src/img/
 
