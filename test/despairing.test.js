@@ -140,12 +140,14 @@ describe("isReadingBlocked", () => {
         assert.strictEqual(isReadingBlocked(false, 0), false);
     });
 
-    it("blocks below chance when despairing", () => {
-        assert.strictEqual(isReadingBlocked(true, 0), true);
+    it("never blocks when chance is 0 (default)", () => {
+        assert.strictEqual(isReadingBlocked(true, 0), false);
     });
 
-    it("does not block above chance when despairing", () => {
-        assert.strictEqual(isReadingBlocked(true, CONFIG.readBlockChance + 0.01), false);
+    it("blocks below chance when despairing and chance > 0", () => {
+        CONFIG.readBlockChance = 0.7;
+        assert.strictEqual(isReadingBlocked(true, 0), true);
+        assert.strictEqual(isReadingBlocked(true, 0.71), false);
     });
 
     it("chance is configurable", () => {

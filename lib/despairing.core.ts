@@ -111,8 +111,8 @@ export interface SimulateResult {
 
 /** Tunable parameters. Override fields for simulation/testing. */
 export const CONFIG: DespairingConfig = {
-    /** Ambient morale drain per waking tick. ~8.2/day vs 8/day sleep recovery = ~550 days to despair. */
-    ambientDrain: 8.18 / WAKING_TICKS,
+    /** Ambient morale drain per waking tick. ~8.03/day vs 8/day sleep recovery = slow slide to despair. */
+    ambientDrain: 8.03 / WAKING_TICKS,
 
     /** Morale recovery multiplier while despairing (applied to sleep recovery). */
     sleepRecoveryMult: 0.9,
@@ -126,8 +126,8 @@ export const CONFIG: DespairingConfig = {
     /** Probability [0,1] that a stat descriptor is replaced with a wrong one. */
     statCorruptionChance: 0.4,
 
-    /** Probability [0,1] that reading is blocked per attempt while despairing. */
-    readBlockChance: 0.7,
+    /** Probability [0,1] that reading is blocked per attempt while despairing. Disabled — felt punitive. */
+    readBlockChance: 0,
 
     /** Whether chasm jump confirmation is skipped while despairing. */
     chasmSkipConfirm: true,
