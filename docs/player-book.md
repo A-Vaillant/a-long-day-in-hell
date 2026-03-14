@@ -198,11 +198,11 @@ All library dimension constants live in `lib/scale.core.ts`:
 
 `PLAYABLE_ADDRESS_MAX` derives from `POSITIONS_PER_SIDE × 2 (sides) × FLOORS × BOOKS_PER_GALLERY`. Changing any of these changes the walkable library's size, the early-exit threshold (`TEXT_ADDRESS_EARLY_EXIT` tracks `PLAYABLE_ADDRESS_MAX`), and the damnation odds.
 
-## Unified content model (experimental)
+## Unified content model
 
-The game uses two codepaths for book content. `generateBookPage` seeds a PRNG from shelf coordinates and emits random printable ASCII — called on demand for any book the player opens. `generateStoryPage` takes `state.lifeStory` — name, occupation, hometown, cause of death, and a seed story text — and generates a page of life-arc prose (birth, youth, work, aging, death). `state.lifeStory` is created once when a save file is initialized and persisted across sessions. A hard-coded check in `src/js/book.js` picks between them: if the coordinates match `state.targetBook`, use the story generator; otherwise, noise.
+Every book in the library — player's, NPCs', shelf filler — derives from one function with no branches. The player's story emerges at one address; noise everywhere else. Feature-flagged under `digitWiseBooks` (save version 3.2+). Pre-3.2 saves keep the legacy branching codepath.
 
-A unified model would eliminate the branch. Every book — player's, NPCs', shelf filler — would derive its content from the same function, with the player's story emerging at one address and noise everywhere else. No special cases. `lib/invertible.core.ts` contains prototypes of several approaches.
+The game previously used two codepaths. `generateBookPage` seeded a PRNG from shelf coordinates and emitted random printable ASCII. `generateStoryPage` took `state.lifeStory` and generated life-arc prose. A hard-coded check in `src/js/book.js` picked between them. That branch is gone for new saves.
 
 ### The linear bijection
 
@@ -238,9 +238,9 @@ recombine into 60-bit address
 
 Adjacent inputs scatter to distant outputs. The permutation is bijective, cheap (four hash calls), and deterministic. Tests verify roundtripping, bijectivity, and scatter distance. The Feistel is the right tool — it just needs to feed into the right formula.
 
-### Carry-free digit-wise embedding (proposed)
+### Carry-free digit-wise embedding
 
-The breakthrough: stop treating the book as one enormous number. Treat it as 1,312,000 independent digits.
+Stop treating the book as one enormous number. Treat it as 1,312,000 independent digits.
 
 Define an expansion function `expand(seed, i)` that returns a pseudorandom digit in [0, 94] for each character position i, seeded from a permuted shelf address. The book content at any address becomes:
 
@@ -265,37 +265,76 @@ The digit-wise formula operates mod 95 at each position independently. There are
 
 ### Per-page cost
 
-Rendering page K requires 3200 character computations. Each one:
+Rendering page K requires 3200 character computations:
 
-1. Seek the expansion PRNG to position `K × 3200` (skip `K × 3200` outputs).
-2. Emit 3200 pseudorandom digits from `expand(permute(address))`.
-3. Subtract the corresponding 3200 cached digits from `expand(permute(origin))`.
-4. Add the corresponding 3200 characters from the player's book.
+1. Compute `permute(address)` — one Feistel evaluation (four hash calls).
+2. Call `expand(permuted, K × 3200, 3200)` — 800 counter-mode hashes (4 digits each).
+3. Subtract the corresponding 3200 cached origin-pad digits.
+4. Add the corresponding 3200 cached player-book digits.
 5. Take each result mod 95, convert to ASCII.
 
-Steps 2–5 cost 3200 integer operations — microseconds. Step 1 depends on the PRNG. A seekable PRNG (counter-mode, hash-based) makes this constant-time. A sequential PRNG requires skipping `K × 3200` outputs; for page 0 there's no skip, for page 409 it's 1,308,800 steps — still fast for a simple xorshift.
+Steps 2–5 are pure integer arithmetic. Step 2 uses counter-mode hashing (splitmix-style finalizer keyed by the permuted address), so page 409 costs the same as page 0 — no sequential skip. Measured at 0.19ms per page.
 
 ### Caching
 
-Two things need caching, computed once at game start:
+Three things are computed once at game start and held in transient state (not serialized — recomputed on load in ~25ms total):
 
-**The origin pad** — `expand(permute(origin), i)` for all 1,312,000 positions. One PRNG run, 1,312,000 outputs. ~5ms. Same for every book lookup during this run, so compute once and store as a `Uint8Array`.
+**`_feistelKey`** (Uint32Array, 16 bytes) — `feistelKey(seed)`. Four round subkeys. Trivial.
 
-**The player's book text** — all 410 pages materialized via `generateFullStoryBook`. Each character's digit value (charCode - 32) cached as a `Uint8Array`. Deterministic from the story seed and fields. ~50ms for generation.
+**`_originPad`** (Uint8Array, 1.3MB) — `expand(permute(playerBookAddress, key), 0, 1312000)`. The expansion of the player's permuted address across all character positions. ~10ms.
 
-Both caches depend on the game seed (which determines `playerBookAddress` and the story). They regenerate on new game or load. The Feistel key also derives from the seed. None of this is per-book or per-page — it's per-save, computed once.
+**`_playerDigits`** (Uint8Array, 1.3MB) — the player's full book as digit values (charCode - 32), materialized via `generateFullStoryBook`. ~12ms.
 
-The powers-of-95 cache (`_pow95Cache`) used by `extractPage` and `addressToText` depends only on the book format constants. Those values are universal — same for every save, every player. They could be precomputed and shipped as static data, though lazy computation on first access works fine.
+All three derive from data already in the save (`seed`, `playerBookAddress`, `lifeStory`). Persisting them would add ~2.6MB to localStorage; recomputing is cheaper. The `TRANSIENT_KEYS` set in `engine.js` excludes them from JSON serialization.
 
-### Current status
+The powers-of-95 cache (`_pow95Cache`) used by `extractPage` and `addressToText` depends only on book format constants. Universal across saves. Lazy-computed on first access.
 
-The Feistel permutation (`permute`, `unpermute`, `feistelKey`) is implemented and tested in `lib/invertible.core.ts`. The linear bijection (`addressToText`, `unifiedBookText`) and page extraction (`extractPage`) are implemented and tested. `generateFullStoryBook` in `lib/book.core.ts` materializes the full 410-page player book.
+### Implementation
 
-The carry-free digit-wise embedding is not yet implemented. It requires:
+All in `lib/invertible.core.ts`:
 
-1. A seekable expansion function seeded from the permuted address.
-2. The origin pad cache (one PRNG run at game start).
-3. The player book digit cache (one `generateFullStoryBook` call at game start).
-4. The per-page content function: 3200 modular subtractions and additions.
+- `expand(seed, offset, count)` — counter-mode hash PRNG. Batches 4 base-95 digits per splitmix hash. Seekable: any subsequence matches the full sequence.
+- `buildOriginPad(playerBookAddress, key)` — `expand(permute(playerBookAddress, key), 0, CHARS_PER_BOOK)`.
+- `buildPlayerDigits(storyText, fields)` — `generateFullStoryBook` output as digit values.
+- `digitWiseBookPage(address, originPad, playerDigits, key, pageIndex)` — the unified content function. No branch.
+- `coordsToAddress(side, position, floor, bookIndex)` — inverse of `addressToCoords`. Packs library coordinates to a flat address.
 
-The existing Feistel and page-extraction code remains useful — `extractPage` verifies the bijection roundtrip, and the Feistel feeds directly into the digit-wise formula. Tests in `test/slow/feistel-page.test.js` cover permutation bijectivity, scatter, page extraction correctness, and the current `unifiedBookPage` (which uses the branching approach as an interim implementation).
+Integration in `src/js/book.js`: `Book.getPage` checks `state._featureFlags.digitWiseBooks`. When on, it calls `coordsToAddress` then `digitWiseBookPage`. When off (pre-3.2 saves), the legacy branching path runs.
+
+`generateFullStoryBook` in `lib/book.core.ts` throws `RangeError` if any character falls outside printable ASCII [32, 126]. The mod-95 arithmetic cannot represent non-ASCII; this guard catches it at generation time rather than producing silent corruption.
+
+Tests in `test/slow/digit-wise.test.js` cover: correctness (player's book reproduces across all 410 pages), cancellation algebra, noise properties (neighbor match rate ~1%), uniformity (all 95 characters, even distribution), determinism, seekability, performance (0.19ms/page, origin pad <10ms, player digits <12ms), and edge cases (address 0, PLAYABLE_ADDRESS_MAX).
+
+The linear bijection (`addressToText`, `unifiedBookText`, `extractPage`) and branching `unifiedBookPage` remain in the codebase for verification and testing. The Feistel feeds directly into the digit-wise formula.
+
+### Structure
+
+Four spaces, three maps:
+
+```
+A  ──permute──>  S  ──expand(-, i)──>  Z/95Z  ──(+32)──>  ASCII
+```
+
+**A** = address space [0, PLAYABLE_ADDRESS_MAX]. A shelf location. ~60 bits.
+
+**S** = seed space (same set as A, different role). The output of the Feistel permutation. No longer a location — an identity for a PRNG stream.
+
+**Z/95Z** = one digit, one character position. The cyclic group of integers mod 95.
+
+`expand` is a bundle map over character positions:
+
+```
+expand : S × [0, 1312000) → Z/95Z × [0, 1312000)
+```
+
+Fix a seed, sweep positions: you get a string (one book). Fix a position, sweep seeds: you see how that character varies across books. Each fiber is independent — position `i` knows nothing about position `i+1`.
+
+The content function is an affine translation in the product group (Z/95Z)^1,312,000:
+
+```
+content(a, i) = expand(permute(a), i) - ω(i) + π(i)   mod 95
+```
+
+Where ω is the origin pad (constant) and π is the player's book (constant). At the player's address, `permute(a) = permute(origin)`, the expand terms cancel, and the result is π — the player's book. Everywhere else, `expand(permute(a), i) - ω(i)` is a pseudorandom element of Z/95Z (the hash ensures unrelated seeds produce unrelated outputs), and adding π shifts it without reducing the randomness.
+
+The linear bijection failed because it treated the book as one morphism S → Z (a single enormous integer). Digits were entangled by carries — a perturbation in the low-order end couldn't propagate to the high-order end. The digit-wise embedding decomposes this into 1,312,000 independent morphisms S → Z/95Z. The perturbation acts locally at every position because there are no carries to propagate.
