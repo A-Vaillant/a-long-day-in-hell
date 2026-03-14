@@ -85,6 +85,12 @@ export function detectEvents(prev, curr) {
                 text: npc.name + " found their book!", npcIds: [npc.id] });
         }
 
+        // Pilgrimage failed (searched zone, found noise)
+        if (oldKnow && newKnow && !oldKnow.pilgrimageExhausted && newKnow.pilgrimageExhausted) {
+            events.push({ tick: curr.tick, day: curr.day, type: "pilgrimage",
+                text: npc.name + "\u2019s pilgrimage ended in silence. The books were noise.", npcIds: [npc.id] });
+        }
+
         // New bond (familiarity crossed 1.0 threshold) — deduplicate by pair
         const oldBondNames = new Set(old.bonds.filter(b => b.familiarity >= 1).map(b => b.name));
         for (const bond of npc.bonds) {
