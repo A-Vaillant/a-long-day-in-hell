@@ -38,24 +38,24 @@ describe("textToAddressFull (divide-and-conquer)", () => {
 });
 
 describe("full-precision player verification", () => {
-    it("player book address equals randomOrigin (full precision agrees with approximation)", () => {
+    it("player book address equals playerBookAddress (full precision agrees with approximation)", () => {
         for (const seed of ["test-full-1", "test-full-2", "test-full-3"]) {
-            const { randomOrigin, story } = generatePlayerWorld(seed);
-            // The approximation: bookAddress should equal randomOrigin for the player
-            assert.strictEqual(story.bookAddress, randomOrigin,
-                `${seed}: bookAddress should equal randomOrigin`);
+            const { playerBookAddress, story } = generatePlayerWorld(seed);
+            // The approximation: bookAddress should equal playerBookAddress for the player
+            assert.strictEqual(story.bookAddress, playerBookAddress,
+                `${seed}: bookAddress should equal playerBookAddress`);
             assert.ok(isAddressInBounds(story.bookAddress),
                 `${seed}: player book must be in bounds`);
         }
     });
 
     it("NPC book addresses are out of bounds (damned)", () => {
-        const { randomOrigin, story } = generatePlayerWorld("npc-damnation-test");
+        const { playerBookAddress, story } = generatePlayerWorld("npc-damnation-test");
         let damnedCount = 0;
         const total = 20;
         for (let i = 0; i < total; i++) {
             const npc = generateNPCLifeStory(i, "npc-damnation-test",
-                story.rawBookAddress, randomOrigin);
+                story.rawBookAddress, playerBookAddress);
             if (!isAddressInBounds(npc.bookAddress)) damnedCount++;
         }
         // All NPCs should be damned — the odds of one being in bounds are ~1 in 10^113
@@ -64,10 +64,10 @@ describe("full-precision player verification", () => {
     });
 
     it("full-precision and early-exit agree on damnation verdict for NPCs", { timeout: 30000 }, () => {
-        const { randomOrigin, story } = generatePlayerWorld("verdict-match");
+        const { playerBookAddress, story } = generatePlayerWorld("verdict-match");
         for (let i = 0; i < 5; i++) {
             const npc = generateNPCLifeStory(i, "verdict-match",
-                story.rawBookAddress, randomOrigin);
+                story.rawBookAddress, playerBookAddress);
 
             // Early-exit textToAddress (no limit) and full-precision should give same rawBookAddress
             const earlyExit = textToAddress(npc.storyText, null);
@@ -76,8 +76,8 @@ describe("full-precision player verification", () => {
                 `NPC ${i}: D&C and Horner's must agree`);
 
             // Both should produce the same damnation verdict
-            const earlyAddr = computeBookAddress(earlyExit, story.rawBookAddress, randomOrigin);
-            const fullAddr = computeBookAddress(fullPrecision, story.rawBookAddress, randomOrigin);
+            const earlyAddr = computeBookAddress(earlyExit, story.rawBookAddress, playerBookAddress);
+            const fullAddr = computeBookAddress(fullPrecision, story.rawBookAddress, playerBookAddress);
             assert.strictEqual(isAddressInBounds(fullAddr), isAddressInBounds(earlyAddr),
                 `NPC ${i}: damnation verdict must match`);
         }
@@ -120,8 +120,8 @@ describe("addressToText (inverse D&C)", () => {
 });
 
 describe("unifiedBookText", () => {
-    it("produces the player's full book at randomOrigin", { timeout: 60000 }, () => {
-        const { randomOrigin, story } = generatePlayerWorld("unified-test");
+    it("produces the player's full book at playerBookAddress", { timeout: 60000 }, () => {
+        const { playerBookAddress, story } = generatePlayerWorld("unified-test");
 
         // Generate the full 1,312,000-char book from the life-arc generator
         const fullBook = generateFullStoryBook(story.storyText, {
@@ -137,13 +137,13 @@ describe("unifiedBookText", () => {
         const fullRawAddress = textToAddressFull(fullBook);
         console.log(`  textToAddressFull (full book): ${(performance.now() - t0).toFixed(0)}ms`);
 
-        // The unified function should reproduce the full book at randomOrigin
+        // The unified function should reproduce the full book at playerBookAddress
         const t1 = performance.now();
-        const result = unifiedBookText(randomOrigin, fullRawAddress, randomOrigin);
+        const result = unifiedBookText(playerBookAddress, fullRawAddress, playerBookAddress);
         console.log(`  addressToText (full book): ${(performance.now() - t1).toFixed(0)}ms`);
 
         assert.strictEqual(result, fullBook,
-            "unified function must reproduce the full life-story book at randomOrigin");
+            "unified function must reproduce the full life-story book at playerBookAddress");
     });
 
     it("neighbors differ only in trailing characters", () => {

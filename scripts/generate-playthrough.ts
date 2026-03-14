@@ -59,6 +59,7 @@ interface Keyframe {
     won?: boolean;
     heldBook?: unknown;
     despairing?: boolean;
+    despairDays?: number;
 }
 
 // --- Playthrough strategy ---
@@ -212,7 +213,7 @@ function playthroughStrategy(): { strategy: Strategy; getPhase: () => string } {
 // --- Main ---
 
 function main() {
-    const { randomOrigin, story: ls } = generatePlayerWorld(SEED);
+    const { playerBookAddress, story: ls } = generatePlayerWorld(SEED);
     const tb = ls.bookCoords;
     const ps = ls.playerStart;
     const dPos = ps.position > tb.position ? ps.position - tb.position : tb.position - ps.position;
@@ -243,6 +244,7 @@ function main() {
             totalMoves: gs.totalMoves,
             booksRead: gs.booksRead,
             despairing: gs.despairing,
+            despairDays: gs.despairDays,
         };
     }
 

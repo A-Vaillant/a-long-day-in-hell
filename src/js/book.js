@@ -27,7 +27,7 @@ function findNPCStory(side, position, floor, bookIndex) {
     if (!state.npcs) return null;
     const seed = PRNG.getSeed();
     for (const npc of state.npcs) {
-        const story = generateNPCLifeStory(npc.id, seed, state.playerRawAddress, state.randomOrigin);
+        const story = generateNPCLifeStory(npc.id, seed, state.playerRawAddress, state.playerBookAddress);
         const bc = story.bookCoords;
         if (bc.side === side && bc.position === position &&
             bc.floor === floor && bc.bookIndex === bookIndex) {

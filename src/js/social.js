@@ -75,7 +75,7 @@ export const Social = {
         const playerStatsRng = seedFromString(state.seed + ":player:stats");
         addComponent(world, playerEntity, STATS, generateStats(playerStatsRng));
         // Use createKnowledge shape so player and NPC fields stay in sync
-        const playerKnowledge = createKnowledge(state.seed, -1, { side: state.side, position: BigInt(state.position), floor: BigInt(state.floor) }, state.playerRawAddress, state.randomOrigin);
+        const playerKnowledge = createKnowledge(state.seed, -1, { side: state.side, position: BigInt(state.position), floor: BigInt(state.floor) }, state.playerRawAddress, state.playerBookAddress);
         playerKnowledge.lifeStory = state.lifeStory;
         addComponent(world, playerEntity, KNOWLEDGE, playerKnowledge);
         addComponent(world, playerEntity, NEEDS, {
@@ -141,7 +141,7 @@ export const Social = {
                 addComponent(world, ent, KNOWLEDGE, createKnowledge(
                     state.seed, npc.id,
                     { side: npc.side, position: npc.position, floor: npc.floor },
-                    state.playerRawAddress, state.randomOrigin,
+                    state.playerRawAddress, state.playerBookAddress,
                 ));
             }
         }

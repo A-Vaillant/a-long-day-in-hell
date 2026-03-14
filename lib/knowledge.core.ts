@@ -49,10 +49,10 @@ export function generateNpcLifeStory(
     npcId: number,
     startLoc: { side: number; position: bigint; floor: bigint },
     playerRawAddress: bigint,
-    randomOrigin: bigint,
+    playerBookAddress: bigint,
 ): LifeStory {
     const seed = globalSeed + ":npc:life:" + npcId;
-    return generateLifeStory(seed, { startLoc, playerRawAddress, randomOrigin });
+    return generateLifeStory(seed, { startLoc, playerRawAddress, playerBookAddress });
 }
 
 /**
@@ -65,10 +65,10 @@ export function createKnowledge(
     npcId: number,
     startLoc: { side: number; position: bigint; floor: bigint },
     playerRawAddress: bigint,
-    randomOrigin: bigint,
+    playerBookAddress: bigint,
 ): Knowledge {
     return {
-        lifeStory: generateNpcLifeStory(globalSeed, npcId, startLoc, playerRawAddress, randomOrigin),
+        lifeStory: generateNpcLifeStory(globalSeed, npcId, startLoc, playerRawAddress, playerBookAddress),
         bookVision: null,
         visionAccurate: true,
         hasBook: false,

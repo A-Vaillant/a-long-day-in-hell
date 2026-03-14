@@ -69,13 +69,13 @@ describe("isInBounds", () => {
 });
 
 describe("computeBookAddress", () => {
-    it("player (rawAddress = playerRawAddress) always gets randomOrigin", () => {
+    it("player (rawAddress = playerRawAddress) always gets playerBookAddress", () => {
         const raw = 123456789n;
         const origin = 42n;
         assert.strictEqual(computeBookAddress(raw, raw, origin), origin);
     });
 
-    it("NPC with same raw as player gets randomOrigin (cosmic coincidence)", () => {
+    it("NPC with same raw as player gets playerBookAddress (cosmic coincidence)", () => {
         const origin = 99n;
         assert.strictEqual(computeBookAddress(1000n, 1000n, origin), origin);
     });
@@ -116,10 +116,10 @@ describe("isAddressInBounds", () => {
 });
 
 describe("player is never damned", () => {
-    it("player bookAddress equals randomOrigin (always in bounds)", () => {
+    it("player bookAddress equals playerBookAddress (always in bounds)", () => {
         for (let i = 0; i < 20; i++) {
             const story = generateLifeStory("player-damnation-" + i);
-            // Player's rawBookAddress IS playerRawAddress, so bookAddress = randomOrigin
+            // Player's rawBookAddress IS playerRawAddress, so bookAddress = playerBookAddress
             assert.ok(isAddressInBounds(story.bookAddress),
                 `seed ${i}: player bookAddress ${story.bookAddress} is out of bounds`);
         }

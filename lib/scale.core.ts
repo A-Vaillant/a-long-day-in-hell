@@ -30,8 +30,11 @@ export const PAGES_PER_BOOK: number = 410;
 export const LINES_PER_PAGE: number = 40;
 export const CHARS_PER_LINE: number = 80;
 
+/** Characters per page (no newlines). */
+export const CHARS_PER_PAGE: number = LINES_PER_PAGE * CHARS_PER_LINE; // 3,200
+
 /** Total characters in one book. */
-export const CHARS_PER_BOOK: number = PAGES_PER_BOOK * LINES_PER_PAGE * CHARS_PER_LINE; // 1,312,000
+export const CHARS_PER_BOOK: number = PAGES_PER_BOOK * CHARS_PER_PAGE; // 1,312,000
 
 // ---- Physical shelf geometry ----
 

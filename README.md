@@ -63,16 +63,16 @@ Every soul's life story text is treated as a number in base 95 (the library's ch
 Book coordinates are then derived as:
 
 ```
-bookAddress = rawAddress(soul) - rawAddress(player) + randomOrigin
+bookAddress = rawAddress(soul) - rawAddress(player) + playerBookAddress
 ```
 
-`randomOrigin` is a seed-derived constant chosen at world generation, drawn from `[0, PLAYABLE_ADDRESS_MAX]`. For the player, the subtraction cancels exactly — `bookAddress = randomOrigin` — which is always within the navigable space by construction. The player's book exists somewhere in this library. You *can* win.
+`playerBookAddress` is a seed-derived constant chosen at world generation, drawn from `[0, PLAYABLE_ADDRESS_MAX]`. For the player, the subtraction cancels exactly — `bookAddress = playerBookAddress` — which is always within the navigable space by construction. The player's book exists somewhere in this library. You *can* win.
 
 For NPCs, the subtraction of two independently generated large numbers usually produces a result that is itself enormous — far beyond the library's coordinate space. Their book doesn't exist here. They are damned.
 
 ### Why?
 
-The navigable library has `PLAYABLE_ADDRESS_MAX = 10,000,000,000 × 2 × 100,000 × 192 ≈ 3.84 × 10^17` locations. A life story of ~1,000 characters interpreted in base 95 produces a number around 95^1000 ≈ 10^1970. The coordinate system is anchored to the player's own raw address so the player's offset is always zero, and `randomOrigin` is small enough to keep the result within the playable address range. The player's book always lands somewhere walkable.
+The navigable library has `PLAYABLE_ADDRESS_MAX = 10,000,000,000 × 2 × 100,000 × 192 ≈ 3.84 × 10^17` locations. A life story of ~1,000 characters interpreted in base 95 produces a number around 95^1000 ≈ 10^1970. The coordinate system is anchored to the player's own raw address so the player's offset is always zero, and `playerBookAddress` is small enough to keep the result within the playable address range. The player's book always lands somewhere walkable.
 
 ## Controls
 

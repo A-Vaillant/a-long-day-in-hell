@@ -139,8 +139,8 @@ describe("player book address system", () => {
     });
 
     it("player bookAddress equals PLAYABLE_ADDRESS_MAX/2 by default (no anchors)", () => {
-        // When no playerRawAddress/randomOrigin are passed,
-        // rawBookAddress IS playerRawAddress, so bookAddress = randomOrigin = PLAYABLE_ADDRESS_MAX/2.
+        // When no playerRawAddress/playerBookAddress are passed,
+        // rawBookAddress IS playerRawAddress, so bookAddress = playerBookAddress = PLAYABLE_ADDRESS_MAX/2.
         const story = generateLifeStory("default-origin-test");
         assert.strictEqual(story.bookAddress, PLAYABLE_ADDRESS_MAX / 2n);
     });
@@ -168,14 +168,14 @@ describe("player book address system", () => {
         assert.ok(story.storyText.includes(story.name), "storyText contains player name");
     });
 
-    it("different randomOrigins produce different player book locations", () => {
-        // randomOrigin drives the player's book location; varying it gives varied coords.
+    it("different playerBookAddresss produce different player book locations", () => {
+        // playerBookAddress drives the player's book location; varying it gives varied coords.
         const coordKey = s => `${s.bookCoords.side}:${s.bookCoords.position}:${s.bookCoords.floor}`;
         const keys = new Set();
         const baseStory = generateLifeStory("uniq-player-base");
         for (let i = 0; i < 20; i++) {
             const origin = PLAYABLE_ADDRESS_MAX / 20n * BigInt(i) + BigInt(i * 7919);
-            const story = generateLifeStory("uniq-player-base", { randomOrigin: origin });
+            const story = generateLifeStory("uniq-player-base", { playerBookAddress: origin });
             keys.add(coordKey(story));
         }
         assert.ok(keys.size > 15, `expected varied player locations, got ${keys.size}/20`);

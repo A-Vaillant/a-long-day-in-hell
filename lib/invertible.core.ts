@@ -20,7 +20,7 @@
  */
 
 import { hash } from "./prng.core.ts";
-import { BOOKS_PER_GALLERY, CHARSET_SIZE, CHARS_PER_LINE, LINES_PER_PAGE, FLOORS, POSITIONS_PER_SIDE } from "./scale.core.ts";
+import { BOOKS_PER_GALLERY, CHARSET_SIZE, CHARS_PER_LINE, LINES_PER_PAGE, CHARS_PER_PAGE, CHARS_PER_BOOK, PAGES_PER_BOOK, FLOORS, POSITIONS_PER_SIDE } from "./scale.core.ts";
 
 /* ---- Constants ---- */
 
@@ -78,9 +78,9 @@ export function isInBounds(text: string): boolean {
  * Compute a soul's book address in the coordinate system anchored to the player.
  *
  * The library's "origin" is arbitrary. We pick it by anchoring to the player:
- *   bookAddress = rawAddress - playerRawAddress + randomOrigin
+ *   bookAddress = rawAddress - playerRawAddress + playerBookAddress
  *
- * For the player themselves: rawAddress - rawAddress + randomOrigin = randomOrigin,
+ * For the player themselves: rawAddress - rawAddress + playerBookAddress = playerBookAddress,
  * which is always within PLAYABLE_ADDRESS_MAX by construction.
  *
  * For NPCs: big number - big number + small number. Usually still enormous → damned.
@@ -89,15 +89,15 @@ export function isInBounds(text: string): boolean {
  *
  * @param rawAddress - textToAddress(storyText) for this soul, no early-exit limit
  * @param playerRawAddress - textToAddress(playerStoryText), no early-exit limit
- * @param randomOrigin - a bigint in [0, PLAYABLE_ADDRESS_MAX], derived from game seed
+ * @param playerBookAddress - a bigint in [0, PLAYABLE_ADDRESS_MAX], derived from game seed
  * @returns bookAddress — use isAddressInBounds() to check damnation
  */
 export function computeBookAddress(
     rawAddress: bigint,
     playerRawAddress: bigint,
-    randomOrigin: bigint,
+    playerBookAddress: bigint,
 ): bigint {
-    return rawAddress - playerRawAddress + randomOrigin;
+    return rawAddress - playerRawAddress + playerBookAddress;
 }
 
 /**
@@ -112,7 +112,7 @@ export { POSITIONS_PER_SIDE } from "./scale.core.ts";
 
 /**
  * The maximum address that maps to a sensible (walkable) library location.
- * randomOrigin should be drawn from [0, PLAYABLE_ADDRESS_MAX].
+ * playerBookAddress should be drawn from [0, PLAYABLE_ADDRESS_MAX].
  */
 export const PLAYABLE_ADDRESS_MAX: bigint =
     POSITIONS_PER_SIDE * 2n * BigInt(FLOORS) * BigInt(BOOKS_PER_GALLERY); // position * sides * floors * booksPerGallery
@@ -430,8 +430,6 @@ export function textToAddressFull(text: string): bigint {
 
 /* ---- Inverse: address → text (D&C) ---- */
 
-import { CHARS_PER_BOOK } from "./scale.core.ts";
-
 /**
  * Convert a bigint address back to a base-95 string of the given length.
  * D&C approach: divmod by 95^(n/2) splits the string into left and right
@@ -478,26 +476,195 @@ function _fillRange(buf: Uint8Array, start: number, end: number, value: bigint):
  * Every book's content is determined by its address in the text-address space.
  * The mapping is anchored to the player's story:
  *
- *   bookText(address) = addressToText(address - randomOrigin + playerRawAddress)
+ *   bookText(address) = addressToText(address - playerBookAddress + playerRawAddress)
  *
- * At the player's book location (address = randomOrigin), this produces
+ * At the player's book location (address = playerBookAddress), this produces
  * the player's life story text exactly. Neighboring books differ by one
  * or two characters in the low-order positions.
  *
  * @param address - the book's address in the playable coordinate space
  * @param playerRawAddress - textToAddressFull(playerStoryText)
- * @param randomOrigin - the seed-derived origin
+ * @param playerBookAddress - the seed-derived origin
  * @param length - output string length (default CHARS_PER_BOOK)
  * @returns the book's full text
  */
 export function unifiedBookText(
     address: bigint,
     playerRawAddress: bigint,
-    randomOrigin: bigint,
+    playerBookAddress: bigint,
     length: number = CHARS_PER_BOOK,
 ): string {
-    const textAddress = address - randomOrigin + playerRawAddress;
+    const textAddress = address - playerBookAddress + playerRawAddress;
     return addressToText(textAddress, length);
+}
+
+/* ---- Feistel permutation over address space ---- */
+
+const FEISTEL_ROUNDS = 4;
+// Round up to next even bit width that covers PLAYABLE_ADDRESS_MAX
+const FEISTEL_BITS = 60; // 2^60 > PLAYABLE_ADDRESS_MAX ≈ 4e17
+const FEISTEL_HALF = FEISTEL_BITS >>> 1; // 30
+const FEISTEL_MASK = (1n << BigInt(FEISTEL_HALF)) - 1n; // 0x3FFFFFFF
+const FEISTEL_DOMAIN = 1n << BigInt(FEISTEL_BITS); // 2^60
+
+/** Derive 4 round subkeys from the game seed. */
+export function feistelKey(globalSeed: string): Uint32Array {
+    const key = new Uint32Array(FEISTEL_ROUNDS);
+    for (let i = 0; i < FEISTEL_ROUNDS; i++) {
+        key[i] = hash(globalSeed + ":feistel:" + i);
+    }
+    return key;
+}
+
+/** Feistel round function: hash the right half with the round subkey. */
+function feistelRound(half: bigint, subkey: number): bigint {
+    // Mix the 30-bit half with the subkey via hash
+    const h = hash(subkey + ":" + half.toString(36));
+    return BigInt(h) & FEISTEL_MASK;
+}
+
+/** Raw 4-round Feistel on 2^60 domain (no cycle walking). */
+function feistelRaw(addr: bigint, key: Uint32Array): bigint {
+    let left = (addr >> BigInt(FEISTEL_HALF)) & FEISTEL_MASK;
+    let right = addr & FEISTEL_MASK;
+    for (let i = 0; i < FEISTEL_ROUNDS; i++) {
+        const newLeft = right;
+        right = left ^ feistelRound(right, key[i]);
+        left = newLeft;
+    }
+    return (left << BigInt(FEISTEL_HALF)) | right;
+}
+
+/** Raw inverse Feistel (rounds in reverse). */
+function feistelRawInverse(addr: bigint, key: Uint32Array): bigint {
+    let left = (addr >> BigInt(FEISTEL_HALF)) & FEISTEL_MASK;
+    let right = addr & FEISTEL_MASK;
+    for (let i = FEISTEL_ROUNDS - 1; i >= 0; i--) {
+        const newRight = left;
+        left = right ^ feistelRound(left, key[i]);
+        right = newRight;
+    }
+    return (left << BigInt(FEISTEL_HALF)) | right;
+}
+
+/**
+ * Bijective permutation over [0, PLAYABLE_ADDRESS_MAX] using cycle-walking Feistel.
+ * Adjacent inputs scatter to distant outputs. The player's origin still cancels
+ * in the unified content formula.
+ */
+export function permute(addr: bigint, key: Uint32Array): bigint {
+    let result = addr;
+    do {
+        result = feistelRaw(result, key);
+    } while (result > PLAYABLE_ADDRESS_MAX);
+    return result;
+}
+
+/** Inverse of permute — recovers the original address. */
+export function unpermute(addr: bigint, key: Uint32Array): bigint {
+    let result = addr;
+    do {
+        result = feistelRawInverse(result, key);
+    } while (result > PLAYABLE_ADDRESS_MAX);
+    return result;
+}
+
+/* ---- Per-page extraction ---- */
+
+/**
+ * Extract a single page from a text-space bigint address.
+ *
+ * Page K occupies character positions [K*CHARS_PER_PAGE, (K+1)*CHARS_PER_PAGE)
+ * in the base-95 representation. Extracts those digits via divmod without
+ * converting the entire 1,312,000-character book.
+ *
+ * @param addr - text-space bigint (the full ~2.6M-digit number)
+ * @param pageIndex - 0-based page number [0, 409]
+ * @param totalLength - total book length in characters (default CHARS_PER_BOOK)
+ * @returns 3200-character string for the requested page
+ */
+export function extractPage(addr: bigint, pageIndex: number, totalLength: number = CHARS_PER_BOOK): string {
+    const pageSize = CHARS_PER_PAGE;
+    // Digits to the right of this page
+    const rightChars = totalLength - (pageIndex + 1) * pageSize;
+    if (rightChars < 0) throw new RangeError("pageIndex out of range");
+
+    // Shift right to remove digits below this page
+    let pageValue: bigint;
+    if (rightChars === 0) {
+        pageValue = addr % _pow95(pageSize);
+    } else {
+        const shifted = addr / _pow95(rightChars);
+        pageValue = shifted % _pow95(pageSize);
+    }
+
+    return addressToText(pageValue, pageSize);
+}
+
+/* ---- Unified + Feistel integration ---- */
+
+/**
+ * Unified book content with Feistel permutation.
+ *
+ * Returns one page of a book at the given shelf address. At the player's
+ * origin, the content is the player's life-story book (extracted from
+ * playerRawAddress via the base-95 bijection). Everywhere else, the
+ * Feistel-permuted address seeds a PRNG that generates pseudorandom
+ * printable ASCII — the same "symbol slop" as generateBookPage but
+ * derived from the unified address space.
+ *
+ * The branch is minimal: one address comparison per call. The content
+ * derivation uses the same character set and page format either way.
+ *
+ * @param address - shelf address in [0, PLAYABLE_ADDRESS_MAX]
+ * @param playerRawAddress - textToAddressFull of the player's full book text
+ * @param playerBookAddress - seed-derived origin address
+ * @param key - Feistel key from feistelKey(seed)
+ * @param pageIndex - 0-based page number [0, 409]
+ * @returns CHARS_PER_PAGE-character page string
+ */
+export function unifiedBookPage(
+    address: bigint,
+    playerRawAddress: bigint,
+    playerBookAddress: bigint,
+    key: Uint32Array,
+    pageIndex: number,
+): string {
+    if (address === playerBookAddress) {
+        // Player's book — extract from the true base-95 bijection
+        return extractPage(playerRawAddress, pageIndex);
+    }
+    // All other books — Feistel-scrambled PRNG noise
+    const scrambled = permute(address, key);
+    return _generateNoisePage(scrambled, pageIndex);
+}
+
+/** Generate a page of PRNG noise from a scrambled address + page index. */
+function _generateNoisePage(scrambled: bigint, pageIndex: number): string {
+    // Seed from the scrambled address and page index
+    const seedStr = scrambled.toString(36) + ":p" + pageIndex;
+    const rng = _miniRng(hash(seedStr), hash(seedStr + ":1"));
+    let page = "";
+    for (let i = 0; i < CHARS_PER_PAGE; i++) {
+        page += String.fromCharCode(32 + (rng() % CHARSET_LEN));
+    }
+    return page;
+}
+
+/** Minimal xorshift64 PRNG from two 32-bit seeds. */
+function _miniRng(s0: number, s1: number): () => number {
+    let a = s0 >>> 0, b = s1 >>> 0;
+    return () => {
+        let t = a;
+        const s = b;
+        a = s;
+        t ^= t << 23;
+        t ^= t >>> 17;
+        t ^= s;
+        t ^= s >>> 26;
+        b = t;
+        return (t >>> 0);
+    };
 }
 
 /* ---- Exports for solver/test use ---- */

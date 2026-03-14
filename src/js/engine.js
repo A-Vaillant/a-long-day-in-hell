@@ -441,8 +441,8 @@ export const Engine = {
             state.deaths      = 0;
             state.deathCause  = null;
 
-            const { randomOrigin, story } = LifeStory.generatePlayerWorld(seed);
-            state.randomOrigin = randomOrigin;
+            const { playerBookAddress, story } = LifeStory.generatePlayerWorld(seed);
+            state.playerBookAddress = playerBookAddress;
             state.lifeStory  = story;
             state.targetBook = story.bookCoords;
             state.playerRawAddress = story.rawBookAddress;

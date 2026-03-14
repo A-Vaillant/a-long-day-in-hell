@@ -27,7 +27,7 @@ export interface SaveVersion {
  *   2.0 — scale overhaul: BOOKS_PER_GALLERY 192→200,
  *         GALLERIES_PER_SEGMENT 10→17, TICKS_PER_HOUR 10→60,
  *         address space recalculated. All coordinates invalidated.
- *   3.0 — target book placed with real randomOrigin instead of default.
+ *   3.0 — target book placed with real playerBookAddress instead of default.
  *         All book coordinates changed.
  *   3.1 — added release field (default 0).
  */

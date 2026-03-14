@@ -35,7 +35,7 @@ export interface LifeStoryOptions {
     /** Raw textToAddress of the player's storyText. Required for NPCs; omit for the player. */
     playerRawAddress?: bigint;
     /** Random origin for the coordinate system, in [0, PLAYABLE_ADDRESS_MAX]. Derived from game seed. */
-    randomOrigin?: bigint;
+    playerBookAddress?: bigint;
 }
 
 export interface LifeStory {
@@ -170,8 +170,8 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     // rawBookAddress = textToAddress(storyText) with no early-exit — the true base-95
     // interpretation of this soul's life story prose.
     //
-    // bookAddress = rawAddress - playerRawAddress + randomOrigin.
-    // For the player: rawAddress IS playerRawAddress, so bookAddress = randomOrigin (in bounds).
+    // bookAddress = rawAddress - playerRawAddress + playerBookAddress.
+    // For the player: rawAddress IS playerRawAddress, so bookAddress = playerBookAddress (in bounds).
     // For NPCs: big - big + small; usually still huge → damned.
     //
     // bookCoords = addressToCoords(bookAddress % PLAYABLE_ADDRESS_MAX) — always a valid shelf location,
@@ -180,8 +180,8 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     story.rawBookAddress = rawBookAddress;
 
     const playerRawAddress: bigint = (opts && opts.playerRawAddress != null) ? opts.playerRawAddress : rawBookAddress;
-    const randomOrigin: bigint = (opts && opts.randomOrigin != null) ? opts.randomOrigin : PLAYABLE_ADDRESS_MAX / 2n;
-    const bookAddress: bigint = computeBookAddress(rawBookAddress, playerRawAddress, randomOrigin);
+    const playerBookAddress: bigint = (opts && opts.playerBookAddress != null) ? opts.playerBookAddress : PLAYABLE_ADDRESS_MAX / 2n;
+    const bookAddress: bigint = computeBookAddress(rawBookAddress, playerRawAddress, playerBookAddress);
     story.bookAddress = bookAddress;
 
     // Derive coords by mapping bookAddress into the playable range.
@@ -226,7 +226,7 @@ export function generateLifeStory(seed: string, opts?: LifeStoryOptions): LifeSt
     const playerStart: StartLocation = { side: playerSide, position: playerPos, floor: playerFloor };
 
     // Randomize shelf position — addressToCoords always gives bookIndex 0
-    // for the player since their bookAddress = randomOrigin (a fixed value).
+    // for the player since their bookAddress = playerBookAddress (a fixed value).
     const randomBookIndex = spawnRng.nextInt(BOOKS_PER_GALLERY);
 
     story.bookCoords = { side, position, floor, bookIndex: randomBookIndex };
@@ -251,44 +251,44 @@ export function generateNPCLifeStory(
     npcId: number,
     globalSeed: string,
     playerRawAddress: bigint,
-    randomOrigin: bigint,
+    playerBookAddress: bigint,
 ): LifeStory {
     const seed = `npc:${npcId}:${globalSeed}`;
-    return generateLifeStory(seed, { playerRawAddress, randomOrigin });
+    return generateLifeStory(seed, { playerRawAddress, playerBookAddress });
 }
 
 export interface PlayerWorld {
-    randomOrigin: bigint;
+    playerBookAddress: bigint;
     story: LifeStory;
 }
 
 /**
- * Derive randomOrigin from the seed and generate the player's life story
+ * Derive playerBookAddress from the seed and generate the player's life story
  * in one atomic step. This prevents origin/story desync — the bug where
- * the book is placed with a different randomOrigin than the game uses.
+ * the book is placed with a different playerBookAddress than the game uses.
  *
  * All callers that need a player life story should use this instead of
  * calling generateLifeStory directly.
  */
 export function generatePlayerWorld(seed: string, opts?: { startLoc?: StartLocation }): PlayerWorld {
-    // Derive randomOrigin from the game seed
+    // Derive playerBookAddress from the game seed
     const originRng = seedFromString("origin:" + seed);
     const originLo = BigInt(originRng.nextInt(0x100000000));
     const originHi = BigInt(originRng.nextInt(0x100000000));
-    let randomOrigin = (originHi * 0x100000000n + originLo) % PLAYABLE_ADDRESS_MAX;
+    let playerBookAddress = (originHi * 0x100000000n + originLo) % PLAYABLE_ADDRESS_MAX;
     // Clamp floor component to [BOOK_FLOOR_MIN, BOOK_FLOOR_MAX]
     {
         const _bpg = BigInt(BOOKS_PER_GALLERY), _floors = BigInt(FLOORS);
         const _floorRange = BOOK_FLOOR_MAX - BOOK_FLOOR_MIN;
-        const _bookIdx = randomOrigin % _bpg;
-        const _floorRaw = (randomOrigin / _bpg) % _floors;
-        const _rest = randomOrigin / (_bpg * _floors);
+        const _bookIdx = playerBookAddress % _bpg;
+        const _floorRaw = (playerBookAddress / _bpg) % _floors;
+        const _rest = playerBookAddress / (_bpg * _floors);
         const _clampedFloor = BOOK_FLOOR_MIN + (_floorRaw % _floorRange);
-        randomOrigin = _bookIdx + _bpg * (_clampedFloor + _floors * _rest);
+        playerBookAddress = _bookIdx + _bpg * (_clampedFloor + _floors * _rest);
     }
 
-    const story = generateLifeStory(seed, { randomOrigin, startLoc: opts?.startLoc });
-    return { randomOrigin, story };
+    const story = generateLifeStory(seed, { playerBookAddress, startLoc: opts?.startLoc });
+    return { playerBookAddress, story };
 }
 
 /**
