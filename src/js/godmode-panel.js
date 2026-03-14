@@ -5,7 +5,7 @@
  */
 
 import { getForNpc } from "./event-log.js";
-import { isAddressInBounds } from "../../lib/invertible.core.ts";
+import { isAddressInBounds, PLAYABLE_ADDRESS_MAX } from "../../lib/invertible.core.ts";
 import { TICKS_PER_DAY } from "../../lib/tick.core.ts";
 
 let callbacks = {};
@@ -213,8 +213,13 @@ const componentRenderers = {
             const cached = distCache.get(npc.id);
             if (cached) {
                 if (cached.damned) {
-                    html += '<div class="gm-stat"><span class="gm-tip" data-tip="Story text exceeds library address space. No valid shelf location exists.">book</span>';
-                    html += '<span class="gm-bar-num" style="color:#9a2a2a">damned</span></div>';
+                    const oomTip = cached.ooms > 0
+                        ? "Their book exists " + cached.ooms + " orders of magnitude outside the walkable library. Same shelf, wrong universe."
+                        : "Story text exceeds library address space. No valid shelf location exists.";
+                    html += '<div class="gm-stat"><span class="gm-tip" data-tip="' + esc(oomTip) + '">book</span>';
+                    html += '<span class="gm-bar-num" style="color:#9a2a2a">';
+                    html += cached.ooms > 0 ? 'damned <span style="color:#666" title="' + esc(oomTip) + '">(' + cached.ooms + ' OOMs)</span>' : 'damned';
+                    html += '</span></div>';
                 } else {
                     const bookLoc = (bc.side === 0 ? 'W' : 'E') + ' f' + bc.floor + ' s' + bc.position + ' #' + bc.bookIndex;
                     html += '<div class="gm-stat"><span class="gm-tip" data-tip="Computed from story text. The NPC does not know this.">book</span>';
@@ -804,7 +809,13 @@ export const GodmodePanel = {
                     const bookAddress = bookAddressStr ? BigInt(bookAddressStr) : null;
                     const damned = bookAddress == null || !isAddressInBounds(bookAddress);
                     if (damned) {
-                        distCache.set(npcId, { text: '', damned: true });
+                        let ooms = 0;
+                        if (bookAddress != null) {
+                            const absAddr = bookAddress < 0n ? -bookAddress : bookAddress;
+                            const u = absAddr / PLAYABLE_ADDRESS_MAX;
+                            ooms = u > 0n ? u.toString().length : 0;
+                        }
+                        distCache.set(npcId, { text: '', damned: true, ooms });
                     } else {
                         const npcPos   = BigInt(calcBtn.dataset.npcPos);
                         const npcFloor = BigInt(calcBtn.dataset.npcFloor);
