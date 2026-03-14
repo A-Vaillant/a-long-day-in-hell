@@ -15,7 +15,6 @@ import { Chasm } from "./chasm.js";
 import { Social } from "./social.js";
 import { distanceToHumanTime } from "../../lib/scale.core.ts";
 import { GALLERIES_PER_SEGMENT, mercyKiosk } from "../../lib/library.core.ts";
-import { applyMercyKiosk } from "../../lib/survival.core.ts";
 import { Actions } from "./actions.js";
 
 /** Check if the player is at a mercy kiosk for their target book. */
@@ -165,19 +164,7 @@ function renderCorridorDark(loc, moves) {
 Engine.register("Corridor", {
     kind: "state",
     enter() {
-        // Mercy kiosk: first arrival at a kiosk adjacent to your book
-        const mercy = mercyKioskSide();
-        if (mercy) {
-            if (!state._mercyKiosks) state._mercyKiosks = {};
-            const key = mercy;  // "left" or "right" — unique per side since there's only one of each
-            if (!state._mercyKiosks[key]) {
-                state._mercyKiosks[key] = true;
-                applyMercyKiosk(state);
-                state._mercyArrival = mercy;
-            }
-        } else {
-            state._mercyArrival = null;
-        }
+        // Mercy kiosk state is set by actions.js on movement.
     },
     render() {
         const loc = { side: state.side, position: state.position, floor: state.floor };

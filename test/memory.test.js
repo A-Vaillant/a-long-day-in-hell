@@ -8,6 +8,8 @@ import {
     buildLocationIndex,
 } from "../lib/social.core.ts";
 import { HABITUATION } from "../lib/psych.core.ts";
+import { KNOWLEDGE } from "../lib/knowledge.core.ts";
+import { mercyKiosk } from "../lib/library.core.ts";
 import {
     MEMORY, MEMORY_TYPES,
     DEFAULT_MEMORY_CONFIG,
@@ -675,5 +677,53 @@ describe("witnessSystem — unknown event type", () => {
 
         const mem = getComponent(world, witness, MEMORY);
         assert.ok(!mem || mem.entries.length === 0, "unknown type should produce no memory");
+    });
+
+    it("REACHED_MERCY type exists in MEMORY_TYPES", () => {
+        assert.ok(MEMORY_TYPES.REACHED_MERCY);
+        assert.strictEqual(MEMORY_TYPES.REACHED_MERCY, "reachedMercy");
+    });
+
+    it("REACHED_MERCY config has positive hope drain", () => {
+        const tc = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.REACHED_MERCY];
+        assert.ok(tc, "config exists");
+        assert.ok(tc.hopeDrainPerTick > 0, "hope drain is positive (boost)");
+        assert.strictEqual(tc.permanent, false, "not permanent — the hope fades");
+    });
+});
+
+describe("NPC mercy kiosk memory", () => {
+    it("NPC at mercy kiosk gets REACHED_MERCY memory and hope boost", () => {
+        const world = createWorld();
+        const ent = spawn(world);
+        const bookVision = { side: 0, position: 5n, floor: 100n, bookIndex: 3 };
+        addComponent(world, ent, POSITION, { side: 0, position: 0n, floor: 100n });
+        addComponent(world, ent, KNOWLEDGE, {
+            lifeStory: null, bookVision, visionAccurate: true,
+            hasBook: false, searchedSegments: new Set(), bestScore: 0, bestWords: [],
+        });
+        addComponent(world, ent, PSYCHOLOGY, { hope: 30, lucidity: 80, sociability: 50 });
+        addComponent(world, ent, MEMORY, createMemory());
+
+        // Verify this IS a mercy kiosk
+        const pos = getComponent(world, ent, POSITION);
+        assert.strictEqual(mercyKiosk(pos, bookVision), "left");
+
+        // Simulate what social.js does: detect + create memory + boost
+        const mem = getComponent(world, ent, MEMORY);
+        const tc = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.REACHED_MERCY];
+        addMemory(mem, {
+            id: mem.nextId++, type: MEMORY_TYPES.REACHED_MERCY,
+            tick: 0, weight: tc.initialWeight, initialWeight: tc.initialWeight,
+            permanent: tc.permanent, subject: null, contagious: tc.contagious,
+        });
+
+        const psych = getComponent(world, ent, PSYCHOLOGY);
+        psych.hope = Math.min(100, psych.hope + 40);
+
+        assert.strictEqual(mem.entries.length, 1);
+        assert.strictEqual(mem.entries[0].type, "reachedMercy");
+        assert.strictEqual(mem.entries[0].subject, null, "location event, not witness");
+        assert.strictEqual(psych.hope, 70);
     });
 });

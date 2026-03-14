@@ -18,6 +18,7 @@ import type { SurvivalStats } from "./survival.core.ts";
 import * as Tick from "./tick.core.ts";
 import type { TickEvent } from "./tick.core.ts";
 import * as Lib from "./library.core.ts";
+import { mercyKiosk } from "./library.core.ts";
 import type { Location, Direction } from "./library.core.ts";
 import * as BookCore from "./book.core.ts";
 import * as LifeStoryCore from "./lifestory.core.ts";
@@ -119,6 +120,7 @@ export interface GameState {
     availableMoves: Direction[];
     isRestArea: boolean;
     timeString: string;
+    _mercyKiosks: Record<string, boolean>;
 }
 
 /** Strategy object that makes player decisions each tick. */
@@ -171,6 +173,7 @@ interface InternalState {
     totalMoves: number;
     segmentsVisited: number;
     booksRead: Set<string>;
+    _mercyKiosks: Record<string, boolean>;
 }
 
 export interface SimulationOpts {
@@ -190,6 +193,10 @@ export interface SimulationOpts {
     npcNames?: string[];
     npcDialogue?: DialogueTable;
     npcCount?: number;
+    /** Test-only: override target book coordinates. */
+    targetBookOverride?: BookCoords;
+    /** Test-only: override starting morale (default: 100). */
+    startMorale?: number;
 }
 
 export interface Simulation {
@@ -229,7 +236,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
 
     // Initialize life story + target book
     const lifeStory: LifeStory = LifeStoryCore.generateLifeStory(seed);
-    const targetBook: BookCoords = lifeStory.bookCoords;
+    const targetBook: BookCoords = opts.targetBookOverride ?? lifeStory.bookCoords;
     let startLoc: Location;
     if (opts.startLoc) {
         startLoc = opts.startLoc;
@@ -258,7 +265,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         submissionsAttempted: 0,
         lifeStory,
         targetBook,
-        stats: Surv.defaultStats(),
+        stats: { ...Surv.defaultStats(), morale: opts.startMorale ?? 100 },
         eventDeck: [],
         lastEvent: null,
         npcs: [],
@@ -268,6 +275,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         totalMoves: 0,
         segmentsVisited: 0,
         booksRead: new Set(),
+        _mercyKiosks: {},
     };
 
     // Spawn NPCs
@@ -315,6 +323,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         get availableMoves() { _loc.side = gs.side; _loc.position = gs.position; _loc.floor = gs.floor; return Lib.availableMoves(_loc); },
         get isRestArea() { return Lib.isRestArea(gs.position); },
         get timeString() { return Tick.tickToTimeString(gs.tick); },
+        get _mercyKiosks() { return gs._mercyKiosks; },
     };
 
     function gameState(): GameState {
@@ -344,6 +353,18 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                 // Hunger stays manual — starvation is the cost of mindless walking.
                 if (Lib.isRestArea(gs.position) && gs.lightsOn) {
                     if (gs.stats.thirst >= AUTO_DRINK_THRESHOLD) gs.stats = Surv.applyDrink(gs.stats);
+                }
+
+                // Mercy kiosk: first arrival at a kiosk adjacent to target book
+                if (Lib.isRestArea(gs.position)) {
+                    const mercy = mercyKiosk(
+                        { side: gs.side, position: gs.position, floor: gs.floor },
+                        gs.targetBook,
+                    );
+                    if (mercy && !gs._mercyKiosks[mercy]) {
+                        gs._mercyKiosks[mercy] = true;
+                        gs.stats = Surv.applyMercyKiosk(gs.stats);
+                    }
                 }
 
                 // Event draw
