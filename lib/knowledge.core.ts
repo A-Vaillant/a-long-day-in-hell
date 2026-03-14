@@ -12,6 +12,7 @@
  */
 
 import { generateLifeStory, type LifeStory, type BookCoords } from "./lifestory.core.ts";
+import { seedFromString } from "./prng.core.ts";
 
 // --- Component ---
 
@@ -150,4 +151,43 @@ export function grantVision(
         knowledge.bookVision = falseCoords ?? null;
         knowledge.visionAccurate = false;
     }
+}
+
+/**
+ * Grant a vague divine vision — accurate side/floor, jittered position.
+ * The NPC knows roughly where to go but must search a radius of segments.
+ *
+ * Jitter is deterministic: seeded from the life story text so the same
+ * NPC always gets the same jittered position.
+ */
+export function grantVagueVision(knowledge: Knowledge, radius: number = 50): void {
+    const coords = knowledge.lifeStory.bookCoords;
+    const jitterRng = seedFromString("vague:" + knowledge.lifeStory.name + ":" + knowledge.lifeStory.storyText.slice(0, 40));
+    const jitter = BigInt(jitterRng.nextInt(radius * 2 + 1) - radius);
+    knowledge.bookVision = {
+        side: coords.side,
+        position: coords.position + jitter,
+        floor: coords.floor,
+        bookIndex: coords.bookIndex,
+    };
+    knowledge.visionAccurate = true;
+    knowledge.visionVague = true;
+    knowledge.visionRadius = radius;
+}
+
+/**
+ * Check if an entity is within the vague vision's search radius.
+ * Must be on the same side and floor, within `visionRadius` segments of the vision position.
+ */
+export function isInVisionRadius(
+    knowledge: Knowledge,
+    pos: { side: number; position: bigint; floor: bigint },
+): boolean {
+    if (!knowledge.bookVision || !knowledge.visionVague) return false;
+    if (pos.side !== knowledge.bookVision.side) return false;
+    if (pos.floor !== knowledge.bookVision.floor) return false;
+    const dist = pos.position > knowledge.bookVision.position
+        ? pos.position - knowledge.bookVision.position
+        : knowledge.bookVision.position - pos.position;
+    return dist <= BigInt(knowledge.visionRadius);
 }

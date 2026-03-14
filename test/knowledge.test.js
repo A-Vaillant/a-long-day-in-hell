@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { KNOWLEDGE, createKnowledge, generateNpcLifeStory, grantVision, isAtBookSegment } from "../lib/knowledge.core.ts";
+import { KNOWLEDGE, createKnowledge, generateNpcLifeStory, grantVision, isAtBookSegment, grantVagueVision, isInVisionRadius } from "../lib/knowledge.core.ts";
 import { generateLifeStory } from "../lib/lifestory.core.ts";
 import { PLAYABLE_ADDRESS_MAX } from "../lib/invertible.core.ts";
 
@@ -72,6 +72,49 @@ describe("knowledge.core", () => {
         assert.equal(k.visionVague, false);
         assert.equal(k.visionRadius, 0);
         assert.equal(k.pilgrimageExhausted, false);
+    });
+
+    it("grantVagueVision sets bookVision with vague flag and radius", () => {
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVagueVision(k, 50);
+        assert.ok(k.bookVision, "should have vision");
+        assert.equal(k.visionVague, true);
+        assert.equal(k.visionRadius, 50);
+        assert.equal(k.visionAccurate, true);
+        assert.equal(k.bookVision.side, k.lifeStory.bookCoords.side);
+        assert.equal(k.bookVision.floor, k.lifeStory.bookCoords.floor);
+        const diff = k.bookVision.position > k.lifeStory.bookCoords.position
+            ? k.bookVision.position - k.lifeStory.bookCoords.position
+            : k.lifeStory.bookCoords.position - k.bookVision.position;
+        assert.ok(diff <= 50n, "jittered position should be within radius: diff=" + diff);
+    });
+
+    it("isInVisionRadius true when within radius of vision", () => {
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVagueVision(k, 50);
+        const pos = { side: k.bookVision.side, position: k.bookVision.position + 10n, floor: k.bookVision.floor };
+        assert.equal(isInVisionRadius(k, pos), true);
+    });
+
+    it("isInVisionRadius false when outside radius", () => {
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVagueVision(k, 50);
+        const pos = { side: k.bookVision.side, position: k.bookVision.position + 200n, floor: k.bookVision.floor };
+        assert.equal(isInVisionRadius(k, pos), false);
+    });
+
+    it("isInVisionRadius false when on wrong side or floor", () => {
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVagueVision(k, 50);
+        const wrongSide = { side: 1 - k.bookVision.side, position: k.bookVision.position, floor: k.bookVision.floor };
+        assert.equal(isInVisionRadius(k, wrongSide), false);
+        const wrongFloor = { side: k.bookVision.side, position: k.bookVision.position, floor: k.bookVision.floor + 1n };
+        assert.equal(isInVisionRadius(k, wrongFloor), false);
+    });
+
+    it("isInVisionRadius false when no vision", () => {
+        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        assert.equal(isInVisionRadius(k, { side: 0, position: 0n, floor: 10n }), false);
     });
 
     it("grantVision (accurate) sets bookVision to actual coords", () => {
