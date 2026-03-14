@@ -309,7 +309,7 @@ Engine.register("Corridor", {
                 } else {
                     mercyText = "Your book is on the shelves " + bookDir + " of this kiosk.";
                 }
-                html += '<p class="mercy-kiosk">' + esc(mercyText) + '</p>';
+                html += '<p class="divine">' + esc(mercyText) + '</p>';
             }
 
         } else {
@@ -681,7 +681,7 @@ Engine.register("Life Story", {
         return '<div id="lifestory-view">' +
             '<p>' + esc(LifeStory.format(state.lifeStory)) + '</p>' +
             '<hr>' +
-            '<p class="mercy-hint">' + esc(TEXT.screens.mercy_intro) + '<br>' +
+            '<p class="divine">' + esc(TEXT.screens.mercy_intro) + '<br>' +
             '<em>' + esc(dist) + '.</em></p>' +
             '<hr>' +
             '<p class="key-hint"><a data-goto="Sign Intro">Read the sign <kbd>E</kbd></a></p>' +

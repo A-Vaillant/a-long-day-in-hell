@@ -14,6 +14,7 @@
     --accent:     #8b4513;
     --accent-dim: #5a2d0c;
     --found:      #4a7c59;
+    --divine:     #d4a843;
     --danger:     #7a1f1f;
     --border:     #2a2018;
     --font-body:  'IM Fell English', Georgia, serif;
@@ -976,17 +977,11 @@ button:disabled {
     margin: 1.5rem 0;
 }
 
-.mercy-kiosk {
-    color: #d4a843;
+.divine {
+    color: var(--divine);
     font-style: italic;
     font-weight: bold;
     text-shadow: 0 0 8px rgba(212, 168, 67, 0.3);
-}
-
-.mercy-hint {
-    font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 0.9em;
-    color: #999;
 }
 
 @keyframes story-fade {

@@ -203,7 +203,7 @@ describe("screen render coverage: mercy hint", () => {
         const game = bootGame();
         game.Engine.goto("Life Story");
         const html = getHTML(game);
-        assert.ok(html.includes("mercy-hint"), "should have mercy hint");
+        assert.ok(html.includes("divine"), "should have divine class on mercy text");
         assert.ok(html.includes("kiosk"), "mercy hint should mention kiosks");
     });
 });
