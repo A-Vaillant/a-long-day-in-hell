@@ -338,3 +338,45 @@ content(a, i) = expand(permute(a), i) - ω(i) + π(i)   mod 95
 Where ω is the origin pad (constant) and π is the player's book (constant). At the player's address, `permute(a) = permute(origin)`, the expand terms cancel, and the result is π — the player's book. Everywhere else, `expand(permute(a), i) - ω(i)` is a pseudorandom element of Z/95Z (the hash ensures unrelated seeds produce unrelated outputs), and adding π shifts it without reducing the randomness.
 
 The linear bijection failed because it treated the book as one morphism S → Z (a single enormous integer). Digits were entangled by carries — a perturbation in the low-order end couldn't propagate to the high-order end. The digit-wise embedding decomposes this into 1,312,000 independent morphisms S → Z/95Z. The perturbation acts locally at every position because there are no carries to propagate.
+
+### The full library
+
+The playable address space is 4 × 10^17 books. The actual library — every 410-page book printable in 95 ASCII characters — has 95^1,312,000 volumes, a number with 2.6 million digits. The current implementation works in an infinitesimal cross-section of that space. The Feistel permutation requires a bounded domain, which pins us to ~60 bits.
+
+But the digit-wise formula doesn't need the address space to be small. It needs the *seed* space to be large enough to produce distinct output. The Feistel scrambles shelf addresses so neighbors look different — that's a property of the walkable axis. A second axis doesn't need scrambling if it isn't walkable.
+
+#### Universe index
+
+Every book's text, interpreted as a base-95 number, decomposes into a shelf address and a quotient:
+
+```
+rawAddress = u × PLAYABLE_ADDRESS_MAX + a
+```
+
+where `a ∈ [0, PLAYABLE_ADDRESS_MAX]` is the shelf location and `u` is the *universe index* — the part the modulus discards. The current system throws `u` away. To include it, expand the seed space:
+
+```
+expand : S × U × [0, 1312000) → Z/95Z
+```
+
+The content function becomes:
+
+```
+content(a, u, i) = expand(permute(a), u, i) - ω(u₀, i) + π(i)   mod 95
+```
+
+At `a = origin` and `u = u₀` (the player's universe), cancellation still holds. The player's book sits at one shelf in one universe.
+
+#### Why the universe axis doesn't need permutation
+
+The Feistel exists to destroy local similarity along the shelf axis. Two books one shelf apart must look completely different — the player can walk between them. But nobody walks between universes. There is no staircase, no corridor, no mechanic that moves along `u`.
+
+So `u` feeds directly into expand's hash without permutation. Adjacent universes produce books that differ in a few characters — gradual drift, like variations on a theme. This is exactly the behavior that killed the linear bijection along the shelf axis, and exactly the behavior you want along an inaccessible axis. Local similarity is a bug when you can observe it. It's texture when you can't.
+
+#### Completeness
+
+The full library has 95^1,312,000 distinct books. Each is a point in (Z/95Z)^1,312,000. The digit-wise formula reaches every point if the seed space covers it. With `S × U` as the combined seed — 60 permuted bits from the shelf, plus an unbounded universe index — the expansion function can produce any sequence of 1,312,000 digits. Every book that could exist has a coordinate `(a, u)` where the formula outputs its content.
+
+The walkable library is the slice `u = u₀`. The player moves within it. The universe axis extends perpendicular — same shelf, different book, gradual drift as `u` changes. The 4 × 10^17 playable shelves are a cross-section of a structure that contains every possible volume.
+
+This isn't implemented. The game doesn't need it — the player interacts only with the walkable slice. But the formula admits it. If `expand` accepted a universe parameter and mixed it into its counter-mode hash alongside the permuted address and position index, the system would cover the full 95^1,312,000 space. The library would be complete in the Borges sense: every book that can be written exists at some coordinate. The implementation is one hash input away.
