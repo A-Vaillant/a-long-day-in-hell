@@ -29,7 +29,7 @@ import {
     talkTo, spendTime as spendTimeCore, recruit as recruitCore, socializeSystem,
 } from "../../lib/interaction.core.ts";
 import { dismiss as dismissCore } from "../../lib/actions.core.ts";
-import { isRestArea } from "../../lib/library.core.ts";
+import { isRestArea, mercyKiosk } from "../../lib/library.core.ts";
 import { TICKS_PER_DAY } from "../../lib/tick.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
@@ -259,6 +259,38 @@ export const Social = {
         // Movement (only for explore/seek_rest/wander_mad intents)
         const moveRng = seedFromString(state.seed + ":npc:move:" + currentTick);
         movementSystem(world, moveRng, undefined, n);
+
+        // Mercy kiosk detection for NPCs — after movement, before search
+        for (const [npcId, ent] of npcEntities) {
+            const pos = getComponent(world, ent, POSITION);
+            const knowledge = getComponent(world, ent, KNOWLEDGE);
+            if (!pos || !knowledge || !knowledge.bookVision || !knowledge.visionAccurate) continue;
+            if (!isRestArea(pos.position)) continue;
+
+            const mercy = mercyKiosk(pos, knowledge.bookVision);
+            if (!mercy) continue;
+
+            let mem = getComponent(world, ent, MEMORY);
+            if (!mem) { mem = createMemory(); addComponent(world, ent, MEMORY, mem); }
+            if (hasRecentMemory(mem, MEMORY_TYPES.REACHED_MERCY, null, currentTick, Infinity)) continue;
+
+            const tc = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.REACHED_MERCY];
+            addMemory(mem, {
+                id: mem.nextId++,
+                type: MEMORY_TYPES.REACHED_MERCY,
+                tick: currentTick,
+                weight: tc.initialWeight,
+                initialWeight: tc.initialWeight,
+                permanent: tc.permanent,
+                subject: null,
+                contagious: tc.contagious,
+            });
+
+            const psych = getComponent(world, ent, PSYCHOLOGY);
+            if (psych) {
+                psych.hope = Math.min(100, psych.hope + 40);
+            }
+        }
 
         // Book searching (only for search intent)
         const searchRng = seedFromString(state.seed + ":npc:search:" + currentTick);
