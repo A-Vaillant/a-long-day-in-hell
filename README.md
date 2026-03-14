@@ -14,18 +14,20 @@ Or build from source:
 
 ```bash
 bash build.sh          # esbuild bundles .ts directly → dist/index.html
-npm test               # node:test (1200+ tests)
+npm test               # fast logic tests (~2s, 1190 tests)
+npm run test:dom       # DOM integration tests (~7s)
+npm run test:all       # everything incl. slow sims (1729 tests)
 ```
 
 Requires Node.js 25+ (native type stripping). No tsc build step — `tsconfig.json` is `noEmit: true`, type-check only.
 
 ## The Library
 
-Two parallel corridors (west and east) separated by a chasm. Each corridor is divided into segments containing 10 galleries of 1,920 books each (24×8 shelves). Rest areas at every segment boundary: clock, kiosk, 7-bed bedroom, bathroom, submission slot, and stairs.
+Two parallel corridors (west and east) separated by a chasm. Each corridor is divided into segments of 17 galleries — 16 shelving galleries of 200 books each (25 columns × 8 shelves) and one kiosk gallery. Rest areas at every segment boundary: clock, kiosk, 7-bed bedroom, bathroom, submission slot, and stairs.
 
 ![A gallery — rows of identical calfskin spines](docs/img/03_corridor_gallery.png)
 
-Books are 410 pages, 40 lines of 80 characters (1,312,000 characters), drawn from ~95 printable ASCII characters. Every book is procedurally generated from the global seed + shelf coordinates. Most are noise — books near yours contain degraded fragments of your life story as proximity signals.
+Books are 410 pages, 40 lines of 80 characters (1,312,000 characters), drawn from ~95 printable ASCII characters. Every book is procedurally generated from the global seed + shelf coordinates. Almost all are random noise. Your book — and only your book — contains readable prose.
 
 ![Reading a book](docs/img/05_book_page.png)
 
@@ -50,7 +52,7 @@ You can talk to them, spend time together, invite them to travel with you. Compa
 - **Events**: Stochastic event deck drawn on movement — environmental, existential, and mechanical encounters with morale effects.
 - **Groups**: Recruit companions. Leaders determine movement direction. Group members follow closely (80–98% bias). Shared home rest areas align through co-sleeping.
 - **Chasm**: Jumping is not suicide — you tumble endlessly, dying and resurrecting mid-freefall, until you catch a railing. The worst thing to witness.
-- **Win Condition**: Find your book and submit it at a submission slot. Two placement modes:
+- **Win Condition**: Find your book and submit it at a submission slot.
 
 ## Is it possible to win?
 
@@ -104,7 +106,7 @@ The navigable library has `PLAYABLE_ADDRESS_MAX = 10,000,000,000 × 2 × 100,000
 ## Architecture
 
 ```
-lib/                    # Pure logic (21 TS modules, no DOM)
+lib/                    # Pure logic (34 TS modules, no DOM)
   *.core.ts             # prng, library, book, survival, tick, events, npc,
                         # ecs, social, personality, psych, belief, movement,
                         # needs, chasm, despairing, lifestory, invertible...
@@ -117,7 +119,7 @@ src/
   js/                   # Browser wrappers + engine + screens + input + godmode
   css/                  # style.css + godmode.css (inlined at build)
 test/
-  *.test.js             # node:test suites (1200+ tests)
+  *.test.js             # node:test suites (1729 tests)
 ```
 
 Pure game logic lives in `lib/`. Browser wiring lives in `src/js/`. All prose and content lives in `content/*.json`.
