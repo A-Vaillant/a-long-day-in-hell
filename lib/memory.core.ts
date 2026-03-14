@@ -37,6 +37,7 @@ export const MEMORY_TYPES = {
     WITNESS_MADNESS: "witnessMadness",
     COMPANION_MAD: "companionMad",
     MET_SOMEONE: "metSomeone",
+    PILGRIMAGE_FAILURE: "pilgrimageFailure",
 } as const;
 
 export type MemoryType = typeof MEMORY_TYPES[keyof typeof MEMORY_TYPES];
@@ -93,7 +94,8 @@ export const DEFAULT_MEMORY_TYPES: Record<MemoryType, MemoryTypeConfig> = {
     foundWords:      { initialWeight: 3,  decayRate: D(0.48),    floor: 0,   permanent: false, contagious: false, shockKey: null,              hopeDrainPerTick: D(0.0072),  lucidityDrainPerTick: 0 },
     witnessMadness:  { initialWeight: 7,  decayRate: D(0.072),   floor: 1.0, permanent: true,  contagious: false, shockKey: "witnessMadness",  hopeDrainPerTick: D(-0.0048), lucidityDrainPerTick: D(-0.0144) },
     companionMad:    { initialWeight: 9,  decayRate: D(0.048),   floor: 2.0, permanent: true,  contagious: false, shockKey: "companionMad",    hopeDrainPerTick: D(-0.0072), lucidityDrainPerTick: D(-0.012) },
-    metSomeone:      { initialWeight: 2,  decayRate: D(0.192),   floor: 0,   permanent: false, contagious: false, shockKey: null,              hopeDrainPerTick: D(0.0024),  lucidityDrainPerTick: 0 },
+    metSomeone:          { initialWeight: 2,  decayRate: D(0.192),   floor: 0,   permanent: false, contagious: false, shockKey: null,                  hopeDrainPerTick: D(0.0024),  lucidityDrainPerTick: 0 },
+    pilgrimageFailure:   { initialWeight: 15, decayRate: D(0.006),   floor: 5.0, permanent: true,  contagious: false, shockKey: "pilgrimageFailure",   hopeDrainPerTick: D(-0.024),  lucidityDrainPerTick: D(-0.024) },
 };
 
 export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {

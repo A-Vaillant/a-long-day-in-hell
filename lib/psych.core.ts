@@ -66,6 +66,7 @@ export const DEFAULT_SHOCKS: ShockConfig = {
     groupDissolved:     { lucidity: 0,    hope: -1.5, habitRate: 0.5 },
     witnessEscape:      { lucidity: 0.5,  hope: 3,    habitRate: 0 },
     witnessMadness:     { lucidity: -1,   hope: -0.5, habitRate: 0.4 },
+    pilgrimageFailure:  { lucidity: -80,  hope: -80,  habitRate: 0.05 },
 };
 
 // --- Core functions ---
