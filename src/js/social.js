@@ -24,7 +24,7 @@ import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, createSearching, searchSystem, findWordsFromSeed } from "../../lib/search.core.ts";
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
-import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment } from "../../lib/knowledge.core.ts";
+import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment, grantVagueVision, isInVisionRadius } from "../../lib/knowledge.core.ts";
 import {
     talkTo, spendTime as spendTimeCore, recruit as recruitCore, socializeSystem,
 } from "../../lib/interaction.core.ts";
@@ -629,15 +629,21 @@ export const Social = {
 
     /**
      * Grant a divine vision to an NPC, revealing their book location.
-     * Returns true if vision was granted, false if NPC not found or already escaped.
+     * Default: vague vision (NPC searches ±50 segments around jittered coords).
+     * Pass vague=false for exact vision (NPC walks to precise coords).
+     * Returns true if vision was granted.
      */
-    grantVision(npcId, accurate = true) {
+    grantVision(npcId, { accurate = true, vague = true } = {}) {
         const ent = npcEntities.get(npcId);
         if (ent === undefined || !world) return false;
         const knowledge = getComponent(world, ent, KNOWLEDGE);
         const ident = getComponent(world, ent, IDENTITY);
         if (!knowledge || (ident && ident.free)) return false;
-        applyVision(knowledge, accurate);
+        if (accurate && vague) {
+            grantVagueVision(knowledge, 50);
+        } else {
+            applyVision(knowledge, accurate);
+        }
         // Divine inspiration: immediate hope boost
         const psych = getComponent(world, ent, PSYCHOLOGY);
         if (psych) {
@@ -689,13 +695,15 @@ export const Social = {
     // --- Escape resolution ---
 
     /**
-     * Check if any NPC has found their book or can submit it.
+     * Check pilgrimage arrivals and handle book discovery.
      *
-     * Two-phase:
-     * 1. Pilgrim at book segment → picks up book (hasBook = true)
-     * 2. NPC with book at rest area → submits and escapes
+     * Vague path: NPC arrives in vision radius, searches, all noise,
+     * eventually exhausts the zone → trauma.
      *
-     * Witness boost: nearby NPCs on same side/floor get +15 hope.
+     * Exact path: NPC arrives at exact coords, picks up book,
+     * walks to rest area, opens it → noise → trauma.
+     *
+     * Neither path leads to escape (wrong universe).
      */
     checkEscapes(witnessEvents = []) {
         if (!world || !state.npcs) return;
@@ -706,49 +714,106 @@ export const Social = {
             const knowledge = getComponent(world, ent, KNOWLEDGE);
             const ident = getComponent(world, ent, IDENTITY);
             if (!knowledge || !ident || ident.free) continue;
+            if (knowledge.pilgrimageExhausted) continue;
+            if (!knowledge.bookVision || !knowledge.visionAccurate) continue;
 
             const pos = getComponent(world, ent, POSITION);
             if (!pos) continue;
 
-            // Phase 1: at book segment → pick up book
-            if (!knowledge.hasBook && knowledge.bookVision && knowledge.visionAccurate) {
-                if (isAtBookSegment(knowledge, pos)) {
-                    knowledge.hasBook = true;
-                }
-            }
+            if (knowledge.visionVague) {
+                // --- Vague path: check if NPC has searched enough of the vision zone ---
+                if (!isInVisionRadius(knowledge, pos)) continue;
 
-            // Phase 2: has book at rest area → submit and escape
-            if (knowledge.hasBook && isRestArea(pos.position)) {
-                ident.free = true;
-                ident.alive = false;
-                npc.alive = false;
-                npc.disposition = "escaped";
-
-                // Witness hope boost: NPCs within 3 segments on same side+floor
-                for (const other of state.npcs) {
-                    if (other.id === npc.id || !other.alive) continue;
-                    if (other.side !== pos.side || other.floor !== pos.floor) continue;
-                    const posDiff = other.position - pos.position;
-                    if ((posDiff < 0n ? -posDiff : posDiff) > 3n) continue;
-                    const otherEnt = npcEntities.get(other.id);
-                    if (otherEnt === undefined) continue;
-                    const otherPsych = getComponent(world, otherEnt, PSYCHOLOGY);
-                    if (otherPsych) {
-                        otherPsych.hope = Math.min(100, otherPsych.hope + 15);
+                // Count how many segments within the vision radius have been searched
+                const visionPos = knowledge.bookVision.position;
+                const radius = BigInt(knowledge.visionRadius);
+                let searchedInZone = 0;
+                let totalInZone = 0;
+                for (let offset = -radius; offset <= radius; offset++) {
+                    const segPos = visionPos + offset;
+                    totalInZone++;
+                    const key = `${pos.side}:${segPos}:${pos.floor}`;
+                    if (knowledge.searchedSegments.has(key)) {
+                        searchedInZone++;
                     }
                 }
 
-                // Emit witnessEscape event (hearing range — word travels fast)
-                witnessEvents.push({
-                    type: MEMORY_TYPES.WITNESS_ESCAPE,
-                    subject: ent,
-                    position: { side: pos.side, position: pos.position, floor: pos.floor },
-                    bondedOnly: false,
-                    range: "hearing",
-                });
+                // Need to have searched at least 60% of the zone
+                if (searchedInZone < totalInZone * 0.6) continue;
 
-                console.log("NPC ESCAPED:", npc.name, "id=" + npc.id,
-                    "at s" + pos.position + " f" + pos.floor,
+                // --- Exhaustion: the zone is searched, nothing legible found ---
+                knowledge.pilgrimageExhausted = true;
+                knowledge.bookVision = null;
+
+                // Apply trauma
+                const psych = getComponent(world, ent, PSYCHOLOGY);
+                if (psych) {
+                    applyShockToEntity(world, ent, "pilgrimageFailure");
+                }
+
+                // Create memory
+                const mem = getComponent(world, ent, MEMORY);
+                if (mem) {
+                    const memConfig = DEFAULT_MEMORY_CONFIG.types["pilgrimageFailure"];
+                    if (memConfig) {
+                        addMemory(mem, {
+                            id: mem.nextId++,
+                            type: "pilgrimageFailure",
+                            tick: state.tick,
+                            weight: memConfig.initialWeight,
+                            initialWeight: memConfig.initialWeight,
+                            permanent: memConfig.permanent,
+                            subject: null,
+                            contagious: false,
+                        });
+                    }
+                }
+
+                console.log("PILGRIMAGE FAILED:", npc.name, "id=" + npc.id,
+                    "searched", searchedInZone + "/" + totalInZone, "segments",
+                    "at s" + pos.position, "f" + pos.floor,
+                    "day=" + state.day, "tick=" + state.tick);
+
+            } else {
+                // --- Exact path: pick up book, walk to rest area, discover noise ---
+                if (!knowledge.hasBook) {
+                    if (isAtBookSegment(knowledge, pos)) {
+                        knowledge.hasBook = true;
+                    }
+                    continue;
+                }
+
+                // Has book + at rest area → "opens" it → noise → trauma
+                if (!isRestArea(pos.position)) continue;
+
+                knowledge.hasBook = false;
+                knowledge.pilgrimageExhausted = true;
+                knowledge.bookVision = null;
+
+                const psych = getComponent(world, ent, PSYCHOLOGY);
+                if (psych) {
+                    applyShockToEntity(world, ent, "pilgrimageFailure");
+                }
+
+                const mem = getComponent(world, ent, MEMORY);
+                if (mem) {
+                    const memConfig = DEFAULT_MEMORY_CONFIG.types["pilgrimageFailure"];
+                    if (memConfig) {
+                        addMemory(mem, {
+                            id: mem.nextId++,
+                            type: "pilgrimageFailure",
+                            tick: state.tick,
+                            weight: memConfig.initialWeight,
+                            initialWeight: memConfig.initialWeight,
+                            permanent: memConfig.permanent,
+                            subject: null,
+                            contagious: false,
+                        });
+                    }
+                }
+
+                console.log("PILGRIMAGE FAILED (exact):", npc.name, "id=" + npc.id,
+                    "at s" + pos.position, "f" + pos.floor,
                     "day=" + state.day, "tick=" + state.tick);
             }
         }
