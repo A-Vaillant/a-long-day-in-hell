@@ -257,6 +257,19 @@ export function applyDawnReset(nonsensePagesRead: number, despairing: boolean, d
     };
 }
 
+/** Morale boost granted at a mercy kiosk (adjacent to your book). */
+export const MERCY_KIOSK_MORALE: number = 40;
+
+/**
+ * Apply the morale boost from reaching a kiosk adjacent to your book.
+ * Clears despairing — you can feel it, your book is close.
+ */
+export function applyMercyKiosk(stats: SurvivalStats): SurvivalStats {
+    stats.morale = Math.min(STAT_MAX, stats.morale + MERCY_KIOSK_MORALE);
+    stats.despairing = false;
+    return stats;
+}
+
 /**
  * Get a severity label for a hunger/thirst/exhaustion value (higher = worse).
  *

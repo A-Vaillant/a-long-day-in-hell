@@ -14,8 +14,18 @@ import { Despair } from "./despairing.js";
 import { Chasm } from "./chasm.js";
 import { Social } from "./social.js";
 import { distanceToHumanTime } from "../../lib/scale.core.ts";
-import { GALLERIES_PER_SEGMENT } from "../../lib/library.core.ts";
+import { GALLERIES_PER_SEGMENT, mercyKiosk } from "../../lib/library.core.ts";
+import { applyMercyKiosk } from "../../lib/survival.core.ts";
 import { Actions } from "./actions.js";
+
+/** Check if the player is at a mercy kiosk for their target book. */
+function mercyKioskSide() {
+    if (!state.targetBook) return null;
+    return mercyKiosk(
+        { side: state.side, position: state.position, floor: state.floor },
+        state.targetBook,
+    );
+}
 
 function esc(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -154,7 +164,21 @@ function renderCorridorDark(loc, moves) {
 
 Engine.register("Corridor", {
     kind: "state",
-    enter() {},
+    enter() {
+        // Mercy kiosk: first arrival at a kiosk adjacent to your book
+        const mercy = mercyKioskSide();
+        if (mercy) {
+            if (!state._mercyKiosks) state._mercyKiosks = {};
+            const key = mercy;  // "left" or "right" — unique per side since there's only one of each
+            if (!state._mercyKiosks[key]) {
+                state._mercyKiosks[key] = true;
+                applyMercyKiosk(state);
+                state._mercyArrival = mercy;
+            }
+        } else {
+            state._mercyArrival = null;
+        }
+    },
     render() {
         const loc = { side: state.side, position: state.position, floor: state.floor };
         const moves = Lib.availableMoves(loc);
@@ -275,6 +299,19 @@ Engine.register("Corridor", {
                 }
             }
 
+            // Mercy kiosk — adjacent to your book
+            const mercy = mercyKioskSide();
+            if (mercy) {
+                const bookDir = mercy === "left" ? "to your right" : "to your left";
+                let mercyText;
+                if (state._mercyArrival === mercy) {
+                    mercyText = "Something stirs in you. You know this place. Your book is on the shelves " + bookDir + ".";
+                } else {
+                    mercyText = "Your book is on the shelves " + bookDir + " of this kiosk.";
+                }
+                html += '<p class="mercy-kiosk">' + esc(mercyText) + '</p>';
+            }
+
         } else {
             html += '<div id="corridor-grid"></div>';
             html += '<p class="shelf-hint">Click a spine to read.</p>';
@@ -363,15 +400,17 @@ Engine.register("Corridor", {
                 spine.className = "book-spine"
                     + (isTarget ? " target-nearby" : "")
                     + (wasOpened ? " book-opened" : "");
-                if (state.despairing) {
-                    // All books look the same when despairing
-                    spine.style.background = "hsl(0,0%," + l + "%)";
-                } else {
-                    // Color drains from the library below 70 morale
+                {
+                    // Color drains continuously: full color above 70 morale,
+                    // desaturates to grey below, lightness converges to average when despairing.
                     const m = state.morale || 0;
                     const moraleFade = m >= 70 ? 1 : Math.max(0, m / 70);
-                    const fadedS = Math.round(s * moraleFade);
-                    spine.style.background = "hsl(" + h + "," + fadedS + "%," + l + "%)";
+                    // Despair deepening: days of despair flatten toward uniform grey
+                    const dd = state._despairDays || 0;
+                    const despairFade = dd > 0 ? Math.min(1, dd / 100) : 0;
+                    const fadedS = Math.round(s * moraleFade * (1 - despairFade));
+                    const fadedL = Math.round(l + (19 - l) * despairFade);
+                    spine.style.background = "hsl(" + h + "," + fadedS + "%," + fadedL + "%)";
                 }
                 spine.addEventListener("click", (function (idx) {
                     return function () {
@@ -450,7 +489,12 @@ Engine.register("Shelf Open Book", {
             state.heldBook.position === bk.position && state.heldBook.floor === bk.floor &&
             state.heldBook.bookIndex === bk.bookIndex;
 
-        let html = '<div id="book-view" class="mode-book' + (state.despairing ? ' despairing' : '') + '">';
+        const dd = state._despairDays || 0;
+        const despairFade = dd > 0 ? Math.min(1, dd / 100) : 0;
+        const dSat = 1 - despairFade;
+        const dBright = 1 - 0.15 * despairFade;
+        let html = '<div id="book-view" class="mode-book' + (state.despairing ? ' despairing' : '') + '"'
+            + ' style="--despair-sat:' + dSat.toFixed(2) + ';--despair-bright:' + dBright.toFixed(2) + '">';
 
         const bkLabel = esc(bookLabel(bk));
         if (pg === 0) {

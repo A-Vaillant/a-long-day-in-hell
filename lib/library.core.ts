@@ -84,6 +84,33 @@ export function isRestArea(position: bigint): boolean {
     return ((position % GALLERIES_PER_SEGMENT) + GALLERIES_PER_SEGMENT) % GALLERIES_PER_SEGMENT === 0n;
 }
 
+/** Return the two kiosk positions adjacent to a gallery position. */
+export function adjacentKiosks(position: bigint): { left: bigint; right: bigint } {
+    const mod = ((position % GALLERIES_PER_SEGMENT) + GALLERIES_PER_SEGMENT) % GALLERIES_PER_SEGMENT;
+    const left = position - mod;
+    return { left, right: left + GALLERIES_PER_SEGMENT };
+}
+
+/**
+ * Check if a location is a mercy kiosk — one of the two kiosks flanking
+ * a book's position, on the same side and floor.
+ *
+ * Returns "left" if the entity is at the kiosk to the left of the book,
+ * "right" if to the right, null otherwise. Works for any entity with a
+ * known book location (player or NPC with divine vision).
+ */
+export function mercyKiosk(
+    loc: { side: number; position: bigint; floor: bigint },
+    bookCoords: { side: number; position: bigint; floor: bigint },
+): "left" | "right" | null {
+    if (loc.side !== bookCoords.side || loc.floor !== bookCoords.floor) return null;
+    if (!isRestArea(loc.position)) return null;
+    const kiosks = adjacentKiosks(bookCoords.position);
+    if (loc.position === kiosks.left) return "left";
+    if (loc.position === kiosks.right) return "right";
+    return null;
+}
+
 export const DIRS: Record<string, Direction> = {
     LEFT:  "left",
     RIGHT: "right",

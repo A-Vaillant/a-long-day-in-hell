@@ -2,7 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
     generateSegment, availableMoves, applyMove, locationKey, describeLocation,
-    isRestArea, DIRS, BOTTOM_FLOOR, SEGMENT_BOOK_COUNT, BOOKS_PER_GALLERY, GALLERIES_PER_SEGMENT,
+    isRestArea, adjacentKiosks, mercyKiosk,
+    DIRS, BOTTOM_FLOOR, SEGMENT_BOOK_COUNT, BOOKS_PER_GALLERY, GALLERIES_PER_SEGMENT,
 } from "../lib/library.core.ts";
 import { seedFromString } from "../lib/prng.core.ts";
 
@@ -181,5 +182,85 @@ describe("applyMove", () => {
         const once  = applyMove(bottom, DIRS.CROSS);  // bottom is position 0 (rest area)
         const twice = applyMove(once,   DIRS.CROSS);
         assert.deepStrictEqual(twice, bottom);
+    });
+});
+
+describe("adjacentKiosks", () => {
+    it("book at position 1 → kiosks at 0 and 17", () => {
+        const k = adjacentKiosks(1n);
+        assert.strictEqual(k.left, 0n);
+        assert.strictEqual(k.right, 17n);
+    });
+
+    it("book at position 16 → kiosks at 0 and 17", () => {
+        const k = adjacentKiosks(16n);
+        assert.strictEqual(k.left, 0n);
+        assert.strictEqual(k.right, 17n);
+    });
+
+    it("book at position 18 → kiosks at 17 and 34", () => {
+        const k = adjacentKiosks(18n);
+        assert.strictEqual(k.left, 17n);
+        assert.strictEqual(k.right, 34n);
+    });
+
+    it("negative position", () => {
+        const k = adjacentKiosks(-1n);
+        assert.strictEqual(k.left, -17n);
+        assert.strictEqual(k.right, 0n);
+    });
+
+    it("both kiosks are rest areas", () => {
+        const k = adjacentKiosks(100n);
+        assert.ok(isRestArea(k.left));
+        assert.ok(isRestArea(k.right));
+    });
+});
+
+describe("mercyKiosk", () => {
+    const bookCoords = { side: 0, position: 5n, floor: 100n };
+
+    it("returns 'left' at the left adjacent kiosk", () => {
+        const loc = { side: 0, position: 0n, floor: 100n };
+        assert.strictEqual(mercyKiosk(loc, bookCoords), "left");
+    });
+
+    it("returns 'right' at the right adjacent kiosk", () => {
+        const loc = { side: 0, position: 17n, floor: 100n };
+        assert.strictEqual(mercyKiosk(loc, bookCoords), "right");
+    });
+
+    it("returns null at a different kiosk on the same floor", () => {
+        const loc = { side: 0, position: 34n, floor: 100n };
+        assert.strictEqual(mercyKiosk(loc, bookCoords), null);
+    });
+
+    it("returns null at the right position but wrong floor", () => {
+        const loc = { side: 0, position: 0n, floor: 99n };
+        assert.strictEqual(mercyKiosk(loc, bookCoords), null);
+    });
+
+    it("returns null at the right position but wrong side", () => {
+        const loc = { side: 1, position: 0n, floor: 100n };
+        assert.strictEqual(mercyKiosk(loc, bookCoords), null);
+    });
+
+    it("returns null at a non-rest-area position", () => {
+        const loc = { side: 0, position: 5n, floor: 100n };
+        assert.strictEqual(mercyKiosk(loc, bookCoords), null);
+    });
+
+    it("works with large coordinates", () => {
+        const bigBook = { side: 1, position: 10n ** 100n + 3n, floor: 50000n };
+        const kiosks = adjacentKiosks(bigBook.position);
+        const loc = { side: 1, position: kiosks.right, floor: 50000n };
+        assert.strictEqual(mercyKiosk(loc, bigBook), "right");
+    });
+
+    it("works for NPC book coords too", () => {
+        // Any entity with known book coordinates can trigger mercy
+        const npcBook = { side: 0, position: 35n, floor: 200n };
+        const npcLoc = { side: 0, position: 34n, floor: 200n };
+        assert.strictEqual(mercyKiosk(npcLoc, npcBook), "left");
     });
 });
