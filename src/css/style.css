@@ -298,9 +298,9 @@ button:disabled {
 
 .sb-day {
     letter-spacing: 0.15em;
-    font-size: 0.8em;
+    font-size: 1.1em;
     color: var(--text-dim);
-    opacity: 0.6;
+    opacity: 0.8;
     margin-bottom: 0.1rem;
 }
 
@@ -518,10 +518,10 @@ button:disabled {
 
 #book-view br { display: none; }
 
-#book-view.despairing .book-page-left,
-#book-view.despairing .book-page-right,
-#book-view.despairing .book-single {
-    filter: saturate(0) brightness(0.85);
+#book-view .book-page-left,
+#book-view .book-page-right,
+#book-view .book-single {
+    filter: saturate(var(--despair-sat, 1)) brightness(var(--despair-bright, 1));
 }
 
 #book-view .location-header {
@@ -850,11 +850,12 @@ button:disabled {
 }
 
 .book-spine.book-opened {
-    border-top: 2px solid rgba(255,255,255,0.15);
-    filter: brightness(0.7);
+    opacity: 0.55;
+    transform: translateY(2px);
 }
 .book-spine.book-opened:hover {
-    filter: brightness(1.4);
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .shelf-grid.shelf-searched {
@@ -973,6 +974,13 @@ button:disabled {
     border: none;
     border-top: 1px solid var(--border);
     margin: 1.5rem 0;
+}
+
+.mercy-kiosk {
+    color: #d4a843;
+    font-style: italic;
+    font-weight: bold;
+    text-shadow: 0 0 8px rgba(212, 168, 67, 0.3);
 }
 
 .mercy-hint {
