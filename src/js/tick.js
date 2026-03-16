@@ -8,7 +8,6 @@ import {
 import { applyDawnReset } from "../../lib/survival.core.ts";
 import { Surv } from "./survival.js";
 import { Npc } from "./npc.js";
-import { Events } from "./events.js";
 import { Chasm } from "./chasm.js";
 import { Social } from "./social.js";
 import { state } from "./state.js";
@@ -78,21 +77,6 @@ export const Tick = {
         }
 
         return result.events;
-    },
-    onMove() {
-        const events = this.advance(1);
-        Surv.onMove();
-        if (!state._passedOut) Events.draw();
-        return events;
-    },
-    onSleep() {
-        const inBedroom = state._lastScreen === "Bedroom";
-        const startDay = state.day;
-        while (!isResetHour(state.tick) && !state.dead && state.day === startDay) {
-            this.advance(TICKS_PER_HOUR);
-            Surv.onSleep(inBedroom);
-        }
-        // If we hit reset hour, boundary handler already called onForcedSleep
     },
     _inForcedSleep: false,
     onForcedSleep() {

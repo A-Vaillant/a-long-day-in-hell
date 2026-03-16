@@ -1,17 +1,13 @@
 /* Despairing wrapper — morale corruption and despair effects. */
 
 import {
-    applyAmbientDrain, modifySleepRecovery, shouldClearDespairing,
+    modifySleepRecovery, shouldClearDespairing,
     corruptStatValue as _corruptStatValue, shouldCorruptDescriptor as _shouldCorruptDescriptor,
     isReadingBlocked as _isReadingBlocked, chasmSkipsConfirm as _chasmSkipsConfirm,
 } from "../../lib/despairing.core.ts";
 import { state } from "./state.js";
 
 export const Despair = {
-    applyAmbientDrain() {
-        state.morale = applyAmbientDrain(state.morale);
-        if (state.morale <= 0) state.despairing = true;
-    },
     modifySleepRecovery(baseDelta) {
         return modifySleepRecovery(baseDelta, state.despairing);
     },

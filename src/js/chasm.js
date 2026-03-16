@@ -1,18 +1,13 @@
 /* Chasm wrapper — freefall state mutations on window.state. */
 
 import {
-    fallTick, attemptGrab, defaultFallingState, grabChance, altitudeBand,
+    fallTick, grabChance, altitudeBand,
     LANDING_KILL_SPEED,
 } from "../../lib/chasm.core.ts";
-import { PRNG } from "./prng.js";
 import { state } from "./state.js";
 import { Surv } from "./survival.js";
 
 export const Chasm = {
-    jump(side) {
-        state.falling = defaultFallingState(side);
-    },
-
     /** Advance one tick of freefall. Called by Tick.advance when state.falling is set. */
     onTick() {
         const f = state.falling;
@@ -32,23 +27,6 @@ export const Chasm = {
             fatal: result.fatal,
             floorsDescended: prevFloor - state.floor,
         };
-    },
-
-    grab(quicknessBonus = 0) {
-        const rng = PRNG.fork("grab:" + state.floor + ":" + state.tick);
-        const result = attemptGrab(state.falling.speed, rng, quicknessBonus);
-        if (result.success) {
-            state.falling = null;
-            return { success: true, mortalityHit: 0 };
-        }
-        state.falling.speed = result.speedAfter;
-        state.mortality = Math.max(0, state.mortality - result.mortalityHit);
-        if (state.mortality <= 0) Surv.kill("trauma");
-        return { success: false, mortalityHit: result.mortalityHit };
-    },
-
-    throwBook() {
-        state.heldBook = null;
     },
 
     getGrabChance(quicknessBonus = 0) {

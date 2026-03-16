@@ -1,8 +1,8 @@
 /* Survival wrapper — hunger, thirst, exhaustion, morale, mortality. */
 
 import {
-    defaultStats, applyMoraleTick, applySleep, applyResurrection, applyEat, applyDrink,
-    applyAlcohol, severity, getWarnings, showMortality, describeFromTable, canSleep,
+    defaultStats, applySleep, applyResurrection, severity, getWarnings, showMortality,
+    describeFromTable, canSleep,
 } from "../../lib/survival.core.ts";
 import { Despair } from "./despairing.js";
 import { state } from "./state.js";
@@ -26,10 +26,6 @@ export const Surv = {
         state.despairing = d.despairing;
         state.dead       = d.dead;
     },
-    onMove() {
-        Object.assign(state, applyMoraleTick(statsFromState()));
-        Despair.applyAmbientDrain();
-    },
     onSleep(inBedroom) {
         const moraleBefore = state.morale;
         Object.assign(state, applySleep(statsFromState(), !!inBedroom));
@@ -51,15 +47,6 @@ export const Surv = {
         state.dead = true;
         state.deaths = (state.deaths || 0) + 1;
         state.deathCause = cause || "unknown";
-    },
-    onEat()   { Object.assign(state, applyEat(statsFromState())); },
-    onDrink() { Object.assign(state, applyDrink(statsFromState())); },
-    onAlcohol() {
-        Object.assign(state, applyAlcohol(statsFromState()));
-        Despair.checkExit();
-    },
-    exhaust(amount) {
-        state.exhaustion = Math.min(100, state.exhaustion + amount);
     },
     severity(val) { return severity(val); },
     showMortality() { return showMortality(statsFromState()); },
