@@ -16,13 +16,13 @@ import type { Entity, World } from "./ecs.core.ts";
 
 import { seedFromString } from "./prng.core.ts";
 import type { SurvivalStats } from "./survival.core.ts";
-import { applyMoveTick, applyDrink, applyMercyKiosk, applyEat, applyAlcohol, applyReadNonsense } from "./survival.core.ts";
+import { applyMoveTick, applyDrink, applyMercyKiosk, applyEat, applyAlcohol, applyReadNonsense, applySleep } from "./survival.core.ts";
 import { isReadingBlocked } from "./despairing.core.ts";
 import { BOOKS_PER_GALLERY } from "./library.core.ts";
-import { applyAmbientDrain, shouldClearDespairing } from "./despairing.core.ts";
+import { applyAmbientDrain, shouldClearDespairing, modifySleepRecovery } from "./despairing.core.ts";
 import { availableMovesMask, moveAllowed, applyMoveInPlace, isRestArea, type Location, type Direction } from "./library.core.ts";
 import { mercyKiosk } from "./library.core.ts";
-import { advanceTick, isLightsOn } from "./tick.core.ts";
+import { advanceTick, isLightsOn, TICKS_PER_HOUR } from "./tick.core.ts";
 import * as EventsCore from "./events.core.ts";
 
 // --- Interfaces ---
@@ -291,6 +291,39 @@ export function applyAction(
             if (!state.won) state.heldBook = null;
             const tickEvents = advanceOneTick(state);
             return { resolved: true, screen: "Submission Attempt", tickEvents, ticksConsumed: 1 };
+        }
+
+        case "sleep": {
+            if (state.dead || state.won) return unresolved();
+            const inBedroom = (action as any).inBedroom ?? false;
+
+            // Apply one hour of sleep recovery
+            const moraleBefore = state.morale;
+            applyStats(state, applySleep(statsFromState(state), inBedroom));
+
+            // Despairing sleep modifier
+            if (state.despairing) {
+                const baseDelta = state.morale - moraleBefore;
+                if (baseDelta > 0) {
+                    const effective = modifySleepRecovery(baseDelta, state.despairing);
+                    state.morale = Math.max(0, moraleBefore + effective);
+                }
+            }
+            if (state.despairing && shouldClearDespairing(state.morale)) {
+                state.despairing = false;
+            }
+
+            // Advance time by one hour
+            const result = advanceTick({ tick: state.tick, day: state.day }, TICKS_PER_HOUR);
+            state.tick = result.state.tick;
+            state.day = result.state.day;
+            state.lightsOn = isLightsOn(state.tick);
+
+            return {
+                resolved: true, screen: "Sleep",
+                tickEvents: result.events,
+                ticksConsumed: TICKS_PER_HOUR,
+            };
         }
 
         default:
