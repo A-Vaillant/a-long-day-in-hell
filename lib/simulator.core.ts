@@ -27,6 +27,7 @@ import type { EventCard } from "./events.core.ts";
 import * as NpcCore from "./npc.core.ts";
 import type { NPC, DialogueTable } from "./npc.core.ts";
 import { applyAmbientDrain, shouldClearDespairing, isReadingBlocked, applySleepWithDespairing } from "./despairing.core.ts";
+import type { Action } from "./action.core.ts";
 
 // Auto-drink threshold — aligned with NPC needs system (needs.core.ts).
 // Hunger stays manual: starvation is a real consequence of mindless walking.
@@ -44,37 +45,16 @@ const AUTO_DRINK_THRESHOLD = 50;
  *   { type: "eat" }
  *   { type: "drink" }
  *   { type: "alcohol" }
- *   { type: "read", bookIndex: number }
- *   { type: "take", bookIndex: number }
+ *   { type: "read_book", bookIndex: number }
+ *   { type: "take_book", bookIndex: number }
  *   { type: "submit" }
  *
  * gameState exposes everything the strategy needs to make decisions.
  * Strategies can return arrays for multi-step sequences within a tick.
  */
 
-/** @typedef {"move"|"wait"|"sleep"|"eat"|"drink"|"alcohol"|"read"|"take"|"submit"} ActionType */
-export type ActionType = "move" | "wait" | "sleep" | "eat" | "drink" | "alcohol" | "read" | "take" | "submit";
-
-export interface MoveAction { type: "move"; dir: Direction; }
-export interface WaitAction { type: "wait"; }
-export interface SleepAction { type: "sleep"; }
-export interface EatAction { type: "eat"; }
-export interface DrinkAction { type: "drink"; }
-export interface AlcoholAction { type: "alcohol"; }
-export interface ReadAction { type: "read"; bookIndex: number; }
-export interface TakeAction { type: "take"; bookIndex: number; }
-export interface SubmitAction { type: "submit"; }
-
-export type Action =
-    | MoveAction
-    | WaitAction
-    | SleepAction
-    | EatAction
-    | DrinkAction
-    | AlcoholAction
-    | ReadAction
-    | TakeAction
-    | SubmitAction;
+// Action type is imported from action.core.ts above — re-exported for consumers.
+export type { Action } from "./action.core.ts";
 
 export interface BookCoords {
     side: number;
@@ -165,7 +145,12 @@ interface InternalState {
     submissionsAttempted: number;
     lifeStory: LifeStory;
     targetBook: BookCoords;
-    stats: SurvivalStats;
+    // Flat survival stats (previously nested as stats: SurvivalStats)
+    hunger: number;
+    thirst: number;
+    exhaustion: number;
+    morale: number;
+    mortality: number;
     eventDeck: number[];
     lastEvent: EventCard | null;
     npcs: NPC[];
@@ -175,6 +160,16 @@ interface InternalState {
     booksRead: Set<string>;
     _mercyKiosks: Record<string, boolean>;
     _mercyKioskDone: boolean;
+    // GameState-compat fields
+    openBook: BookCoords | null;
+    openPage: number;
+    dwellHistory: Record<string, boolean>;
+    _mercyArrival: string | null;
+    _despairDays: number;
+    falling: null;
+    _readBlocked: boolean;
+    _submissionWon: boolean;
+    _lastMove: string | null;
 }
 
 export interface SimulationOpts {
@@ -249,6 +244,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     }
 
     // Initialize game state
+    const _defaults = Surv.defaultStats();
     const gs: InternalState = {
         seed,
         side: startLoc.side,
@@ -266,7 +262,12 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         submissionsAttempted: 0,
         lifeStory,
         targetBook,
-        stats: { ...Surv.defaultStats(), morale: opts.startMorale ?? 100 },
+        // Flat survival stats
+        hunger: _defaults.hunger,
+        thirst: _defaults.thirst,
+        exhaustion: _defaults.exhaustion,
+        morale: opts.startMorale ?? 100,
+        mortality: _defaults.mortality,
         eventDeck: [],
         lastEvent: null,
         npcs: [],
@@ -278,6 +279,16 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         booksRead: new Set(),
         _mercyKiosks: {},
         _mercyKioskDone: false,
+        // GameState-compat fields
+        openBook: null,
+        openPage: 0,
+        dwellHistory: {},
+        _mercyArrival: null,
+        _despairDays: 0,
+        falling: null,
+        _readBlocked: false,
+        _submissionWon: false,
+        _lastMove: null,
     };
 
     // Spawn NPCs
@@ -297,6 +308,21 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     const _tickState: Tick.TickState = { tick: 0, day: 1 };
     const _tickEvents: TickEvent[] = new Array(4);  // max 3 events per call (lightsOut + resetHour + dawn)
 
+    /** Convert flat gs stats to SurvivalStats for survival core functions. */
+    function statsFromState(): SurvivalStats {
+        return {
+            hunger: gs.hunger, thirst: gs.thirst, exhaustion: gs.exhaustion,
+            morale: gs.morale, mortality: gs.mortality,
+            despairing: gs.despairing, dead: gs.dead,
+        };
+    }
+    /** Write SurvivalStats result back to flat gs fields. */
+    function applyStats(s: SurvivalStats): void {
+        gs.hunger = s.hunger; gs.thirst = s.thirst; gs.exhaustion = s.exhaustion;
+        gs.morale = s.morale; gs.mortality = s.mortality;
+        gs.despairing = s.despairing; gs.dead = s.dead;
+    }
+
     /** Lightweight view of internal state for strategies.
      *  Exposes gs fields directly — no cloning. Computed fields are lazy getters. */
     const _loc: Location = { side: 0, position: 0n, floor: 0n };
@@ -314,7 +340,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         get despairDays() { return gs.despairDays || 0; },
         get deaths() { return gs.deaths; },
         get won() { return gs.won; },
-        get stats() { return gs.stats; },
+        get stats() { return statsFromState(); },
         get targetBook() { return gs.targetBook; },
         get totalMoves() { return gs.totalMoves; },
         get segmentsVisited() { return gs.segmentsVisited; },
@@ -354,7 +380,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                 // Auto-drink at rest area kiosks (mirrors NPC needs + player actions.js).
                 // Hunger stays manual — starvation is the cost of mindless walking.
                 if (Lib.isRestArea(gs.position) && gs.lightsOn) {
-                    if (gs.stats.thirst >= AUTO_DRINK_THRESHOLD) gs.stats = Surv.applyDrink(gs.stats);
+                    if (gs.thirst >= AUTO_DRINK_THRESHOLD) applyStats(Surv.applyDrink(statsFromState()));
                 }
 
                 // Mercy kiosk: first arrival at any kiosk adjacent to target book (one-shot)
@@ -366,8 +392,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                     if (mercy) {
                         gs._mercyKiosks[mercy] = true;
                         gs._mercyKioskDone = true;
-                        gs.stats = Surv.applyMercyKiosk(gs.stats);
-                        gs.despairing = gs.stats.despairing;
+                        applyStats(Surv.applyMercyKiosk(statsFromState()));
                         gs.despairDays = 0;
                     }
                 }
@@ -379,7 +404,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                     gs.eventDeck = draw.deck;
                     gs.lastEvent = draw.event;
                     if (draw.event && draw.event.morale) {
-                        gs.stats.morale = Math.max(0, Math.min(100, gs.stats.morale + draw.event.morale));
+                        gs.morale = Math.max(0, Math.min(100, gs.morale + draw.event.morale));
                     }
                     if (opts.onEvent && draw.event) opts.onEvent(draw.event, gameState());
                 }
@@ -405,29 +430,28 @@ export function createSimulation(opts: SimulationOpts): Simulation {
             case "eat":
                 if (!Lib.isRestArea(gs.position)) return false;
                 if (!gs.lightsOn) return false;
-                gs.stats = Surv.applyEat(gs.stats);
+                applyStats(Surv.applyEat(statsFromState()));
                 advanceOneTick();
                 return true;
 
             case "drink":
                 if (!Lib.isRestArea(gs.position)) return false;
                 if (!gs.lightsOn) return false;
-                gs.stats = Surv.applyDrink(gs.stats);
+                applyStats(Surv.applyDrink(statsFromState()));
                 advanceOneTick();
                 return true;
 
             case "alcohol":
                 if (!Lib.isRestArea(gs.position)) return false;
                 if (!gs.lightsOn) return false;
-                gs.stats = Surv.applyAlcohol(gs.stats);
-                if (gs.stats.despairing && shouldClearDespairing(gs.stats.morale)) {
-                    gs.stats.despairing = false;
+                applyStats(Surv.applyAlcohol(statsFromState()));
+                if (gs.despairing && shouldClearDespairing(gs.morale)) {
+                    gs.despairing = false;
                 }
-                gs.despairing = gs.stats.despairing;
                 advanceOneTick();
                 return true;
 
-            case "read": {
+            case "read_book": {
                 if (!gs.lightsOn) return false;
                 if (Lib.isRestArea(gs.position)) return false;
                 const bi = action.bookIndex;
@@ -440,16 +464,15 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                 const bookKey = `${gs.side}:${gs.position}:${gs.floor}:${bi}`;
                 gs.booksRead.add(bookKey);
 
-                const readResult = Surv.applyReadNonsense(gs.stats, gs.nonsensePagesRead);
-                gs.stats = readResult.stats;
+                const readResult = Surv.applyReadNonsense(statsFromState(), gs.nonsensePagesRead);
+                applyStats(readResult.stats);
                 gs.nonsensePagesRead = readResult.nonsensePagesRead;
-                gs.despairing = gs.stats.despairing;
 
                 advanceOneTick();
                 return true;
             }
 
-            case "take": {
+            case "take_book": {
                 if (!gs.lightsOn) return false;
                 const bi2 = action.bookIndex;
                 if (bi2 < 0 || bi2 >= Lib.BOOKS_PER_GALLERY) return false;
@@ -479,20 +502,18 @@ export function createSimulation(opts: SimulationOpts): Simulation {
 
     function advanceOneTick(): void {
         // Apply survival depletion
-        gs.stats = Surv.applyMoveTick(gs.stats);
+        applyStats(Surv.applyMoveTick(statsFromState()));
 
         // Ambient morale drain
-        gs.stats.morale = applyAmbientDrain(gs.stats.morale);
-        if (gs.stats.morale <= 0) gs.stats.despairing = true;
-        gs.despairing = gs.stats.despairing;
+        gs.morale = applyAmbientDrain(gs.morale);
+        if (gs.morale <= 0) gs.despairing = true;
 
         // Death check
-        if (gs.stats.dead) {
-            gs.dead = true;
-            gs.deathCause = gs.stats.mortality <= 0 ? "mortality" : "unknown";
-            if (gs.stats.thirst >= 100 && gs.stats.hunger >= 100) gs.deathCause = "starvation_dehydration";
-            else if (gs.stats.thirst >= 100) gs.deathCause = "dehydration";
-            else if (gs.stats.hunger >= 100) gs.deathCause = "starvation";
+        if (gs.dead) {
+            gs.deathCause = gs.mortality <= 0 ? "mortality" : "unknown";
+            if (gs.thirst >= 100 && gs.hunger >= 100) gs.deathCause = "starvation_dehydration";
+            else if (gs.thirst >= 100) gs.deathCause = "dehydration";
+            else if (gs.hunger >= 100) gs.deathCause = "starvation";
         }
 
         advanceTime(1);
@@ -516,11 +537,10 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     function onDawn(): void {
         // Resurrection
         if (gs.dead) {
-            gs.stats = Surv.applyResurrection(gs.stats);
+            applyStats(Surv.applyResurrection(statsFromState()));
             gs.dead = false;
             gs.deathCause = null;
             gs.deaths++;
-            gs.despairing = gs.stats.despairing;
             if (opts.onDeath) opts.onDeath(gameState());
         }
 
@@ -542,9 +562,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
 
     function applySleepHour(): void {
         const inBedroom = Lib.isRestArea(gs.position);
-        gs.stats = applySleepWithDespairing(gs.stats, (s) => Surv.applySleep(s, inBedroom));
-        gs.despairing = gs.stats.despairing;
-        gs.dead = gs.stats.dead;
+        applyStats(applySleepWithDespairing(statsFromState(), (s) => Surv.applySleep(s, inBedroom)));
     }
 
     /** Run the simulation to completion. */
@@ -582,7 +600,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
             segmentsVisited: gs.segmentsVisited,
             booksRead: gs.booksRead.size,
             submissionsAttempted: gs.submissionsAttempted,
-            finalStats: { ...gs.stats },
+            finalStats: statsFromState(),
             despairing: gs.despairing,
             npcsAlive: gs.npcs.filter(n => n.alive).length,
             npcsTotal: gs.npcs.length,
@@ -676,11 +694,11 @@ export const strategies = {
                             gs.floor === tb.floor && currentBookIndex === tb.bookIndex) {
                             currentBookIndex++;
                             needsSubmit = true;
-                            return { type: "take", bookIndex: tb.bookIndex };
+                            return { type: "take_book", bookIndex: tb.bookIndex };
                         }
                         const bi = currentBookIndex;
                         currentBookIndex++;
-                        return { type: "read", bookIndex: bi };
+                        return { type: "read_book", bookIndex: bi };
                     }
                     // Done reading this segment, move on
                     currentBookIndex = 0;
@@ -718,7 +736,7 @@ export const strategies = {
 
                 // Occasionally read
                 if (!gs.isRestArea && gs.lightsOn && walkRng.next() < cfg.readChance) {
-                    return { type: "read", bookIndex: walkRng.nextInt(Lib.BOOKS_PER_GALLERY) };
+                    return { type: "read_book", bookIndex: walkRng.nextInt(Lib.BOOKS_PER_GALLERY) };
                 }
 
                 // Random move
@@ -743,7 +761,7 @@ export const strategies = {
                 if (gs.isRestArea) {
                     if (gs.stats.hunger >= cfg.eatAt) return { type: "eat" };
                     if (gs.stats.thirst >= cfg.drinkAt) return { type: "drink" };
-                    return { type: "wait" };
+                    return { type: "wait" as const };
                 }
 
                 // Walk to nearest rest area
@@ -764,7 +782,7 @@ export const strategies = {
             name: "neglectful",
             decide(gs: GameState): Action {
                 if (!gs.lightsOn || gs.stats.exhaustion >= 80) return { type: "sleep" };
-                return { type: "wait" };
+                return { type: "wait" as const };
             }
         };
     },
@@ -777,7 +795,7 @@ export const strategies = {
         let phase: "navigate" | "take" | "toSubmit" | "submit" | "done" = "navigate";
 
         /** Navigate to a rest area from current position. */
-        function moveToRestArea(pos: bigint): MoveAction | null {
+        function moveToRestArea(pos: bigint): { type: "move"; dir: Direction } | null {
             const G = Lib.GALLERIES_PER_SEGMENT;
             const mod = ((pos % G) + G) % G;
             if (mod === 0n) return null; // already at rest area
@@ -792,9 +810,9 @@ export const strategies = {
                 const tb = gs.targetBook;
 
                 // Survival basics
-                if (!gs.lightsOn || gs.stats.exhaustion >= 80) return { type: "sleep" };
-                if (gs.isRestArea && gs.stats.hunger >= 60) return { type: "eat" };
-                if (gs.isRestArea && gs.stats.thirst >= 60) return { type: "drink" };
+                if (!gs.lightsOn || gs.stats.exhaustion >= 80) return { type: "sleep" as const };
+                if (gs.isRestArea && gs.stats.hunger >= 60) return { type: "eat" as const };
+                if (gs.isRestArea && gs.stats.thirst >= 60) return { type: "drink" as const };
 
                 if (phase === "done") return { type: "wait" };
 
@@ -817,7 +835,7 @@ export const strategies = {
                 if (phase === "take") {
                     // At target location, take the book
                     phase = "toSubmit";
-                    return { type: "take", bookIndex: tb.bookIndex };
+                    return { type: "take_book", bookIndex: tb.bookIndex };
                 }
 
                 // --- Navigation phase ---
@@ -853,7 +871,7 @@ export const strategies = {
 
                 // 4. At target location
                 phase = "take";
-                return { type: "take", bookIndex: tb.bookIndex };
+                return { type: "take_book", bookIndex: tb.bookIndex };
             }
         };
     },
