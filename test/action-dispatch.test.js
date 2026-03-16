@@ -267,3 +267,57 @@ describe("applyAction sleep", () => {
         assert.equal(typeof s.morale, "number");
     });
 });
+
+describe("applyAction chasm_jump", () => {
+    it("starts falling state", () => {
+        const s = makeTestState({ floor: 10n });
+        const r = applyAction(s, { type: "chasm_jump" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(s.falling, "should be falling");
+        assert.equal(s.falling.speed, 0);
+    });
+
+    it("rejected at floor 0", () => {
+        const s = makeTestState({ floor: 0n });
+        const r = applyAction(s, { type: "chasm_jump" }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+});
+
+describe("applyAction grab_railing", () => {
+    it("attempts grab when falling", () => {
+        const s = makeTestState({ floor: 10n, falling: { speed: 5, floorsToFall: 0, side: 0 } });
+        const r = applyAction(s, { type: "grab_railing" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(r.data, "should have grab result data");
+    });
+
+    it("rejected when not falling", () => {
+        const s = makeTestState();
+        const r = applyAction(s, { type: "grab_railing" }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+});
+
+describe("applyAction throw_book", () => {
+    it("clears held book while falling", () => {
+        const s = makeTestState({
+            falling: { speed: 5, floorsToFall: 0, side: 0 },
+            heldBook: { side: 0, position: 5n, floor: 10n, bookIndex: 3 },
+        });
+        const r = applyAction(s, { type: "throw_book" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.equal(s.heldBook, null);
+    });
+});
+
+describe("applyAction fall_wait", () => {
+    it("advances tick and continues fall", () => {
+        const s = makeTestState({ floor: 100n, falling: { speed: 5, floorsToFall: 0, side: 0 } });
+        const floorBefore = s.floor;
+        const r = applyAction(s, { type: "fall_wait" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.equal(r.ticksConsumed, 1);
+        assert.ok(s.floor < floorBefore, "should have fallen");
+    });
+});

@@ -11,6 +11,7 @@
 import type { Action } from "./action.core.ts";
 import type { TickEvent } from "./tick.core.ts";
 import type { FallingState } from "./chasm.core.ts";
+import { defaultFallingState, fallTick, attemptGrab } from "./chasm.core.ts";
 import type { EventCard } from "./events.core.ts";
 import type { Entity, World } from "./ecs.core.ts";
 
@@ -291,6 +292,63 @@ export function applyAction(
             if (!state.won) state.heldBook = null;
             const tickEvents = advanceOneTick(state);
             return { resolved: true, screen: "Submission Attempt", tickEvents, ticksConsumed: 1 };
+        }
+
+        case "chasm_jump": {
+            if (state.dead || state.won) return unresolved();
+            if (state.floor <= 0n) return unresolved();
+            state.falling = defaultFallingState(state.side);
+            return { resolved: true, screen: "Falling", tickEvents: [], ticksConsumed: 0 };
+        }
+
+        case "grab_railing": {
+            if (!state.falling) return unresolved();
+            const grabRng = seedFromString(ctx.seed + ":grab:" + state.floor + ":" + state.tick);
+            const bonus = ctx.quicknessBonus ?? 0;
+            const result = attemptGrab(state.falling.speed, grabRng, bonus);
+            if (result.success) {
+                state.falling = null;
+                return { resolved: true, screen: "Corridor", tickEvents: [], ticksConsumed: 0, data: { success: true, mortalityHit: 0 } };
+            }
+            state.falling.speed = result.speedAfter;
+            state.mortality = Math.max(0, state.mortality - result.mortalityHit);
+            if (state.mortality <= 0) {
+                state.dead = true;
+                state.deathCause = "trauma";
+            }
+            return { resolved: true, tickEvents: [], ticksConsumed: 0, data: { success: false, mortalityHit: result.mortalityHit } };
+        }
+
+        case "throw_book": {
+            state.heldBook = null;
+            return { resolved: true, tickEvents: [], ticksConsumed: 0 };
+        }
+
+        case "fall_wait": {
+            if (state.dead) return unresolved();
+            if (!state.falling) return unresolved();
+
+            // Preserve mortality (trauma damage is from grabs, not from falling ticks)
+            const mortalityBefore = state.mortality;
+            const tickEvents = advanceOneTick(state);
+            state.mortality = Math.min(state.mortality, mortalityBefore);
+
+            // Fall physics
+            const fallResult = fallTick(state.falling, Number(state.floor));
+            state.floor = BigInt(fallResult.newFloor);
+            state.falling.speed = fallResult.newSpeed;
+
+            if (fallResult.landed) {
+                state.falling = null;
+                if (fallResult.fatal) {
+                    state.dead = true;
+                    state.deathCause = "gravity";
+                }
+            }
+
+            if (state.dead) return { resolved: true, screen: "Death", tickEvents, ticksConsumed: 1 };
+            if (!state.falling) return { resolved: true, screen: "Corridor", tickEvents, ticksConsumed: 1 };
+            return { resolved: true, screen: "Falling", tickEvents, ticksConsumed: 1 };
         }
 
         case "sleep": {
