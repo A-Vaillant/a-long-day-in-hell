@@ -16,7 +16,7 @@ import type { Entity, World } from "./ecs.core.ts";
 
 import { seedFromString } from "./prng.core.ts";
 import type { SurvivalStats } from "./survival.core.ts";
-import { applyMoveTick, applyDrink, applyMercyKiosk } from "./survival.core.ts";
+import { applyMoveTick, applyDrink, applyMercyKiosk, applyEat, applyAlcohol } from "./survival.core.ts";
 import { applyAmbientDrain, shouldClearDespairing } from "./despairing.core.ts";
 import { availableMovesMask, moveAllowed, applyMoveInPlace, isRestArea, type Location, type Direction } from "./library.core.ts";
 import { mercyKiosk } from "./library.core.ts";
@@ -195,6 +195,39 @@ export function applyAction(
             }
 
             return { resolved: true, screen: "Corridor", tickEvents, ticksConsumed: 1 };
+        }
+
+        case "wait": {
+            if (state.dead || state.won) return unresolved();
+            const tickEvents = advanceOneTick(state);
+            return { resolved: true, screen: "Wait", tickEvents, ticksConsumed: 1 };
+        }
+
+        case "eat": {
+            if (state.dead || state.won) return unresolved();
+            if (!isRestArea(state.position) || !state.lightsOn) return unresolved();
+            applyStats(state, applyEat(statsFromState(state)));
+            const tickEvents = advanceOneTick(state);
+            return { resolved: true, screen: "Kiosk Get Food", tickEvents, ticksConsumed: 1 };
+        }
+
+        case "drink": {
+            if (state.dead || state.won) return unresolved();
+            if (!isRestArea(state.position) || !state.lightsOn) return unresolved();
+            applyStats(state, applyDrink(statsFromState(state)));
+            const tickEvents = advanceOneTick(state);
+            return { resolved: true, screen: "Kiosk Get Drink", tickEvents, ticksConsumed: 1 };
+        }
+
+        case "alcohol": {
+            if (state.dead || state.won) return unresolved();
+            if (!isRestArea(state.position) || !state.lightsOn) return unresolved();
+            applyStats(state, applyAlcohol(statsFromState(state)));
+            if (state.despairing && shouldClearDespairing(state.morale)) {
+                state.despairing = false;
+            }
+            const tickEvents = advanceOneTick(state);
+            return { resolved: true, screen: "Kiosk Get Alcohol", tickEvents, ticksConsumed: 1 };
         }
 
         default:

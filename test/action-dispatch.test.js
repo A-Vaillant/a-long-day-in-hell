@@ -35,6 +35,66 @@ describe("action-dispatch scaffold", () => {
     });
 });
 
+describe("applyAction wait", () => {
+    it("advances one tick", () => {
+        const s = makeTestState();
+        const r = applyAction(s, { type: "wait" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.equal(r.ticksConsumed, 1);
+        assert.equal(r.screen, "Wait");
+    });
+
+    it("rejected when dead", () => {
+        const s = makeTestState({ dead: true });
+        const r = applyAction(s, { type: "wait" }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+});
+
+describe("applyAction eat", () => {
+    it("reduces hunger at rest area", () => {
+        const restPos = GALLERIES_PER_SEGMENT;
+        const s = makeTestState({ position: restPos, hunger: 50 });
+        const r = applyAction(s, { type: "eat" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(s.hunger < 50, "hunger should decrease");
+    });
+
+    it("rejected when not at rest area", () => {
+        const s = makeTestState({ position: 5n, hunger: 50 });
+        const r = applyAction(s, { type: "eat" }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+
+    it("rejected when lights off", () => {
+        const restPos = GALLERIES_PER_SEGMENT;
+        const s = makeTestState({ position: restPos, lightsOn: false });
+        const r = applyAction(s, { type: "eat" }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+});
+
+describe("applyAction drink", () => {
+    it("reduces thirst at rest area", () => {
+        const restPos = GALLERIES_PER_SEGMENT;
+        const s = makeTestState({ position: restPos, thirst: 50 });
+        const r = applyAction(s, { type: "drink" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(s.thirst < 50, "thirst should decrease");
+    });
+});
+
+describe("applyAction alcohol", () => {
+    it("applies at rest area and checks despairing clear", () => {
+        const restPos = GALLERIES_PER_SEGMENT;
+        const s = makeTestState({ position: restPos, morale: 30, despairing: true });
+        const r = applyAction(s, { type: "alcohol" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        // Alcohol gives morale boost, shouldClearDespairing checks if morale > threshold
+        assert.ok(s.morale > 30, "morale should increase");
+    });
+});
+
 describe("applyAction move", () => {
     it("moves right and advances one tick", () => {
         const s = makeTestState({ position: 5n });
