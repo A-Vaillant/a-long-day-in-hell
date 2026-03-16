@@ -321,3 +321,29 @@ describe("applyAction fall_wait", () => {
         assert.ok(s.floor < floorBefore, "should have fallen");
     });
 });
+
+describe("applyAction social actions", () => {
+    it("talk returns unresolved without world", () => {
+        const s = makeTestState();
+        const r = applyAction(s, { type: "talk", npcId: 0, approach: "kind" }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+
+    it("spend_time returns unresolved without world", () => {
+        const s = makeTestState();
+        const r = applyAction(s, { type: "spend_time", npcId: 0 }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+
+    it("recruit returns unresolved without world", () => {
+        const s = makeTestState();
+        const r = applyAction(s, { type: "recruit", npcId: 0 }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+
+    it("dismiss returns unresolved without world", () => {
+        const s = makeTestState();
+        const r = applyAction(s, { type: "dismiss", npcId: 0 }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+});

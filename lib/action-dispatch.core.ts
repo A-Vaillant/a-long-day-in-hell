@@ -25,6 +25,8 @@ import { availableMovesMask, moveAllowed, applyMoveInPlace, isRestArea, type Loc
 import { mercyKiosk } from "./library.core.ts";
 import { advanceTick, isLightsOn, TICKS_PER_HOUR } from "./tick.core.ts";
 import * as EventsCore from "./events.core.ts";
+import { talkTo, spendTime as spendTimeCore, recruit as recruitCore } from "./interaction.core.ts";
+import { dismiss as dismissCore } from "./actions.core.ts";
 
 // --- Interfaces ---
 
@@ -349,6 +351,65 @@ export function applyAction(
             if (state.dead) return { resolved: true, screen: "Death", tickEvents, ticksConsumed: 1 };
             if (!state.falling) return { resolved: true, screen: "Corridor", tickEvents, ticksConsumed: 1 };
             return { resolved: true, screen: "Falling", tickEvents, ticksConsumed: 1 };
+        }
+
+        case "talk": {
+            if (state.dead) return unresolved();
+            if (!ctx.world || !ctx.resolveEntity || !ctx.playerEntity) return unresolved();
+            const npcId = (action as any).npcId as number;
+            const approach = (action as any).approach as string;
+            const npcEnt = ctx.resolveEntity(npcId);
+            if (npcEnt === undefined) return unresolved();
+            const result = talkTo(ctx.world, ctx.playerEntity, npcEnt, approach as any, state.tick);
+            if (!result.success) return { resolved: false, tickEvents: [], ticksConsumed: 0, data: result };
+            // Advance 2 ticks for conversation
+            const ev1 = advanceTick({ tick: state.tick, day: state.day }, 2);
+            state.tick = ev1.state.tick; state.day = ev1.state.day;
+            state.lightsOn = isLightsOn(state.tick);
+            return { resolved: true, tickEvents: ev1.events, ticksConsumed: 2, data: result };
+        }
+
+        case "spend_time": {
+            if (state.dead) return unresolved();
+            if (!ctx.world || !ctx.resolveEntity || !ctx.playerEntity) return unresolved();
+            const npcId = (action as any).npcId as number;
+            const npcEnt = ctx.resolveEntity(npcId);
+            if (npcEnt === undefined) return unresolved();
+            const result = spendTimeCore(ctx.world, ctx.playerEntity, npcEnt, state.tick);
+            if (!result.success) return { resolved: false, tickEvents: [], ticksConsumed: 0, data: result };
+            const ticks = result.ticksSpent;
+            const ev = advanceTick({ tick: state.tick, day: state.day }, ticks);
+            state.tick = ev.state.tick; state.day = ev.state.day;
+            state.lightsOn = isLightsOn(state.tick);
+            return { resolved: true, tickEvents: ev.events, ticksConsumed: ticks, data: result };
+        }
+
+        case "recruit": {
+            if (state.dead) return unresolved();
+            if (!ctx.world || !ctx.resolveEntity || !ctx.playerEntity) return unresolved();
+            const npcId = (action as any).npcId as number;
+            const npcEnt = ctx.resolveEntity(npcId);
+            if (npcEnt === undefined) return unresolved();
+            const result = recruitCore(ctx.world, ctx.playerEntity, npcEnt, state.tick);
+            if (!result.success) return { resolved: false, tickEvents: [], ticksConsumed: 0, data: result };
+            const ev = advanceTick({ tick: state.tick, day: state.day }, 1);
+            state.tick = ev.state.tick; state.day = ev.state.day;
+            state.lightsOn = isLightsOn(state.tick);
+            return { resolved: true, tickEvents: ev.events, ticksConsumed: 1, data: result };
+        }
+
+        case "dismiss": {
+            if (state.dead) return unresolved();
+            if (!ctx.world || !ctx.resolveEntity || !ctx.playerEntity) return unresolved();
+            const npcId = (action as any).npcId as number;
+            const npcEnt = ctx.resolveEntity(npcId);
+            if (npcEnt === undefined) return unresolved();
+            const result = dismissCore(ctx.world, ctx.playerEntity, npcEnt);
+            if (result.type !== "ok") return { resolved: false, tickEvents: [], ticksConsumed: 0, data: result };
+            const ev = advanceTick({ tick: state.tick, day: state.day }, 1);
+            state.tick = ev.state.tick; state.day = ev.state.day;
+            state.lightsOn = isLightsOn(state.tick);
+            return { resolved: true, tickEvents: ev.events, ticksConsumed: 1, data: result };
         }
 
         case "sleep": {
