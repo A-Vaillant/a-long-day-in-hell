@@ -16,22 +16,16 @@ import type { Xoshiro128ss } from "./prng.core.ts";
 import * as Surv from "./survival.core.ts";
 import type { SurvivalStats } from "./survival.core.ts";
 import * as Tick from "./tick.core.ts";
-import type { TickEvent } from "./tick.core.ts";
+import { isResetHour } from "./tick.core.ts";
 import * as Lib from "./library.core.ts";
-import { mercyKiosk } from "./library.core.ts";
 import type { Location, Direction } from "./library.core.ts";
-import * as BookCore from "./book.core.ts";
 import * as LifeStoryCore from "./lifestory.core.ts";
 import * as EventsCore from "./events.core.ts";
 import type { EventCard } from "./events.core.ts";
 import * as NpcCore from "./npc.core.ts";
 import type { NPC, DialogueTable } from "./npc.core.ts";
-import { applyAmbientDrain, shouldClearDespairing, isReadingBlocked, applySleepWithDespairing } from "./despairing.core.ts";
 import type { Action } from "./action.core.ts";
-
-// Auto-drink threshold — aligned with NPC needs system (needs.core.ts).
-// Hunger stays manual: starvation is a real consequence of mindless walking.
-const AUTO_DRINK_THRESHOLD = 50;
+import { applyAction as dispatchAction, type ActionContext } from "./action-dispatch.core.ts";
 
 /* ---- Strategy interface ----
  *
@@ -304,9 +298,8 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     // Mark start segment
     gs.segmentsVisited = 1;
 
-    // Pre-allocated objects for hot-loop reuse (zero-alloc tick advancement)
-    const _tickState: Tick.TickState = { tick: 0, day: 1 };
-    const _tickEvents: TickEvent[] = new Array(4);  // max 3 events per call (lightsOut + resetHour + dawn)
+    // Action context for shared dispatch
+    const simCtx: ActionContext = { seed, eventCards };
 
     /** Convert flat gs stats to SurvivalStats for survival core functions. */
     function statsFromState(): SurvivalStats {
@@ -358,179 +351,58 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         return gsView;
     }
 
-    /** Apply a single action. Returns true if action consumed a tick. */
+    /** Apply a single action. Returns true if action was resolved. */
     function applyAction(action: Action): boolean {
-        if (gs.dead || gs.won) return false;
-
-        switch (action.type) {
-            case "move": {
-                const mask = Lib.availableMovesMask(gs.position, gs.floor);
-                if (!Lib.moveAllowed(mask, action.dir)) return false;
-                _loc.side = gs.side; _loc.position = gs.position; _loc.floor = gs.floor;
-                Lib.applyMoveInPlace(_loc, action.dir);
-                gs.side = _loc.side;
-                gs.position = _loc.position;
-                gs.floor = _loc.floor;
-                gs.totalMoves++;
-                gs.segmentsVisited++;
-
-                // Movement tick
-                advanceOneTick();
-
-                // Auto-drink at rest area kiosks (mirrors NPC needs + player actions.js).
-                // Hunger stays manual — starvation is the cost of mindless walking.
-                if (Lib.isRestArea(gs.position) && gs.lightsOn) {
-                    if (gs.thirst >= AUTO_DRINK_THRESHOLD) applyStats(Surv.applyDrink(statsFromState()));
+        // Sleep: loop one-hour calls until done (shared dispatch does one hour at a time)
+        if (action.type === "sleep") {
+            const inBedroom = Lib.isRestArea(gs.position);
+            const startDay = gs.day;
+            let slept = false;
+            while (!isResetHour(gs.tick) && !gs.dead && !gs.won && gs.day === startDay) {
+                const result = dispatchAction(gs as any, { type: "sleep", inBedroom }, simCtx);
+                if (!result.resolved) break;
+                slept = true;
+                for (const ev of result.tickEvents) {
+                    if (ev === "dawn") onDawn();
                 }
-
-                // Mercy kiosk: first arrival at any kiosk adjacent to target book (one-shot)
-                if (Lib.isRestArea(gs.position) && !gs._mercyKioskDone) {
-                    const mercy = mercyKiosk(
-                        { side: gs.side, position: gs.position, floor: gs.floor },
-                        gs.targetBook,
-                    );
-                    if (mercy) {
-                        gs._mercyKiosks[mercy] = true;
-                        gs._mercyKioskDone = true;
-                        applyStats(Surv.applyMercyKiosk(statsFromState()));
-                        gs.despairDays = 0;
-                    }
-                }
-
-                // Event draw
-                if (eventCards.length > 0) {
-                    const evRng = seedFromString(seed + ":ev:" + gs.totalMoves);
-                    const draw = EventsCore.drawEvent(gs.eventDeck, eventCards, evRng);
-                    gs.eventDeck = draw.deck;
-                    gs.lastEvent = draw.event;
-                    if (draw.event && draw.event.morale) {
-                        gs.morale = Math.max(0, Math.min(100, gs.morale + draw.event.morale));
-                    }
-                    if (opts.onEvent && draw.event) opts.onEvent(draw.event, gameState());
-                }
-                return true;
             }
-
-            case "wait":
-                advanceOneTick();
-                return true;
-
-            case "sleep": {
-                // Sleep advances time by rest-of-night or a few hours
-                const sleepTicks = gs.lightsOn ? Tick.TICKS_PER_HOUR * 2 : Tick.ticksUntilDawn(gs.tick);
-                for (let i = 0; i < sleepTicks; i++) {
-                    if (i % Tick.TICKS_PER_HOUR === 0) {
-                        applySleepHour();
-                    }
-                    advanceTime(1);
-                }
-                return true;
-            }
-
-            case "eat":
-                if (!Lib.isRestArea(gs.position)) return false;
-                if (!gs.lightsOn) return false;
-                applyStats(Surv.applyEat(statsFromState()));
-                advanceOneTick();
-                return true;
-
-            case "drink":
-                if (!Lib.isRestArea(gs.position)) return false;
-                if (!gs.lightsOn) return false;
-                applyStats(Surv.applyDrink(statsFromState()));
-                advanceOneTick();
-                return true;
-
-            case "alcohol":
-                if (!Lib.isRestArea(gs.position)) return false;
-                if (!gs.lightsOn) return false;
-                applyStats(Surv.applyAlcohol(statsFromState()));
-                if (gs.despairing && shouldClearDespairing(gs.morale)) {
-                    gs.despairing = false;
-                }
-                advanceOneTick();
-                return true;
-
-            case "read_book": {
-                if (!gs.lightsOn) return false;
-                if (Lib.isRestArea(gs.position)) return false;
-                const bi = action.bookIndex;
-                if (bi < 0 || bi >= Lib.BOOKS_PER_GALLERY) return false;
-
-                // Despairing read block
-                const readRng = seedFromString(seed + ":read:" + gs.totalMoves + ":" + bi);
-                if (isReadingBlocked(gs.despairing, readRng.next())) return false;
-
-                const bookKey = `${gs.side}:${gs.position}:${gs.floor}:${bi}`;
-                gs.booksRead.add(bookKey);
-
-                const readResult = Surv.applyReadNonsense(statsFromState(), gs.nonsensePagesRead);
-                applyStats(readResult.stats);
-                gs.nonsensePagesRead = readResult.nonsensePagesRead;
-
-                advanceOneTick();
-                return true;
-            }
-
-            case "take_book": {
-                if (!gs.lightsOn) return false;
-                const bi2 = action.bookIndex;
-                if (bi2 < 0 || bi2 >= Lib.BOOKS_PER_GALLERY) return false;
-                gs.heldBook = { side: gs.side, position: gs.position, floor: gs.floor, bookIndex: bi2 };
-                return true; // no tick cost
-            }
-
-            case "submit": {
-                if (!Lib.isRestArea(gs.position)) return false;
-                if (!gs.heldBook) return false;
-                gs.submissionsAttempted++;
-                const hb = gs.heldBook;
-                const tb = gs.targetBook;
-                if (hb.side === tb.side && hb.position === tb.position &&
-                    hb.floor === tb.floor && hb.bookIndex === tb.bookIndex) {
-                    gs.won = true;
-                }
-                if (!gs.won) gs.heldBook = null; // wrong book consumed
-                advanceOneTick();
-                return true;
-            }
-
-            default:
-                return false;
-        }
-    }
-
-    function advanceOneTick(): void {
-        // Apply survival depletion
-        applyStats(Surv.applyMoveTick(statsFromState()));
-
-        // Ambient morale drain
-        gs.morale = applyAmbientDrain(gs.morale);
-        if (gs.morale <= 0) gs.despairing = true;
-
-        // Death check
-        if (gs.dead) {
-            gs.deathCause = gs.mortality <= 0 ? "mortality" : "unknown";
-            if (gs.thirst >= 100 && gs.hunger >= 100) gs.deathCause = "starvation_dehydration";
-            else if (gs.thirst >= 100) gs.deathCause = "dehydration";
-            else if (gs.hunger >= 100) gs.deathCause = "starvation";
+            return slept;
         }
 
-        advanceTime(1);
+        const result = dispatchAction(gs as any, action, simCtx);
+        if (!result.resolved) return false;
+
+        // Track booksRead in simulator (shared dispatch opens the book but doesn't track Set)
+        if (action.type === "read_book" && result.resolved && !gs._readBlocked) {
+            const bookKey = `${gs.side}:${gs.position}:${gs.floor}:${(action as any).bookIndex}`;
+            gs.booksRead.add(bookKey);
+        }
+
+        // segmentsVisited tracks unique gallery visits (increment on move)
+        if (action.type === "move" && result.resolved) {
+            gs.segmentsVisited++;
+        }
+
+        // Fire onEvent callback (shared dispatch updates state.lastEvent but not the callback)
+        if (action.type === "move" && opts.onEvent && gs.lastEvent) {
+            opts.onEvent(gs.lastEvent, gameState());
+        }
+
+        for (const ev of result.tickEvents) {
+            if (ev === "dawn") onDawn();
+        }
+
+        return true;
     }
 
-    function advanceTime(n: number): void {
-        _tickState.tick = gs.tick;
-        _tickState.day = gs.day;
-        const evCount = Tick.advanceTickMut(_tickState, n, _tickEvents);
-        gs.tick = _tickState.tick;
-        gs.day = _tickState.day;
+    /** Advance time by one tick while dead (waiting for resurrection at dawn). */
+    function advanceDeadTick(): void {
+        const result = Tick.advanceTick({ tick: gs.tick, day: gs.day }, 1);
+        gs.tick = result.state.tick;
+        gs.day = result.state.day;
         gs.lightsOn = Tick.isLightsOn(gs.tick);
-
-        for (let i = 0; i < evCount; i++) {
-            if (_tickEvents[i] === "dawn") {
-                onDawn();
-            }
+        for (const ev of result.events) {
+            if (ev === "dawn") onDawn();
         }
     }
 
@@ -560,11 +432,6 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         if (opts.onDay) opts.onDay(gameState());
     }
 
-    function applySleepHour(): void {
-        const inBedroom = Lib.isRestArea(gs.position);
-        applyStats(applySleepWithDespairing(statsFromState(), (s) => Surv.applySleep(s, inBedroom)));
-    }
-
     /** Run the simulation to completion. */
     function run(): SimResult {
         const dayLog: unknown[] = [];
@@ -576,7 +443,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
 
             // If dead, just advance time until dawn
             if (gs.dead) {
-                advanceTime(1);
+                advanceDeadTick();
                 continue;
             }
 
