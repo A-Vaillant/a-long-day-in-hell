@@ -257,15 +257,15 @@ export function applyDawnReset(nonsensePagesRead: number, despairing: boolean, d
     };
 }
 
-/** Morale boost granted at a mercy kiosk (adjacent to your book). */
-export const MERCY_KIOSK_MORALE: number = 60;
-
 /**
- * Apply the morale boost from reaching a kiosk adjacent to your book.
- * Clears despairing — you can feel it, your book is close.
+ * Apply the mercy kiosk effect: full morale, clear despairing.
+ * You can feel it — your book is close. Everything lifts.
+ *
+ * Callers must also reset despairDays/_despairDays to 0
+ * so the visual desaturation clears immediately.
  */
 export function applyMercyKiosk(stats: SurvivalStats): SurvivalStats {
-    stats.morale = Math.min(STAT_MAX, stats.morale + MERCY_KIOSK_MORALE);
+    stats.morale = STAT_MAX;
     stats.despairing = false;
     return stats;
 }

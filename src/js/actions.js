@@ -104,18 +104,20 @@ function resolveMove(dir) {
         if (state.thirst >= AUTO_DRINK_THRESHOLD) Surv.onDrink();
     }
 
-    // Mercy kiosk: first arrival at a kiosk adjacent to your book
+    // Mercy kiosk: first arrival at any kiosk adjacent to your book (one-shot)
     state._mercyArrival = null;
-    const mercy = mercyKiosk(
-        { side: state.side, position: state.position, floor: state.floor },
-        state.targetBook,
-    );
-    if (mercy) {
-        if (!state._mercyKiosks) state._mercyKiosks = {};
-        if (!state._mercyKiosks[mercy]) {
+    if (!state._mercyKioskDone) {
+        const mercy = mercyKiosk(
+            { side: state.side, position: state.position, floor: state.floor },
+            state.targetBook,
+        );
+        if (mercy) {
+            if (!state._mercyKiosks) state._mercyKiosks = {};
             state._mercyKiosks[mercy] = true;
+            state._mercyKioskDone = true;
             applyMercyKiosk(state);
             state._mercyArrival = mercy;
+            state._despairDays = 0;
         }
     }
 

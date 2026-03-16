@@ -174,6 +174,7 @@ interface InternalState {
     segmentsVisited: number;
     booksRead: Set<string>;
     _mercyKiosks: Record<string, boolean>;
+    _mercyKioskDone: boolean;
 }
 
 export interface SimulationOpts {
@@ -276,6 +277,7 @@ export function createSimulation(opts: SimulationOpts): Simulation {
         segmentsVisited: 0,
         booksRead: new Set(),
         _mercyKiosks: {},
+        _mercyKioskDone: false,
     };
 
     // Spawn NPCs
@@ -355,15 +357,18 @@ export function createSimulation(opts: SimulationOpts): Simulation {
                     if (gs.stats.thirst >= AUTO_DRINK_THRESHOLD) gs.stats = Surv.applyDrink(gs.stats);
                 }
 
-                // Mercy kiosk: first arrival at a kiosk adjacent to target book
-                if (Lib.isRestArea(gs.position)) {
+                // Mercy kiosk: first arrival at any kiosk adjacent to target book (one-shot)
+                if (Lib.isRestArea(gs.position) && !gs._mercyKioskDone) {
                     const mercy = mercyKiosk(
                         { side: gs.side, position: gs.position, floor: gs.floor },
                         gs.targetBook,
                     );
-                    if (mercy && !gs._mercyKiosks[mercy]) {
+                    if (mercy) {
                         gs._mercyKiosks[mercy] = true;
+                        gs._mercyKioskDone = true;
                         gs.stats = Surv.applyMercyKiosk(gs.stats);
+                        gs.despairing = gs.stats.despairing;
+                        gs.despairDays = 0;
                     }
                 }
 

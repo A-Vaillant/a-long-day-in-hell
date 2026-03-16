@@ -2,7 +2,6 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createSimulation } from "../lib/simulator.core.ts";
 import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
-import { MERCY_KIOSK_MORALE } from "../lib/survival.core.ts";
 
 describe("simulator mercy kiosk", () => {
     // Book at position 5 (gallery in first segment).
@@ -31,9 +30,9 @@ describe("simulator mercy kiosk", () => {
         sim.run();
         assert.strictEqual(sim.state()._mercyKiosks["left"], true,
             "should have detected left mercy kiosk");
-        // Morale jumped from 50 → 90, minus ambient drain over 1 day (~8 pts).
-        assert.ok(sim.state().stats.morale > 70,
-            `morale should have boosted well above 50 (got ${sim.state().stats.morale})`);
+        // Morale set to 100, minus ambient drain over 1 day (~8 pts).
+        assert.ok(sim.state().stats.morale > 85,
+            `morale should be near 100 after mercy (got ${sim.state().stats.morale})`);
     });
 
     it("does not grant mercy boost at non-adjacent kiosk", () => {
@@ -80,9 +79,8 @@ describe("simulator mercy kiosk", () => {
         });
         sim.run();
         assert.strictEqual(sim.state()._mercyKiosks["left"], true);
-        // If it fired 3 times, morale would be 30 + 120 = 150 (capped to 100).
-        // If once, 30 + 40 = 70 minus drain. Should be well below 100.
+        // Mercy fills to 100. Ambient drain over 2 days should bring it below 100.
         assert.ok(sim.state().stats.morale < 100,
-            `morale ${sim.state().stats.morale} should be below 100 (one boost, not three)`);
+            `morale ${sim.state().stats.morale} should be below 100 after drain`);
     });
 });
