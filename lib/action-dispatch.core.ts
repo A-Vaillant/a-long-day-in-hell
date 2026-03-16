@@ -16,7 +16,9 @@ import type { Entity, World } from "./ecs.core.ts";
 
 import { seedFromString } from "./prng.core.ts";
 import type { SurvivalStats } from "./survival.core.ts";
-import { applyMoveTick, applyDrink, applyMercyKiosk, applyEat, applyAlcohol } from "./survival.core.ts";
+import { applyMoveTick, applyDrink, applyMercyKiosk, applyEat, applyAlcohol, applyReadNonsense } from "./survival.core.ts";
+import { isReadingBlocked } from "./despairing.core.ts";
+import { BOOKS_PER_GALLERY } from "./library.core.ts";
 import { applyAmbientDrain, shouldClearDespairing } from "./despairing.core.ts";
 import { availableMovesMask, moveAllowed, applyMoveInPlace, isRestArea, type Location, type Direction } from "./library.core.ts";
 import { mercyKiosk } from "./library.core.ts";
@@ -228,6 +230,67 @@ export function applyAction(
             }
             const tickEvents = advanceOneTick(state);
             return { resolved: true, screen: "Kiosk Get Alcohol", tickEvents, ticksConsumed: 1 };
+        }
+
+        case "read_book": {
+            if (state.dead || state.won) return unresolved();
+            if (!state.lightsOn) return unresolved();
+            if (isRestArea(state.position)) return unresolved();
+            const bookIndex = (action as any).bookIndex as number;
+            if (bookIndex < 0 || bookIndex >= BOOKS_PER_GALLERY) return unresolved();
+
+            // Despairing read block
+            const readRng = seedFromString(ctx.seed + ":read:" + state.totalMoves + ":" + bookIndex);
+            if (isReadingBlocked(state.despairing, readRng.next())) {
+                state._readBlocked = true;
+                return { resolved: true, screen: "Corridor", tickEvents: [], ticksConsumed: 0 };
+            }
+
+            // Open book
+            state.openBook = { side: state.side, position: state.position, floor: state.floor, bookIndex };
+            state.openPage = 1;
+
+            // Track dwell history
+            const dwellKey = state.side + ":" + state.position + ":" + state.floor + ":" + bookIndex;
+            state.dwellHistory[dwellKey] = true;
+
+            // Apply nonsense reading morale penalty
+            const readResult = applyReadNonsense(statsFromState(state), state.nonsensePagesRead);
+            applyStats(state, readResult.stats);
+            state.nonsensePagesRead = readResult.nonsensePagesRead;
+
+            return { resolved: true, screen: "Shelf Open Book", tickEvents: [], ticksConsumed: 0 };
+        }
+
+        case "take_book": {
+            if (state.dead || state.won) return unresolved();
+            if (!state.lightsOn) return unresolved();
+            const bi = (action as any).bookIndex as number;
+            if (bi < 0 || bi >= BOOKS_PER_GALLERY) return unresolved();
+            state.heldBook = { side: state.side, position: state.position, floor: state.floor, bookIndex: bi };
+            return { resolved: true, tickEvents: [], ticksConsumed: 0 };
+        }
+
+        case "drop_book": {
+            state.heldBook = null;
+            return { resolved: true, tickEvents: [], ticksConsumed: 0 };
+        }
+
+        case "submit": {
+            if (state.dead || state.won) return unresolved();
+            if (!isRestArea(state.position) || !state.heldBook) return unresolved();
+            state.submissionsAttempted++;
+            state._submissionWon = false;
+            const hb = state.heldBook;
+            const tb = state.targetBook;
+            if (hb.side === tb.side && hb.position === tb.position &&
+                hb.floor === tb.floor && hb.bookIndex === tb.bookIndex) {
+                state.won = true;
+                state._submissionWon = true;
+            }
+            if (!state.won) state.heldBook = null;
+            const tickEvents = advanceOneTick(state);
+            return { resolved: true, screen: "Submission Attempt", tickEvents, ticksConsumed: 1 };
         }
 
         default:

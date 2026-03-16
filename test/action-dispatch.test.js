@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { applyAction } from "../lib/action-dispatch.core.ts";
-import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
+import { GALLERIES_PER_SEGMENT, BOOKS_PER_GALLERY } from "../lib/library.core.ts";
 
 function makeTestState(overrides = {}) {
     return {
@@ -150,5 +150,90 @@ describe("applyAction move", () => {
         const s = makeTestState({ position: 5n });
         const r = applyAction(s, { type: "move", dir: "right" }, makeTestCtx());
         assert.equal(r.screen, "Corridor");
+    });
+});
+
+describe("applyAction read_book", () => {
+    it("opens book and applies morale penalty", () => {
+        const s = makeTestState({ position: 5n, morale: 80 });
+        const r = applyAction(s, { type: "read_book", bookIndex: 3 }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.equal(r.screen, "Shelf Open Book");
+        assert.deepEqual(s.openBook, { side: 0, position: 5n, floor: 10n, bookIndex: 3 });
+        assert.equal(s.openPage, 1);
+        // Should have applied nonsense reading penalty
+        assert.ok(s.morale < 80 || s.nonsensePagesRead > 0,
+            "should apply read penalty or track pages");
+    });
+
+    it("rejected at rest area", () => {
+        const s = makeTestState({ position: 0n });
+        const r = applyAction(s, { type: "read_book", bookIndex: 0 }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+
+    it("rejected when lights off", () => {
+        const s = makeTestState({ position: 5n, lightsOn: false });
+        const r = applyAction(s, { type: "read_book", bookIndex: 0 }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+
+    it("tracks dwell history", () => {
+        const s = makeTestState({ position: 5n });
+        applyAction(s, { type: "read_book", bookIndex: 7 }, makeTestCtx());
+        assert.equal(s.dwellHistory["0:5:10:7"], true);
+    });
+});
+
+describe("applyAction take_book", () => {
+    it("sets heldBook with no tick cost", () => {
+        const s = makeTestState({ position: 5n });
+        const r = applyAction(s, { type: "take_book", bookIndex: 3 }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.equal(r.ticksConsumed, 0);
+        assert.deepEqual(s.heldBook, { side: 0, position: 5n, floor: 10n, bookIndex: 3 });
+    });
+});
+
+describe("applyAction drop_book", () => {
+    it("clears heldBook", () => {
+        const s = makeTestState({ heldBook: { side: 0, position: 5n, floor: 10n, bookIndex: 3 } });
+        const r = applyAction(s, { type: "drop_book" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.equal(s.heldBook, null);
+    });
+});
+
+describe("applyAction submit", () => {
+    it("wins when book matches target", () => {
+        const target = { side: 0, position: 100n, floor: 50n, bookIndex: 5 };
+        const s = makeTestState({ position: 0n, heldBook: { ...target }, targetBook: target });
+        const r = applyAction(s, { type: "submit" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.equal(s.won, true);
+        assert.equal(s._submissionWon, true);
+    });
+
+    it("consumes wrong book on failed submission", () => {
+        const target = { side: 0, position: 100n, floor: 50n, bookIndex: 5 };
+        const wrong = { side: 0, position: 100n, floor: 50n, bookIndex: 6 };
+        const s = makeTestState({ position: 0n, heldBook: wrong, targetBook: target });
+        const r = applyAction(s, { type: "submit" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.equal(s.won, false);
+        assert.equal(s._submissionWon, false);
+        assert.equal(s.heldBook, null);
+    });
+
+    it("rejected without held book", () => {
+        const s = makeTestState({ position: 0n });
+        const r = applyAction(s, { type: "submit" }, makeTestCtx());
+        assert.equal(r.resolved, false);
+    });
+
+    it("rejected when not at rest area", () => {
+        const s = makeTestState({ position: 5n, heldBook: { side: 0, position: 5n, floor: 10n, bookIndex: 0 } });
+        const r = applyAction(s, { type: "submit" }, makeTestCtx());
+        assert.equal(r.resolved, false);
     });
 });
