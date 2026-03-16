@@ -391,10 +391,10 @@ Engine.register("Corridor", {
                     // Searched books: uniform muted tone (checked off, done)
                     spine.style.background = "hsl(30, 4%, 22%)";
                 } else {
-                    // Color drains continuously: full color above 70 morale,
+                    // Color drains continuously: full color above 45 morale,
                     // desaturates to grey below, lightness converges to average when despairing.
                     const m = state.morale || 0;
-                    const moraleFade = m >= 70 ? 1 : Math.max(0, m / 70);
+                    const moraleFade = m >= 45 ? 1 : Math.max(0, m / 45);
                     // Despair deepening: days of despair flatten toward uniform grey
                     const dd = state._despairDays || 0;
                     const despairFade = dd > 0 ? Math.min(1, dd / 100) : 0;

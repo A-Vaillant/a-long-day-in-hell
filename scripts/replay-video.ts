@@ -97,26 +97,25 @@ async function main() {
 
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
-        viewport: { width: 1280, height: 1024 },
+        viewport: { width: 1920, height: 1080 },
         recordVideo: {
             dir: OUT_DIR,
-            size: { width: 1280, height: 1024 },
+            size: { width: 1920, height: 1080 },
         },
     });
 
     const page = await context.newPage();
 
-    // Prevent white flash on load
-    await page.addInitScript(() => {
-        document.addEventListener("DOMContentLoaded", () => {
-            document.documentElement.style.background = "#0a0806";
-        });
-    });
+    // Start recording on a black page to avoid white flash / FOUC
+    await page.goto("data:text/html,<html style='background:#0a0806'></html>");
+    await page.waitForTimeout(300);
 
-    // Start with normal game flow (Life Story screen)
+    // Load the game
     const url = `file://${DIST}?seed=${seed}`;
-    await page.goto(url);
+    await page.goto(url, { waitUntil: "load" });
     await page.waitForSelector("#lifestory-view", { timeout: 10000 });
+    // Wait for CSS to fully apply before any state overrides
+    await page.waitForTimeout(2000);
     console.log("Game loaded.");
 
     // Override targetBook and position to match playthrough coordinates
@@ -139,7 +138,8 @@ async function main() {
         state.lifeStory = ${JSON.stringify(log.lifeStory)};
         Engine.goto("Life Story");
     `);
-    // Hold on Life Story
+    // Let re-render settle, then hold
+    await page.waitForTimeout(500);
     await page.waitForTimeout(6000);
 
     // Transition to Corridor
@@ -148,8 +148,45 @@ async function main() {
 
     let currentPhase = "navigate";
     let bookCount = 0;
+    let lastDay = 0;
     const totalBooks = keyframes.filter((kf: any) => kf.type === "book").length;
     const navKeyframes = keyframes.filter((kf: any) => kf.type === "day" || (kf.type === "phase" && kf.phase === "navigate")).length;
+
+    // Sleep/wake sequence: retreat to kiosk, lights out, sleep, dawn, resume
+    async function nightLoop(kf: any) {
+        // Snap to the nearest kiosk (round down to multiple of 17)
+        const pos = BigInt(kf.position);
+        const G = 17n;
+        const mod = ((pos % G) + G) % G;
+        const kioskPos = pos - mod;
+
+        // Walk back to kiosk (brief corridor at kiosk position)
+        await page.evaluate(`
+            state.position = ${kioskPos}n;
+            state.lightsOn = true;
+            state.day = ${kf.day - 1};
+            state.tick = 950;
+            Engine.goto("Corridor");
+        `);
+        await page.waitForTimeout(800);
+
+        // Lights out
+        await page.evaluate(`
+            state.lightsOn = false;
+            state.tick = 960;
+            Engine.goto("Corridor");
+        `);
+        await page.waitForTimeout(1200);
+
+        // Dawn — still at kiosk
+        await page.evaluate(`
+            state.lightsOn = true;
+            state.day = ${kf.day};
+            state.tick = 0;
+            Engine.goto("Corridor");
+        `);
+        await page.waitForTimeout(800);
+    }
 
     for (let i = 0; i < keyframes.length; i++) {
         const kf = keyframes[i];
@@ -172,14 +209,22 @@ async function main() {
         // --- Mercy kiosk ---
         if (kf.type === "mercy") {
             const side = kf.mercySide;
+            await page.evaluate(corridorJS(kf));
             await page.evaluate(`
                 if (!state._mercyKiosks) state._mercyKiosks = {};
                 state._mercyKiosks["${side}"] = true;
                 state._mercyArrival = "${side}";
                 state.despairing = false;
+                Engine.goto("Corridor");
             `);
-            await page.evaluate(corridorJS(kf));
             await page.waitForTimeout(5000);
+            lastDay = kf.day;
+            // Transition to a gallery view so we don't jump straight to a book
+            const nextBook = keyframes.slice(i + 1).find((k: any) => k.type === "book");
+            if (nextBook) {
+                await page.evaluate(corridorJS(nextBook));
+                await page.waitForTimeout(1500);
+            }
             continue;
         }
 
@@ -254,6 +299,12 @@ async function main() {
 
         // --- Book read during sweep ---
         if (kf.type === "book") {
+            // Day boundary: retreat to kiosk, sleep, resume
+            if (lastDay > 0 && kf.day !== lastDay) {
+                await nightLoop(kf);
+            }
+            lastDay = kf.day;
+
             bookCount++;
             const remaining = totalBooks - bookCount;
             // Track opened book in dwellHistory
@@ -334,7 +385,7 @@ async function main() {
 
     console.log("Converting to MP4...");
     try {
-        execSync(`ffmpeg -y -i "${webmDest}" -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p "${mp4Dest}"`, { stdio: "pipe" });
+        execSync(`ffmpeg -y -ss 3.5 -i "${webmDest}" -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p "${mp4Dest}"`, { stdio: "pipe" });
         const size = fs.statSync(mp4Dest).size;
         console.log(`Video saved: ${mp4Dest} (${(size / 1024 / 1024).toFixed(1)}MB)`);
         // Keep the webm too in case it's useful
