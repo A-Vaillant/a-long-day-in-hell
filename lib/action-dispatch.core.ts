@@ -14,6 +14,15 @@ import type { FallingState } from "./chasm.core.ts";
 import type { EventCard } from "./events.core.ts";
 import type { Entity, World } from "./ecs.core.ts";
 
+import { seedFromString } from "./prng.core.ts";
+import type { SurvivalStats } from "./survival.core.ts";
+import { applyMoveTick, applyDrink, applyMercyKiosk } from "./survival.core.ts";
+import { applyAmbientDrain, shouldClearDespairing } from "./despairing.core.ts";
+import { availableMovesMask, moveAllowed, applyMoveInPlace, isRestArea, type Location, type Direction } from "./library.core.ts";
+import { mercyKiosk } from "./library.core.ts";
+import { advanceTick, isLightsOn } from "./tick.core.ts";
+import * as EventsCore from "./events.core.ts";
+
 // --- Interfaces ---
 
 export interface BookCoords {
@@ -84,6 +93,44 @@ function unresolved(): DispatchResult {
     return { resolved: false, tickEvents: [], ticksConsumed: 0 };
 }
 
+const AUTO_DRINK_THRESHOLD = 50;
+
+function statsFromState(s: GameState): SurvivalStats {
+    return {
+        hunger: s.hunger, thirst: s.thirst, exhaustion: s.exhaustion,
+        morale: s.morale, mortality: s.mortality,
+        despairing: s.despairing, dead: s.dead,
+    };
+}
+
+function applyStats(s: GameState, stats: SurvivalStats): void {
+    s.hunger = stats.hunger; s.thirst = stats.thirst; s.exhaustion = stats.exhaustion;
+    s.morale = stats.morale; s.mortality = stats.mortality;
+    s.despairing = stats.despairing; s.dead = stats.dead;
+}
+
+function advanceOneTick(s: GameState): TickEvent[] {
+    // Survival depletion
+    applyStats(s, applyMoveTick(statsFromState(s)));
+    // Ambient morale drain
+    s.morale = applyAmbientDrain(s.morale);
+    if (s.morale <= 0) s.despairing = true;
+    // Death check
+    if (s.mortality <= 0 || s.hunger >= 100 || s.thirst >= 100) {
+        s.dead = true;
+        if (s.mortality <= 0) s.deathCause = "mortality";
+        else if (s.thirst >= 100 && s.hunger >= 100) s.deathCause = "starvation_dehydration";
+        else if (s.thirst >= 100) s.deathCause = "dehydration";
+        else if (s.hunger >= 100) s.deathCause = "starvation";
+    }
+    // Advance time
+    const result = advanceTick({ tick: s.tick, day: s.day }, 1);
+    s.tick = result.state.tick;
+    s.day = result.state.day;
+    s.lightsOn = isLightsOn(s.tick);
+    return result.events;
+}
+
 // --- Main dispatch ---
 
 export function applyAction(
@@ -92,6 +139,64 @@ export function applyAction(
     ctx: ActionContext,
 ): DispatchResult {
     switch (action.type) {
+        case "move": {
+            if (state.dead || state.won) return unresolved();
+            const dir = (action as any).dir as Direction;
+            const mask = availableMovesMask(state.position, state.floor);
+            if (!moveAllowed(mask, dir)) return unresolved();
+
+            const loc: Location = { side: state.side, position: state.position, floor: state.floor };
+            applyMoveInPlace(loc, dir);
+            state.side = loc.side;
+            state.position = loc.position;
+            state.floor = loc.floor;
+            state._lastMove = dir;
+            state.totalMoves++;
+
+            // Directional exhaustion
+            if (dir === "up") state.exhaustion = Math.min(100, state.exhaustion + 1.5);
+            else if (dir === "down") state.exhaustion = Math.min(100, state.exhaustion + 0.75);
+
+            // Advance one tick (depletion + time)
+            const tickEvents = advanceOneTick(state);
+
+            // Auto-drink at rest area kiosks
+            if (isRestArea(state.position) && state.lightsOn) {
+                if (state.thirst >= AUTO_DRINK_THRESHOLD) {
+                    applyStats(state, applyDrink(statsFromState(state)));
+                }
+            }
+
+            // Mercy kiosk (one-shot)
+            state._mercyArrival = null;
+            if (!state._mercyKioskDone && isRestArea(state.position)) {
+                const mercy = mercyKiosk(
+                    { side: state.side, position: state.position, floor: state.floor },
+                    state.targetBook,
+                );
+                if (mercy) {
+                    state._mercyKiosks[mercy] = true;
+                    state._mercyKioskDone = true;
+                    applyStats(state, applyMercyKiosk(statsFromState(state)));
+                    state._mercyArrival = mercy;
+                    state._despairDays = 0;
+                }
+            }
+
+            // Event draw
+            if (ctx.eventCards.length > 0) {
+                const evRng = seedFromString(ctx.seed + ":ev:" + state.totalMoves);
+                const draw = EventsCore.drawEvent(state.eventDeck, ctx.eventCards, evRng);
+                state.eventDeck = draw.deck;
+                state.lastEvent = draw.event;
+                if (draw.event && draw.event.morale) {
+                    state.morale = Math.max(0, Math.min(100, state.morale + draw.event.morale));
+                }
+            }
+
+            return { resolved: true, screen: "Corridor", tickEvents, ticksConsumed: 1 };
+        }
+
         default:
             return unresolved();
     }
