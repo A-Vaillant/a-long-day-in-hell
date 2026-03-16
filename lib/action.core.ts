@@ -22,7 +22,7 @@ import type { Direction } from "./library.core.ts";
 
 export interface MoveAction { type: "move"; dir: Direction; }
 export interface WaitAction { type: "wait"; }
-export interface SleepAction { type: "sleep"; }
+export interface SleepAction { type: "sleep"; inBedroom?: boolean; }
 export interface EatAction { type: "eat"; }
 export interface DrinkAction { type: "drink"; }
 export interface AlcoholAction { type: "alcohol"; }
@@ -52,6 +52,17 @@ export interface SeekCompanionAction { type: "seek_companion"; targetId: number;
 /** Flee from nearby threats (mad NPCs, etc). */
 export interface FleeAction { type: "flee"; }
 
+// --- Social player actions ---
+
+/** Talk to an NPC. */
+export interface TalkAction { type: "talk"; npcId: number; approach: string; }
+/** Spend time with an NPC. */
+export interface SpendTimeAction { type: "spend_time"; npcId: number; }
+/** Recruit an NPC into your group. */
+export interface RecruitAction { type: "recruit"; npcId: number; }
+/** Dismiss an NPC from your group. */
+export interface DismissAction { type: "dismiss"; npcId: number; }
+
 export type Action =
     | MoveAction
     | WaitAction
@@ -68,12 +79,17 @@ export type Action =
     | ThrowBookAction
     | FallWaitAction
     | SeekCompanionAction
-    | FleeAction;
+    | FleeAction
+    | TalkAction
+    | SpendTimeAction
+    | RecruitAction
+    | DismissAction;
 
 /** Actions that consume a game tick. */
 export const TICK_ACTIONS: Set<Action["type"]> = new Set([
     "move", "wait", "sleep", "eat", "drink", "alcohol",
     "submit", "fall_wait",
+    "talk", "spend_time", "recruit", "dismiss",
 ]);
 
 /** Actions that are instant (no tick cost). */

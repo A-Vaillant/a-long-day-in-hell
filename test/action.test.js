@@ -34,6 +34,17 @@ describe("action.core", () => {
         assert.ok(costsTick({ type: "seek_companion", targetId: 1 }));
         assert.ok(costsTick({ type: "flee" }));
     });
+
+    it("player social actions cost ticks", () => {
+        assert.ok(costsTick({ type: "talk", npcId: 0, approach: "kind" }));
+        assert.ok(costsTick({ type: "spend_time", npcId: 0 }));
+        assert.ok(costsTick({ type: "recruit", npcId: 0 }));
+        assert.ok(costsTick({ type: "dismiss", npcId: 0 }));
+    });
+
+    it("sleep with inBedroom is a tick action", () => {
+        assert.ok(costsTick({ type: "sleep", inBedroom: true }));
+    });
 });
 
 describe("getAvailableBehaviors", () => {
