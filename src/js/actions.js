@@ -1,235 +1,27 @@
 /**
  * Action resolver — executes Actions against game state.
  *
- * This is the single point where player/NPC actions become state mutations.
- * Keybindings and screen handlers call Actions.resolve(action) instead of
- * directly mutating state. The underlying Tick/Surv/Chasm/Lib calls are
- * unchanged — this is purely a routing layer.
- *
- * Returns { resolved: true/false, screen?: string } to tell the caller
- * what screen to navigate to (if any).
+ * Thin browser adapter over the shared applyAction() core. Constructs
+ * an ActionContext from browser singletons, dispatches boundary events,
+ * and runs social physics for time consumed.
  */
 
 import { state } from "./state.js";
-import { Lib } from "./library.js";
-import { Surv } from "./survival.js";
-import { Tick } from "./tick.js";
-import { Chasm } from "./chasm.js";
-import { Events } from "./events.js";
-import { Despair } from "./despairing.js";
-import { PRNG } from "./prng.js";
-import { Book } from "./book.js";
 import { Social } from "./social.js";
-import { mercyKiosk } from "../../lib/library.core.ts";
-import { applyMercyKiosk } from "../../lib/survival.core.ts";
+import { applyAction } from "../../lib/action-dispatch.core.ts";
+import { isResetHour, TICKS_PER_HOUR } from "../../lib/tick.core.ts";
+import { Engine } from "./engine.js";
+import { PRNG } from "./prng.js";
 
-// Auto-drink threshold — aligned with NPC needs system (needs.core.ts).
-// Hunger stays manual: starvation is a real consequence of mindless walking.
-const AUTO_DRINK_THRESHOLD = 50;
-
-/**
- * Resolve a single action. Returns result object.
- *
- * @param {import("../../lib/action.core.ts").Action} action
- * @returns {{ resolved: boolean, screen?: string, data?: any }}
- */
-function resolve(action) {
-    var result;
-    switch (action.type) {
-        case "move":
-            result = resolveMove(action.dir); break;
-        case "wait":
-            result = resolveWait(); break;
-        case "sleep":
-            result = resolveSleep(); break;
-        case "eat":
-            result = resolveEat(); break;
-        case "drink":
-            result = resolveDrink(); break;
-        case "alcohol":
-            result = resolveAlcohol(); break;
-        case "read_book":
-            result = resolveReadBook(action.bookIndex); break;
-        case "take_book":
-            result = resolveTakeBook(action.bookIndex); break;
-        case "drop_book":
-            result = resolveDropBook(); break;
-        case "submit":
-            result = resolveSubmit(); break;
-        case "chasm_jump":
-            result = resolveChasmJump(); break;
-        case "grab_railing":
-            result = resolveGrabRailing(); break;
-        case "throw_book":
-            result = resolveThrowBook(); break;
-        case "fall_wait":
-            result = resolveFallWait(); break;
-        case "talk":
-            result = resolveTalk(action.npcId, action.approach); break;
-        case "spend_time":
-            result = resolveSpendTime(action.npcId); break;
-        case "recruit":
-            result = resolveRecruit(action.npcId); break;
-        case "dismiss":
-            result = resolveDismiss(action.npcId); break;
-        default:
-            return { resolved: false };
-    }
-    // Any action that advanced time past the reset hour triggers pass-out
-    if (state._passedOut) {
-        state._passedOut = false;
-        result.resolved = true;
-        result.screen = "Passing Out";
-    }
-    return result;
-}
-
-function resolveMove(dir) {
-    const loc = { side: state.side, position: state.position, floor: state.floor };
-    const available = Lib.availableMoves(loc);
-    if (available.indexOf(dir) === -1) return { resolved: false };
-
-    const dest = Lib.applyMove(loc, dir);
-    state._lastMove = dir;
-    state.side = dest.side;
-    state.position = dest.position;
-    state.floor = dest.floor;
-    Tick.onMove();
-    if (dir === "up") Surv.exhaust(1.5);
-    else if (dir === "down") Surv.exhaust(0.75);
-
-    // Auto-drink at rest area kiosks (no extra tick cost, mirrors NPC behavior).
-    // Hunger stays manual — starvation is the cost of mindless walking.
-    if (Lib.isRestArea(state.position) && state.lightsOn) {
-        if (state.thirst >= AUTO_DRINK_THRESHOLD) Surv.onDrink();
-    }
-
-    // Mercy kiosk: first arrival at any kiosk adjacent to your book (one-shot)
-    state._mercyArrival = null;
-    if (!state._mercyKioskDone) {
-        const mercy = mercyKiosk(
-            { side: state.side, position: state.position, floor: state.floor },
-            state.targetBook,
-        );
-        if (mercy) {
-            if (!state._mercyKiosks) state._mercyKiosks = {};
-            state._mercyKiosks[mercy] = true;
-            state._mercyKioskDone = true;
-            applyMercyKiosk(state);
-            state._mercyArrival = mercy;
-            state._despairDays = 0;
-        }
-    }
-
-    return { resolved: true, screen: "Corridor" };
-}
-
-function resolveWait() {
-    Tick.onMove();
-    return { resolved: true, screen: "Wait" };
-}
-
-function resolveSleep() {
-    if (!Surv.canSleep()) return { resolved: false };
-    Tick.onSleep();
-    return { resolved: true, screen: "Sleep" };
-}
-
-function resolveEat() {
-    if (!Lib.isRestArea(state.position) || !state.lightsOn) return { resolved: false };
-    Tick.advance(1);
-    Surv.onEat();
-    return { resolved: true, screen: "Kiosk Get Food" };
-}
-
-function resolveDrink() {
-    if (!Lib.isRestArea(state.position) || !state.lightsOn) return { resolved: false };
-    Tick.advance(1);
-    Surv.onDrink();
-    return { resolved: true, screen: "Kiosk Get Drink" };
-}
-
-function resolveAlcohol() {
-    if (!Lib.isRestArea(state.position) || !state.lightsOn) return { resolved: false };
-    Tick.advance(1);
-    Surv.onAlcohol();
-    return { resolved: true, screen: "Kiosk Get Alcohol" };
-}
-
-function resolveReadBook(bookIndex) {
-    if (!state.lightsOn) return { resolved: false };
-    if (Despair.isReadingBlocked()) {
-        state._readBlocked = true;
-        return { resolved: true, screen: "Corridor" };
-    }
-    state.openBook = {
-        side: state.side, position: state.position,
-        floor: state.floor, bookIndex: bookIndex,
+function buildCtx() {
+    return {
+        seed: PRNG.getSeed(),
+        eventCards: [],  // Events currently disabled in browser
+        world: Social.getWorld ? Social.getWorld() : undefined,
+        resolveEntity: Social.getNpcEntity ? Social.getNpcEntity.bind(Social) : undefined,
+        playerEntity: Social.getPlayerEntity ? Social.getPlayerEntity() : undefined,
+        quicknessBonus: Social.getQuicknessGrabBonus ? Social.getQuicknessGrabBonus() : 0,
     };
-    state.openPage = 1;
-    // Track opened books for shelf highlighting
-    if (!state.dwellHistory) state.dwellHistory = {};
-    state.dwellHistory[state.side + ":" + state.position + ":" + state.floor + ":" + bookIndex] = true;
-    return { resolved: true, screen: "Shelf Open Book" };
-}
-
-function resolveTakeBook(bookIndex) {
-    if (!state.lightsOn) return { resolved: false };
-    state.heldBook = {
-        side: state.side, position: state.position,
-        floor: state.floor, bookIndex: bookIndex,
-    };
-    return { resolved: true };
-}
-
-function resolveDropBook() {
-    state.heldBook = null;
-    return { resolved: true };
-}
-
-function resolveSubmit() {
-    if (!Lib.isRestArea(state.position) || !state.heldBook) return { resolved: false };
-    state.submissionsAttempted = (state.submissionsAttempted || 0) + 1;
-    state._submissionWon = false;
-    const hb = state.heldBook;
-    const tb = state.targetBook;
-    if (hb && hb.side === tb.side && hb.position === tb.position &&
-        hb.floor === tb.floor && hb.bookIndex === tb.bookIndex) {
-        state._submissionWon = true;
-    }
-    return { resolved: true, screen: "Submission Attempt" };
-}
-
-function resolveChasmJump() {
-    if (state.floor <= 0n) return { resolved: false };
-    Chasm.jump(state.side);
-    return { resolved: true, screen: "Falling" };
-}
-
-function resolveGrabRailing() {
-    if (!state.falling) return { resolved: false };
-    const result = Chasm.grab(Social.getQuicknessGrabBonus());
-    if (result.success) {
-        return { resolved: true, screen: "Corridor", data: result };
-    }
-    state._grabFailed = { mortalityHit: result.mortalityHit };
-    return { resolved: true, data: result };
-}
-
-function resolveThrowBook() {
-    Chasm.throwBook();
-    return { resolved: true };
-}
-
-function resolveFallWait() {
-    // Preserve trauma damage
-    const mortalityBefore = state.mortality;
-    Tick.onMove();
-    state.mortality = Math.min(state.mortality, mortalityBefore);
-
-    if (state.dead) return { resolved: true, screen: "Death" };
-    if (!state.falling) return { resolved: true, screen: "Corridor" };
-    return { resolved: true, screen: "Falling" };
 }
 
 /** Pin an NPC to the player's position (they don't wander off mid-conversation). */
@@ -243,38 +35,71 @@ function pinNpc(npcId) {
     }
 }
 
-function resolveTalk(npcId, approach) {
-    if (state.dead) return { resolved: false };
-    const result = Social.talk(npcId, approach);
-    if (!result.success) return { resolved: false, data: result };
-    Tick.advance(2);
-    pinNpc(npcId);
-    return { resolved: true, data: result };
-}
+/**
+ * Resolve a single action. Returns a DispatchResult.
+ *
+ * @param {import("../../lib/action.core.ts").Action} action
+ * @returns {import("../../lib/action-dispatch.core.ts").DispatchResult}
+ */
+function resolve(action) {
+    // Sleep is a loop: advance one hour at a time until dawn or day boundary
+    if (action.type === "sleep") {
+        const inBedroom = state._lastScreen === "Bedroom";
+        const startDay = state.day;
+        const allEvents = [];
+        let totalTicks = 0;
 
-function resolveSpendTime(npcId) {
-    if (state.dead) return { resolved: false };
-    const result = Social.spendTimeWith(npcId);
-    if (!result.success) return { resolved: false, data: result };
-    Tick.advance(result.ticksSpent);
-    pinNpc(npcId);
-    return { resolved: true, data: result };
-}
+        while (!isResetHour(state.tick) && !state.dead && state.day === startDay) {
+            const ctx = buildCtx();
+            const r = applyAction(state, { type: "sleep", inBedroom }, ctx);
+            if (!r.resolved) break;
 
-function resolveRecruit(npcId) {
-    if (state.dead) return { resolved: false };
-    const result = Social.recruit(npcId);
-    if (!result.success) return { resolved: false, data: result };
-    Tick.advance(1);
-    return { resolved: true, data: result };
-}
+            for (const ev of r.tickEvents) {
+                Engine._boundary.fire(ev);
+                allEvents.push(ev);
+            }
+            Social.onTick(r.ticksConsumed);
+            totalTicks += r.ticksConsumed;
 
-function resolveDismiss(npcId) {
-    if (state.dead) return { resolved: false };
-    const result = Social.dismissFromGroup(npcId);
-    if (!result.success) return { resolved: false, data: result };
-    Tick.advance(1);
-    return { resolved: true, data: result };
+            // Pass-out guard: resetHour boundary may have set _passedOut
+            if (state._passedOut) {
+                state._passedOut = false;
+                return { resolved: true, screen: "Passing Out", tickEvents: allEvents, ticksConsumed: totalTicks };
+            }
+        }
+
+        return { resolved: true, screen: "Sleep", tickEvents: allEvents, ticksConsumed: totalTicks };
+    }
+
+    const ctx = buildCtx();
+    const result = applyAction(state, action, ctx);
+
+    if (!result.resolved) return result;
+
+    // Dispatch boundary events
+    for (const ev of result.tickEvents) {
+        Engine._boundary.fire(ev);
+    }
+
+    // Run social physics for ticks consumed
+    if (result.ticksConsumed > 0) {
+        Social.onTick(result.ticksConsumed);
+    }
+
+    // Pin NPC for social actions
+    if (action.type === "talk" || action.type === "spend_time" ||
+        action.type === "recruit" || action.type === "dismiss") {
+        pinNpc(action.npcId);
+    }
+
+    // Pass-out guard: resetHour boundary may have set _passedOut
+    if (state._passedOut) {
+        state._passedOut = false;
+        result.resolved = true;
+        result.screen = "Passing Out";
+    }
+
+    return result;
 }
 
 export const Actions = { resolve };
