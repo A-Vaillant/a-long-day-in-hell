@@ -1048,14 +1048,10 @@ button:disabled {
 }
 
 .memory-entry {
-    margin: 0.6rem 0;
-    padding: 0.3rem 0;
-    border-bottom: 1px solid var(--border);
+    margin: 0.7rem 0;
+    padding: 0.4rem 0 0.4rem 0.8rem;
+    border-left: 2px solid #5a4e38;
     line-height: 1.6;
-}
-
-.memory-entry:last-of-type {
-    border-bottom: none;
 }
 
 .memory-prose {
@@ -1067,15 +1063,54 @@ button:disabled {
 }
 
 .memory-meta {
-    font-size: 0.85em;
-    color: var(--text-dim);
-    margin-left: 0.4em;
+    margin-top: 0.15rem;
+    font-size: 0.75em;
+    color: #4a4030;
 }
 
+.memory-detail {
+    margin: 0.3rem 0 0 0;
+    font-size: 0.8em;
+    color: #8a7a60;
+    letter-spacing: 0.02em;
+}
+
+.memory-divider {
+    border-top: 1px solid var(--border);
+    margin: 0.8rem 0;
+    opacity: 0.4;
+}
+
+/* Vividness — text color + left border */
+.memory-vivid  { border-left-color: var(--text); }
 .memory-vivid .memory-prose   { color: var(--text); }
+.memory-vivid .memory-subject { color: #c8b888; }
+
+.memory-clear  { border-left-color: #a09070; }
 .memory-clear .memory-prose   { color: #a09070; }
+.memory-clear .memory-subject { color: #908060; }
+
+.memory-fading  { border-left-color: #7a6a50; }
 .memory-fading .memory-prose  { color: #7a6a50; }
+.memory-fading .memory-subject { color: #6a5a40; }
+
+.memory-distant  { border-left-color: #3a3228; }
 .memory-distant .memory-prose { color: #5a4e38; }
+.memory-distant .memory-subject { color: #4a3e28; }
+
+/* Book vision: divine gold overrides vividness */
+.memory-entry:has(.divine) {
+    border-left-color: var(--divine);
+}
+.memory-entry .memory-prose.divine {
+    color: var(--divine);
+    font-style: normal;
+}
+
+/* Eroding memories get a subtle warm tint */
+.memory-eroding .memory-prose { filter: sepia(0.15); }
+
+/* Sustaining memories stay neutral (default) */
 
 /* === DEATH SCREEN === */
 

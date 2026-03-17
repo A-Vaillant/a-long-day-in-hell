@@ -1458,15 +1458,35 @@ Engine.register("Falling", {
 /* ---------- Memory ---------- */
 
 const MEMORY_TYPE_PROSE = {
-    witnessChasm:    "memory_witness_chasm",
-    foundBody:       "memory_found_body",
-    companionDied:   "memory_companion_died",
-    groupDissolved:  "memory_group_dissolved",
-    witnessEscape:   "memory_witness_escape",
-    foundWords:      "memory_found_words",
-    witnessMadness:  "memory_witness_madness",
-    companionMad:    "memory_companion_mad",
-    metSomeone:      "memory_met_someone",
+    witnessChasm:      "memory_witness_chasm",
+    foundBody:         "memory_found_body",
+    companionDied:     "memory_companion_died",
+    groupDissolved:    "memory_group_dissolved",
+    witnessEscape:     "memory_witness_escape",
+    foundWords:        "memory_found_words",
+    witnessMadness:    "memory_witness_madness",
+    companionMad:      "memory_companion_mad",
+    metSomeone:        "memory_met_someone",
+    pilgrimageFailure: "memory_pilgrimage_failure",
+    reachedMercy:      "memory_reached_mercy",
+    bookVision:        "memory_book_vision",
+    searchProgress:    "memory_search_progress",
+};
+
+// Memories that drain hope/lucidity show a subtle indicator
+const MEMORY_EFFECT = {
+    witnessChasm:      "eroding",
+    foundBody:         "eroding",
+    companionDied:     "eroding",
+    groupDissolved:    "eroding",
+    witnessMadness:    "eroding",
+    companionMad:      "eroding",
+    pilgrimageFailure: "eroding",
+    witnessEscape:     "sustaining",
+    foundWords:        "sustaining",
+    metSomeone:        "sustaining",
+    reachedMercy:      "sustaining",
+    bookVision:        "sustaining",
 };
 
 function memoryVividness(weight, initialWeight) {
@@ -1480,13 +1500,78 @@ function memoryVividness(weight, initialWeight) {
 
 function memoryAgeStr(tick, currentTick) {
     const age = currentTick - tick;
-    const days = Math.floor(age / Tick.TICKS_PER_DAY);
-    if (days === 0) return "today";
-    if (days === 1) return "yesterday";
-    return days + " days ago";
+    const totalDays = Math.floor(age / Tick.TICKS_PER_DAY);
+    if (totalDays === 0) return "today";
+    if (totalDays === 1) return "yesterday";
+    const years = Math.floor(totalDays / 365);
+    const days = totalDays % 365;
+    if (years === 0) return totalDays + " days ago";
+    if (days === 0) return years + (years === 1 ? " year" : " years") + " ago";
+    return years + (years === 1 ? " year" : " years") + ", " + days + (days === 1 ? " day" : " days") + " ago";
 }
 
 Engine.registerSidebarAction({ label: "memory", key: "m", screen: "Memory" });
+
+function renderMemoryEntry(entry, currentTick) {
+    const proseKey = MEMORY_TYPE_PROSE[entry.type];
+    const prose = proseKey && TEXT.screens[proseKey] ? TEXT.screens[proseKey] : entry.type;
+    const vividness = memoryVividness(entry.weight, entry.initialWeight);
+    const age = memoryAgeStr(entry.tick, currentTick);
+    const name = entry.subject != null ? Social.getEntityName(entry.subject) : null;
+    const effect = MEMORY_EFFECT[entry.type] || "";
+
+    let html = '<div class="memory-entry memory-' + vividness;
+    if (effect) html += ' memory-' + effect;
+    html += '">';
+
+    // Main prose
+    const proseClass = entry.type === "bookVision" ? "memory-prose divine" : "memory-prose";
+    html += '<span class="' + proseClass + '">' + esc(prose) + '</span>';
+    if (name) html += ' \u2014 <span class="memory-subject">' + esc(name) + '</span>';
+
+    // Special details for bookVision
+    if (entry.type === "bookVision" && entry.coords) {
+        const c = entry.coords;
+        const spawnPos = state._spawnPosition ?? 0n;
+        const spawnFloor = state._spawnFloor ?? 0n;
+        const spawnSide = state._spawnSide ?? 0;
+
+        // Distance from spawn to book (what you were told)
+        const bookDist = c.position > spawnPos ? c.position - spawnPos : spawnPos - c.position;
+        const bookDir = c.position >= spawnPos ? "right" : "left";
+        const bookKiosks = Math.round(Number(bookDist) / 17);
+        const bookFloorDiff = c.floor > spawnFloor ? c.floor - spawnFloor : spawnFloor - c.floor;
+        const bookFloorDir = c.floor > spawnFloor ? "below" : "above";
+
+        html += '<div class="memory-detail">';
+        if (entry.vague) {
+            html += 'Somewhere nearby \u2014 ';
+        }
+        html += bookKiosks.toLocaleString() + ' kiosks ' + bookDir + ' of where you woke';
+        if (bookFloorDiff > 0n) html += ', ' + Number(bookFloorDiff).toLocaleString() + ' floors ' + bookFloorDir;
+        if (c.side !== spawnSide) html += ' (other side)';
+        html += '</div>';
+    }
+
+    // Special details for searchProgress
+    if (entry.type === "searchProgress" && entry.searchedSegments) {
+        const count = entry.searchedSegments.size;
+        if (count > 0) {
+            html += '<div class="memory-detail">';
+            html += count + ' segment' + (count === 1 ? '' : 's') + ' searched';
+            if (entry.bestWords && entry.bestWords.length > 0) {
+                html += ' \u00b7 best find: \u201c' + esc(entry.bestWords.slice(0, 3).join(" ")) + '\u201d';
+            }
+            html += '</div>';
+        }
+    }
+
+    // Meta line
+    html += '<div class="memory-meta">' + esc(age) + '</div>';
+
+    html += '</div>';
+    return html;
+}
 
 Engine.register("Memory", {
     kind: "state",
@@ -1500,22 +1585,21 @@ Engine.register("Memory", {
         if (!mem || mem.entries.length === 0) {
             html += '<p>' + esc(TEXT.screens.memory_empty) + '</p>';
         } else {
-            // Sort by weight descending (most vivid first)
+            // Partition: permanent/high-weight first, then fading
             const sorted = mem.entries.slice().sort((a, b) => b.weight - a.weight);
-            for (const entry of sorted) {
-                const proseKey = MEMORY_TYPE_PROSE[entry.type];
-                const prose = proseKey && TEXT.screens[proseKey] ? TEXT.screens[proseKey] : entry.type;
-                const vividness = memoryVividness(entry.weight, entry.initialWeight);
-                const age = memoryAgeStr(entry.tick, currentTick);
-                const name = entry.subject != null ? Social.getEntityName(entry.subject) : null;
+            const strong = sorted.filter(e => e.permanent || e.weight >= e.initialWeight * 0.5);
+            const fading = sorted.filter(e => !e.permanent && e.weight < e.initialWeight * 0.5);
 
-                html += '<div class="memory-entry memory-' + vividness + '">';
-                html += '<span class="memory-prose">' + esc(prose) + '</span>';
-                if (name) html += ' <span class="memory-subject">' + esc(name) + '.</span>';
-                html += ' <span class="memory-meta">' + esc(age);
-                if (entry.permanent) html += ' \u00b7 permanent';
-                html += '</span>';
-                html += '</div>';
+            for (const entry of strong) {
+                html += renderMemoryEntry(entry, currentTick);
+            }
+
+            if (fading.length > 0 && strong.length > 0) {
+                html += '<div class="memory-divider"></div>';
+            }
+
+            for (const entry of fading) {
+                html += renderMemoryEntry(entry, currentTick);
             }
         }
 

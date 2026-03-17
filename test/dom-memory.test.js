@@ -49,10 +49,11 @@ describe("Memory screen", () => {
             "should have a vividness class");
     });
 
-    it("shows permanence marker for permanent memories", () => {
+    it("renders permanent memories in the strong section", () => {
         const { Engine, Social, document, state } = game;
 
         const mem = Social.getPlayerMemory();
+        mem.entries.length = 0;
         mem.entries.push({
             id: 1,
             type: "witnessChasm",
@@ -65,8 +66,12 @@ describe("Memory screen", () => {
         });
 
         Engine.goto("Memory");
-        const html = document.getElementById("passage").innerHTML;
-        assert.ok(html.includes("permanent"), "permanent memory should be marked");
+        const entries = document.getElementById("passage").querySelectorAll(".memory-entry");
+        assert.strictEqual(entries.length, 1, "one entry rendered");
+        // Permanent memory at weight 5/10 = 0.5 would normally be "clear" vividness
+        // but should still appear in the strong section (no divider before it)
+        const dividers = document.getElementById("passage").querySelectorAll(".memory-divider");
+        assert.strictEqual(dividers.length, 0, "no divider when all memories are strong");
     });
 
     it("shows age as 'today' for current-tick memories", () => {
@@ -101,6 +106,8 @@ describe("Memory screen", () => {
         const { Engine, Social, document, state } = game;
         const tick = (state.day - 1) * TICKS_PER_DAY + state.tick;
         const mem = Social.getPlayerMemory();
+        // Clear existing memories from init, then push test data
+        mem.entries.length = 0;
         // Push in reverse order — low weight first, high weight second
         // Sort should flip them so high-weight renders first.
         mem.entries.push(

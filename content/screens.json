@@ -109,6 +109,10 @@
   "memory_witness_madness": "You watched someone lose their mind.",
   "memory_companion_mad": "Someone you were close to went mad.",
   "memory_met_someone": "You got to know someone.",
+  "memory_pilgrimage_failure": "You arrived where you were told to go. There was nothing there.",
+  "memory_reached_mercy": "You found a kiosk near your book.",
+  "memory_book_vision": "You know where your book is.",
+  "memory_search_progress": "You have been searching the shelves.",
 
   "ambient_memory_chasm": [
     "The railing catches your eye. You think of what you saw.",
