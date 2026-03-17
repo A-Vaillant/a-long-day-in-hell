@@ -149,9 +149,25 @@ function advanceOneTick(s: GameState): TickResult {
     return { events: result.events, ticksConsumed: 1 };
 }
 
-// --- Main dispatch ---
+// --- Resolve action (state mutations only, no time advance) ---
 
-export function applyAction(
+/**
+ * Resolve an action's state mutations without advancing time.
+ *
+ * Used by NPC tick loop (time advances once globally) and internally
+ * by applyAction (which adds time advance for the player).
+ *
+ * Move: validates + applies position change, directional exhaustion,
+ *   auto-drink, mercy kiosk, event draw.
+ * Eat/drink/alcohol: validates + applies stat changes.
+ * Read/take/drop/submit: validates + applies book state changes.
+ * Chasm/social: validates + applies.
+ * Sleep: NOT handled here — sleep is multi-tick (use applyAction).
+ * Wait: no state mutation needed (just time advance).
+ *
+ * Returns resolved:true if the action was valid and applied.
+ */
+export function resolveAction(
     state: GameState,
     action: Action | { type: string; [k: string]: any },
     ctx: ActionContext,
@@ -174,9 +190,6 @@ export function applyAction(
             // Directional exhaustion
             if (dir === "up") state.exhaustion = Math.min(100, state.exhaustion + 1.5);
             else if (dir === "down") state.exhaustion = Math.min(100, state.exhaustion + 0.75);
-
-            // Advance one tick (depletion + time)
-            const tick = advanceOneTick(state);
 
             // Auto-drink at rest area kiosks
             if (isRestArea(state.position) && state.lightsOn) {
@@ -202,7 +215,7 @@ export function applyAction(
             }
 
             // Event draw
-            if (ctx.eventCards.length > 0) {
+            if (ctx.eventCards && ctx.eventCards.length > 0) {
                 const evRng = seedFromString(ctx.seed + ":ev:" + state.totalMoves);
                 const draw = EventsCore.drawEvent(state.eventDeck, ctx.eventCards, evRng);
                 state.eventDeck = draw.deck;
@@ -212,29 +225,27 @@ export function applyAction(
                 }
             }
 
-            return { resolved: true, screen: "Corridor", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
+            return { resolved: true, screen: "Corridor", tickEvents: [], ticksConsumed: 0 };
         }
 
         case "wait": {
             if (state.dead || state.won) return unresolved();
-            const tick = advanceOneTick(state);
-            return { resolved: true, screen: "Wait", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
+            // No state mutation — just validated. Time advance is caller's job.
+            return { resolved: true, screen: "Wait", tickEvents: [], ticksConsumed: 0 };
         }
 
         case "eat": {
             if (state.dead || state.won) return unresolved();
             if (!isRestArea(state.position) || !state.lightsOn) return unresolved();
             applyStats(state, applyEat(statsFromState(state)));
-            const tick = advanceOneTick(state);
-            return { resolved: true, screen: "Kiosk Get Food", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
+            return { resolved: true, screen: "Kiosk Get Food", tickEvents: [], ticksConsumed: 0 };
         }
 
         case "drink": {
             if (state.dead || state.won) return unresolved();
             if (!isRestArea(state.position) || !state.lightsOn) return unresolved();
             applyStats(state, applyDrink(statsFromState(state)));
-            const tick = advanceOneTick(state);
-            return { resolved: true, screen: "Kiosk Get Drink", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
+            return { resolved: true, screen: "Kiosk Get Drink", tickEvents: [], ticksConsumed: 0 };
         }
 
         case "alcohol": {
@@ -244,8 +255,7 @@ export function applyAction(
             if (state.despairing && shouldClearDespairing(state.morale)) {
                 state.despairing = false;
             }
-            const tick = advanceOneTick(state);
-            return { resolved: true, screen: "Kiosk Get Alcohol", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
+            return { resolved: true, screen: "Kiosk Get Alcohol", tickEvents: [], ticksConsumed: 0 };
         }
 
         case "read_book": {
@@ -262,15 +272,10 @@ export function applyAction(
                 return { resolved: true, screen: "Corridor", tickEvents: [], ticksConsumed: 0 };
             }
 
-            // Open book
             state.openBook = { side: state.side, position: state.position, floor: state.floor, bookIndex };
             state.openPage = 1;
-
-            // Track dwell history
             const dwellKey = state.side + ":" + state.position + ":" + state.floor + ":" + bookIndex;
             state.dwellHistory[dwellKey] = true;
-
-            // Apply nonsense reading morale penalty
             const readResult = applyReadNonsense(statsFromState(state), state.nonsensePagesRead);
             applyStats(state, readResult.stats);
             state.nonsensePagesRead = readResult.nonsensePagesRead;
@@ -305,8 +310,7 @@ export function applyAction(
                 state._submissionWon = true;
             }
             if (!state.won) state.heldBook = null;
-            const tick = advanceOneTick(state);
-            return { resolved: true, screen: "Submission Attempt", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
+            return { resolved: true, screen: "Submission Attempt", tickEvents: [], ticksConsumed: 0 };
         }
 
         case "chasm_jump": {
@@ -343,17 +347,10 @@ export function applyAction(
         case "fall_wait": {
             if (state.dead) return unresolved();
             if (!state.falling) return unresolved();
-
-            // Preserve mortality (trauma damage is from grabs, not from falling ticks)
-            const mortalityBefore = state.mortality;
-            const tick = advanceOneTick(state);
-            state.mortality = Math.min(state.mortality, mortalityBefore);
-
-            // Fall physics
+            // Fall physics (time advance happens separately)
             const fallResult = fallTick(state.falling, Number(state.floor));
             state.floor = BigInt(fallResult.newFloor);
             state.falling.speed = fallResult.newSpeed;
-
             if (fallResult.landed) {
                 state.falling = null;
                 if (fallResult.fatal) {
@@ -362,10 +359,9 @@ export function applyAction(
                     state.deathCause = "gravity";
                 }
             }
-
-            if (state.dead) return { resolved: true, screen: "Death", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
-            if (!state.falling) return { resolved: true, screen: "Corridor", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
-            return { resolved: true, screen: "Falling", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
+            if (state.dead) return { resolved: true, screen: "Death", tickEvents: [], ticksConsumed: 0 };
+            if (!state.falling) return { resolved: true, screen: "Corridor", tickEvents: [], ticksConsumed: 0 };
+            return { resolved: true, screen: "Falling", tickEvents: [], ticksConsumed: 0 };
         }
 
         case "talk": {
@@ -377,11 +373,7 @@ export function applyAction(
             if (npcEnt === undefined) return unresolved();
             const result = talkTo(ctx.world, ctx.playerEntity, npcEnt, approach as any, state.tick);
             if (!result.success) return { resolved: false, tickEvents: [], ticksConsumed: 0, data: result };
-            // Advance 2 ticks for conversation
-            const ev1 = advanceTick({ tick: state.tick, day: state.day }, 2);
-            state.tick = ev1.state.tick; state.day = ev1.state.day;
-            state.lightsOn = isLightsOn(state.tick);
-            return { resolved: true, tickEvents: ev1.events, ticksConsumed: 2, data: result };
+            return { resolved: true, tickEvents: [], ticksConsumed: 2, data: result };
         }
 
         case "spend_time": {
@@ -392,11 +384,7 @@ export function applyAction(
             if (npcEnt === undefined) return unresolved();
             const result = spendTimeCore(ctx.world, ctx.playerEntity, npcEnt, state.tick);
             if (!result.success) return { resolved: false, tickEvents: [], ticksConsumed: 0, data: result };
-            const ticks = result.ticksSpent;
-            const ev = advanceTick({ tick: state.tick, day: state.day }, ticks);
-            state.tick = ev.state.tick; state.day = ev.state.day;
-            state.lightsOn = isLightsOn(state.tick);
-            return { resolved: true, tickEvents: ev.events, ticksConsumed: ticks, data: result };
+            return { resolved: true, tickEvents: [], ticksConsumed: result.ticksSpent, data: result };
         }
 
         case "recruit": {
@@ -407,10 +395,7 @@ export function applyAction(
             if (npcEnt === undefined) return unresolved();
             const result = recruitCore(ctx.world, ctx.playerEntity, npcEnt, state.tick);
             if (!result.success) return { resolved: false, tickEvents: [], ticksConsumed: 0, data: result };
-            const ev = advanceTick({ tick: state.tick, day: state.day }, 1);
-            state.tick = ev.state.tick; state.day = ev.state.day;
-            state.lightsOn = isLightsOn(state.tick);
-            return { resolved: true, tickEvents: ev.events, ticksConsumed: 1, data: result };
+            return { resolved: true, tickEvents: [], ticksConsumed: 1, data: result };
         }
 
         case "dismiss": {
@@ -421,52 +406,93 @@ export function applyAction(
             if (npcEnt === undefined) return unresolved();
             const result = dismissCore(ctx.world, ctx.playerEntity, npcEnt);
             if (result.type !== "ok") return { resolved: false, tickEvents: [], ticksConsumed: 0, data: result };
-            const ev = advanceTick({ tick: state.tick, day: state.day }, 1);
-            state.tick = ev.state.tick; state.day = ev.state.day;
-            state.lightsOn = isLightsOn(state.tick);
-            return { resolved: true, tickEvents: ev.events, ticksConsumed: 1, data: result };
-        }
-
-        case "sleep": {
-            if (state.dead || state.won) return unresolved();
-            const inBedroom = (action as any).inBedroom ?? false;
-            const startDay = state.day;
-            const allEvents: TickEvent[] = [];
-            let totalTicks = 0;
-
-            // Sleep hour-by-hour until dawn (day changes) or death
-            while (!state.dead && !state.won && state.day === startDay) {
-                // One hour of sleep recovery
-                const moraleBefore = state.morale;
-                applyStats(state, applySleep(statsFromState(state), inBedroom));
-                if (state.despairing) {
-                    const baseDelta = state.morale - moraleBefore;
-                    if (baseDelta > 0) {
-                        const effective = modifySleepRecovery(baseDelta, state.despairing);
-                        state.morale = Math.max(0, moraleBefore + effective);
-                    }
-                }
-                if (state.despairing && shouldClearDespairing(state.morale)) {
-                    state.despairing = false;
-                }
-
-                // Advance one hour
-                const result = advanceTick({ tick: state.tick, day: state.day }, TICKS_PER_HOUR);
-                state.tick = result.state.tick;
-                state.day = result.state.day;
-                state.lightsOn = isLightsOn(state.tick);
-                totalTicks += TICKS_PER_HOUR;
-                for (const ev of result.events) allEvents.push(ev);
-            }
-
-            return {
-                resolved: true, screen: "Sleep",
-                tickEvents: allEvents,
-                ticksConsumed: totalTicks,
-            };
+            return { resolved: true, tickEvents: [], ticksConsumed: 1, data: result };
         }
 
         default:
             return unresolved();
     }
+}
+
+// --- Combined dispatch (resolve + time advance) ---
+
+/**
+ * Apply an action AND advance time. This is the player-facing API.
+ * Combines resolveAction (state mutations) with advanceOneTick
+ * (survival depletion, ambient drain, death check, time advance).
+ *
+ * Sleep is handled specially — loops internally until dawn.
+ *
+ * For NPC bulk processing, use resolveAction directly and advance
+ * time once globally.
+ */
+export function applyAction(
+    state: GameState,
+    action: Action | { type: string; [k: string]: any },
+    ctx: ActionContext,
+): DispatchResult {
+    // Sleep: multi-tick, handled as a self-contained loop
+    if (action.type === "sleep") {
+        if (state.dead || state.won) return unresolved();
+        const inBedroom = (action as any).inBedroom ?? false;
+        const startDay = state.day;
+        const allEvents: TickEvent[] = [];
+        let totalTicks = 0;
+
+        while (!state.dead && !state.won && state.day === startDay) {
+            const moraleBefore = state.morale;
+            applyStats(state, applySleep(statsFromState(state), inBedroom));
+            if (state.despairing) {
+                const baseDelta = state.morale - moraleBefore;
+                if (baseDelta > 0) {
+                    const effective = modifySleepRecovery(baseDelta, state.despairing);
+                    state.morale = Math.max(0, moraleBefore + effective);
+                }
+            }
+            if (state.despairing && shouldClearDespairing(state.morale)) {
+                state.despairing = false;
+            }
+            const result = advanceTick({ tick: state.tick, day: state.day }, TICKS_PER_HOUR);
+            state.tick = result.state.tick;
+            state.day = result.state.day;
+            state.lightsOn = isLightsOn(state.tick);
+            totalTicks += TICKS_PER_HOUR;
+            for (const ev of result.events) allEvents.push(ev);
+        }
+
+        return { resolved: true, screen: "Sleep", tickEvents: allEvents, ticksConsumed: totalTicks };
+    }
+
+    // All other actions: resolve state mutations, then advance time
+    const result = resolveAction(state, action, ctx);
+    if (!result.resolved) return result;
+
+    // Tick-consuming actions advance time
+    const tickCost = result.ticksConsumed || (action.type === "wait" || action.type === "move" ||
+        action.type === "eat" || action.type === "drink" || action.type === "alcohol" ||
+        action.type === "submit" || action.type === "fall_wait" ? 1 :
+        action.type === "talk" ? 2 : 0);
+
+    if (tickCost > 0) {
+        const tick = advanceOneTick(state);
+        // For multi-tick actions (talk, spend_time), advance remaining ticks
+        if (tickCost > 1) {
+            const extra = advanceTick({ tick: state.tick, day: state.day }, tickCost - 1);
+            state.tick = extra.state.tick;
+            state.day = extra.state.day;
+            state.lightsOn = isLightsOn(state.tick);
+            for (const ev of extra.events) tick.events.push(ev);
+            tick.ticksConsumed += tickCost - 1;
+        }
+
+        // Preserve mortality during fall ticks
+        if (action.type === "fall_wait") {
+            // mortality already handled in resolveAction's fall physics
+        }
+
+        result.tickEvents = tick.events;
+        result.ticksConsumed = tick.ticksConsumed;
+    }
+
+    return result;
 }
