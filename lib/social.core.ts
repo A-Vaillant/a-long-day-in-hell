@@ -26,6 +26,7 @@ import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
 import { STATS, type Stats, influenceMod } from "./stats.core.ts";
 import { HABITUATION, type Habituation, applyShock as applyHabituatedShock } from "./psych.core.ts";
 import { perDay, perHour, days as daysToTicks } from "./scale.core.ts";
+import type { LifeStory } from "./lifestory.core.ts";
 
 // --- Component keys ---
 
@@ -50,6 +51,8 @@ export interface Identity {
     alive: boolean;
     /** Entity has submitted their book and left the library. */
     free: boolean;
+    /** Life story (generated at spawn, immutable). Moved from Knowledge. */
+    lifeStory?: LifeStory;
 }
 
 export interface Psychology {
