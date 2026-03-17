@@ -474,7 +474,15 @@ export function applyAction(
         action.type === "talk" ? 2 : 0);
 
     if (tickCost > 0) {
+        // Preserve mortality during fall — trauma damage is from grabs, not time
+        const mortalityBefore = action.type === "fall_wait" ? state.mortality : -1;
+
         const tick = advanceOneTick(state);
+
+        if (mortalityBefore >= 0) {
+            state.mortality = Math.min(state.mortality, mortalityBefore);
+        }
+
         // For multi-tick actions (talk, spend_time), advance remaining ticks
         if (tickCost > 1) {
             const extra = advanceTick({ tick: state.tick, day: state.day }, tickCost - 1);
@@ -483,11 +491,6 @@ export function applyAction(
             state.lightsOn = isLightsOn(state.tick);
             for (const ev of extra.events) tick.events.push(ev);
             tick.ticksConsumed += tickCost - 1;
-        }
-
-        // Preserve mortality during fall ticks
-        if (action.type === "fall_wait") {
-            // mortality already handled in resolveAction's fall physics
         }
 
         result.tickEvents = tick.events;

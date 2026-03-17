@@ -17,8 +17,9 @@ import { MOVEMENT, type Movement } from "./movement.core.ts";
 import { SEARCHING, type Searching } from "./search.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
 import { MEMORY, type Memory, getBookVision, type BookVisionEntry } from "./memory.core.ts";
-import { isRestArea, nearestRestArea } from "./library.core.ts";
+import { isRestArea } from "./library.core.ts";
 import type { Direction } from "./library.core.ts";
+import { nearestRestArea } from "./sleep.core.ts";
 
 /**
  * Translate an NPC's current intent behavior into a concrete Action.
