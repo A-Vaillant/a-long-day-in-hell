@@ -29,7 +29,6 @@ import {
 import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { NEEDS, type Needs } from "./needs.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
-import { KNOWLEDGE, type Knowledge, isSearched } from "./knowledge.core.ts";
 import { MEMORY, type Memory, getBookVision, type BookVisionEntry } from "./memory.core.ts";
 import { LIGHTS_ON_TICKS } from "./tick.core.ts";
 import { TICKS_PER_HOUR } from "./scale.core.ts";
@@ -77,8 +76,6 @@ export interface ScorerContext {
     position: Position | null;
     /** Sleep component (for home rest area). */
     sleep: Sleep | null;
-    /** Knowledge component (for pilgrimage). */
-    knowledge: Knowledge | null;
     /** Memory component (for bookVision lookup). */
     memory: Memory | null;
     /** Current tick within the day (0–239). */
@@ -176,11 +173,6 @@ const scorers: Record<string, BehaviorScorer> = {
      * Small random jitter so not every NPC searches simultaneously.
      */
     search(ctx) {
-        // Already searched this segment — don't bother
-        if (ctx.knowledge && ctx.position &&
-            isSearched(ctx.knowledge, ctx.position.side, ctx.position.position, ctx.position.floor)) {
-            return -Infinity;
-        }
         let score = 0.3;
         if (ctx.personality) {
             score += ctx.personality.openness * 0.5;      // curious → search
@@ -263,66 +255,32 @@ const scorers: Record<string, BehaviorScorer> = {
 
     /**
      * Pilgrimage: travel to a divinely revealed book location.
-     * Only scores when the entity has a bookVision and hasn't escaped.
+     * Only scores when the entity has a bookVision memory entry and hasn't escaped.
      * Very high priority — this is the most purposeful thing an NPC can do.
      * Needs override pilgrimage only at critical levels.
-     *
-     * Reads from Memory first (BookVisionEntry); falls back to Knowledge
-     * during the migration period.
      */
     pilgrimage(ctx) {
-        // Memory path (preferred)
-        let vision: BookVisionEntry | null = null;
-        if (ctx.memory) {
-            vision = getBookVision(ctx.memory);
-        }
-
-        if (vision) {
-            if (!vision.coords) return -Infinity;
-            if (vision.state === "exhausted") return -Infinity;
-            // Has book: keep pilgrimaging to nearest rest area for submission
-            if (vision.state === "found") return 2.5;
-            // Vague vision + within search radius → yield to search behavior
-            if (vision.vague && ctx.position) {
-                const v = vision.coords;
-                if (ctx.position.side === v.side && ctx.position.floor === v.floor) {
-                    const dist = ctx.position.position > v.position
-                        ? ctx.position.position - v.position
-                        : v.position - ctx.position.position;
-                    if (dist <= BigInt(vision.radius)) {
-                        return -Infinity;
-                    }
-                }
-            }
-            // Exact vision + already at book location → no need to travel
-            if (!vision.vague && ctx.position) {
-                const v = vision.coords;
-                if (ctx.position.side === v.side &&
-                    ctx.position.position === v.position &&
-                    ctx.position.floor === v.floor) {
-                    return -Infinity;
-                }
-            }
-            return 2.5;
-        }
-
-        // Legacy Knowledge fallback (during migration)
-        if (!ctx.knowledge || !ctx.knowledge.bookVision) return -Infinity;
-        if (ctx.knowledge.pilgrimageExhausted) return -Infinity;
-        if (ctx.knowledge.hasBook) return 2.5;
-        if (ctx.knowledge.visionVague && ctx.position) {
-            const v = ctx.knowledge.bookVision;
+        if (!ctx.memory) return -Infinity;
+        const vision = getBookVision(ctx.memory);
+        if (!vision || !vision.coords) return -Infinity;
+        if (vision.state === "exhausted") return -Infinity;
+        // Has book: keep pilgrimaging to nearest rest area for submission
+        if (vision.state === "found") return 2.5;
+        // Vague vision + within search radius → yield to search behavior
+        if (vision.vague && ctx.position) {
+            const v = vision.coords;
             if (ctx.position.side === v.side && ctx.position.floor === v.floor) {
                 const dist = ctx.position.position > v.position
                     ? ctx.position.position - v.position
                     : v.position - ctx.position.position;
-                if (dist <= BigInt(ctx.knowledge.visionRadius)) {
+                if (dist <= BigInt(vision.radius)) {
                     return -Infinity;
                 }
             }
         }
-        if (!ctx.knowledge.visionVague && ctx.position) {
-            const v = ctx.knowledge.bookVision;
+        // Exact vision + already at book location → no need to travel
+        if (!vision.vague && ctx.position) {
+            const v = vision.coords;
             if (ctx.position.side === v.side &&
                 ctx.position.position === v.position &&
                 ctx.position.floor === v.floor) {
@@ -382,7 +340,7 @@ export function evaluateIntent(
     position: Position | null = null,
     sleep: Sleep | null = null,
     tick: number = 0,
-    knowledge: Knowledge | null = null,
+    _knowledge: unknown = null,
     hasCompanion: boolean = false,
     memory: Memory | null = null,
 ): { behavior: Behavior; cooldown: number } | null {
@@ -417,7 +375,7 @@ export function evaluateIntent(
 
     const ctx: ScorerContext = {
         psych, alive, disposition, needs, personality, intent, rng,
-        position, sleep, knowledge, memory, tick, hasCompanion,
+        position, sleep, memory, tick, hasCompanion,
     };
 
     let bestBehavior: Behavior = "idle";
@@ -477,7 +435,6 @@ export function getAvailableBehaviors(
     const personality = getComponent<Personality>(world, entity, PERSONALITY);
     const position = getComponent<Position>(world, entity, POSITION);
     const sleep = getComponent<Sleep>(world, entity, SLEEP);
-    const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
     const memory = getComponent<Memory>(world, entity, MEMORY);
     const disposition = deriveDisposition(psych, ident.alive);
     const hasCompanion = checkHasCompanion(world, entity, position ?? null);
@@ -487,7 +444,7 @@ export function getAvailableBehaviors(
         needs: needs ?? null, personality: personality ?? null,
         intent, rng,
         position: position ?? null, sleep: sleep ?? null,
-        knowledge: knowledge ?? null, memory: memory ?? null, tick, hasCompanion,
+        memory: memory ?? null, tick, hasCompanion,
     };
 
     const results: ScoredBehavior[] = [];
@@ -536,13 +493,12 @@ export function intentSystem(
         const personality = getComponent<Personality>(world, entity, PERSONALITY);
         const position = getComponent<Position>(world, entity, POSITION);
         const sleep = getComponent<Sleep>(world, entity, SLEEP);
-        const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
         const memory = getComponent<Memory>(world, entity, MEMORY);
         const hasCompanion = checkHasCompanion(world, entity, position);
 
         const result = evaluateIntent(
             intent, psych, ident.alive, needs ?? null, personality ?? null, rng, config,
-            undefined, position ?? null, sleep ?? null, tick, knowledge ?? null, hasCompanion,
+            undefined, position ?? null, sleep ?? null, tick, null, hasCompanion,
             memory ?? null,
         );
 

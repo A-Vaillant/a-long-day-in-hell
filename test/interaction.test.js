@@ -9,7 +9,6 @@ import {
 } from "../lib/social.core.ts";
 import { HABITUATION } from "../lib/psych.core.ts";
 import { STATS } from "../lib/stats.core.ts";
-import { KNOWLEDGE } from "../lib/knowledge.core.ts";
 import { MEMORY, createMemory, markSegmentSearched } from "../lib/memory.core.ts";
 import {
     talkTo, spendTime, recruit, socializeSystem,
@@ -170,15 +169,19 @@ describe("talkTo", () => {
         const w = makeWorld();
         const p = makeEntity(w, { player: true });
         const n = makeEntity(w, { name: "Hank" });
-        const pKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:0:0"]) };
-        const nKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:1:0"]) };
-        addComponent(w, p, KNOWLEDGE, pKnow);
-        addComponent(w, n, KNOWLEDGE, nKnow);
+        const pMem = createMemory();
+        const nMem = createMemory();
+        markSegmentSearched(pMem, 0, 0n, 0n);
+        markSegmentSearched(nMem, 0, 1n, 0n);
+        addComponent(w, p, MEMORY, pMem);
+        addComponent(w, n, MEMORY, nMem);
         const result = talkTo(w, p, n, "dismissive", 100);
         assert.strictEqual(result.segmentsLearned, 0);
         assert.strictEqual(result.segmentsShared, 0);
-        assert.strictEqual(pKnow.searchedSegments.size, 1);
-        assert.strictEqual(nKnow.searchedSegments.size, 1);
+        const pSp = pMem.entries.find(e => e.type === "searchProgress");
+        const nSp = nMem.entries.find(e => e.type === "searchProgress");
+        assert.strictEqual(pSp.searchedSegments.size, 1);
+        assert.strictEqual(nSp.searchedSegments.size, 1);
     });
 });
 
@@ -526,7 +529,7 @@ describe("socialize scorer diminishing returns", () => {
             rng: fakeRng,
             position: { side: 0, position: 0n, floor: 0n },
             sleep: null,
-            knowledge: null,
+            memory: null,
             tick: 0,
             hasCompanion: true,
         };

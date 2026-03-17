@@ -20,8 +20,7 @@ import {
 } from "./social.core.ts";
 import { INTENT, type Intent } from "./intent.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
-import { KNOWLEDGE, type Knowledge, isSearched } from "./knowledge.core.ts";
-import { MEMORY, type Memory, getBookVision, type BookVisionEntry } from "./memory.core.ts";
+import { MEMORY, type Memory, getBookVision, type BookVisionEntry, isSegmentSearched } from "./memory.core.ts";
 import { GROUP, type Group } from "./social.core.ts";
 import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { isRestArea, GALLERIES_PER_SEGMENT } from "./library.core.ts";
@@ -69,18 +68,13 @@ function nearestRestArea(position: bigint): bigint {
 }
 
 /** Check if the span from a rest area in a direction has any unsearched galleries. */
-function spanHasUnsearched(knowledge: Knowledge, side: number, restPos: bigint, dir: number, floor: bigint): boolean {
+function spanHasUnsearched(memory: Memory | null, side: number, restPos: bigint, dir: number, floor: bigint): boolean {
+    if (!memory) return true; // no data → assume unsearched
     const span = Number(GALLERIES_PER_SEGMENT);
     for (let i = 1; i < span; i++) {
-        if (!isSearched(knowledge, side, restPos + BigInt(dir * i), floor)) return true;
+        if (!isSegmentSearched(memory, side, restPos + BigInt(dir * i), floor)) return true;
     }
     return false;
-}
-
-/** Check if the spans in both directions from a rest area are fully searched. */
-function localExhausted(knowledge: Knowledge, side: number, restPos: bigint, floor: bigint): boolean {
-    return !spanHasUnsearched(knowledge, side, restPos, 1, floor) &&
-           !spanHasUnsearched(knowledge, side, restPos, -1, floor);
 }
 
 /** Direction to step toward a target. Returns -1n, 0n, or 1n. */
@@ -106,14 +100,10 @@ export interface MovementInput {
     n: number;
     /** Home position from SLEEP component, if present. */
     homePosition: bigint | null;
-    /** Book vision from KNOWLEDGE component, if present. */
-    bookVision: { side: number; position: bigint; floor: bigint } | null;
-    /** Whether NPC has their book (KNOWLEDGE.hasBook). */
-    hasBook: boolean;
-    /** Full knowledge for search-aware exploration, if present. */
-    knowledge: Knowledge | null;
-    /** BookVision from Memory (preferred over bookVision/hasBook fields). */
-    bookVisionEntry?: BookVisionEntry | null;
+    /** BookVision from Memory component. */
+    bookVisionEntry: BookVisionEntry | null;
+    /** Memory component for search-aware exploration. */
+    memory: Memory | null;
     /** Leader's position if in a group with a different leader, if present. */
     leaderPos: Position | null;
     /** Patience value from personality (1 - pace), default 0.5. */
@@ -125,14 +115,13 @@ export interface MovementInput {
  * Pure — reads from input, writes to mov.targetPosition.
  */
 function resolveTarget(input: MovementInput): void {
-    const { mov, pos, behavior, homePosition, bookVision, hasBook, bookVisionEntry } = input;
+    const { mov, pos, behavior, homePosition, bookVisionEntry } = input;
 
     if (behavior === "seek_rest") {
         mov.targetPosition = nearestRestArea(pos.position);
     } else if (behavior === "return_home") {
         mov.targetPosition = homePosition !== null ? homePosition : nearestRestArea(pos.position);
     } else if (behavior === "pilgrimage") {
-        // Memory-based bookVision (preferred)
         const bve = bookVisionEntry;
         if (bve && bve.coords) {
             if (bve.state === "found") {
@@ -141,17 +130,6 @@ function resolveTarget(input: MovementInput): void {
                 mov.targetPosition = nearestRestArea(pos.position);
             } else {
                 mov.targetPosition = bve.coords.position;
-            }
-        // Legacy Knowledge fallback
-        } else if (hasBook) {
-            mov.targetPosition = nearestRestArea(pos.position);
-        } else if (bookVision) {
-            if (pos.side !== bookVision.side) {
-                mov.targetPosition = nearestRestArea(pos.position);
-            } else if (pos.floor !== bookVision.floor) {
-                mov.targetPosition = nearestRestArea(pos.position);
-            } else {
-                mov.targetPosition = bookVision.position;
             }
         } else {
             mov.targetPosition = null;
@@ -166,11 +144,8 @@ function resolveTarget(input: MovementInput): void {
  * No ECS queries — caller resolves all component data.
  */
 export function computeMovement(input: MovementInput): void {
-    const { mov, pos, behavior, rng, config, n, bookVision, knowledge, leaderPos, patience, bookVisionEntry } = input;
-    // Resolve the effective vision target: Memory entry preferred, Knowledge fallback
-    const effectiveVision = (bookVisionEntry && bookVisionEntry.coords)
-        ? bookVisionEntry.coords
-        : bookVision;
+    const { mov, pos, behavior, rng, config, n, memory, leaderPos, patience, bookVisionEntry } = input;
+    const effectiveVision = bookVisionEntry?.coords ?? null;
 
     if (!MOVE_INTENTS.has(behavior)) return;
 
@@ -233,9 +208,9 @@ export function computeMovement(input: MovementInput): void {
             }
             const hasLeader = followingLeader || chasingLeader;
             if (isRestArea(pos.position) && !hasLeader) {
-                if (knowledge) {
-                    const fwdHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, mov.heading, pos.floor);
-                    const bwdHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, -mov.heading, pos.floor);
+                if (memory) {
+                    const fwdHasWork = spanHasUnsearched(memory, pos.side, pos.position, mov.heading, pos.floor);
+                    const bwdHasWork = spanHasUnsearched(memory, pos.side, pos.position, -mov.heading, pos.floor);
                     if (!fwdHasWork && bwdHasWork) {
                         mov.heading = -mov.heading;
                     } else if (fwdHasWork && !bwdHasWork) {
@@ -248,11 +223,11 @@ export function computeMovement(input: MovementInput): void {
                     const exhausted = !fwdHasWork && !bwdHasWork;
                     const floorChangeChance = exhausted ? 0.5 : config.exploreFloorChance;
                     if (rng.next() < floorChangeChance) {
-                        const upHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor + 1n) ||
-                                          spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor + 1n);
+                        const upHasWork = spanHasUnsearched(memory, pos.side, pos.position, 1, pos.floor + 1n) ||
+                                          spanHasUnsearched(memory, pos.side, pos.position, -1, pos.floor + 1n);
                         const downHasWork = pos.floor > 0n && (
-                            spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor - 1n) ||
-                            spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor - 1n));
+                            spanHasUnsearched(memory, pos.side, pos.position, 1, pos.floor - 1n) ||
+                            spanHasUnsearched(memory, pos.side, pos.position, -1, pos.floor - 1n));
                         if (upHasWork && !downHasWork) {
                             pos.floor += 1n;
                         } else if (!upHasWork && downHasWork && pos.floor > 0n) {
@@ -406,7 +381,6 @@ export function movementSystem(
 
         // Resolve optional components
         const sleep = getComponent<Sleep>(world, entity, SLEEP);
-        const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
         const memory = getComponent<Memory>(world, entity, MEMORY);
         const bookVisionEntry = memory ? getBookVision(memory) : null;
         const group = getComponent<Group>(world, entity, GROUP);
@@ -422,10 +396,8 @@ export function movementSystem(
             config,
             n,
             homePosition: sleep ? sleep.home.position : null,
-            bookVision: knowledge?.bookVision ?? null,
-            hasBook: knowledge?.hasBook ?? false,
-            knowledge: knowledge ?? null,
-            bookVisionEntry,
+            bookVisionEntry: bookVisionEntry ?? null,
+            memory: memory ?? null,
             leaderPos: leaderPos ?? null,
             patience: pers ? 1.0 - pers.pace : 0.5,
         });

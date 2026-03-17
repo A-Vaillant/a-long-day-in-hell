@@ -24,7 +24,7 @@ import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, createSearching, searchSystem, findWordsFromSeed } from "../../lib/search.core.ts";
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
-import { KNOWLEDGE, createKnowledge, grantVision as applyVision, grantVagueVision } from "../../lib/knowledge.core.ts";
+import { generateNpcLifeStory } from "../../lib/lifestory.core.ts";
 import {
     MEMORY, MEMORY_TYPES,
     DEFAULT_MEMORY_CONFIG,
@@ -76,10 +76,6 @@ export const Social = {
         addComponent(world, playerEntity, BELIEF, generateBelief(playerBeliefRng));
         const playerStatsRng = seedFromString(state.seed + ":player:stats");
         addComponent(world, playerEntity, STATS, generateStats(playerStatsRng));
-        // Use createKnowledge shape so player and NPC fields stay in sync
-        const playerKnowledge = createKnowledge(state.seed, -1, { side: state.side, position: BigInt(state.position), floor: BigInt(state.floor) }, state.playerRawAddress, state.playerBookAddress);
-        playerKnowledge.lifeStory = state.lifeStory;
-        addComponent(world, playerEntity, KNOWLEDGE, playerKnowledge);
         addComponent(world, playerEntity, NEEDS, {
             hunger: state.hunger || 0,
             thirst: state.thirst || 0,
@@ -112,13 +108,12 @@ export const Social = {
                 addComponent(world, ent, POSITION, {
                     side: npc.side, position: npc.position, floor: npc.floor,
                 });
-                // Create Knowledge first to get life story (keep for backward compat)
-                const npcKnowledge = createKnowledge(
+                // Generate NPC life story from seed (deterministic per NPC id)
+                const npcStory = generateNpcLifeStory(
                     state.seed, npc.id,
                     { side: npc.side, position: npc.position, floor: npc.floor },
                     state.playerRawAddress, state.playerBookAddress,
                 );
-                const npcStory = npcKnowledge.lifeStory;
                 addComponent(world, ent, IDENTITY, { name: npc.name, alive: npc.alive, free: false, lifeStory: npcStory });
                 // Match initial psychology to spawn disposition
                 const initPsych = npc.disposition === "mad" ? { lucidity: 25, hope: 30 } :
@@ -151,8 +146,6 @@ export const Social = {
                 addComponent(world, ent, BELIEF, generateBelief(npcBeliefRng));
                 const npcStatsRng = seedFromString(state.seed + ":npc:stats:" + npc.id);
                 addComponent(world, ent, STATS, generateStats(npcStatsRng));
-
-                addComponent(world, ent, KNOWLEDGE, npcKnowledge);
             }
         }
     },
@@ -658,17 +651,17 @@ export const Social = {
         return getComponent(world, ent, BELIEF);
     },
 
-    /** Get player knowledge. */
+    /** Get player memory (bookVision and search progress). */
     getPlayerKnowledge() {
         if (!world || playerEntity === null) return null;
-        return getComponent(world, playerEntity, KNOWLEDGE);
+        return getComponent(world, playerEntity, MEMORY);
     },
 
-    /** Get NPC knowledge for debug/UI. */
+    /** Get NPC memory for debug/UI. */
     getNpcKnowledge(npcId) {
         const ent = npcEntities.get(npcId);
         if (ent === undefined || !world) return null;
-        return getComponent(world, ent, KNOWLEDGE);
+        return getComponent(world, ent, MEMORY);
     },
 
     /**
@@ -690,13 +683,6 @@ export const Social = {
             grantVagueBookVision(mem, ident.lifeStory.bookCoords, 50, state.tick);
         } else if (accurate) {
             grantBookVision(mem, ident.lifeStory.bookCoords, state.tick);
-        }
-
-        // Also update Knowledge for backward compat
-        const knowledge = getComponent(world, ent, KNOWLEDGE);
-        if (knowledge) {
-            if (accurate && vague) grantVagueVision(knowledge, 50);
-            else applyVision(knowledge, accurate);
         }
 
         // Divine inspiration: immediate hope boost
@@ -776,9 +762,6 @@ export const Social = {
             if (!entry || entry.state === "exhausted") continue;
             if (!entry.coords || !entry.accurate) continue;
 
-            // Also keep Knowledge reference for backward compat updates
-            const knowledge = getComponent(world, ent, KNOWLEDGE);
-
             const pos = getComponent(world, ent, POSITION);
             if (!pos) continue;
 
@@ -811,12 +794,6 @@ export const Social = {
                 entry.weight = pfConfig.initialWeight;
                 entry.initialWeight = pfConfig.initialWeight;
 
-                // Backward compat: update Knowledge
-                if (knowledge) {
-                    knowledge.pilgrimageExhausted = true;
-                    knowledge.bookVision = null;
-                }
-
                 // Apply trauma
                 const psych = getComponent(world, ent, PSYCHOLOGY);
                 if (psych) {
@@ -833,7 +810,6 @@ export const Social = {
                 if (entry.state !== "found") {
                     if (isAtBookSegment(entry, pos)) {
                         entry.state = "found";
-                        if (knowledge) knowledge.hasBook = true;
                     }
                     continue;
                 }
@@ -848,13 +824,6 @@ export const Social = {
                 entry.type = "pilgrimageFailure";
                 entry.weight = pfConfig.initialWeight;
                 entry.initialWeight = pfConfig.initialWeight;
-
-                // Backward compat: update Knowledge
-                if (knowledge) {
-                    knowledge.hasBook = false;
-                    knowledge.pilgrimageExhausted = true;
-                    knowledge.bookVision = null;
-                }
 
                 const psych = getComponent(world, ent, PSYCHOLOGY);
                 if (psych) {

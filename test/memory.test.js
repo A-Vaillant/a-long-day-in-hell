@@ -8,7 +8,6 @@ import {
     buildLocationIndex,
 } from "../lib/social.core.ts";
 import { HABITUATION } from "../lib/psych.core.ts";
-import { KNOWLEDGE } from "../lib/knowledge.core.ts";
 import { mercyKiosk } from "../lib/library.core.ts";
 import {
     MEMORY, MEMORY_TYPES,
@@ -698,10 +697,6 @@ describe("NPC mercy kiosk memory", () => {
         const ent = spawn(world);
         const bookVision = { side: 0, position: 5n, floor: 100n, bookIndex: 3 };
         addComponent(world, ent, POSITION, { side: 0, position: 0n, floor: 100n });
-        addComponent(world, ent, KNOWLEDGE, {
-            lifeStory: null, bookVision, visionAccurate: true,
-            hasBook: false, searchedSegments: new Set(), bestScore: 0, bestWords: [],
-        });
         addComponent(world, ent, PSYCHOLOGY, { hope: 30, lucidity: 80, sociability: 50 });
         addComponent(world, ent, MEMORY, createMemory());
 
