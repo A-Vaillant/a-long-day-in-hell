@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { KNOWLEDGE, createKnowledge, generateNpcLifeStory, grantVision, isAtBookSegment, grantVagueVision, isInVisionRadius } from "../lib/knowledge.core.ts";
+import { MEMORY, createMemory, grantBookVision, grantVagueBookVision, getBookVision } from "../lib/memory.core.ts";
 import { generateLifeStory } from "../lib/lifestory.core.ts";
 import { PLAYABLE_ADDRESS_MAX } from "../lib/invertible.core.ts";
 
@@ -339,6 +340,102 @@ describe("pilgrimage movement", () => {
         movementSystem(world, makeRng(0.01), undefined, 100);
         const pos = getComponent(world, entity, POSITION);
         assert.equal(pos.position, 15n, "should have reached target position");
+    });
+});
+
+describe("pilgrimage intent scorer (memory-based)", () => {
+    function makeEntity(world, opts = {}) {
+        const entity = spawn(world);
+        addComponent(world, entity, POSITION, {
+            side: opts.side ?? 0, position: opts.position ?? 5n, floor: opts.floor ?? 10n,
+        });
+        addComponent(world, entity, IDENTITY, { name: "Test", alive: true, free: false });
+        addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
+        addComponent(world, entity, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
+        addComponent(world, entity, PERSONALITY, {
+            temperament: 0.5, pace: 0.5, openness: 0.5, outlook: 0.5,
+        });
+        return entity;
+    }
+
+    it("pilgrimage scores high with bookVision memory", () => {
+        const world = createWorld();
+        const entity = makeEntity(world);
+        const mem = createMemory();
+        grantBookVision(mem, { side: 1, position: 500n, floor: 30n, bookIndex: 2 }, 0);
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.ok(pilgrim, "pilgrimage should score with bookVision memory");
+        assert.ok(pilgrim.score >= 2.0);
+    });
+
+    it("pilgrimage excluded with exhausted bookVision memory", () => {
+        const world = createWorld();
+        const entity = makeEntity(world);
+        const mem = createMemory();
+        grantBookVision(mem, { side: 0, position: 500n, floor: 30n, bookIndex: 2 }, 0);
+        getBookVision(mem).state = "exhausted";
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.equal(pilgrim, undefined);
+    });
+
+    it("pilgrimage excluded when at exact vision location via memory", () => {
+        const world = createWorld();
+        const mem = createMemory();
+        grantBookVision(mem, { side: 0, position: 20n, floor: 10n, bookIndex: 3 }, 0);
+        const vision = getBookVision(mem);
+        const entity = makeEntity(world, {
+            side: vision.coords.side,
+            position: vision.coords.position,
+            floor: vision.coords.floor,
+        });
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.equal(pilgrim, undefined, "pilgrimage should not appear when already at destination");
+    });
+
+    it("pilgrimage excluded when vague vision and within radius via memory", () => {
+        const world = createWorld();
+        // Entity at position 5, vague vision jittered near 20, radius 50 → within radius
+        const entity = makeEntity(world, { side: 0, position: 5n, floor: 10n });
+        const mem = createMemory();
+        grantVagueBookVision(mem, { side: 0, position: 20n, floor: 10n, bookIndex: 5 }, 50, 0);
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.equal(pilgrim, undefined, "pilgrimage should yield to search when within vague radius");
+    });
+
+    it("pilgrimage still scores when vague vision but outside radius via memory", () => {
+        const world = createWorld();
+        const entity = makeEntity(world, { side: 0, position: 5n, floor: 10n });
+        const mem = createMemory();
+        grantVagueBookVision(mem, { side: 0, position: 500n, floor: 10n, bookIndex: 5 }, 50, 0);
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.ok(pilgrim, "pilgrimage should score when outside vague radius");
+    });
+
+    it("memory path takes priority over knowledge when both present", () => {
+        const world = createWorld();
+        const entity = makeEntity(world);
+        // Memory says exhausted — should block pilgrimage
+        const mem = createMemory();
+        grantBookVision(mem, { side: 0, position: 500n, floor: 30n, bookIndex: 2 }, 0);
+        getBookVision(mem).state = "exhausted";
+        addComponent(world, entity, MEMORY, mem);
+        // Knowledge says active vision — should be ignored since memory wins
+        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVision(k, true);
+        addComponent(world, entity, KNOWLEDGE, k);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.equal(pilgrim, undefined, "exhausted memory should win over active knowledge");
     });
 });
 
