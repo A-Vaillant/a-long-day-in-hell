@@ -275,6 +275,7 @@ export function resolveAction(
             state.openBook = { side: state.side, position: state.position, floor: state.floor, bookIndex };
             state.openPage = 1;
             const dwellKey = state.side + ":" + state.position + ":" + state.floor + ":" + bookIndex;
+            if (!state.dwellHistory) state.dwellHistory = {};
             state.dwellHistory[dwellKey] = true;
             const readResult = applyReadNonsense(statsFromState(state), state.nonsensePagesRead);
             applyStats(state, readResult.stats);
