@@ -9,7 +9,6 @@
 import { state } from "./state.js";
 import { Social } from "./social.js";
 import { applyAction } from "../../lib/action-dispatch.core.ts";
-import { isResetHour, TICKS_PER_HOUR } from "../../lib/tick.core.ts";
 import { Engine } from "./engine.js";
 import { PRNG } from "./prng.js";
 
@@ -42,33 +41,9 @@ function pinNpc(npcId) {
  * @returns {import("../../lib/action-dispatch.core.ts").DispatchResult}
  */
 function resolve(action) {
-    // Sleep is a loop: advance one hour at a time until dawn or day boundary
+    // Add bedroom context to sleep actions
     if (action.type === "sleep") {
-        const inBedroom = state._lastScreen === "Bedroom";
-        const startDay = state.day;
-        const allEvents = [];
-        let totalTicks = 0;
-
-        while (!isResetHour(state.tick) && !state.dead && state.day === startDay) {
-            const ctx = buildCtx();
-            const r = applyAction(state, { type: "sleep", inBedroom }, ctx);
-            if (!r.resolved) break;
-
-            for (const ev of r.tickEvents) {
-                Engine._boundary.fire(ev);
-                allEvents.push(ev);
-            }
-            Social.onTick(r.ticksConsumed);
-            totalTicks += r.ticksConsumed;
-
-            // Pass-out guard: resetHour boundary may have set _passedOut
-            if (state._passedOut) {
-                state._passedOut = false;
-                return { resolved: true, screen: "Passing Out", tickEvents: allEvents, ticksConsumed: totalTicks };
-            }
-        }
-
-        return { resolved: true, screen: "Sleep", tickEvents: allEvents, ticksConsumed: totalTicks };
+        action = { ...action, inBedroom: state._lastScreen === "Bedroom" };
     }
 
     const ctx = buildCtx();

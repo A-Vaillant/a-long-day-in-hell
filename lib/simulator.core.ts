@@ -16,7 +16,6 @@ import type { Xoshiro128ss } from "./prng.core.ts";
 import * as Surv from "./survival.core.ts";
 import type { SurvivalStats } from "./survival.core.ts";
 import * as Tick from "./tick.core.ts";
-import { isResetHour } from "./tick.core.ts";
 import * as Lib from "./library.core.ts";
 import type { Location, Direction } from "./library.core.ts";
 import * as LifeStoryCore from "./lifestory.core.ts";
@@ -354,19 +353,9 @@ export function createSimulation(opts: SimulationOpts): Simulation {
     /** Apply a single action. Returns true if action was resolved. */
     function applyAction(action: Action): boolean {
         // Sleep: loop one-hour calls until done (shared dispatch does one hour at a time)
+        // Sleep: add inBedroom context
         if (action.type === "sleep") {
-            const inBedroom = Lib.isRestArea(gs.position);
-            const startDay = gs.day;
-            let slept = false;
-            while (!isResetHour(gs.tick) && !gs.dead && !gs.won && gs.day === startDay) {
-                const result = dispatchAction(gs as any, { type: "sleep", inBedroom }, simCtx);
-                if (!result.resolved) break;
-                slept = true;
-                for (const ev of result.tickEvents) {
-                    if (ev === "dawn") onDawn();
-                }
-            }
-            return slept;
+            (action as any).inBedroom = Lib.isRestArea(gs.position);
         }
 
         const result = dispatchAction(gs as any, action, simCtx);

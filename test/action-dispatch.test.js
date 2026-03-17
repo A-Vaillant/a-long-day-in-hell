@@ -240,18 +240,19 @@ describe("applyAction submit", () => {
 });
 
 describe("applyAction sleep", () => {
-    it("advances TICKS_PER_HOUR and recovers exhaustion", () => {
-        const s = makeTestState({ exhaustion: 50, tick: 960 }); // lights off
+    it("sleeps through to dawn and recovers exhaustion", () => {
+        const s = makeTestState({ exhaustion: 50, tick: 960 }); // lights off at tick 960
         s.lightsOn = false;
         const r = applyAction(s, { type: "sleep", inBedroom: true }, makeTestCtx());
         assert.equal(r.resolved, true);
-        assert.equal(r.ticksConsumed, TICKS_PER_HOUR);
+        // Sleeps from tick 960 to dawn (tick 1440) = 480 ticks = 8 hours
+        assert.equal(r.ticksConsumed, 480);
         assert.ok(s.exhaustion < 50, "exhaustion should recover: " + s.exhaustion);
+        assert.equal(s.day, 2, "should be next day");
     });
 
-    it("returns tick events from the hour", () => {
-        // Tick 1380 + 60 = 1440 → crosses dawn
-        const s = makeTestState({ tick: 1380 });
+    it("includes dawn in tick events", () => {
+        const s = makeTestState({ tick: 960 });
         s.lightsOn = false;
         const r = applyAction(s, { type: "sleep", inBedroom: false }, makeTestCtx());
         assert.ok(r.tickEvents.includes("dawn"), "should fire dawn event");

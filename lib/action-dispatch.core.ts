@@ -114,7 +114,12 @@ function applyStats(s: GameState, stats: SurvivalStats): void {
     s.despairing = stats.despairing; s.dead = stats.dead;
 }
 
-function advanceOneTick(s: GameState): TickEvent[] {
+interface TickResult {
+    events: TickEvent[];
+    ticksConsumed: number;
+}
+
+function advanceOneTick(s: GameState): TickResult {
     // Survival depletion
     applyStats(s, applyMoveTick(statsFromState(s)));
     // Ambient morale drain
@@ -133,7 +138,15 @@ function advanceOneTick(s: GameState): TickEvent[] {
     s.tick = result.state.tick;
     s.day = result.state.day;
     s.lightsOn = isLightsOn(s.tick);
-    return result.events;
+
+    // resetHour: force sleep through to dawn (everyone passes out)
+    if (result.events.includes("resetHour") && !s.dead) {
+        const sleepResult = applyAction(s, { type: "sleep", inBedroom: isRestArea(s.position) }, {} as ActionContext);
+        const allEvents = [...result.events, ...sleepResult.tickEvents];
+        return { events: allEvents, ticksConsumed: 1 + sleepResult.ticksConsumed };
+    }
+
+    return { events: result.events, ticksConsumed: 1 };
 }
 
 // --- Main dispatch ---
@@ -163,7 +176,7 @@ export function applyAction(
             else if (dir === "down") state.exhaustion = Math.min(100, state.exhaustion + 0.75);
 
             // Advance one tick (depletion + time)
-            const tickEvents = advanceOneTick(state);
+            const tick = advanceOneTick(state);
 
             // Auto-drink at rest area kiosks
             if (isRestArea(state.position) && state.lightsOn) {
@@ -199,29 +212,29 @@ export function applyAction(
                 }
             }
 
-            return { resolved: true, screen: "Corridor", tickEvents, ticksConsumed: 1 };
+            return { resolved: true, screen: "Corridor", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
         }
 
         case "wait": {
             if (state.dead || state.won) return unresolved();
-            const tickEvents = advanceOneTick(state);
-            return { resolved: true, screen: "Wait", tickEvents, ticksConsumed: 1 };
+            const tick = advanceOneTick(state);
+            return { resolved: true, screen: "Wait", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
         }
 
         case "eat": {
             if (state.dead || state.won) return unresolved();
             if (!isRestArea(state.position) || !state.lightsOn) return unresolved();
             applyStats(state, applyEat(statsFromState(state)));
-            const tickEvents = advanceOneTick(state);
-            return { resolved: true, screen: "Kiosk Get Food", tickEvents, ticksConsumed: 1 };
+            const tick = advanceOneTick(state);
+            return { resolved: true, screen: "Kiosk Get Food", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
         }
 
         case "drink": {
             if (state.dead || state.won) return unresolved();
             if (!isRestArea(state.position) || !state.lightsOn) return unresolved();
             applyStats(state, applyDrink(statsFromState(state)));
-            const tickEvents = advanceOneTick(state);
-            return { resolved: true, screen: "Kiosk Get Drink", tickEvents, ticksConsumed: 1 };
+            const tick = advanceOneTick(state);
+            return { resolved: true, screen: "Kiosk Get Drink", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
         }
 
         case "alcohol": {
@@ -231,8 +244,8 @@ export function applyAction(
             if (state.despairing && shouldClearDespairing(state.morale)) {
                 state.despairing = false;
             }
-            const tickEvents = advanceOneTick(state);
-            return { resolved: true, screen: "Kiosk Get Alcohol", tickEvents, ticksConsumed: 1 };
+            const tick = advanceOneTick(state);
+            return { resolved: true, screen: "Kiosk Get Alcohol", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
         }
 
         case "read_book": {
@@ -292,8 +305,8 @@ export function applyAction(
                 state._submissionWon = true;
             }
             if (!state.won) state.heldBook = null;
-            const tickEvents = advanceOneTick(state);
-            return { resolved: true, screen: "Submission Attempt", tickEvents, ticksConsumed: 1 };
+            const tick = advanceOneTick(state);
+            return { resolved: true, screen: "Submission Attempt", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
         }
 
         case "chasm_jump": {
@@ -332,7 +345,7 @@ export function applyAction(
 
             // Preserve mortality (trauma damage is from grabs, not from falling ticks)
             const mortalityBefore = state.mortality;
-            const tickEvents = advanceOneTick(state);
+            const tick = advanceOneTick(state);
             state.mortality = Math.min(state.mortality, mortalityBefore);
 
             // Fall physics
@@ -348,9 +361,9 @@ export function applyAction(
                 }
             }
 
-            if (state.dead) return { resolved: true, screen: "Death", tickEvents, ticksConsumed: 1 };
-            if (!state.falling) return { resolved: true, screen: "Corridor", tickEvents, ticksConsumed: 1 };
-            return { resolved: true, screen: "Falling", tickEvents, ticksConsumed: 1 };
+            if (state.dead) return { resolved: true, screen: "Death", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
+            if (!state.falling) return { resolved: true, screen: "Corridor", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
+            return { resolved: true, screen: "Falling", tickEvents: tick.events, ticksConsumed: tick.ticksConsumed };
         }
 
         case "talk": {
@@ -415,33 +428,39 @@ export function applyAction(
         case "sleep": {
             if (state.dead || state.won) return unresolved();
             const inBedroom = (action as any).inBedroom ?? false;
+            const startDay = state.day;
+            const allEvents: TickEvent[] = [];
+            let totalTicks = 0;
 
-            // Apply one hour of sleep recovery
-            const moraleBefore = state.morale;
-            applyStats(state, applySleep(statsFromState(state), inBedroom));
-
-            // Despairing sleep modifier
-            if (state.despairing) {
-                const baseDelta = state.morale - moraleBefore;
-                if (baseDelta > 0) {
-                    const effective = modifySleepRecovery(baseDelta, state.despairing);
-                    state.morale = Math.max(0, moraleBefore + effective);
+            // Sleep hour-by-hour until dawn (day changes) or death
+            while (!state.dead && !state.won && state.day === startDay) {
+                // One hour of sleep recovery
+                const moraleBefore = state.morale;
+                applyStats(state, applySleep(statsFromState(state), inBedroom));
+                if (state.despairing) {
+                    const baseDelta = state.morale - moraleBefore;
+                    if (baseDelta > 0) {
+                        const effective = modifySleepRecovery(baseDelta, state.despairing);
+                        state.morale = Math.max(0, moraleBefore + effective);
+                    }
                 }
-            }
-            if (state.despairing && shouldClearDespairing(state.morale)) {
-                state.despairing = false;
-            }
+                if (state.despairing && shouldClearDespairing(state.morale)) {
+                    state.despairing = false;
+                }
 
-            // Advance time by one hour
-            const result = advanceTick({ tick: state.tick, day: state.day }, TICKS_PER_HOUR);
-            state.tick = result.state.tick;
-            state.day = result.state.day;
-            state.lightsOn = isLightsOn(state.tick);
+                // Advance one hour
+                const result = advanceTick({ tick: state.tick, day: state.day }, TICKS_PER_HOUR);
+                state.tick = result.state.tick;
+                state.day = result.state.day;
+                state.lightsOn = isLightsOn(state.tick);
+                totalTicks += TICKS_PER_HOUR;
+                for (const ev of result.events) allEvents.push(ev);
+            }
 
             return {
                 resolved: true, screen: "Sleep",
-                tickEvents: result.events,
-                ticksConsumed: TICKS_PER_HOUR,
+                tickEvents: allEvents,
+                ticksConsumed: totalTicks,
             };
         }
 
