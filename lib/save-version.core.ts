@@ -31,8 +31,9 @@ export interface SaveVersion {
  *         All book coordinates changed.
  *   3.1 — added release field (default 0).
  *   3.2 — digit-wise book embedding (unified codepath, no branch).
+ *   4.0 — ECS component persistence across save/load cycles.
  */
-export const SAVE_VERSION: SaveVersion = { release: 0, major: 3, minor: 2 };
+export const SAVE_VERSION: SaveVersion = { release: 0, major: 4, minor: 0 };
 
 /* ---- Feature flags ---- */
 

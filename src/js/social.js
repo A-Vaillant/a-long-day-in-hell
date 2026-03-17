@@ -43,6 +43,7 @@ import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.ts";
 import { appendEvents } from "./event-log.js";
 import { state } from "./state.js";
+import { Engine } from "./engine.js";
 
 let world = null;
 let playerEntity = null;
@@ -146,7 +147,173 @@ export const Social = {
                 addComponent(world, ent, BELIEF, generateBelief(npcBeliefRng));
                 const npcStatsRng = seedFromString(state.seed + ":npc:stats:" + npc.id);
                 addComponent(world, ent, STATS, generateStats(npcStatsRng));
+
+                // Restore persisted ECS state if available
+                if (npc.components) {
+                    const c = npc.components;
+                    if (c.psychology) {
+                        const p = getComponent(world, ent, PSYCHOLOGY);
+                        p.lucidity = c.psychology.lucidity;
+                        p.hope = c.psychology.hope;
+                    }
+                    if (c.memory) {
+                        addComponent(world, ent, MEMORY, {
+                            entries: c.memory.entries || [],
+                            capacity: c.memory.capacity || 32,
+                            nextId: c.memory.nextId || 0,
+                        });
+                    }
+                    if (c.intent) {
+                        const it = getComponent(world, ent, INTENT);
+                        it.behavior = c.intent.behavior;
+                        it.cooldown = c.intent.cooldown;
+                        it.elapsed = c.intent.elapsed;
+                    }
+                    if (c.needs) {
+                        const n = getComponent(world, ent, NEEDS);
+                        n.hunger = c.needs.hunger;
+                        n.thirst = c.needs.thirst;
+                        n.exhaustion = c.needs.exhaustion;
+                    }
+                    if (c.belief) {
+                        const b = getComponent(world, ent, BELIEF);
+                        b.faith = c.belief.faith;
+                        b.faithCrisis = c.belief.faithCrisis;
+                        b.stance = c.belief.stance;
+                    }
+                    if (c.habituation) {
+                        addComponent(world, ent, HABITUATION, { exposures: c.habituation.exposures });
+                    }
+                }
             }
+
+            // Restore relationships after all entities exist (needs Entity id cross-references)
+            for (const npc of state.npcs) {
+                if (!npc.components || !npc.components.relationships) continue;
+                const ent = npcEntities.get(npc.id);
+                if (ent === undefined) continue;
+                const rels = getComponent(world, ent, RELATIONSHIPS);
+                if (!rels) continue;
+                const saved = npc.components.relationships.bondsByNpcId;
+                for (const [npcIdStr, bond] of Object.entries(saved)) {
+                    const npcId = Number(npcIdStr);
+                    const otherEnt = npcId === -1 ? playerEntity : npcEntities.get(npcId);
+                    if (otherEnt !== undefined && otherEnt !== null) {
+                        rels.bonds.set(otherEnt, bond);
+                    }
+                }
+            }
+        }
+
+        // Restore player components
+        if (state._playerComponents && playerEntity !== null) {
+            const c = state._playerComponents;
+            if (c.psychology) {
+                const p = getComponent(world, playerEntity, PSYCHOLOGY);
+                p.lucidity = c.psychology.lucidity;
+                p.hope = c.psychology.hope;
+            }
+            if (c.memory) {
+                addComponent(world, playerEntity, MEMORY, {
+                    entries: c.memory.entries || [],
+                    capacity: c.memory.capacity || 32,
+                    nextId: c.memory.nextId || 0,
+                });
+            }
+            if (c.habituation) {
+                addComponent(world, playerEntity, HABITUATION, { exposures: c.habituation.exposures });
+            }
+            if (c.relationships) {
+                const rels = getComponent(world, playerEntity, RELATIONSHIPS);
+                if (rels) {
+                    for (const [npcIdStr, bond] of Object.entries(c.relationships.bondsByNpcId)) {
+                        const npcId = Number(npcIdStr);
+                        const otherEnt = npcEntities.get(npcId);
+                        if (otherEnt !== undefined) {
+                            rels.bonds.set(otherEnt, bond);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Register ECS export as pre-save hook (idempotent — only registers once)
+        if (!Social._preSaveRegistered) {
+            Engine.onBeforeSave(() => Social.exportComponents());
+            Social._preSaveRegistered = true;
+        }
+    },
+
+    /**
+     * Export ECS component state into state.npcs[].components (and state._playerComponents).
+     * Called automatically before every save via Engine.onBeforeSave.
+     */
+    exportComponents() {
+        if (!world || !state.npcs) return;
+
+        // Build reverse lookup: Entity → npcId
+        const entityToNpcId = new Map();
+        for (const [npcId, ent] of npcEntities) {
+            entityToNpcId.set(ent, npcId);
+        }
+        if (playerEntity !== null) {
+            entityToNpcId.set(playerEntity, -1);
+        }
+
+        for (const npc of state.npcs) {
+            const ent = npcEntities.get(npc.id);
+            if (ent === undefined) continue;
+
+            const psych = getComponent(world, ent, PSYCHOLOGY);
+            const mem = getComponent(world, ent, MEMORY);
+            const intent = getComponent(world, ent, INTENT);
+            const needs = getComponent(world, ent, NEEDS);
+            const belief = getComponent(world, ent, BELIEF);
+            const habit = getComponent(world, ent, HABITUATION);
+            const rels = getComponent(world, ent, RELATIONSHIPS);
+
+            const components = {};
+            if (psych) components.psychology = { lucidity: psych.lucidity, hope: psych.hope };
+            if (mem) components.memory = { entries: mem.entries, capacity: mem.capacity, nextId: mem.nextId };
+            if (intent) components.intent = { behavior: intent.behavior, cooldown: intent.cooldown, elapsed: intent.elapsed };
+            if (needs) components.needs = { hunger: needs.hunger, thirst: needs.thirst, exhaustion: needs.exhaustion };
+            if (belief) components.belief = { faith: belief.faith, faithCrisis: belief.faithCrisis, stance: belief.stance };
+            if (habit) components.habituation = { exposures: habit.exposures };
+            if (rels && rels.bonds.size > 0) {
+                const bondsByNpcId = {};
+                for (const [otherEnt, bond] of rels.bonds) {
+                    const otherId = entityToNpcId.get(otherEnt);
+                    if (otherId !== undefined) {
+                        bondsByNpcId[otherId] = { ...bond };
+                    }
+                }
+                components.relationships = { bondsByNpcId };
+            }
+
+            npc.components = components;
+        }
+
+        // Export player components
+        if (playerEntity !== null) {
+            const psych = getComponent(world, playerEntity, PSYCHOLOGY);
+            const mem = getComponent(world, playerEntity, MEMORY);
+            const habit = getComponent(world, playerEntity, HABITUATION);
+            const rels = getComponent(world, playerEntity, RELATIONSHIPS);
+            const playerComps = {};
+            if (psych) playerComps.psychology = { lucidity: psych.lucidity, hope: psych.hope };
+            if (mem) playerComps.memory = { entries: mem.entries, capacity: mem.capacity, nextId: mem.nextId };
+            if (habit) playerComps.habituation = { exposures: habit.exposures };
+            if (rels && rels.bonds.size > 0) {
+                const bondsByNpcId = {};
+                for (const [otherEnt, bond] of rels.bonds) {
+                    const otherId = entityToNpcId.get(otherEnt);
+                    if (otherId !== undefined) {
+                        bondsByNpcId[otherId] = { ...bond };
+                    }
+                }
+                playerComps.relationships = { bondsByNpcId };
+            }
+            state._playerComponents = playerComps;
         }
     },
 

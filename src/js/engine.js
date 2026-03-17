@@ -32,10 +32,16 @@ const TRANSIENT_KEYS = new Set([
 function jsonReplacer(key, value) {
     if (TRANSIENT_KEYS.has(key)) return undefined;
     if (typeof value === 'bigint') return { __bigint: value.toString() };
+    if (value instanceof Set) return { __set: Array.from(value) };
+    if (value instanceof Map) return { __map: Array.from(value.entries()) };
     return value;
 }
 function jsonReviver(key, value) {
-    if (value && typeof value === 'object' && '__bigint' in value) return BigInt(value.__bigint);
+    if (value && typeof value === 'object') {
+        if ('__bigint' in value) return BigInt(value.__bigint);
+        if ('__set' in value) return new Set(value.__set);
+        if ('__map' in value) return new Map(value.__map);
+    }
     return value;
 }
 
@@ -67,6 +73,8 @@ export function Madlib(def, contextKey) {
     });
 }
 
+let _preSaveHooks = [];
+
 export const Engine = {
     _screens: {},
     _actions: {},
@@ -91,6 +99,11 @@ export const Engine = {
     },
     action(name, fn) {
         this._actions[name] = fn;
+    },
+
+    /** Register a callback to run before every save (e.g. ECS export). */
+    onBeforeSave(fn) {
+        _preSaveHooks.push(fn);
     },
 
     /** Register a boundary event handler (lightsOut, resetHour, dawn). */
@@ -303,6 +316,8 @@ export const Engine = {
             state._saveVersion = SAVE_VERSION;
             state._savedLogCount = logCount();
             state._savedAt = Date.now();
+
+            for (const hook of _preSaveHooks) hook();
 
             const index = Slots.loadIndex();
             let slotId = state._slotId || index.activeSlot;

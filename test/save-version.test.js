@@ -107,8 +107,8 @@ describe("SAVE_VERSION shape", () => {
         assert.strictEqual(typeof SAVE_VERSION.minor, "number");
     });
 
-    it("minor is at least 1 (post-release-field)", () => {
-        assert.ok(SAVE_VERSION.minor >= 1);
+    it("major is at least 4 (ECS persistence)", () => {
+        assert.ok(SAVE_VERSION.major >= 4);
     });
 });
 
