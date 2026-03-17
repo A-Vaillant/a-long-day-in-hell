@@ -24,7 +24,14 @@ import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, createSearching, searchSystem, findWordsFromSeed } from "../../lib/search.core.ts";
 import { INTENT, intentSystem, getAvailableBehaviors } from "../../lib/intent.core.ts";
 import { SLEEP, sleepOnsetSystem, sleepWakeSystem, nearestRestArea } from "../../lib/sleep.core.ts";
-import { KNOWLEDGE, createKnowledge, grantVision as applyVision, isAtBookSegment, grantVagueVision, isInVisionRadius } from "../../lib/knowledge.core.ts";
+import { KNOWLEDGE, createKnowledge, grantVision as applyVision, grantVagueVision } from "../../lib/knowledge.core.ts";
+import {
+    MEMORY, MEMORY_TYPES,
+    DEFAULT_MEMORY_CONFIG,
+    createMemory, addMemory, hasRecentMemory, witnessSystem, memoryDecaySystem,
+    getBookVision, grantBookVision, grantVagueBookVision,
+    isAtBookSegment, isInVisionRadius, isSegmentSearched,
+} from "../../lib/memory.core.ts";
 import {
     talkTo, spendTime as spendTimeCore, recruit as recruitCore, socializeSystem,
 } from "../../lib/interaction.core.ts";
@@ -34,11 +41,6 @@ import { TICKS_PER_DAY } from "../../lib/tick.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.ts";
-import {
-    MEMORY, MEMORY_TYPES,
-    DEFAULT_MEMORY_CONFIG,
-    createMemory, addMemory, hasRecentMemory, witnessSystem, memoryDecaySystem,
-} from "../../lib/memory.core.ts";
 import { appendEvents } from "./event-log.js";
 import { state } from "./state.js";
 
@@ -59,7 +61,7 @@ export const Social = {
             side: state.side, position: BigInt(state.position), floor: BigInt(state.floor),
         });
         const playerName = (state.lifeStory && state.lifeStory.name) || "You";
-        addComponent(world, playerEntity, IDENTITY, { name: playerName, alive: true, free: false });
+        addComponent(world, playerEntity, IDENTITY, { name: playerName, alive: true, free: false, lifeStory: state.lifeStory || null });
         addComponent(world, playerEntity, PSYCHOLOGY, { lucidity: 100, hope: 50 });
         addComponent(world, playerEntity, RELATIONSHIPS, { bonds: new Map() });
         addComponent(world, playerEntity, HABITUATION, { exposures: new Map() });
@@ -89,7 +91,12 @@ export const Social = {
             heading: playerHeadingRng.next() < 0.5 ? 1 : -1,
         });
         addComponent(world, playerEntity, SEARCHING, createSearching());
-        addComponent(world, playerEntity, MEMORY, createMemory());
+        const playerMem = createMemory();
+        addComponent(world, playerEntity, MEMORY, playerMem);
+        // Grant player book vision on Memory (if they have a life story with coords)
+        if (state.lifeStory && state.lifeStory.bookCoords) {
+            grantBookVision(playerMem, state.lifeStory.bookCoords, 0);
+        }
         addComponent(world, playerEntity, SLEEP, {
             home: { side: state.side, position: nearestRestArea(BigInt(state.position)), floor: BigInt(state.floor) },
             bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0,
@@ -105,7 +112,14 @@ export const Social = {
                 addComponent(world, ent, POSITION, {
                     side: npc.side, position: npc.position, floor: npc.floor,
                 });
-                addComponent(world, ent, IDENTITY, { name: npc.name, alive: npc.alive, free: false });
+                // Create Knowledge first to get life story (keep for backward compat)
+                const npcKnowledge = createKnowledge(
+                    state.seed, npc.id,
+                    { side: npc.side, position: npc.position, floor: npc.floor },
+                    state.playerRawAddress, state.playerBookAddress,
+                );
+                const npcStory = npcKnowledge.lifeStory;
+                addComponent(world, ent, IDENTITY, { name: npc.name, alive: npc.alive, free: false, lifeStory: npcStory });
                 // Match initial psychology to spawn disposition
                 const initPsych = npc.disposition === "mad" ? { lucidity: 25, hope: 30 } :
                                   npc.disposition === "anxious" ? { lucidity: 55, hope: 40 } :
@@ -118,7 +132,8 @@ export const Social = {
                 const headingRng = seedFromString(state.seed + ":npc:heading:" + npc.id);
                 addComponent(world, ent, MOVEMENT, { targetPosition: null, heading: headingRng.next() < 0.5 ? 1 : -1 });
                 addComponent(world, ent, SEARCHING, createSearching());
-                addComponent(world, ent, MEMORY, createMemory());
+                const npcMem = createMemory();
+                addComponent(world, ent, MEMORY, npcMem);
                 addComponent(world, ent, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
                 addComponent(world, ent, SLEEP, {
                     home: { side: npc.side, position: nearestRestArea(npc.position), floor: npc.floor },
@@ -137,12 +152,7 @@ export const Social = {
                 const npcStatsRng = seedFromString(state.seed + ":npc:stats:" + npc.id);
                 addComponent(world, ent, STATS, generateStats(npcStatsRng));
 
-                // Knowledge: each NPC has their own life story + target book
-                addComponent(world, ent, KNOWLEDGE, createKnowledge(
-                    state.seed, npc.id,
-                    { side: npc.side, position: npc.position, floor: npc.floor },
-                    state.playerRawAddress, state.playerBookAddress,
-                ));
+                addComponent(world, ent, KNOWLEDGE, npcKnowledge);
             }
         }
     },
@@ -263,15 +273,16 @@ export const Social = {
         // Mercy kiosk detection for NPCs — after movement, before search
         for (const [npcId, ent] of npcEntities) {
             const pos = getComponent(world, ent, POSITION);
-            const knowledge = getComponent(world, ent, KNOWLEDGE);
-            if (!pos || !knowledge || !knowledge.bookVision || !knowledge.visionAccurate) continue;
+            const mem = getComponent(world, ent, MEMORY);
+            const bookVision = mem ? getBookVision(mem) : null;
+            if (!pos || !bookVision || !bookVision.coords || !bookVision.accurate) continue;
             if (!isRestArea(pos.position)) continue;
 
-            const mercy = mercyKiosk(pos, knowledge.bookVision);
+            const mercy = mercyKiosk(pos, bookVision.coords);
             if (!mercy) continue;
 
-            let mem = getComponent(world, ent, MEMORY);
-            if (!mem) { mem = createMemory(); addComponent(world, ent, MEMORY, mem); }
+            // mem already fetched above for bookVision check
+            if (!mem) continue;
             if (hasRecentMemory(mem, MEMORY_TYPES.REACHED_MERCY, null, currentTick, Infinity)) continue;
 
             const tc = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.REACHED_MERCY];
@@ -440,8 +451,9 @@ export const Social = {
             const ident = getComponent(world, ent, IDENTITY);
             if (!psych || !ident) continue;
 
-            const knowledge = getComponent(world, ent, KNOWLEDGE);
-            const onPilgrimage = !!(knowledge && knowledge.bookVision && ident.alive);
+            const mem = getComponent(world, ent, MEMORY);
+            const bv = mem ? getBookVision(mem) : null;
+            const onPilgrimage = !!(bv && bv.coords && bv.state !== "exhausted" && ident.alive);
             const prevDisposition = npc.disposition;
             npc.disposition = deriveDisposition(psych, ident.alive, undefined, onPilgrimage);
 
@@ -668,14 +680,25 @@ export const Social = {
     grantVision(npcId, { accurate = true, vague = true } = {}) {
         const ent = npcEntities.get(npcId);
         if (ent === undefined || !world) return false;
-        const knowledge = getComponent(world, ent, KNOWLEDGE);
         const ident = getComponent(world, ent, IDENTITY);
-        if (!knowledge || (ident && ident.free)) return false;
+        if (!ident || ident.free || !ident.lifeStory) return false;
+
+        // Grant on Memory
+        let mem = getComponent(world, ent, MEMORY);
+        if (!mem) { mem = createMemory(); addComponent(world, ent, MEMORY, mem); }
         if (accurate && vague) {
-            grantVagueVision(knowledge, 50);
-        } else {
-            applyVision(knowledge, accurate);
+            grantVagueBookVision(mem, ident.lifeStory.bookCoords, 50, state.tick);
+        } else if (accurate) {
+            grantBookVision(mem, ident.lifeStory.bookCoords, state.tick);
         }
+
+        // Also update Knowledge for backward compat
+        const knowledge = getComponent(world, ent, KNOWLEDGE);
+        if (knowledge) {
+            if (accurate && vague) grantVagueVision(knowledge, 50);
+            else applyVision(knowledge, accurate);
+        }
+
         // Divine inspiration: immediate hope boost
         const psych = getComponent(world, ent, PSYCHOLOGY);
         if (psych) {
@@ -743,29 +766,35 @@ export const Social = {
             if (!npc.alive) continue;
             const ent = npcEntities.get(npc.id);
             if (ent === undefined) continue;
-            const knowledge = getComponent(world, ent, KNOWLEDGE);
             const ident = getComponent(world, ent, IDENTITY);
-            if (!knowledge || !ident || ident.free) continue;
-            if (knowledge.pilgrimageExhausted) continue;
-            if (!knowledge.bookVision || !knowledge.visionAccurate) continue;
+            if (!ident || ident.free) continue;
+
+            // Read from Memory (primary)
+            let mem = getComponent(world, ent, MEMORY);
+            if (!mem) continue;
+            const entry = getBookVision(mem);
+            if (!entry || entry.state === "exhausted") continue;
+            if (!entry.coords || !entry.accurate) continue;
+
+            // Also keep Knowledge reference for backward compat updates
+            const knowledge = getComponent(world, ent, KNOWLEDGE);
 
             const pos = getComponent(world, ent, POSITION);
             if (!pos) continue;
 
-            if (knowledge.visionVague) {
+            if (entry.vague) {
                 // --- Vague path: check if NPC has searched enough of the vision zone ---
-                if (!isInVisionRadius(knowledge, pos)) continue;
+                if (!isInVisionRadius(entry, pos)) continue;
 
                 // Count how many segments within the vision radius have been searched
-                const visionPos = knowledge.bookVision.position;
-                const radius = BigInt(knowledge.visionRadius);
+                const visionPos = entry.coords.position;
+                const radius = BigInt(entry.radius);
                 let searchedInZone = 0;
                 let totalInZone = 0;
                 for (let offset = -radius; offset <= radius; offset++) {
                     const segPos = visionPos + offset;
                     totalInZone++;
-                    const key = `${pos.side}:${segPos}:${pos.floor}`;
-                    if (knowledge.searchedSegments.has(key)) {
+                    if (isSegmentSearched(mem, pos.side, segPos, pos.floor)) {
                         searchedInZone++;
                     }
                 }
@@ -774,31 +803,24 @@ export const Social = {
                 if (searchedInZone < totalInZone * 0.6) continue;
 
                 // --- Exhaustion: the zone is searched, nothing legible found ---
-                knowledge.pilgrimageExhausted = true;
-                knowledge.bookVision = null;
+                entry.state = "exhausted";
+                entry.coords = null;
+                // Mutate to pilgrimageFailure for psychological impact
+                const pfConfig = DEFAULT_MEMORY_CONFIG.types["pilgrimageFailure"];
+                entry.type = "pilgrimageFailure";
+                entry.weight = pfConfig.initialWeight;
+                entry.initialWeight = pfConfig.initialWeight;
+
+                // Backward compat: update Knowledge
+                if (knowledge) {
+                    knowledge.pilgrimageExhausted = true;
+                    knowledge.bookVision = null;
+                }
 
                 // Apply trauma
                 const psych = getComponent(world, ent, PSYCHOLOGY);
                 if (psych) {
                     applyShockToEntity(world, ent, "pilgrimageFailure");
-                }
-
-                // Create memory
-                const mem = getComponent(world, ent, MEMORY);
-                if (mem) {
-                    const memConfig = DEFAULT_MEMORY_CONFIG.types["pilgrimageFailure"];
-                    if (memConfig) {
-                        addMemory(mem, {
-                            id: mem.nextId++,
-                            type: "pilgrimageFailure",
-                            tick: state.tick,
-                            weight: memConfig.initialWeight,
-                            initialWeight: memConfig.initialWeight,
-                            permanent: memConfig.permanent,
-                            subject: null,
-                            contagious: false,
-                        });
-                    }
                 }
 
                 console.log("PILGRIMAGE FAILED:", npc.name, "id=" + npc.id,
@@ -808,9 +830,10 @@ export const Social = {
 
             } else {
                 // --- Exact path: pick up book, walk to rest area, discover noise ---
-                if (!knowledge.hasBook) {
-                    if (isAtBookSegment(knowledge, pos)) {
-                        knowledge.hasBook = true;
+                if (entry.state !== "found") {
+                    if (isAtBookSegment(entry, pos)) {
+                        entry.state = "found";
+                        if (knowledge) knowledge.hasBook = true;
                     }
                     continue;
                 }
@@ -818,30 +841,24 @@ export const Social = {
                 // Has book + at rest area → "opens" it → noise → trauma
                 if (!isRestArea(pos.position)) continue;
 
-                knowledge.hasBook = false;
-                knowledge.pilgrimageExhausted = true;
-                knowledge.bookVision = null;
+                entry.state = "exhausted";
+                entry.coords = null;
+                // Mutate to pilgrimageFailure
+                const pfConfig = DEFAULT_MEMORY_CONFIG.types["pilgrimageFailure"];
+                entry.type = "pilgrimageFailure";
+                entry.weight = pfConfig.initialWeight;
+                entry.initialWeight = pfConfig.initialWeight;
+
+                // Backward compat: update Knowledge
+                if (knowledge) {
+                    knowledge.hasBook = false;
+                    knowledge.pilgrimageExhausted = true;
+                    knowledge.bookVision = null;
+                }
 
                 const psych = getComponent(world, ent, PSYCHOLOGY);
                 if (psych) {
                     applyShockToEntity(world, ent, "pilgrimageFailure");
-                }
-
-                const mem = getComponent(world, ent, MEMORY);
-                if (mem) {
-                    const memConfig = DEFAULT_MEMORY_CONFIG.types["pilgrimageFailure"];
-                    if (memConfig) {
-                        addMemory(mem, {
-                            id: mem.nextId++,
-                            type: "pilgrimageFailure",
-                            tick: state.tick,
-                            weight: memConfig.initialWeight,
-                            initialWeight: memConfig.initialWeight,
-                            permanent: memConfig.permanent,
-                            subject: null,
-                            contagious: false,
-                        });
-                    }
                 }
 
                 console.log("PILGRIMAGE FAILED (exact):", npc.name, "id=" + npc.id,
