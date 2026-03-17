@@ -26,7 +26,15 @@ describe("player knowledge compat (post-Knowledge deletion)", () => {
             "Memory should NOT have a searchedSegments field — it lives on SearchProgressEntry");
     });
 
-    it("bookVision check works via getBookVision on Memory", () => {
+    it("bookVision presence check works via getBookVision on Memory", () => {
+        // screens.js line 371: playerKnow && playerKnow.bookVision (truthy check)
+        const mem = createMemory();
+        assert.equal(getBookVision(mem), null, "no vision → null");
+        grantBookVision(mem, { side: 0, position: 100n, floor: 50n, bookIndex: 5 }, 0);
+        assert.ok(getBookVision(mem), "with vision → truthy");
+    });
+
+    it("bookVision coords check works via getBookVision on Memory", () => {
         const mem = createMemory();
         // screens.js line 499: pkOpen.bookVision (checking if player has a vision)
         // This returns undefined because Memory has no .bookVision field.

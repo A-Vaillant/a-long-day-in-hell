@@ -368,7 +368,7 @@ Engine.register("Corridor", {
                 const isHeld = state.heldBook !== null && state.heldBook.side === state.side &&
                     state.heldBook.position === state.position && state.heldBook.floor === state.floor &&
                     state.heldBook.bookIndex === bi;
-                const hasVision = playerKnow && playerKnow.bookVision;
+                const hasVision = playerMem && getBookVision(playerMem);
                 const isTarget = hasVision &&
                     state.targetBook.side === state.side &&
                     state.targetBook.position === state.position && state.targetBook.floor === state.floor &&
