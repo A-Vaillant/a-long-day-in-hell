@@ -102,9 +102,9 @@ const AUTO_DRINK_THRESHOLD = 50;
 
 function statsFromState(s: GameState): SurvivalStats {
     return {
-        hunger: s.hunger, thirst: s.thirst, exhaustion: s.exhaustion,
-        morale: s.morale, mortality: s.mortality,
-        despairing: s.despairing, dead: s.dead,
+        hunger: s.hunger ?? 0, thirst: s.thirst ?? 0, exhaustion: s.exhaustion ?? 0,
+        morale: s.morale ?? 100, mortality: s.mortality ?? 100,
+        despairing: s.despairing ?? false, dead: s.dead ?? false,
     };
 }
 
@@ -185,11 +185,11 @@ export function resolveAction(
             state.position = loc.position;
             state.floor = loc.floor;
             state._lastMove = dir;
-            state.totalMoves++;
+            state.totalMoves = (state.totalMoves || 0) + 1;
 
             // Directional exhaustion
-            if (dir === "up") state.exhaustion = Math.min(100, state.exhaustion + 1.5);
-            else if (dir === "down") state.exhaustion = Math.min(100, state.exhaustion + 0.75);
+            if (dir === "up") state.exhaustion = Math.min(100, (state.exhaustion || 0) + 1.5);
+            else if (dir === "down") state.exhaustion = Math.min(100, (state.exhaustion || 0) + 0.75);
 
             // Auto-drink at rest area kiosks
             if (isRestArea(state.position) && state.lightsOn) {
@@ -206,6 +206,7 @@ export function resolveAction(
                     state.targetBook,
                 );
                 if (mercy) {
+                    if (!state._mercyKiosks) state._mercyKiosks = {};
                     state._mercyKiosks[mercy] = true;
                     state._mercyKioskDone = true;
                     applyStats(state, applyMercyKiosk(statsFromState(state)));

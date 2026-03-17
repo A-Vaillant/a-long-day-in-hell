@@ -204,6 +204,85 @@ describe("applyAction read_book", () => {
     });
 });
 
+describe("applyAction robustness against undefined state fields", () => {
+    // These test the case where state fields are missing (old saves, fresh state)
+    // Every action should produce valid numbers, never NaN.
+
+    function sparseState(overrides = {}) {
+        // Minimal state — only fields that are ALWAYS set by engine.js
+        return {
+            side: 0, position: 5n, floor: 10n,
+            tick: 0, day: 1, lightsOn: true,
+            heldBook: null, openBook: null, openPage: 0,
+            despairing: false,
+            targetBook: { side: 0, position: 100n, floor: 50n, bookIndex: 5 },
+            won: false,
+            // These are commonly undefined on old saves:
+            // hunger, thirst, exhaustion, morale, mortality, dead,
+            // totalMoves, _mercyKiosks, dwellHistory, nonsensePagesRead,
+            // eventDeck, lastEvent, falling, deaths, deathCause,
+            // _despairDays, _mercyKioskDone, _mercyArrival,
+            // _readBlocked, _submissionWon, _lastMove
+            ...overrides,
+        };
+    }
+
+    it("move does not crash with undefined survival stats", () => {
+        const s = sparseState();
+        const r = applyAction(s, { type: "move", dir: "right" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(!isNaN(s.morale), "morale not NaN: " + s.morale);
+        assert.ok(!isNaN(s.hunger), "hunger not NaN: " + s.hunger);
+        assert.ok(!isNaN(s.thirst), "thirst not NaN: " + s.thirst);
+        assert.ok(!isNaN(s.exhaustion), "exhaustion not NaN: " + s.exhaustion);
+        assert.ok(!isNaN(s.totalMoves), "totalMoves not NaN: " + s.totalMoves);
+    });
+
+    it("move up does not crash with undefined exhaustion", () => {
+        const s = sparseState({ position: 0n, floor: 5n });
+        const r = applyAction(s, { type: "move", dir: "up" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(!isNaN(s.exhaustion), "exhaustion not NaN: " + s.exhaustion);
+    });
+
+    it("wait does not crash with undefined stats", () => {
+        const s = sparseState();
+        const r = applyAction(s, { type: "wait" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(!isNaN(s.morale), "morale not NaN");
+    });
+
+    it("eat does not crash with undefined stats", () => {
+        const s = sparseState({ position: 0n });
+        const r = applyAction(s, { type: "eat" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(!isNaN(s.hunger), "hunger not NaN");
+    });
+
+    it("drink does not crash with undefined stats", () => {
+        const s = sparseState({ position: 0n });
+        const r = applyAction(s, { type: "drink" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(!isNaN(s.thirst), "thirst not NaN");
+    });
+
+    it("mercy kiosk does not crash with undefined _mercyKiosks", () => {
+        const s = sparseState({ position: 0n });
+        s.targetBook = { side: 0, position: 5n, floor: 10n, bookIndex: 3 };
+        // Position 0 is a rest area adjacent to targetBook at position 5
+        const r = applyAction(s, { type: "move", dir: "right" }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        // Should not crash even without _mercyKiosks initialized
+    });
+
+    it("sleep does not crash with undefined stats", () => {
+        const s = sparseState({ tick: 960, lightsOn: false });
+        const r = applyAction(s, { type: "sleep", inBedroom: false }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(!isNaN(s.morale), "morale not NaN after sleep");
+    });
+});
+
 describe("applyAction take_book", () => {
     it("sets heldBook with no tick cost", () => {
         const s = makeTestState({ position: 5n });
