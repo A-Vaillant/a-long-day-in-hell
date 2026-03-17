@@ -277,7 +277,7 @@ export function resolveAction(
             const dwellKey = state.side + ":" + state.position + ":" + state.floor + ":" + bookIndex;
             if (!state.dwellHistory) state.dwellHistory = {};
             state.dwellHistory[dwellKey] = true;
-            const readResult = applyReadNonsense(statsFromState(state), state.nonsensePagesRead);
+            const readResult = applyReadNonsense(statsFromState(state), state.nonsensePagesRead || 0);
             applyStats(state, readResult.stats);
             state.nonsensePagesRead = readResult.nonsensePagesRead;
 

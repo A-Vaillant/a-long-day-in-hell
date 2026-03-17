@@ -184,6 +184,24 @@ describe("applyAction read_book", () => {
         applyAction(s, { type: "read_book", bookIndex: 7 }, makeTestCtx());
         assert.equal(s.dwellHistory["0:5:10:7"], true);
     });
+
+    it("does not produce NaN morale when nonsensePagesRead is undefined", () => {
+        const s = makeTestState({ position: 5n, morale: 80 });
+        delete s.nonsensePagesRead;
+        const r = applyAction(s, { type: "read_book", bookIndex: 3 }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(!isNaN(s.morale), "morale should not be NaN, got: " + s.morale);
+        assert.ok(s.morale <= 80, "morale should have decreased or stayed");
+    });
+
+    it("does not produce NaN morale when dwellHistory is undefined", () => {
+        const s = makeTestState({ position: 5n, morale: 80 });
+        delete s.dwellHistory;
+        const r = applyAction(s, { type: "read_book", bookIndex: 3 }, makeTestCtx());
+        assert.equal(r.resolved, true);
+        assert.ok(!isNaN(s.morale), "morale should not be NaN");
+        assert.ok(s.dwellHistory, "dwellHistory should be initialized");
+    });
 });
 
 describe("applyAction take_book", () => {
