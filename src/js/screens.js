@@ -15,6 +15,7 @@ import { Chasm } from "./chasm.js";
 import { Social } from "./social.js";
 import { distanceToHumanTime } from "../../lib/scale.core.ts";
 import { GALLERIES_PER_SEGMENT, mercyKiosk } from "../../lib/library.core.ts";
+import { isSegmentSearched, getBookVision } from "../../lib/memory.core.ts";
 import { Actions } from "./actions.js";
 
 /** Check if the player is at a mercy kiosk for their target book. */
@@ -358,9 +359,9 @@ Engine.register("Corridor", {
         if (!seg.restArea) {
             const COUNT = Lib.BOOKS_PER_GALLERY;
             const grid = document.createElement("div");
-            const playerKnow = Social.getPlayerKnowledge();
-            const segSearched = playerKnow && playerKnow.searchedSegments.has(
-                state.side + ":" + state.position + ":" + state.floor);
+            const playerMem = Social.getPlayerKnowledge();
+            const segSearched = playerMem && isSegmentSearched(playerMem,
+                state.side, state.position, state.floor);
             grid.className = "shelf-grid" + (segSearched ? " shelf-searched" : "");
 
             for (let bi = 0; bi < COUNT; bi++) {
@@ -495,8 +496,9 @@ Engine.register("Shelf Open Book", {
             html += '<p class="location-header">' + bkLabel + ' — Page ' + pg + ' / ' + Book.PAGES_PER_BOOK + '</p>';
         }
 
-        const pkOpen = Social.getPlayerKnowledge();
-        if (pkOpen && pkOpen.bookVision &&
+        const pkMem = Social.getPlayerKnowledge();
+        const pkVision = pkMem ? getBookVision(pkMem) : null;
+        if (pkVision && pkVision.coords &&
             bk.side === state.targetBook.side && bk.position === state.targetBook.position &&
             bk.floor === state.targetBook.floor && bk.bookIndex === state.targetBook.bookIndex) {
             html += '<p class="target-book-hint">Something about this book makes you stop.</p>';
