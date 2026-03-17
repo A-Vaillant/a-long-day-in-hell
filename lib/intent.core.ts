@@ -22,7 +22,7 @@
 import type { Entity, World } from "./ecs.core.ts";
 import { getComponent, hasComponent, query } from "./ecs.core.ts";
 import {
-    POSITION, IDENTITY, PSYCHOLOGY, PLAYER, RELATIONSHIPS,
+    POSITION, IDENTITY, PSYCHOLOGY, PLAYER, AI, RELATIONSHIPS,
     deriveDisposition, coLocated,
     type Position, type Identity, type Psychology, type Relationships,
 } from "./social.core.ts";
@@ -482,8 +482,8 @@ export function intentSystem(
         const ident = tuple[2] as Identity;
         const psych = tuple[3] as Psychology;
 
-        // Player intent is manual — don't auto-resolve
-        if (hasComponent(world, entity, PLAYER)) continue;
+        // Player intent is manual — unless they have AI tag (godmode autonomous)
+        if (hasComponent(world, entity, PLAYER) && !hasComponent(world, entity, AI)) continue;
 
         // Tick counters
         intent.elapsed++;

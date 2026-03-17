@@ -7,7 +7,7 @@
  */
 
 import {
-    createWorld, spawn, addComponent, getComponent, entitiesWith,
+    createWorld, spawn, addComponent, removeComponent, getComponent, hasComponent, entitiesWith,
 } from "../../lib/ecs.core.ts";
 import {
     POSITION, IDENTITY, PSYCHOLOGY, RELATIONSHIPS, PLAYER, AI, GROUP,
@@ -430,13 +430,25 @@ export const Social = {
         // NPC action dispatch — normal mode uses shared resolveAction,
         // batch mode (godmode) uses the optimized movementSystem.
         if (n <= 1) {
+            const globalCtx = {
+                lightsOn: state.lightsOn,
+                tick: state.tick,
+                day: state.day,
+                seed: state.seed,
+            };
             for (const [npcId, ent] of npcEntities) {
-                tickNpcAction(world, ent, {
-                    lightsOn: state.lightsOn,
-                    tick: state.tick,
-                    day: state.day,
-                    seed: state.seed,
-                });
+                tickNpcAction(world, ent, globalCtx);
+            }
+            // Autonomous player (godmode): run through same action dispatch
+            if (playerEntity !== null && hasComponent(world, playerEntity, AI)) {
+                tickNpcAction(world, playerEntity, globalCtx);
+                // Sync position back to state
+                const pos = getComponent(world, playerEntity, POSITION);
+                if (pos) {
+                    state.side = pos.side;
+                    state.position = pos.position;
+                    state.floor = pos.floor;
+                }
             }
         } else {
             // Batch mode: movement system handles bulk position updates
@@ -784,6 +796,20 @@ export const Social = {
     getWorld() { return world; },
     getPlayerEntity() { return playerEntity; },
     getNpcEntity(npcId) { return npcEntities.get(npcId); },
+
+    /**
+     * Enable/disable autonomous player — intent system scores behaviors
+     * and tickNpcAction resolves movement for the player entity.
+     * Used by godmode to make the player autopilot (pilgrimage, etc).
+     */
+    setPlayerAutonomous(enabled) {
+        if (!world || playerEntity === null) return;
+        if (enabled) {
+            addComponent(world, playerEntity, AI, {});
+        } else {
+            removeComponent(world, playerEntity, AI);
+        }
+    },
 
     /** Resolve an ECS entity to a display name. */
     getEntityName(entity) {

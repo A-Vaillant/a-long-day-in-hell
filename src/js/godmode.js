@@ -967,6 +967,9 @@ export const Godmode = {
             switchTab("npc");
             render(true);
         }
+        // Player autopilot — intent system drives the player like an NPC
+        Social.setPlayerAutonomous(true);
+
         GodmodeLog.init(onSelect);
         GodmodeTrends.init(onSelect);
         const canvas = setupDOM();
