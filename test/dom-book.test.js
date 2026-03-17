@@ -112,6 +112,36 @@ describe("DOM: book rendering", () => {
         assert.strictEqual(game.state.openPage, 1, "opens to page 1 by default");
     });
 
+    it("clicking a book spine opens it and renders page content", () => {
+        // Navigate to a gallery (non-rest-area)
+        game.state.position = 1n;
+        game.Engine.goto("Corridor");
+
+        // Click a book spine
+        const spine = game.document.querySelector(".book-spine:not(.book-gap)");
+        assert.ok(spine, "a clickable spine exists");
+        spine.click();
+
+        assert.strictEqual(game.state.screen, "Shelf Open Book", "should navigate to book view");
+        assert.ok(game.state.openBook, "openBook should be set");
+        assert.equal(game.state.openBook.side, game.state.side, "book side matches player side");
+        assert.equal(game.state.openBook.position, 1n, "book position matches player position");
+        assert.equal(game.state.openBook.floor, game.state.floor, "book floor matches player floor");
+        assert.equal(game.state.openPage, 1, "opens to page 1");
+
+        // Navigate to a content page and verify rendering
+        game.state.openPage = 2;
+        game.Engine.goto("Shelf Open Book");
+
+        const el = game.document.getElementById("book-single");
+        assert.ok(el, "book-single element exists");
+        assert.ok(el.classList.contains("book-page-symbols"), "has symbols class");
+        const text = el.textContent;
+        assert.ok(text.length > 100, "page has content: " + text.length + " chars");
+        const lines = text.split("\n");
+        assert.strictEqual(lines.length, 40, "page has 40 lines");
+    });
+
     it("cover element gets spine-matching color CSS variables", () => {
         game.state.position = 1;
         game.state.openBook = { side: 0, position: 1, floor: 10, bookIndex: 5 };
