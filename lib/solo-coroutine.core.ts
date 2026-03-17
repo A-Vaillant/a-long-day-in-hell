@@ -25,6 +25,8 @@ import type { BeliefComponent } from "./belief.core.ts";
 import type { Stats } from "./stats.core.ts";
 import type { Sleep } from "./sleep.core.ts";
 import type { Knowledge } from "./knowledge.core.ts";
+import type { Memory } from "./memory.core.ts";
+import { getBookVision } from "./memory.core.ts";
 import type { DecayConfig } from "./social.core.ts";
 import type { Habituation } from "./psych.core.ts";
 
@@ -69,6 +71,7 @@ export interface SoloState {
     stats: Stats | null;
     sleep: Sleep | null;
     knowledge: Knowledge | null;
+    memory?: Memory | null;
     habituation: Habituation | null;
 
     // Time
@@ -164,7 +167,10 @@ function applyPsychologyDecay(state: SoloState, config: SoloConfig): void {
     decayPsychology(state.psych, false, config.decay, bias, 1.0);
 
     // Pilgrim hope floor
-    if (state.knowledge?.bookVision && state.alive && !state.knowledge.pilgrimageExhausted) {
+    const bookVision = state.memory ? getBookVision(state.memory) : null;
+    const hasPurpose = (bookVision && bookVision.state !== "exhausted") ||
+                       (state.knowledge?.bookVision && state.alive && !state.knowledge.pilgrimageExhausted);
+    if (hasPurpose) {
         const pilgrimHopeFloor = 20;
         if (state.psych.hope < pilgrimHopeFloor) {
             state.psych.hope = pilgrimHopeFloor;
