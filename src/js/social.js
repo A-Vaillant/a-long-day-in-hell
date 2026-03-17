@@ -41,6 +41,7 @@ import { TICKS_PER_DAY } from "../../lib/tick.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { fallTick, attemptGrab } from "../../lib/chasm.core.ts";
+import { tickNpcAction } from "../../lib/npc-action.core.ts";
 import { appendEvents } from "./event-log.js";
 import { state } from "./state.js";
 import { Engine } from "./engine.js";
@@ -426,9 +427,22 @@ export const Social = {
         const intentRng = seedFromString(state.seed + ":npc:intent:" + currentTick);
         intentSystem(world, intentRng, undefined, state.tick);
 
-        // Movement (only for explore/seek_rest/wander_mad intents)
-        const moveRng = seedFromString(state.seed + ":npc:move:" + currentTick);
-        movementSystem(world, moveRng, undefined, n);
+        // NPC action dispatch — normal mode uses shared resolveAction,
+        // batch mode (godmode) uses the optimized movementSystem.
+        if (n <= 1) {
+            for (const [npcId, ent] of npcEntities) {
+                tickNpcAction(world, ent, {
+                    lightsOn: state.lightsOn,
+                    tick: state.tick,
+                    day: state.day,
+                    seed: state.seed,
+                });
+            }
+        } else {
+            // Batch mode: movement system handles bulk position updates
+            const moveRng = seedFromString(state.seed + ":npc:move:" + currentTick);
+            movementSystem(world, moveRng, undefined, n);
+        }
 
         // Mercy kiosk detection for NPCs — after movement, before search
         for (const [npcId, ent] of npcEntities) {

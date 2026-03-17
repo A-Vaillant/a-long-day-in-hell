@@ -12,14 +12,16 @@ import type { Entity, World } from "./ecs.core.ts";
 import { getComponent } from "./ecs.core.ts";
 import type { Action } from "./action.core.ts";
 import { INTENT, type Intent } from "./intent.core.ts";
-import { POSITION, IDENTITY, type Position, type Identity } from "./social.core.ts";
+import { POSITION, IDENTITY, PSYCHOLOGY, type Position, type Identity, type Psychology } from "./social.core.ts";
 import { MOVEMENT, type Movement } from "./movement.core.ts";
 import { SEARCHING, type Searching } from "./search.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
+import { NEEDS, type Needs } from "./needs.core.ts";
 import { MEMORY, type Memory, getBookVision, type BookVisionEntry } from "./memory.core.ts";
 import { isRestArea } from "./library.core.ts";
 import type { Direction } from "./library.core.ts";
 import { nearestRestArea } from "./sleep.core.ts";
+import { resolveAction, type GameState, type ActionContext } from "./action-dispatch.core.ts";
 
 /**
  * Translate an NPC's current intent behavior into a concrete Action.
@@ -144,4 +146,115 @@ export function behaviorToAction(
         default:
             return null;
     }
+}
+
+// --- NPC GameState adapter ---
+
+/**
+ * Build a minimal GameState view from an NPC's ECS components.
+ * Only the fields that resolveAction reads for NPC-relevant actions
+ * (move, wait, eat, drink, read_book) are populated. Fields irrelevant
+ * to NPCs get safe defaults.
+ *
+ * The returned object is mutable — resolveAction writes back into it.
+ * Call writeBackNpcState after to sync changes to ECS components.
+ */
+export function buildNpcState(
+    world: World,
+    entity: Entity,
+    globalState: { lightsOn: boolean; tick: number; day: number; seed: string },
+): GameState | null {
+    const pos = getComponent<Position>(world, entity, POSITION);
+    const ident = getComponent<Identity>(world, entity, IDENTITY);
+    if (!pos || !ident) return null;
+
+    const psych = getComponent<Psychology>(world, entity, PSYCHOLOGY);
+    const needs = getComponent<Needs>(world, entity, NEEDS);
+
+    return {
+        side: pos.side,
+        position: pos.position,
+        floor: pos.floor,
+        tick: globalState.tick,
+        day: globalState.day,
+        lightsOn: globalState.lightsOn,
+        hunger: needs?.hunger ?? 0,
+        thirst: needs?.thirst ?? 0,
+        exhaustion: needs?.exhaustion ?? 0,
+        morale: psych?.hope ?? 50,
+        mortality: 100,
+        despairing: false,
+        dead: !ident.alive,
+        heldBook: null,
+        openBook: null,
+        openPage: 0,
+        dwellHistory: {},
+        targetBook: { side: 0, position: 0n, floor: 0n, bookIndex: 0 },
+        submissionsAttempted: 0,
+        nonsensePagesRead: 0,
+        totalMoves: 0,
+        deaths: 0,
+        deathCause: null,
+        _mercyKiosks: {},
+        _mercyKioskDone: true, // NPCs handle mercy kiosks via their own detection
+        _mercyArrival: null,
+        _despairDays: 0,
+        falling: null,
+        eventDeck: [],
+        lastEvent: null,
+        won: false,
+        _readBlocked: false,
+        _submissionWon: false,
+        _lastMove: null,
+    };
+}
+
+/**
+ * Write resolveAction results back from the NPC GameState view
+ * to the entity's ECS components.
+ */
+export function writeBackNpcState(
+    world: World,
+    entity: Entity,
+    npcState: GameState,
+): void {
+    const pos = getComponent<Position>(world, entity, POSITION);
+    if (pos) {
+        pos.side = npcState.side;
+        pos.position = npcState.position;
+        pos.floor = npcState.floor;
+    }
+    const needs = getComponent<Needs>(world, entity, NEEDS);
+    if (needs) {
+        needs.exhaustion = npcState.exhaustion;
+    }
+}
+
+/**
+ * Run one NPC's action through the shared dispatch.
+ * Translates intent → action → resolveAction → write back.
+ * Returns the action taken (or null if NPC didn't act).
+ */
+export function tickNpcAction(
+    world: World,
+    entity: Entity,
+    globalState: { lightsOn: boolean; tick: number; day: number; seed: string },
+): Action | null {
+    const action = behaviorToAction(world, entity);
+    if (!action) return null;
+
+    // Skip wait — no state mutation needed
+    if (action.type === "wait") return action;
+
+    const npcState = buildNpcState(world, entity, globalState);
+    if (!npcState) return null;
+
+    const ctx: ActionContext = { seed: globalState.seed, eventCards: [] };
+    const result = resolveAction(npcState, action, ctx);
+
+    if (result.resolved) {
+        writeBackNpcState(world, entity, npcState);
+    }
+
+    return action;
 }
