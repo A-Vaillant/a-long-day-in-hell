@@ -56,10 +56,16 @@ export const Book = {
         // Unified digit-wise codepath — no branch between player/NPC/noise
         if (state._featureFlags && state._featureFlags.digitWiseBooks) {
             const address = coordsToAddress(side, position, floor, bookIndex);
-            return digitWiseBookPage(
+            const flat = digitWiseBookPage(
                 address, state._originPad, state._playerDigits,
                 state._feistelKey, pageIndex,
             );
+            // Insert newlines for rendering (core function returns flat math output)
+            const lines = [];
+            for (let i = 0; i < flat.length; i += CHARS_PER_LINE) {
+                lines.push(flat.slice(i, i + CHARS_PER_LINE));
+            }
+            return lines.join("\n");
         }
         // Legacy codepath (pre-3.2 saves)
         if (isTargetBook(side, position, floor, bookIndex)) {

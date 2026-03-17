@@ -794,7 +794,7 @@ export function buildPlayerDigits(storyText: string, fields: { name: string; occ
  * @param playerDigits - precomputed player book digit values (charCode - 32)
  * @param key - Feistel key from feistelKey(seed)
  * @param pageIndex - 0-based page number [0, 409]
- * @returns page string, line-broken at CHARS_PER_LINE
+ * @returns CHARS_PER_PAGE-character flat string (no newlines)
  */
 export function digitWiseBookPage(
     address: bigint,
@@ -807,17 +807,12 @@ export function digitWiseBookPage(
     const pageOffset = pageIndex * CHARS_PER_PAGE;
     const addrDigits = expand(scrambled, pageOffset, CHARS_PER_PAGE);
 
-    const lines: string[] = [];
-    for (let l = 0; l < LINES_PER_PAGE; l++) {
-        let line = "";
-        for (let c = 0; c < CHARS_PER_LINE; c++) {
-            const i = l * CHARS_PER_LINE + c;
-            const d = ((addrDigits[i] - originPad[pageOffset + i] + playerDigits[pageOffset + i]) % CHARSET_SIZE + CHARSET_SIZE) % CHARSET_SIZE;
-            line += String.fromCharCode(32 + d);
-        }
-        lines.push(line);
+    let page = "";
+    for (let i = 0; i < CHARS_PER_PAGE; i++) {
+        const d = ((addrDigits[i] - originPad[pageOffset + i] + playerDigits[pageOffset + i]) % CHARSET_SIZE + CHARSET_SIZE) % CHARSET_SIZE;
+        page += String.fromCharCode(32 + d);
     }
-    return lines.join("\n");
+    return page;
 }
 
 /* ---- Exports for solver/test use ---- */
