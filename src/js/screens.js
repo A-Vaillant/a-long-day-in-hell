@@ -1223,7 +1223,7 @@ Engine.register("Dismiss Result", {
         }
         const name = r._npcName || "them";
         let html = '<div id="dismiss-result-view">';
-        if (r.success) {
+        if (r.type === "ok" || r.success) {
             html += '<p>You tell <strong>' + esc(name) + '</strong> it\'s time to part ways.</p>';
             html += '<p>They leave without a word.</p>';
         } else {
@@ -1439,7 +1439,12 @@ Engine.register("Falling", {
                 const r = Actions.resolve({ type: "grab_railing" });
                 if (r.data && r.data.success) {
                     Engine.goto("Corridor");
+                } else if (state.dead) {
+                    // Trauma death from grab — go to Death directly
+                    state._grabFailed = r.data;
+                    Engine.goto("Death");
                 } else {
+                    state._grabFailed = r.data;
                     const r2 = Actions.resolve({ type: "fall_wait" });
                     if (r2.screen) Engine.goto(r2.screen);
                 }

@@ -380,7 +380,7 @@ describe("sleep morale recovery", () => {
         game.state.exhaustion = 100;
         game.state.tick = 500;
         game.state._lastScreen = "Corridor";
-        game.Tick.onSleep();
+        game.window.Actions.resolve({ type: "sleep" });
         assert.strictEqual(game.state.morale, 50,
             "corridor floor sleep should not change morale");
     });
@@ -390,7 +390,7 @@ describe("sleep morale recovery", () => {
         game.state.exhaustion = 100;
         game.state.tick = 500;
         game.state._lastScreen = "Bedroom";
-        game.Tick.onSleep();
+        game.window.Actions.resolve({ type: "sleep" });
         assert.ok(game.state.morale > 50,
             "bedroom sleep should restore some morale");
         // +1 per hour of sleep — modest, not a full reset

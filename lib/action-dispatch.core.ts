@@ -329,6 +329,7 @@ export function applyAction(
             state.mortality = Math.max(0, state.mortality - result.mortalityHit);
             if (state.mortality <= 0) {
                 state.dead = true;
+                state.deaths++;
                 state.deathCause = "trauma";
             }
             return { resolved: true, tickEvents: [], ticksConsumed: 0, data: { success: false, mortalityHit: result.mortalityHit } };
@@ -357,6 +358,7 @@ export function applyAction(
                 state.falling = null;
                 if (fallResult.fatal) {
                     state.dead = true;
+                    state.deaths = (state.deaths || 0) + 1;
                     state.deathCause = "gravity";
                 }
             }
@@ -368,7 +370,7 @@ export function applyAction(
 
         case "talk": {
             if (state.dead) return unresolved();
-            if (!ctx.world || !ctx.resolveEntity || !ctx.playerEntity) return unresolved();
+            if (!ctx.world || !ctx.resolveEntity || ctx.playerEntity == null) return unresolved();
             const npcId = (action as any).npcId as number;
             const approach = (action as any).approach as string;
             const npcEnt = ctx.resolveEntity(npcId);
@@ -384,7 +386,7 @@ export function applyAction(
 
         case "spend_time": {
             if (state.dead) return unresolved();
-            if (!ctx.world || !ctx.resolveEntity || !ctx.playerEntity) return unresolved();
+            if (!ctx.world || !ctx.resolveEntity || ctx.playerEntity == null) return unresolved();
             const npcId = (action as any).npcId as number;
             const npcEnt = ctx.resolveEntity(npcId);
             if (npcEnt === undefined) return unresolved();
@@ -399,7 +401,7 @@ export function applyAction(
 
         case "recruit": {
             if (state.dead) return unresolved();
-            if (!ctx.world || !ctx.resolveEntity || !ctx.playerEntity) return unresolved();
+            if (!ctx.world || !ctx.resolveEntity || ctx.playerEntity == null) return unresolved();
             const npcId = (action as any).npcId as number;
             const npcEnt = ctx.resolveEntity(npcId);
             if (npcEnt === undefined) return unresolved();
@@ -413,7 +415,7 @@ export function applyAction(
 
         case "dismiss": {
             if (state.dead) return unresolved();
-            if (!ctx.world || !ctx.resolveEntity || !ctx.playerEntity) return unresolved();
+            if (!ctx.world || !ctx.resolveEntity || ctx.playerEntity == null) return unresolved();
             const npcId = (action as any).npcId as number;
             const npcEnt = ctx.resolveEntity(npcId);
             if (npcEnt === undefined) return unresolved();

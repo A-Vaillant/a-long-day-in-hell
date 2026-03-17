@@ -178,11 +178,14 @@ describe("DOM: Ambient muttering", () => {
 describe("DOM: Social bridge — psychology sync", () => {
     beforeEach(() => resetGame(game));
 
-    it("player psychology accessible and starts at 100 lucidity / 50 hope", () => {
+    it("player psychology accessible and starts at 100 lucidity / ~50 hope", () => {
         const psych = game.Social.getPlayerPsych();
         assert.ok(psych, "player psych exists");
         assert.strictEqual(psych.lucidity, 100);
-        assert.strictEqual(psych.hope, 50);
+        // Hope may drift slightly from init value due to social physics
+        // running during bootGame's Engine.goto("Corridor")
+        assert.ok(Math.abs(psych.hope - 50) < 2,
+            "hope should be near 50 (got " + psych.hope + ")");
     });
 
     it("player disposition starts as calm", () => {
