@@ -9,7 +9,7 @@ import {
 } from "../lib/social.core.ts";
 import { HABITUATION } from "../lib/psych.core.ts";
 import { STATS } from "../lib/stats.core.ts";
-import { KNOWLEDGE } from "../lib/knowledge.core.ts";
+import { MEMORY, createMemory, markSegmentSearched } from "../lib/memory.core.ts";
 import {
     talkTo, spendTime, recruit, socializeSystem,
     DEFAULT_TALK, DEFAULT_SPEND_TIME, DEFAULT_RECRUIT,
@@ -148,30 +148,40 @@ describe("talkTo", () => {
         const w = makeWorld();
         const p = makeEntity(w, { player: true });
         const n = makeEntity(w, { name: "Gina" });
-        const pKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:0:0", "0:1:0"]) };
-        const nKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:2:0", "0:3:0"]) };
-        addComponent(w, p, KNOWLEDGE, pKnow);
-        addComponent(w, n, KNOWLEDGE, nKnow);
+        const pMem = createMemory();
+        markSegmentSearched(pMem, 0, 0n, 0n);
+        markSegmentSearched(pMem, 0, 1n, 0n);
+        const nMem = createMemory();
+        markSegmentSearched(nMem, 0, 2n, 0n);
+        markSegmentSearched(nMem, 0, 3n, 0n);
+        addComponent(w, p, MEMORY, pMem);
+        addComponent(w, n, MEMORY, nMem);
         const result = talkTo(w, p, n, "kind", 100);
         assert.strictEqual(result.segmentsLearned, 2);
         assert.strictEqual(result.segmentsShared, 2);
-        assert.strictEqual(pKnow.searchedSegments.size, 4);
-        assert.strictEqual(nKnow.searchedSegments.size, 4);
+        const pSp = pMem.entries.find(e => e.type === "searchProgress");
+        const nSp = nMem.entries.find(e => e.type === "searchProgress");
+        assert.strictEqual(pSp.searchedSegments.size, 4);
+        assert.strictEqual(nSp.searchedSegments.size, 4);
     });
 
     it("dismissive talk does not share knowledge", () => {
         const w = makeWorld();
         const p = makeEntity(w, { player: true });
         const n = makeEntity(w, { name: "Hank" });
-        const pKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:0:0"]) };
-        const nKnow = { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:1:0"]) };
-        addComponent(w, p, KNOWLEDGE, pKnow);
-        addComponent(w, n, KNOWLEDGE, nKnow);
+        const pMem = createMemory();
+        const nMem = createMemory();
+        markSegmentSearched(pMem, 0, 0n, 0n);
+        markSegmentSearched(nMem, 0, 1n, 0n);
+        addComponent(w, p, MEMORY, pMem);
+        addComponent(w, n, MEMORY, nMem);
         const result = talkTo(w, p, n, "dismissive", 100);
         assert.strictEqual(result.segmentsLearned, 0);
         assert.strictEqual(result.segmentsShared, 0);
-        assert.strictEqual(pKnow.searchedSegments.size, 1);
-        assert.strictEqual(nKnow.searchedSegments.size, 1);
+        const pSp = pMem.entries.find(e => e.type === "searchProgress");
+        const nSp = nMem.entries.find(e => e.type === "searchProgress");
+        assert.strictEqual(pSp.searchedSegments.size, 1);
+        assert.strictEqual(nSp.searchedSegments.size, 1);
     });
 });
 
@@ -519,7 +529,7 @@ describe("socialize scorer diminishing returns", () => {
             rng: fakeRng,
             position: { side: 0, position: 0n, floor: 0n },
             sleep: null,
-            knowledge: null,
+            memory: null,
             tick: 0,
             hasCompanion: true,
         };
@@ -652,14 +662,18 @@ describe("socializeSystem", () => {
     it("shares search knowledge between chatting NPCs", () => {
         const w = makeWorld();
         const [a, b] = makeBondedPair(w);
-        addComponent(w, a, KNOWLEDGE, { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:0:0"]) });
-        addComponent(w, b, KNOWLEDGE, { lifeStory: {}, bookVision: null, visionAccurate: true, hasBook: false, searchedSegments: new Set(["0:5:0"]) });
+        const aMem = createMemory();
+        markSegmentSearched(aMem, 0, 0n, 0n);
+        const bMem = createMemory();
+        markSegmentSearched(bMem, 0, 5n, 0n);
+        addComponent(w, a, MEMORY, aMem);
+        addComponent(w, b, MEMORY, bMem);
 
         socializeSystem(w, 100);
 
-        const aKnow = getComponent(w, a, KNOWLEDGE);
-        const bKnow = getComponent(w, b, KNOWLEDGE);
-        assert.strictEqual(aKnow.searchedSegments.size, 2, "a learned from b");
-        assert.strictEqual(bKnow.searchedSegments.size, 2, "b learned from a");
+        const aSp = aMem.entries.find(e => e.type === "searchProgress");
+        const bSp = bMem.entries.find(e => e.type === "searchProgress");
+        assert.strictEqual(aSp.searchedSegments.size, 2, "a learned from b");
+        assert.strictEqual(bSp.searchedSegments.size, 2, "b learned from a");
     });
 });

@@ -24,7 +24,8 @@ import type { Personality } from "./personality.core.ts";
 import type { BeliefComponent } from "./belief.core.ts";
 import type { Stats } from "./stats.core.ts";
 import type { Sleep } from "./sleep.core.ts";
-import type { Knowledge } from "./knowledge.core.ts";
+import type { Memory, BookVisionEntry } from "./memory.core.ts";
+import { getBookVision } from "./memory.core.ts";
 import type { DecayConfig } from "./social.core.ts";
 import type { Habituation } from "./psych.core.ts";
 
@@ -68,7 +69,7 @@ export interface SoloState {
     belief: BeliefComponent | null;
     stats: Stats | null;
     sleep: Sleep | null;
-    knowledge: Knowledge | null;
+    memory?: Memory | null;
     habituation: Habituation | null;
 
     // Time
@@ -164,7 +165,9 @@ function applyPsychologyDecay(state: SoloState, config: SoloConfig): void {
     decayPsychology(state.psych, false, config.decay, bias, 1.0);
 
     // Pilgrim hope floor
-    if (state.knowledge?.bookVision && state.alive && !state.knowledge.pilgrimageExhausted) {
+    const bookVision = state.memory ? getBookVision(state.memory) : null;
+    const hasPurpose = bookVision && bookVision.state !== "exhausted";
+    if (hasPurpose) {
         const pilgrimHopeFloor = 20;
         if (state.psych.hope < pilgrimHopeFloor) {
             state.psych.hope = pilgrimHopeFloor;
@@ -208,8 +211,9 @@ function applyIntent(state: SoloState, currentTick: number, config: SoloConfig):
         state.pos,
         state.sleep,
         state.tick,
-        state.knowledge,
+        null,
         false, // solo — no companion
+        state.memory ?? null,
     );
 
     if (result) {
@@ -222,6 +226,10 @@ function applyIntent(state: SoloState, currentTick: number, config: SoloConfig):
 function applyMovement(state: SoloState, currentTick: number, config: SoloConfig): void {
     const moveRng = seedFromString(state.seed + ":move:" + currentTick);
 
+    const mem = state.memory ?? null;
+    const bookVisionEntry: BookVisionEntry | null = mem
+        ? (mem.entries?.find(e => e.type === "bookVision") as BookVisionEntry | undefined) ?? null
+        : null;
     computeMovement({
         mov: state.mov,
         pos: state.pos,
@@ -230,9 +238,8 @@ function applyMovement(state: SoloState, currentTick: number, config: SoloConfig
         config: config.movement,
         n: 1,
         homePosition: state.sleep ? state.sleep.home.position : null,
-        bookVision: state.knowledge?.bookVision ?? null,
-        hasBook: state.knowledge?.hasBook ?? false,
-        knowledge: state.knowledge ?? null,
+        bookVisionEntry,
+        memory: mem,
         leaderPos: null,  // solo — no group
         patience: state.personality ? 1.0 - state.personality.pace : 0.5,
     });

@@ -257,6 +257,28 @@ export function generateNPCLifeStory(
     return generateLifeStory(seed, { playerRawAddress, playerBookAddress });
 }
 
+/**
+ * Generate an NPC's life story and target book from a deterministic seed.
+ * Matches the parameter order used by social.js and test helpers.
+ * Equivalent to generateNPCLifeStory but also accepts startLoc.
+ *
+ * @param globalSeed - game seed
+ * @param npcId - NPC id (for deterministic per-NPC seeding)
+ * @param startLoc - NPC's spawn location
+ * @param playerRawAddress - player's raw book address
+ * @param playerBookAddress - player's clamped book address
+ */
+export function generateNpcLifeStory(
+    globalSeed: string,
+    npcId: number,
+    startLoc: { side: number; position: bigint; floor: bigint },
+    playerRawAddress: bigint,
+    playerBookAddress: bigint,
+): LifeStory {
+    const seed = globalSeed + ":npc:life:" + npcId;
+    return generateLifeStory(seed, { startLoc, playerRawAddress, playerBookAddress });
+}
+
 export interface PlayerWorld {
     playerBookAddress: bigint;
     story: LifeStory;

@@ -23,7 +23,6 @@ import { MOVEMENT, movementSystem } from "../../lib/movement.core.ts";
 import { SEARCHING, searchSystem, findWordsFromSeed } from "../../lib/search.core.ts";
 import { INTENT, intentSystem } from "../../lib/intent.core.ts";
 import { SLEEP, nearestRestArea } from "../../lib/sleep.core.ts";
-import { KNOWLEDGE, createKnowledge } from "../../lib/knowledge.core.ts";
 import { generateBookPage } from "../../lib/book.core.ts";
 import { seedFromString } from "../../lib/prng.core.ts";
 import { TICKS_PER_DAY, WAKING_TICKS } from "../../lib/scale.core.ts";
@@ -320,7 +319,6 @@ function createSoloState(opts = {}) {
             home: { side, position: nearestRestArea(position), floor },
             bedIndex: null, asleep: false, coSleepers: [], awayStreak: 0, nomadic: false,
         },
-        knowledge: null,
         habituation: { exposures: new Map() },
         tick: 0,
         day: 1,

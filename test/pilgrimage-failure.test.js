@@ -1,12 +1,15 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { MEMORY_TYPES, DEFAULT_MEMORY_CONFIG, createMemory, addMemory } from "../lib/memory.core.ts";
+import {
+    MEMORY, MEMORY_TYPES, DEFAULT_MEMORY_CONFIG, createMemory, addMemory,
+    grantBookVision, grantVagueBookVision, getBookVision, isInVisionRadius,
+    segmentKey, getSearchProgress,
+} from "../lib/memory.core.ts";
 import { DEFAULT_SHOCKS, attenuateShock, applyShock, HABITUATION } from "../lib/psych.core.ts";
 import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
 import { POSITION, IDENTITY, PSYCHOLOGY, psychologyDecaySystem } from "../lib/social.core.ts";
-import { KNOWLEDGE, createKnowledge, grantVision, grantVagueVision, isInVisionRadius, segmentKey } from "../lib/knowledge.core.ts";
-import { generateLifeStory } from "../lib/lifestory.core.ts";
+import { generateLifeStory, generateNpcLifeStory } from "../lib/lifestory.core.ts";
 import { PLAYABLE_ADDRESS_MAX } from "../lib/invertible.core.ts";
 import { PERSONALITY } from "../lib/personality.core.ts";
 import { INTENT, evaluateIntent, getAvailableBehaviors } from "../lib/intent.core.ts";
@@ -52,16 +55,17 @@ describe("pilgrimageFailure shock", () => {
 });
 
 describe("pilgrim hope floor after exhaustion", () => {
-    it("hope floor removed when pilgrimageExhausted", () => {
+    it("hope floor removed when bookVision state is exhausted", () => {
         const world = createWorld();
         const entity = spawn(world);
         addComponent(world, entity, POSITION, { side: 0, position: 0n, floor: 10n });
         addComponent(world, entity, IDENTITY, { name: "Pilgrim", alive: true, free: false });
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 10, hope: 5 });
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVision(k, true);
-        k.pilgrimageExhausted = true;
-        addComponent(world, entity, KNOWLEDGE, k);
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        getBookVision(mem).state = "exhausted";
+        addComponent(world, entity, MEMORY, mem);
 
         // Run psychology decay — should NOT enforce pilgrim hope floor
         psychologyDecaySystem(world);
@@ -80,11 +84,13 @@ describe("pilgrimage failure integration", () => {
         const world = createWorld();
         const entity = spawn(world);
 
-        const k = createKnowledge("integ-seed", 42, { side: 0, position: 100n, floor: 50n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVagueVision(k, 50);
-        const visionPos = k.bookVision.position;
-        const visionFloor = k.bookVision.floor;
-        const visionSide = k.bookVision.side;
+        const story = generateNpcLifeStory("integ-seed", 42, { side: 0, position: 100n, floor: 50n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        const mem = createMemory();
+        grantVagueBookVision(mem, story.bookCoords, 50, 0);
+        const vision = getBookVision(mem);
+        const visionPos = vision.coords.position;
+        const visionFloor = vision.coords.floor;
+        const visionSide = vision.coords.side;
 
         addComponent(world, entity, POSITION, { side: visionSide, position: visionPos + 5n, floor: visionFloor });
         addComponent(world, entity, IDENTITY, { name: "Seeker", alive: true, free: false });
@@ -92,7 +98,7 @@ describe("pilgrimage failure integration", () => {
         addComponent(world, entity, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
         addComponent(world, entity, PERSONALITY, { temperament: 0.5, pace: 0.5, openness: 0.5, outlook: 0.5 });
         addComponent(world, entity, HABITUATION, { exposures: new Map() });
-        addComponent(world, entity, KNOWLEDGE, k);
+        addComponent(world, entity, MEMORY, mem);
 
         // Verify: pilgrimage should NOT score (within radius → search takes over)
         const behaviors = getAvailableBehaviors(world, entity, makeRng());
@@ -104,21 +110,22 @@ describe("pilgrimage failure integration", () => {
         assert.ok(search, "search should be available");
 
         // Simulate: mark 60%+ of vision zone as searched
-        const radius = k.visionRadius;
+        const radius = vision.radius;
         const needed = Math.ceil((radius * 2 + 1) * 0.6);
+        const sp = getSearchProgress(mem, true);
         for (let i = 0; i < needed; i++) {
             const segPos = visionPos - BigInt(radius) + BigInt(i);
-            k.searchedSegments.add(segmentKey(visionSide, segPos, visionFloor));
+            sp.searchedSegments.add(segmentKey(visionSide, segPos, visionFloor));
         }
 
-        // Count searched in zone (mirrors checkEscapes logic)
+        // Count searched in zone
         const radiusBig = BigInt(radius);
         let searchedInZone = 0;
         let totalInZone = 0;
         for (let offset = -radiusBig; offset <= radiusBig; offset++) {
             totalInZone++;
-            const segPos = visionPos + offset;
-            if (k.searchedSegments.has(segmentKey(visionSide, segPos, visionFloor))) {
+            const segPos2 = visionPos + offset;
+            if (sp.searchedSegments.has(segmentKey(visionSide, segPos2, visionFloor))) {
                 searchedInZone++;
             }
         }
@@ -126,12 +133,16 @@ describe("pilgrimage failure integration", () => {
             "should have searched enough: " + searchedInZone + "/" + totalInZone);
 
         // Simulate trauma (what checkEscapes would do)
-        k.pilgrimageExhausted = true;
-        k.bookVision = null;
+        vision.state = "exhausted";
+        vision.coords = null;
+        const pfConfig = DEFAULT_MEMORY_CONFIG.types["pilgrimageFailure"];
+        vision.type = "pilgrimageFailure";
+        vision.weight = pfConfig.initialWeight;
+        vision.initialWeight = pfConfig.initialWeight;
+
         const psych = getComponent(world, entity, PSYCHOLOGY);
         applyShock(psych, getComponent(world, entity, HABITUATION), "pilgrimageFailure");
 
-        // Verify: devastating psychological impact
         assert.ok(psych.lucidity <= 10, "lucidity should be near zero: " + psych.lucidity);
         assert.ok(psych.hope <= 10, "hope should be near zero: " + psych.hope);
 
@@ -141,34 +152,36 @@ describe("pilgrimage failure integration", () => {
         assert.equal(pilgrim2, undefined, "pilgrimage should be excluded after exhaustion");
     });
 
-    it("exact path: hasBook → rest area → trauma", () => {
+    it("exact path: found state → rest area → trauma", () => {
         const world = createWorld();
         const entity = spawn(world);
 
-        const k = createKnowledge("exact-seed", 7, { side: 0, position: 100n, floor: 50n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        k.bookVision = { ...k.lifeStory.bookCoords };
-        k.visionAccurate = true;
-        k.visionVague = false;
-        k.hasBook = true;
+        const story = generateNpcLifeStory("exact-seed", 7, { side: 0, position: 100n, floor: 50n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        const mem = createMemory();
+        grantBookVision(mem, story.bookCoords, 0);
+        const vision = getBookVision(mem);
+        vision.state = "found";
 
-        addComponent(world, entity, POSITION, { side: k.bookVision.side, position: 0n, floor: k.bookVision.floor });
+        addComponent(world, entity, POSITION, { side: vision.coords.side, position: 0n, floor: vision.coords.floor });
         addComponent(world, entity, IDENTITY, { name: "ExactSeeker", alive: true, free: false });
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 70, hope: 60 });
         addComponent(world, entity, INTENT, { behavior: "pilgrimage", cooldown: 0, elapsed: 0 });
         addComponent(world, entity, PERSONALITY, { temperament: 0.5, pace: 0.5, openness: 0.5, outlook: 0.5 });
         addComponent(world, entity, HABITUATION, { exposures: new Map() });
-        addComponent(world, entity, KNOWLEDGE, k);
+        addComponent(world, entity, MEMORY, mem);
 
         // Simulate exact path trauma
-        k.hasBook = false;
-        k.pilgrimageExhausted = true;
-        k.bookVision = null;
+        vision.state = "exhausted";
+        vision.coords = null;
+        const pfConfig = DEFAULT_MEMORY_CONFIG.types["pilgrimageFailure"];
+        vision.type = "pilgrimageFailure";
+        vision.weight = pfConfig.initialWeight;
+        vision.initialWeight = pfConfig.initialWeight;
+
         const psych = getComponent(world, entity, PSYCHOLOGY);
         applyShock(psych, getComponent(world, entity, HABITUATION), "pilgrimageFailure");
 
         assert.ok(psych.lucidity <= 5, "lucidity should be devastated: " + psych.lucidity);
         assert.ok(psych.hope <= 5, "hope should be devastated: " + psych.hope);
-        assert.equal(k.pilgrimageExhausted, true);
-        assert.equal(k.hasBook, false);
     });
 });

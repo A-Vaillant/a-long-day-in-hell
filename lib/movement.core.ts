@@ -20,7 +20,7 @@ import {
 } from "./social.core.ts";
 import { INTENT, type Intent } from "./intent.core.ts";
 import { SLEEP, type Sleep } from "./sleep.core.ts";
-import { KNOWLEDGE, type Knowledge, isSearched } from "./knowledge.core.ts";
+import { MEMORY, type Memory, getBookVision, type BookVisionEntry, isSegmentSearched } from "./memory.core.ts";
 import { GROUP, type Group } from "./social.core.ts";
 import { PERSONALITY, type Personality } from "./personality.core.ts";
 import { isRestArea, GALLERIES_PER_SEGMENT } from "./library.core.ts";
@@ -68,18 +68,13 @@ function nearestRestArea(position: bigint): bigint {
 }
 
 /** Check if the span from a rest area in a direction has any unsearched galleries. */
-function spanHasUnsearched(knowledge: Knowledge, side: number, restPos: bigint, dir: number, floor: bigint): boolean {
+function spanHasUnsearched(memory: Memory | null, side: number, restPos: bigint, dir: number, floor: bigint): boolean {
+    if (!memory) return true; // no data → assume unsearched
     const span = Number(GALLERIES_PER_SEGMENT);
     for (let i = 1; i < span; i++) {
-        if (!isSearched(knowledge, side, restPos + BigInt(dir * i), floor)) return true;
+        if (!isSegmentSearched(memory, side, restPos + BigInt(dir * i), floor)) return true;
     }
     return false;
-}
-
-/** Check if the spans in both directions from a rest area are fully searched. */
-function localExhausted(knowledge: Knowledge, side: number, restPos: bigint, floor: bigint): boolean {
-    return !spanHasUnsearched(knowledge, side, restPos, 1, floor) &&
-           !spanHasUnsearched(knowledge, side, restPos, -1, floor);
 }
 
 /** Direction to step toward a target. Returns -1n, 0n, or 1n. */
@@ -105,12 +100,10 @@ export interface MovementInput {
     n: number;
     /** Home position from SLEEP component, if present. */
     homePosition: bigint | null;
-    /** Book vision from KNOWLEDGE component, if present. */
-    bookVision: { side: number; position: bigint; floor: bigint } | null;
-    /** Whether NPC has their book (KNOWLEDGE.hasBook). */
-    hasBook: boolean;
-    /** Full knowledge for search-aware exploration, if present. */
-    knowledge: Knowledge | null;
+    /** BookVision from Memory component. */
+    bookVisionEntry: BookVisionEntry | null;
+    /** Memory component for search-aware exploration. */
+    memory: Memory | null;
     /** Leader's position if in a group with a different leader, if present. */
     leaderPos: Position | null;
     /** Patience value from personality (1 - pace), default 0.5. */
@@ -122,22 +115,21 @@ export interface MovementInput {
  * Pure — reads from input, writes to mov.targetPosition.
  */
 function resolveTarget(input: MovementInput): void {
-    const { mov, pos, behavior, homePosition, bookVision, hasBook } = input;
+    const { mov, pos, behavior, homePosition, bookVisionEntry } = input;
 
     if (behavior === "seek_rest") {
         mov.targetPosition = nearestRestArea(pos.position);
     } else if (behavior === "return_home") {
         mov.targetPosition = homePosition !== null ? homePosition : nearestRestArea(pos.position);
     } else if (behavior === "pilgrimage") {
-        if (hasBook) {
-            mov.targetPosition = nearestRestArea(pos.position);
-        } else if (bookVision) {
-            if (pos.side !== bookVision.side) {
+        const bve = bookVisionEntry;
+        if (bve && bve.coords) {
+            if (bve.state === "found") {
                 mov.targetPosition = nearestRestArea(pos.position);
-            } else if (pos.floor !== bookVision.floor) {
+            } else if (pos.side !== bve.coords.side || pos.floor !== bve.coords.floor) {
                 mov.targetPosition = nearestRestArea(pos.position);
             } else {
-                mov.targetPosition = bookVision.position;
+                mov.targetPosition = bve.coords.position;
             }
         } else {
             mov.targetPosition = null;
@@ -152,7 +144,8 @@ function resolveTarget(input: MovementInput): void {
  * No ECS queries — caller resolves all component data.
  */
 export function computeMovement(input: MovementInput): void {
-    const { mov, pos, behavior, rng, config, n, bookVision, knowledge, leaderPos, patience } = input;
+    const { mov, pos, behavior, rng, config, n, memory, leaderPos, patience, bookVisionEntry } = input;
+    const effectiveVision = bookVisionEntry?.coords ?? null;
 
     if (!MOVE_INTENTS.has(behavior)) return;
 
@@ -168,13 +161,13 @@ export function computeMovement(input: MovementInput): void {
                 pos.position += step;
             } else if (behavior === "pilgrimage" && isRestArea(pos.position)) {
                 // At rest area target — handle floor/side transitions
-                if (bookVision) {
-                    if (pos.side !== bookVision.side && pos.floor === 0n) {
-                        pos.side = bookVision.side;
-                    } else if (pos.side !== bookVision.side && pos.floor > 0n) {
+                if (effectiveVision) {
+                    if (pos.side !== effectiveVision.side && pos.floor === 0n) {
+                        pos.side = effectiveVision.side;
+                    } else if (pos.side !== effectiveVision.side && pos.floor > 0n) {
                         pos.floor -= 1n;
-                    } else if (pos.floor !== bookVision.floor) {
-                        pos.floor += pos.floor < bookVision.floor ? 1n : -1n;
+                    } else if (pos.floor !== effectiveVision.floor) {
+                        pos.floor += pos.floor < effectiveVision.floor ? 1n : -1n;
                         pos.floor = bigMax(0n, pos.floor);
                     }
                 }
@@ -215,9 +208,9 @@ export function computeMovement(input: MovementInput): void {
             }
             const hasLeader = followingLeader || chasingLeader;
             if (isRestArea(pos.position) && !hasLeader) {
-                if (knowledge) {
-                    const fwdHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, mov.heading, pos.floor);
-                    const bwdHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, -mov.heading, pos.floor);
+                if (memory) {
+                    const fwdHasWork = spanHasUnsearched(memory, pos.side, pos.position, mov.heading, pos.floor);
+                    const bwdHasWork = spanHasUnsearched(memory, pos.side, pos.position, -mov.heading, pos.floor);
                     if (!fwdHasWork && bwdHasWork) {
                         mov.heading = -mov.heading;
                     } else if (fwdHasWork && !bwdHasWork) {
@@ -230,11 +223,11 @@ export function computeMovement(input: MovementInput): void {
                     const exhausted = !fwdHasWork && !bwdHasWork;
                     const floorChangeChance = exhausted ? 0.5 : config.exploreFloorChance;
                     if (rng.next() < floorChangeChance) {
-                        const upHasWork = spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor + 1n) ||
-                                          spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor + 1n);
+                        const upHasWork = spanHasUnsearched(memory, pos.side, pos.position, 1, pos.floor + 1n) ||
+                                          spanHasUnsearched(memory, pos.side, pos.position, -1, pos.floor + 1n);
                         const downHasWork = pos.floor > 0n && (
-                            spanHasUnsearched(knowledge, pos.side, pos.position, 1, pos.floor - 1n) ||
-                            spanHasUnsearched(knowledge, pos.side, pos.position, -1, pos.floor - 1n));
+                            spanHasUnsearched(memory, pos.side, pos.position, 1, pos.floor - 1n) ||
+                            spanHasUnsearched(memory, pos.side, pos.position, -1, pos.floor - 1n));
                         if (upHasWork && !downHasWork) {
                             pos.floor += 1n;
                         } else if (!upHasWork && downHasWork && pos.floor > 0n) {
@@ -262,27 +255,27 @@ export function computeMovement(input: MovementInput): void {
             if (BigInt(n) >= dist) {
                 pos.position = mov.targetPosition!;
                 if (behavior === "pilgrimage" && isRestArea(pos.position)) {
-                    if (bookVision) {
+                    if (effectiveVision) {
                         let remaining = BigInt(n) - dist;
-                        if (pos.side !== bookVision.side && remaining > 0n) {
+                        if (pos.side !== effectiveVision.side && remaining > 0n) {
                             const floorsDown = bigMin(pos.floor, remaining);
                             pos.floor -= floorsDown;
                             remaining -= floorsDown;
                             if (pos.floor === 0n && remaining > 0n) {
-                                pos.side = bookVision.side;
+                                pos.side = effectiveVision.side;
                                 remaining -= 1n;
                             }
                         }
-                        if (pos.side === bookVision.side && pos.floor !== bookVision.floor && remaining > 0n) {
-                            const floorDist = bigAbs(pos.floor - bookVision.floor);
+                        if (pos.side === effectiveVision.side && pos.floor !== effectiveVision.floor && remaining > 0n) {
+                            const floorDist = bigAbs(pos.floor - effectiveVision.floor);
                             const floorMoves = bigMin(remaining, floorDist);
-                            pos.floor += (pos.floor < bookVision.floor ? 1n : -1n) * floorMoves;
+                            pos.floor += (pos.floor < effectiveVision.floor ? 1n : -1n) * floorMoves;
                             remaining -= floorMoves;
                         }
-                        if (pos.side === bookVision.side && pos.floor === bookVision.floor && remaining > 0n) {
-                            const posDist = bigAbs(pos.position - bookVision.position);
+                        if (pos.side === effectiveVision.side && pos.floor === effectiveVision.floor && remaining > 0n) {
+                            const posDist = bigAbs(pos.position - effectiveVision.position);
                             const posMoves = bigMin(remaining, posDist);
-                            pos.position += stepToward(pos.position, bookVision.position) * posMoves;
+                            pos.position += stepToward(pos.position, effectiveVision.position) * posMoves;
                         }
                         pos.floor = bigMax(0n, pos.floor);
                     }
@@ -388,7 +381,8 @@ export function movementSystem(
 
         // Resolve optional components
         const sleep = getComponent<Sleep>(world, entity, SLEEP);
-        const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
+        const memory = getComponent<Memory>(world, entity, MEMORY);
+        const bookVisionEntry = memory ? getBookVision(memory) : null;
         const group = getComponent<Group>(world, entity, GROUP);
         const leaderPos = group?.leaderId != null && group.leaderId !== entity
             ? getComponent<Position>(world, group.leaderId, POSITION) : null;
@@ -402,9 +396,8 @@ export function movementSystem(
             config,
             n,
             homePosition: sleep ? sleep.home.position : null,
-            bookVision: knowledge?.bookVision ?? null,
-            hasBook: knowledge?.hasBook ?? false,
-            knowledge: knowledge ?? null,
+            bookVisionEntry: bookVisionEntry ?? null,
+            memory: memory ?? null,
             leaderPos: leaderPos ?? null,
             patience: pers ? 1.0 - pers.pace : 0.5,
         });

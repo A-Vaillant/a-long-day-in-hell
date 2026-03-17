@@ -17,6 +17,8 @@
 import type { Entity, World } from "./ecs.core.ts";
 import { getComponent, query, addComponent } from "./ecs.core.ts";
 import type { Position, Psychology, Relationships, Identity } from "./social.core.ts";
+import type { BookCoords } from "./lifestory.core.ts";
+import { seedFromString } from "./prng.core.ts";
 import {
     POSITION, PSYCHOLOGY, RELATIONSHIPS, IDENTITY,
     segmentDistance, canSeeAcrossChasm,
@@ -39,6 +41,8 @@ export const MEMORY_TYPES = {
     MET_SOMEONE: "metSomeone",
     PILGRIMAGE_FAILURE: "pilgrimageFailure",
     REACHED_MERCY: "reachedMercy",
+    BOOK_VISION: "bookVision",
+    SEARCH_PROGRESS: "searchProgress",
 } as const;
 
 export type MemoryType = typeof MEMORY_TYPES[keyof typeof MEMORY_TYPES];
@@ -56,6 +60,24 @@ export interface MemoryEntry {
     permanent: boolean;         // weight never decays below floor
     subject: Entity | null;     // who was involved
     contagious: boolean;        // reserved for cognitohazard propagation
+}
+
+export type BookVisionState = "granted" | "pilgrimaging" | "arrived" | "searching" | "exhausted" | "found";
+
+export interface BookVisionEntry extends MemoryEntry {
+    type: "bookVision";
+    coords: BookCoords | null;
+    accurate: boolean;
+    vague: boolean;
+    radius: number;
+    state: BookVisionState;
+}
+
+export interface SearchProgressEntry extends MemoryEntry {
+    type: "searchProgress";
+    searchedSegments: Set<string>;
+    bestScore: number;
+    bestWords: string[];
 }
 
 export interface Memory {
@@ -98,6 +120,8 @@ export const DEFAULT_MEMORY_TYPES: Record<MemoryType, MemoryTypeConfig> = {
     metSomeone:          { initialWeight: 2,  decayRate: D(0.192),   floor: 0,   permanent: false, contagious: false, shockKey: null,                  hopeDrainPerTick: D(0.0024),  lucidityDrainPerTick: 0 },
     pilgrimageFailure:   { initialWeight: 15, decayRate: D(0.006),   floor: 5.0, permanent: true,  contagious: false, shockKey: "pilgrimageFailure",   hopeDrainPerTick: D(-0.024),  lucidityDrainPerTick: D(-0.024) },
     reachedMercy:        { initialWeight: 6,  decayRate: D(0.048),   floor: 0,   permanent: false, contagious: false, shockKey: null,                  hopeDrainPerTick: D(0.024),   lucidityDrainPerTick: 0 },
+    bookVision:          { initialWeight: 10, decayRate: 0,          floor: 10,  permanent: true,  contagious: false, shockKey: null,                  hopeDrainPerTick: D(0.012),   lucidityDrainPerTick: 0 },
+    searchProgress:      { initialWeight: 3,  decayRate: 0,          floor: 3,   permanent: true,  contagious: true,  shockKey: null,                  hopeDrainPerTick: 0,          lucidityDrainPerTick: 0 },
 };
 
 export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
@@ -173,6 +197,164 @@ export function countMemories(mem: Memory, type: MemoryType): number {
         if (e.type === type) count++;
     }
     return count;
+}
+
+// --- Book vision and search progress helpers ---
+
+/** Segment key for search sets. */
+export function segmentKey(side: number, position: bigint, floor: bigint): string {
+    return `${side}:${position}:${floor}`;
+}
+
+/** Find the bookVision entry in a Memory component. */
+export function getBookVision(mem: Memory): BookVisionEntry | null {
+    for (const e of mem.entries) {
+        if (e.type === "bookVision") return e as BookVisionEntry;
+    }
+    return null;
+}
+
+/**
+ * Find or create the searchProgress entry in a Memory component.
+ * @param create - if true, create entry when missing
+ */
+export function getSearchProgress(mem: Memory, create: boolean = false): SearchProgressEntry | null {
+    for (const e of mem.entries) {
+        if (e.type === "searchProgress") return e as SearchProgressEntry;
+    }
+    if (!create) return null;
+    const tc = DEFAULT_MEMORY_CONFIG.types["searchProgress"];
+    const entry: SearchProgressEntry = {
+        id: mem.nextId++,
+        type: "searchProgress",
+        tick: 0,
+        weight: tc.initialWeight,
+        initialWeight: tc.initialWeight,
+        permanent: tc.permanent,
+        subject: null,
+        contagious: tc.contagious,
+        searchedSegments: new Set(),
+        bestScore: 0,
+        bestWords: [],
+    };
+    addMemory(mem, entry);
+    return entry;
+}
+
+/** Grant a book vision — creates or replaces the bookVision entry. */
+export function grantBookVision(
+    mem: Memory,
+    coords: BookCoords,
+    tick: number,
+    opts?: { accurate?: boolean },
+): void {
+    // Remove existing bookVision entry if present
+    mem.entries = mem.entries.filter(e => e.type !== "bookVision");
+    const tc = DEFAULT_MEMORY_CONFIG.types["bookVision"];
+    const entry: BookVisionEntry = {
+        id: mem.nextId++,
+        type: "bookVision",
+        tick,
+        weight: tc.initialWeight,
+        initialWeight: tc.initialWeight,
+        permanent: tc.permanent,
+        subject: null,
+        contagious: tc.contagious,
+        coords: { ...coords },
+        accurate: opts?.accurate ?? true,
+        vague: false,
+        radius: 0,
+        state: "granted",
+    };
+    addMemory(mem, entry);
+}
+
+/** Grant a vague book vision with jittered position. */
+export function grantVagueBookVision(
+    mem: Memory,
+    coords: BookCoords,
+    radius: number,
+    tick: number,
+): void {
+    // Jitter position deterministically
+    const jitterRng = seedFromString("vague:" + coords.side + ":" + coords.position + ":" + coords.floor);
+    const jitter = BigInt(jitterRng.nextInt(radius * 2 + 1) - radius);
+    const jitteredCoords = {
+        ...coords,
+        position: coords.position + jitter,
+    };
+
+    mem.entries = mem.entries.filter(e => e.type !== "bookVision");
+    const tc = DEFAULT_MEMORY_CONFIG.types["bookVision"];
+    const entry: BookVisionEntry = {
+        id: mem.nextId++,
+        type: "bookVision",
+        tick,
+        weight: tc.initialWeight,
+        initialWeight: tc.initialWeight,
+        permanent: tc.permanent,
+        subject: null,
+        contagious: tc.contagious,
+        coords: jitteredCoords,
+        accurate: true,
+        vague: true,
+        radius,
+        state: "granted",
+    };
+    addMemory(mem, entry);
+}
+
+/** Check if position matches the book vision's segment (ignores bookIndex). */
+export function isAtBookSegment(
+    entry: BookVisionEntry | null,
+    pos: { side: number; position: bigint; floor: bigint },
+): boolean {
+    if (!entry || !entry.coords) return false;
+    return pos.side === entry.coords.side &&
+           pos.position === entry.coords.position &&
+           pos.floor === entry.coords.floor;
+}
+
+/** Check if position is within a vague vision's search radius. */
+export function isInVisionRadius(
+    entry: BookVisionEntry | null,
+    pos: { side: number; position: bigint; floor: bigint },
+): boolean {
+    if (!entry || !entry.coords || !entry.vague) return false;
+    if (pos.side !== entry.coords.side) return false;
+    if (pos.floor !== entry.coords.floor) return false;
+    const dist = pos.position > entry.coords.position
+        ? pos.position - entry.coords.position
+        : entry.coords.position - pos.position;
+    return dist <= BigInt(entry.radius);
+}
+
+/** Mark a segment as searched in the searchProgress entry. */
+export function markSegmentSearched(mem: Memory, side: number, position: bigint, floor: bigint): void {
+    const entry = getSearchProgress(mem, true)!;
+    entry.searchedSegments.add(segmentKey(side, position, floor));
+}
+
+/** Check if a segment has been searched. */
+export function isSegmentSearched(mem: Memory, side: number, position: bigint, floor: bigint): boolean {
+    const entry = getSearchProgress(mem);
+    if (!entry) return false;
+    return entry.searchedSegments.has(segmentKey(side, position, floor));
+}
+
+/** Share search progress from source to target. Returns number of new segments learned. */
+export function shareSearchProgress(source: Memory, target: Memory): number {
+    const srcEntry = getSearchProgress(source);
+    if (!srcEntry) return 0;
+    const tgtEntry = getSearchProgress(target, true)!;
+    let learned = 0;
+    for (const seg of srcEntry.searchedSegments) {
+        if (!tgtEntry.searchedSegments.has(seg)) {
+            tgtEntry.searchedSegments.add(seg);
+            learned++;
+        }
+    }
+    return learned;
 }
 
 // --- Witness events (input from bridge layer) ---

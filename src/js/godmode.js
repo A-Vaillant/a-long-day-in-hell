@@ -113,7 +113,7 @@ function snapshot() {
                             const subjIdent = getComponent(world, e.subject, "identity");
                             subjectName = subjIdent ? subjIdent.name : String(e.subject);
                         }
-                        return {
+                        const entry = {
                             id: e.id,
                             type: e.type,
                             tick: e.tick,
@@ -123,6 +123,15 @@ function snapshot() {
                             contagious: e.contagious,
                             subjectName,
                         };
+                        // Include BookVisionEntry-specific fields
+                        if (e.type === "bookVision") {
+                            entry.coords = e.coords ? { ...e.coords } : null;
+                            entry.state = e.state ?? null;
+                            entry.accurate = e.accurate ?? true;
+                            entry.vague = e.vague ?? false;
+                            entry.radius = e.radius ?? 0;
+                        }
+                        return entry;
                     });
                     components[key] = { entries, capacity: comp.capacity };
                 } else if (key === "knowledge") {

@@ -22,10 +22,11 @@ import { getComponent, query, addComponent } from "./ecs.core.ts";
 import { PERSONALITY, type Personality, decayBias, entityCompatibility, familiarityFatigue } from "./personality.core.ts";
 import { BELIEF, type BeliefComponent, beliefDecayMod, evolveBelief, updateStance } from "./belief.core.ts";
 import { NEEDS, type Needs, needsDecayMultiplier } from "./needs.core.ts";
-import { KNOWLEDGE, type Knowledge } from "./knowledge.core.ts";
+import { MEMORY, type Memory, getBookVision } from "./memory.core.ts";
 import { STATS, type Stats, influenceMod } from "./stats.core.ts";
 import { HABITUATION, type Habituation, applyShock as applyHabituatedShock } from "./psych.core.ts";
 import { perDay, perHour, days as daysToTicks } from "./scale.core.ts";
+import type { LifeStory } from "./lifestory.core.ts";
 
 // --- Component keys ---
 
@@ -50,6 +51,8 @@ export interface Identity {
     alive: boolean;
     /** Entity has submitted their book and left the library. */
     free: boolean;
+    /** Life story (generated at spawn, immutable). Moved from Knowledge. */
+    lifeStory?: LifeStory;
 }
 
 export interface Psychology {
@@ -307,8 +310,10 @@ export function psychologyDecaySystem(
         }
 
         // Pilgrims have purpose — hope can't drop below catatonic threshold
-        const knowledge = getComponent<Knowledge>(world, entity, KNOWLEDGE);
-        if (knowledge && knowledge.bookVision && identity.alive && !knowledge.pilgrimageExhausted) {
+        const mem = getComponent<Memory>(world, entity, MEMORY);
+        const bookVision = mem ? getBookVision(mem) : null;
+        const hasPurpose = bookVision && bookVision.state !== "exhausted";
+        if (hasPurpose) {
             const pilgrimHopeFloor = 20; // above catatonic (15)
             if (psychology.hope < pilgrimHopeFloor) {
                 psychology.hope = pilgrimHopeFloor;

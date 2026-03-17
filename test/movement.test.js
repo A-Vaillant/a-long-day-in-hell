@@ -5,7 +5,7 @@ import { POSITION, IDENTITY, PSYCHOLOGY } from "../lib/social.core.ts";
 import { NEEDS } from "../lib/needs.core.ts";
 import { MOVEMENT, movementSystem, DEFAULT_MOVEMENT } from "../lib/movement.core.ts";
 import { INTENT } from "../lib/intent.core.ts";
-import { KNOWLEDGE, markSearched } from "../lib/knowledge.core.ts";
+import { MEMORY, createMemory, markSegmentSearched } from "../lib/memory.core.ts";
 import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
 
 const G = GALLERIES_PER_SEGMENT; // bigint, rest areas at 0, G, 2G, 3G, ...
@@ -28,11 +28,7 @@ function makeNpc(world, {
     addComponent(world, e, MOVEMENT, { targetPosition: null, heading });
     addComponent(world, e, INTENT, { behavior, cooldown: 0, elapsed: 0 });
     if (withKnowledge) {
-        addComponent(world, e, KNOWLEDGE, {
-            lifeStory: null, bookVision: null,
-            visionAccurate: true, hasBook: false,
-            searchedSegments: new Set(),
-        });
+        addComponent(world, e, MEMORY, createMemory());
     }
     return e;
 }
@@ -224,9 +220,9 @@ describe("movementSystem", () => {
         const w = createWorld();
         // 1 step before rest area G, heading +1 → lands on G
         const e = makeNpc(w, { position: G - 1n, heading: 1, behavior: "explore", withKnowledge: true });
-        const k = getComponent(w, e, KNOWLEDGE);
+        const mem = getComponent(w, e, MEMORY);
         // Mark all G-1 galleries ahead of rest area G as searched
-        for (let i = 1; i < Gn; i++) markSearched(k, 0, G + BigInt(i), 0n);
+        for (let i = 1; i < Gn; i++) markSegmentSearched(mem, 0, G + BigInt(i), 0n);
         // Behind (1 to G-1) not searched
         movementSystem(w, makeRng([0.5]));
         const mov = getComponent(w, e, MOVEMENT);
@@ -236,9 +232,9 @@ describe("movementSystem", () => {
     it("explore keeps heading when forward span has unsearched segments", () => {
         const w = createWorld();
         const e = makeNpc(w, { position: G - 1n, heading: 1, behavior: "explore", withKnowledge: true });
-        const k = getComponent(w, e, KNOWLEDGE);
+        const mem = getComponent(w, e, MEMORY);
         // Mark backward span searched, forward has work
-        for (let i = 1; i < Gn; i++) markSearched(k, 0, BigInt(i), 0n);
+        for (let i = 1; i < Gn; i++) markSegmentSearched(mem, 0, BigInt(i), 0n);
         movementSystem(w, makeRng([0.5]));
         const mov = getComponent(w, e, MOVEMENT);
         assert.equal(mov.heading, 1, "should keep heading toward unsearched span");
@@ -248,11 +244,11 @@ describe("movementSystem", () => {
         const w = createWorld();
         // 1 step before rest area G, floor 2, heading +1 → lands on G
         const e = makeNpc(w, { position: G - 1n, floor: 2n, heading: 1, behavior: "explore", withKnowledge: true });
-        const k = getComponent(w, e, KNOWLEDGE);
+        const mem = getComponent(w, e, MEMORY);
         // Exhaust both spans (G-1 galleries each direction) on floor 2
         for (let i = 1; i < Gn; i++) {
-            markSearched(k, 0, G + BigInt(i), 2n);
-            markSearched(k, 0, G - BigInt(i), 2n);
+            markSegmentSearched(mem, 0, G + BigInt(i), 2n);
+            markSegmentSearched(mem, 0, G - BigInt(i), 2n);
         }
         // rng: first for direction (both exhausted, 0.5 > 0.3 so no reverse),
         //       then 0.2 < 0.5 (exhausted floor change chance) → floor change
@@ -265,16 +261,16 @@ describe("movementSystem", () => {
     it("explore prefers unsearched floor direction", () => {
         const w = createWorld();
         const e = makeNpc(w, { position: G - 1n, floor: 2n, heading: 1, behavior: "explore", withKnowledge: true });
-        const k = getComponent(w, e, KNOWLEDGE);
+        const mem = getComponent(w, e, MEMORY);
         // Exhaust both spans on floor 2
         for (let i = 1; i < Gn; i++) {
-            markSearched(k, 0, G + BigInt(i), 2n);
-            markSearched(k, 0, G - BigInt(i), 2n);
+            markSegmentSearched(mem, 0, G + BigInt(i), 2n);
+            markSegmentSearched(mem, 0, G - BigInt(i), 2n);
         }
         // Also exhaust floor 3 (both spans)
         for (let i = 1; i < Gn; i++) {
-            markSearched(k, 0, G + BigInt(i), 3n);
-            markSearched(k, 0, G - BigInt(i), 3n);
+            markSegmentSearched(mem, 0, G + BigInt(i), 3n);
+            markSegmentSearched(mem, 0, G - BigInt(i), 3n);
         }
         // Floor 1 still has work
         // rng: direction (0.5), floor roll (0.2 < 0.5), floor preference → down
@@ -283,13 +279,13 @@ describe("movementSystem", () => {
         assert.equal(pos.floor, 1n, "should prefer floor with unsearched territory");
     });
 
-    it("explore without knowledge falls back to random behavior", () => {
+    it("explore without memory falls back to random behavior", () => {
         const w = createWorld();
         // No withKnowledge — 1 step before rest area G
         const e = makeNpc(w, { position: G - 1n, heading: 1, behavior: "explore" });
         // rng: 0.1 < 0.3 → reverse
         movementSystem(w, makeRng([0.1, 0.9]));
         const mov = getComponent(w, e, MOVEMENT);
-        assert.equal(mov.heading, -1, "should use random reversal without knowledge");
+        assert.equal(mov.heading, -1, "should use random reversal without memory");
     });
 });

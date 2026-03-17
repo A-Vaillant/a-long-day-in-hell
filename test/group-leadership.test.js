@@ -18,7 +18,7 @@ import { NEEDS } from "../lib/needs.core.ts";
 import { MOVEMENT, movementSystem } from "../lib/movement.core.ts";
 import { INTENT } from "../lib/intent.core.ts";
 import { SLEEP } from "../lib/sleep.core.ts";
-import { KNOWLEDGE } from "../lib/knowledge.core.ts";
+import { MEMORY, createMemory } from "../lib/memory.core.ts";
 import { dismiss } from "../lib/actions.core.ts";
 import { seedFromString } from "../lib/prng.core.ts";
 import { GALLERIES_PER_SEGMENT } from "../lib/library.core.ts";
@@ -55,10 +55,7 @@ function addMovement(world, entity, heading = 1) {
         bedIndex: null, asleep: false, coSleepers: [],
         awayStreak: 0, nomadic: false,
     });
-    addComponent(world, entity, KNOWLEDGE, {
-        lifeStory: {}, bookVision: null, visionAccurate: true,
-        hasBook: false, searchedSegments: new Set(),
-    });
+    addComponent(world, entity, MEMORY, createMemory());
 }
 
 /** Set SYMMETRIC bond (same values both directions). */

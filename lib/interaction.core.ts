@@ -19,7 +19,7 @@ import {
 } from "./social.core.ts";
 import { applyShockToEntity } from "./psych.core.ts";
 import { STATS, type Stats, influenceMod } from "./stats.core.ts";
-import { KNOWLEDGE, type Knowledge, shareSearchKnowledge } from "./knowledge.core.ts";
+import { MEMORY, type Memory, shareSearchProgress } from "./memory.core.ts";
 
 // --- Talk ---
 
@@ -153,11 +153,11 @@ export function talkTo(
     let segmentsLearned = 0;
     let segmentsShared = 0;
     if (approach !== "dismissive") {
-        const playerKnow = getComponent<Knowledge>(world, player, KNOWLEDGE);
-        const npcKnow = getComponent<Knowledge>(world, npc, KNOWLEDGE);
-        if (playerKnow && npcKnow) {
-            segmentsLearned = shareSearchKnowledge(npcKnow, playerKnow);
-            segmentsShared = shareSearchKnowledge(playerKnow, npcKnow);
+        const playerMem = getComponent<Memory>(world, player, MEMORY);
+        const npcMem = getComponent<Memory>(world, npc, MEMORY);
+        if (playerMem && npcMem) {
+            segmentsLearned = shareSearchProgress(npcMem, playerMem);
+            segmentsShared = shareSearchProgress(playerMem, npcMem);
         }
     }
 

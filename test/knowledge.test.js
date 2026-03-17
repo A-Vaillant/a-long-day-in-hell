@@ -1,14 +1,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { KNOWLEDGE, createKnowledge, generateNpcLifeStory, grantVision, isAtBookSegment, grantVagueVision, isInVisionRadius } from "../lib/knowledge.core.ts";
-import { generateLifeStory } from "../lib/lifestory.core.ts";
+import { generateNpcLifeStory, generateLifeStory } from "../lib/lifestory.core.ts";
+import {
+    MEMORY, createMemory,
+    grantBookVision, grantVagueBookVision,
+    getBookVision, isAtBookSegment, isInVisionRadius,
+} from "../lib/memory.core.ts";
 import { PLAYABLE_ADDRESS_MAX } from "../lib/invertible.core.ts";
 
-// Shared anchors for knowledge tests
-const _playerStory = generateLifeStory("knowledge-test-seed");
-const TEST_PLAYER_RAW = _playerStory.rawBookAddress;
-const TEST_RANDOM_ORIGIN = PLAYABLE_ADDRESS_MAX / 2n;
 import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.ts";
 import { POSITION, IDENTITY, PSYCHOLOGY } from "../lib/social.core.ts";
 import { PERSONALITY } from "../lib/personality.core.ts";
@@ -24,8 +24,13 @@ function makeRng(val = 0.5) {
     return { next() { return val; }, nextInt(n) { return Math.floor(val * n); } };
 }
 
-describe("knowledge.core", () => {
-    it("generateNpcLifeStory returns a life story with book coords", () => {
+// Shared anchors
+const _playerStory = generateLifeStory("knowledge-test-seed");
+const TEST_PLAYER_RAW = _playerStory.rawBookAddress;
+const TEST_RANDOM_ORIGIN = PLAYABLE_ADDRESS_MAX / 2n;
+
+describe("generateNpcLifeStory (from lifestory.core)", () => {
+    it("returns a life story with book coords", () => {
         const story = generateNpcLifeStory("test-seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         assert.ok(story.name);
         assert.ok(story.storyText);
@@ -39,7 +44,6 @@ describe("knowledge.core", () => {
     it("different NPC IDs produce different life stories", () => {
         const s1 = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
         const s2 = generateNpcLifeStory("seed", 1, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        // Names should differ (extremely high probability with 25x25 pool)
         assert.notEqual(s1.name, s2.name);
     });
 
@@ -50,86 +54,83 @@ describe("knowledge.core", () => {
         assert.equal(s1.storyText, s2.storyText);
         assert.deepEqual(s1.bookCoords, s2.bookCoords);
     });
+});
 
-    it("createKnowledge starts with no vision", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        assert.equal(k.bookVision, null);
-        assert.equal(k.visionAccurate, true);
-        assert.equal(k.hasBook, false);
-        assert.ok(k.lifeStory.bookCoords);
+describe("Memory book vision (replaces Knowledge)", () => {
+    it("createMemory starts with no bookVision", () => {
+        const mem = createMemory();
+        assert.equal(getBookVision(mem), null);
     });
 
-    it("createKnowledge initializes lifetime best find fields", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        assert.equal(k.bestScore, 0);
-        assert.deepEqual(k.bestWords, []);
-        assert.ok(k.searchedSegments instanceof Set);
-        assert.equal(k.searchedSegments.size, 0);
+    it("grantBookVision creates a bookVision entry", () => {
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        const vision = getBookVision(mem);
+        assert.ok(vision);
+        assert.deepEqual(vision.coords, story.bookCoords);
+        assert.equal(vision.state, "granted");
+        assert.equal(vision.accurate, true);
+        assert.equal(vision.vague, false);
     });
 
-    it("createKnowledge initializes vague vision fields", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        assert.equal(k.visionVague, false);
-        assert.equal(k.visionRadius, 0);
-        assert.equal(k.pilgrimageExhausted, false);
+    it("grantVagueBookVision sets vague flag and radius", () => {
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVagueBookVision(mem, story.bookCoords, 50, 0);
+        const vision = getBookVision(mem);
+        assert.ok(vision);
+        assert.equal(vision.vague, true);
+        assert.equal(vision.radius, 50);
+        assert.equal(vision.accurate, true);
+        assert.equal(vision.coords.side, story.bookCoords.side);
+        assert.equal(vision.coords.floor, story.bookCoords.floor);
+        const diff = vision.coords.position > story.bookCoords.position
+            ? vision.coords.position - story.bookCoords.position
+            : story.bookCoords.position - vision.coords.position;
+        assert.ok(diff <= 50n, "jittered position within radius: diff=" + diff);
     });
 
-    it("grantVagueVision sets bookVision with vague flag and radius", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVagueVision(k, 50);
-        assert.ok(k.bookVision, "should have vision");
-        assert.equal(k.visionVague, true);
-        assert.equal(k.visionRadius, 50);
-        assert.equal(k.visionAccurate, true);
-        assert.equal(k.bookVision.side, k.lifeStory.bookCoords.side);
-        assert.equal(k.bookVision.floor, k.lifeStory.bookCoords.floor);
-        const diff = k.bookVision.position > k.lifeStory.bookCoords.position
-            ? k.bookVision.position - k.lifeStory.bookCoords.position
-            : k.lifeStory.bookCoords.position - k.bookVision.position;
-        assert.ok(diff <= 50n, "jittered position should be within radius: diff=" + diff);
-    });
-
-    it("isInVisionRadius true when within radius of vision", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVagueVision(k, 50);
-        const pos = { side: k.bookVision.side, position: k.bookVision.position + 10n, floor: k.bookVision.floor };
-        assert.equal(isInVisionRadius(k, pos), true);
+    it("isInVisionRadius true when within radius", () => {
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVagueBookVision(mem, story.bookCoords, 50, 0);
+        const vision = getBookVision(mem);
+        const pos = { side: vision.coords.side, position: vision.coords.position + 10n, floor: vision.coords.floor };
+        assert.equal(isInVisionRadius(vision, pos), true);
     });
 
     it("isInVisionRadius false when outside radius", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVagueVision(k, 50);
-        const pos = { side: k.bookVision.side, position: k.bookVision.position + 200n, floor: k.bookVision.floor };
-        assert.equal(isInVisionRadius(k, pos), false);
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVagueBookVision(mem, story.bookCoords, 50, 0);
+        const vision = getBookVision(mem);
+        const pos = { side: vision.coords.side, position: vision.coords.position + 200n, floor: vision.coords.floor };
+        assert.equal(isInVisionRadius(vision, pos), false);
     });
 
     it("isInVisionRadius false when on wrong side or floor", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVagueVision(k, 50);
-        const wrongSide = { side: 1 - k.bookVision.side, position: k.bookVision.position, floor: k.bookVision.floor };
-        assert.equal(isInVisionRadius(k, wrongSide), false);
-        const wrongFloor = { side: k.bookVision.side, position: k.bookVision.position, floor: k.bookVision.floor + 1n };
-        assert.equal(isInVisionRadius(k, wrongFloor), false);
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantVagueBookVision(mem, story.bookCoords, 50, 0);
+        const vision = getBookVision(mem);
+        const wrongSide = { side: 1 - vision.coords.side, position: vision.coords.position, floor: vision.coords.floor };
+        assert.equal(isInVisionRadius(vision, wrongSide), false);
+        const wrongFloor = { side: vision.coords.side, position: vision.coords.position, floor: vision.coords.floor + 1n };
+        assert.equal(isInVisionRadius(vision, wrongFloor), false);
     });
 
     it("isInVisionRadius false when no vision", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        assert.equal(isInVisionRadius(k, { side: 0, position: 0n, floor: 10n }), false);
+        assert.equal(isInVisionRadius(null, { side: 0, position: 0n, floor: 10n }), false);
     });
 
-    it("grantVision (accurate) sets bookVision to actual coords", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVision(k, true);
-        assert.deepEqual(k.bookVision, k.lifeStory.bookCoords);
-        assert.equal(k.visionAccurate, true);
-    });
-
-    it("grantVision (false) sets bogus coords", () => {
-        const k = createKnowledge("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        const bogus = { side: 1, position: 999n, floor: 50n, bookIndex: 42 };
-        grantVision(k, false, bogus);
-        assert.deepEqual(k.bookVision, bogus);
-        assert.equal(k.visionAccurate, false);
+    it("grantBookVision (accurate) sets coords to actual book location", () => {
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 0n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        const vision = getBookVision(mem);
+        assert.deepEqual(vision.coords, story.bookCoords);
+        assert.equal(vision.accurate, true);
     });
 });
 
@@ -148,7 +149,7 @@ describe("pilgrimage intent scorer", () => {
         return entity;
     }
 
-    it("pilgrimage excluded when no knowledge", () => {
+    it("pilgrimage excluded when no memory", () => {
         const world = createWorld();
         const entity = makeEntity(world);
         const results = getAvailableBehaviors(world, entity, makeRng());
@@ -156,54 +157,55 @@ describe("pilgrimage intent scorer", () => {
         assert.equal(pilgrim, undefined);
     });
 
-    it("pilgrimage excluded when no vision", () => {
+    it("pilgrimage excluded when no bookVision in memory", () => {
         const world = createWorld();
         const entity = makeEntity(world);
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        addComponent(world, entity, KNOWLEDGE, k);
+        addComponent(world, entity, MEMORY, createMemory());
         const results = getAvailableBehaviors(world, entity, makeRng());
         const pilgrim = results.find(r => r.behavior === "pilgrimage");
         assert.equal(pilgrim, undefined);
     });
 
-    it("pilgrimage scores high when vision is set", () => {
+    it("pilgrimage scores high when bookVision is set", () => {
         const world = createWorld();
         const entity = makeEntity(world);
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVision(k, true);
-        addComponent(world, entity, KNOWLEDGE, k);
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        addComponent(world, entity, MEMORY, mem);
         const results = getAvailableBehaviors(world, entity, makeRng());
         const pilgrim = results.find(r => r.behavior === "pilgrimage");
         assert.ok(pilgrim, "pilgrimage should be in results");
         assert.ok(pilgrim.score >= 2.0, "pilgrimage should score high: " + pilgrim.score);
-        // Should be top or near-top behavior
         assert.equal(results[0].behavior, "pilgrimage",
             "pilgrimage should be highest-scored: " + JSON.stringify(results.slice(0, 3)));
     });
 
     it("pilgrimage excluded when already at book location", () => {
         const world = createWorld();
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVision(k, true);
-        // Place entity at the vision's book location
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        const vision = getBookVision(mem);
         const entity = makeEntity(world, {
-            side: k.bookVision.side,
-            position: k.bookVision.position,
-            floor: k.bookVision.floor,
+            side: vision.coords.side,
+            position: vision.coords.position,
+            floor: vision.coords.floor,
         });
-        addComponent(world, entity, KNOWLEDGE, k);
+        addComponent(world, entity, MEMORY, mem);
         const results = getAvailableBehaviors(world, entity, makeRng());
         const pilgrim = results.find(r => r.behavior === "pilgrimage");
         assert.equal(pilgrim, undefined, "pilgrimage should not appear when at destination");
     });
 
-    it("pilgrimage excluded when pilgrimageExhausted", () => {
+    it("pilgrimage excluded when bookVision state is exhausted", () => {
         const world = createWorld();
         const entity = makeEntity(world);
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVision(k, true);
-        k.pilgrimageExhausted = true;
-        addComponent(world, entity, KNOWLEDGE, k);
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        getBookVision(mem).state = "exhausted";
+        addComponent(world, entity, MEMORY, mem);
         const results = getAvailableBehaviors(world, entity, makeRng());
         const pilgrim = results.find(r => r.behavior === "pilgrimage");
         assert.equal(pilgrim, undefined, "pilgrimage should not appear when exhausted");
@@ -211,15 +213,12 @@ describe("pilgrimage intent scorer", () => {
 
     it("pilgrimage excluded when vague vision and within radius (search takes over)", () => {
         const world = createWorld();
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        // Manually set up vague vision near entity
-        k.bookVision = { side: 0, position: 20n, floor: 10n, bookIndex: 5 };
-        k.visionVague = true;
-        k.visionRadius = 50;
-        k.visionAccurate = true;
-        // Entity at position 5, vision at position 20, radius 50 → within radius
+        const mem = createMemory();
+        // Manually place vague vision near entity
+        grantVagueBookVision(mem, { side: 0, position: 20n, floor: 10n, bookIndex: 5 }, 50, 0);
+        // Entity at position 5, vision jittered near 20, radius 50 → within radius
         const entity = makeEntity(world, { side: 0, position: 5n, floor: 10n });
-        addComponent(world, entity, KNOWLEDGE, k);
+        addComponent(world, entity, MEMORY, mem);
         const results = getAvailableBehaviors(world, entity, makeRng());
         const pilgrim = results.find(r => r.behavior === "pilgrimage");
         assert.equal(pilgrim, undefined, "pilgrimage should yield to search when in vision radius");
@@ -227,37 +226,30 @@ describe("pilgrimage intent scorer", () => {
 
     it("pilgrimage still scores when vague vision but outside radius", () => {
         const world = createWorld();
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        k.bookVision = { side: 0, position: 500n, floor: 10n, bookIndex: 5 };
-        k.visionVague = true;
-        k.visionRadius = 50;
-        k.visionAccurate = true;
-        // Entity at position 5, vision at 500, radius 50 → NOT within radius
         const entity = makeEntity(world, { side: 0, position: 5n, floor: 10n });
-        addComponent(world, entity, KNOWLEDGE, k);
+        const mem = createMemory();
+        grantVagueBookVision(mem, { side: 0, position: 500n, floor: 10n, bookIndex: 5 }, 50, 0);
+        addComponent(world, entity, MEMORY, mem);
         const results = getAvailableBehaviors(world, entity, makeRng());
         const pilgrim = results.find(r => r.behavior === "pilgrimage");
-        assert.ok(pilgrim, "pilgrimage should still score when outside radius");
+        assert.ok(pilgrim, "pilgrimage should score when outside vague radius");
     });
 
     it("pilgrimage excluded when entity is free (dead)", () => {
         const world = createWorld();
         const entity = makeEntity(world);
-        // Mark entity as dead (free entities are dead)
         const ident = getComponent(world, entity, "identity");
         ident.alive = false;
         ident.free = true;
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVision(k, true);
-        addComponent(world, entity, KNOWLEDGE, k);
-        // evaluateIntent forces idle for dead entities — pilgrimage never activates
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        addComponent(world, entity, MEMORY, mem);
         const intent = getComponent(world, entity, "intent");
         const result = evaluateIntent(
             intent, { lucidity: 80, hope: 80 }, false, null, null, makeRng(),
         );
-        // Already idle → returns null (no change). If not idle, would force idle.
         assert.equal(result, null, "already idle, no transition needed");
-        // Verify: if intent were pilgrimage, it would be forced to idle
         intent.behavior = "pilgrimage";
         const result2 = evaluateIntent(
             intent, { lucidity: 80, hope: 80 }, false, null, null, makeRng(),
@@ -275,10 +267,9 @@ describe("pilgrimage movement", () => {
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
         addComponent(world, entity, INTENT, { behavior: "pilgrimage", cooldown: 20, elapsed: 0 });
         addComponent(world, entity, MOVEMENT, { targetPosition: null, heading: 1 });
-        const k = createKnowledge("seed", 0, npcPos, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        k.bookVision = { ...visionCoords };
-        k.visionAccurate = true;
-        addComponent(world, entity, KNOWLEDGE, k);
+        const mem = createMemory();
+        grantBookVision(mem, { ...visionCoords }, 0);
+        addComponent(world, entity, MEMORY, mem);
         return { world, entity };
     }
 
@@ -287,14 +278,12 @@ describe("pilgrimage movement", () => {
             { side: 0, position: 5n, floor: 10n },
             { side: 0, position: 15n, floor: 10n, bookIndex: 0 },
         );
-        // rng=0.01 ensures move fires (moveProb=0.15)
         movementSystem(world, makeRng(0.01));
         const pos = getComponent(world, entity, POSITION);
         assert.equal(pos.position, 6n, "should step toward target");
     });
 
     it("goes to rest area then changes floor", () => {
-        // NPC at rest area (multiple of GALLERIES_PER_SEGMENT), needs to go up
         const restPos = GALLERIES_PER_SEGMENT;
         const { world, entity } = makeWorld(
             { side: 0, position: restPos, floor: 10n },
@@ -302,12 +291,10 @@ describe("pilgrimage movement", () => {
         );
         movementSystem(world, makeRng(0.01));
         const pos = getComponent(world, entity, POSITION);
-        // At rest area, same position as target → should take stairs
         assert.equal(pos.floor, 11n, "should go up one floor");
     });
 
     it("goes to floor 0 and crosses chasm for wrong side", () => {
-        // NPC at rest area (pos 0), floor 0, needs to cross to side 1
         const { world, entity } = makeWorld(
             { side: 0, position: 0n, floor: 0n },
             { side: 1, position: 5n, floor: 10n, bookIndex: 0 },
@@ -318,7 +305,6 @@ describe("pilgrimage movement", () => {
     });
 
     it("descends toward floor 0 when on wrong side", () => {
-        // NPC at rest area (pos 0), floor 5, wrong side
         const { world, entity } = makeWorld(
             { side: 0, position: 0n, floor: 5n },
             { side: 1, position: 5n, floor: 10n, bookIndex: 0 },
@@ -330,46 +316,125 @@ describe("pilgrimage movement", () => {
     });
 
     it("batch mode handles multi-axis pilgrimage", () => {
-        // NPC at pos 5, floor 10 — target at pos 15, floor 10, same side
         const { world, entity } = makeWorld(
             { side: 0, position: 5n, floor: 10n },
             { side: 0, position: 15n, floor: 10n, bookIndex: 0 },
         );
-        // Batch 100 ticks — should reach target
         movementSystem(world, makeRng(0.01), undefined, 100);
         const pos = getComponent(world, entity, POSITION);
         assert.equal(pos.position, 15n, "should have reached target position");
     });
 });
 
-describe("escape resolution", () => {
-    it("isAtBookSegment returns true at matching segment", () => {
+describe("pilgrimage intent scorer (memory-based)", () => {
+    function makeEntity(world, opts = {}) {
+        const entity = spawn(world);
+        addComponent(world, entity, POSITION, {
+            side: opts.side ?? 0, position: opts.position ?? 5n, floor: opts.floor ?? 10n,
+        });
+        addComponent(world, entity, IDENTITY, { name: "Test", alive: true, free: false });
+        addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
+        addComponent(world, entity, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
+        addComponent(world, entity, PERSONALITY, {
+            temperament: 0.5, pace: 0.5, openness: 0.5, outlook: 0.5,
+        });
+        return entity;
+    }
 
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVision(k, true);
-        const at = isAtBookSegment(k, {
-            side: k.bookVision.side,
-            position: k.bookVision.position,
-            floor: k.bookVision.floor,
+    it("pilgrimage scores high with bookVision memory", () => {
+        const world = createWorld();
+        const entity = makeEntity(world);
+        const mem = createMemory();
+        grantBookVision(mem, { side: 1, position: 500n, floor: 30n, bookIndex: 2 }, 0);
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.ok(pilgrim, "pilgrimage should score with bookVision memory");
+        assert.ok(pilgrim.score >= 2.0);
+    });
+
+    it("pilgrimage excluded with exhausted bookVision memory", () => {
+        const world = createWorld();
+        const entity = makeEntity(world);
+        const mem = createMemory();
+        grantBookVision(mem, { side: 0, position: 500n, floor: 30n, bookIndex: 2 }, 0);
+        getBookVision(mem).state = "exhausted";
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.equal(pilgrim, undefined);
+    });
+
+    it("pilgrimage excluded when at exact vision location via memory", () => {
+        const world = createWorld();
+        const mem = createMemory();
+        grantBookVision(mem, { side: 0, position: 20n, floor: 10n, bookIndex: 3 }, 0);
+        const vision = getBookVision(mem);
+        const entity = makeEntity(world, {
+            side: vision.coords.side,
+            position: vision.coords.position,
+            floor: vision.coords.floor,
+        });
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.equal(pilgrim, undefined, "pilgrimage should not appear when already at destination");
+    });
+
+    it("pilgrimage excluded when vague vision and within radius via memory", () => {
+        const world = createWorld();
+        const entity = makeEntity(world, { side: 0, position: 5n, floor: 10n });
+        const mem = createMemory();
+        grantVagueBookVision(mem, { side: 0, position: 20n, floor: 10n, bookIndex: 5 }, 50, 0);
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.equal(pilgrim, undefined, "pilgrimage should yield to search when within vague radius");
+    });
+
+    it("pilgrimage still scores when vague vision but outside radius via memory", () => {
+        const world = createWorld();
+        const entity = makeEntity(world, { side: 0, position: 5n, floor: 10n });
+        const mem = createMemory();
+        grantVagueBookVision(mem, { side: 0, position: 500n, floor: 10n, bookIndex: 5 }, 50, 0);
+        addComponent(world, entity, MEMORY, mem);
+        const results = getAvailableBehaviors(world, entity, makeRng());
+        const pilgrim = results.find(r => r.behavior === "pilgrimage");
+        assert.ok(pilgrim, "pilgrimage should score when outside vague radius");
+    });
+});
+
+describe("escape resolution (memory-based)", () => {
+    it("isAtBookSegment returns true at matching segment", () => {
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        const vision = getBookVision(mem);
+        const at = isAtBookSegment(vision, {
+            side: vision.coords.side,
+            position: vision.coords.position,
+            floor: vision.coords.floor,
         });
         assert.equal(at, true);
     });
 
     it("isAtBookSegment returns false at wrong position", () => {
-
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVision(k, true);
-        assert.equal(isAtBookSegment(k, { side: k.bookVision.side, position: k.bookVision.position + 1n, floor: k.bookVision.floor }), false);
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        const vision = getBookVision(mem);
+        assert.equal(isAtBookSegment(vision, {
+            side: vision.coords.side,
+            position: vision.coords.position + 1n,
+            floor: vision.coords.floor,
+        }), false);
     });
 
     it("isAtBookSegment returns false without vision", () => {
-
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        assert.equal(isAtBookSegment(k, { side: 0, position: 5n, floor: 10n }), false);
+        assert.equal(isAtBookSegment(null, { side: 0, position: 5n, floor: 10n }), false);
     });
 
-    it("hasBook + pilgrimage targets nearest rest area", () => {
-        // NPC with hasBook at non-rest position should target nearest rest area
+    it("found state + pilgrimage targets nearest rest area", () => {
         const world = createWorld();
         const entity = spawn(world);
         addComponent(world, entity, POSITION, { side: 0, position: 7n, floor: 10n });
@@ -377,10 +442,12 @@ describe("escape resolution", () => {
         addComponent(world, entity, PSYCHOLOGY, { lucidity: 80, hope: 80 });
         addComponent(world, entity, INTENT, { behavior: "pilgrimage", cooldown: 20, elapsed: 0 });
         addComponent(world, entity, MOVEMENT, { targetPosition: null, heading: 1 });
-        const k = createKnowledge("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
-        grantVision(k, true);
-        k.hasBook = true;
-        addComponent(world, entity, KNOWLEDGE, k);
+        const mem = createMemory();
+        const story = generateNpcLifeStory("seed", 0, { side: 0, position: 5n, floor: 10n }, TEST_PLAYER_RAW, TEST_RANDOM_ORIGIN);
+        grantBookVision(mem, story.bookCoords, 0);
+        // Simulate having found the book
+        getBookVision(mem).state = "found";
+        addComponent(world, entity, MEMORY, mem);
 
         movementSystem(world, makeRng(0.01));
         const pos = getComponent(world, entity, POSITION);

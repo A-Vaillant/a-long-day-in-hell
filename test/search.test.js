@@ -10,7 +10,7 @@ import { createWorld, spawn, addComponent, getComponent } from "../lib/ecs.core.
 import { POSITION, IDENTITY, PSYCHOLOGY } from "../lib/social.core.ts";
 import { PERSONALITY } from "../lib/personality.core.ts";
 import { INTENT } from "../lib/intent.core.ts";
-import { KNOWLEDGE } from "../lib/knowledge.core.ts";
+import { MEMORY, createMemory, getSearchProgress } from "../lib/memory.core.ts";
 
 function makeRng(seed = 0.5) {
     let v = seed;
@@ -319,26 +319,23 @@ describe("searchSystem escalating hope", () => {
     });
 });
 
-// --- lifetime best persisted to knowledge ---
+// --- lifetime best persisted to memory ---
 
 describe("searchSystem lifetime best", () => {
-    it("persists best find to KNOWLEDGE component", () => {
+    it("persists best find to MEMORY searchProgress", () => {
         const world = createWorld();
         const ent = spawnSearcher(world, {
             search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
-        addComponent(world, ent, KNOWLEDGE, {
-            lifeStory: { name: "Test", bookCoords: { side: 0, position: 0, floor: 0, bookIndex: 0 } },
-            bookVision: null, visionAccurate: true, hasBook: false,
-            searchedSegments: new Set(), bestScore: 0, bestWords: [],
-        });
+        addComponent(world, ent, MEMORY, createMemory());
 
         searchSystem(world, makeRng(), () => "", undefined, () => ["hope", "fire"]);
 
-        const k = getComponent(world, ent, KNOWLEDGE);
-        assert.strictEqual(k.bestScore, 2);
-        assert.deepStrictEqual(k.bestWords, ["hope", "fire"]);
+        const sp = getSearchProgress(getComponent(world, ent, MEMORY));
+        assert.ok(sp, "searchProgress entry should exist");
+        assert.strictEqual(sp.bestScore, 2);
+        assert.deepStrictEqual(sp.bestWords, ["hope", "fire"]);
     });
 
     it("lifetime best survives search session reset", () => {
@@ -347,11 +344,7 @@ describe("searchSystem lifetime best", () => {
             search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
-        addComponent(world, ent, KNOWLEDGE, {
-            lifeStory: { name: "Test", bookCoords: { side: 0, position: 0, floor: 0, bookIndex: 0 } },
-            bookVision: null, visionAccurate: true, hasBook: false,
-            searchedSegments: new Set(), bestScore: 0, bestWords: [],
-        });
+        addComponent(world, ent, MEMORY, createMemory());
 
         // First session: find 2 words
         searchSystem(world, makeRng(), () => "", undefined, () => ["hope", "fire"]);
@@ -365,12 +358,13 @@ describe("searchSystem lifetime best", () => {
         intent.behavior = "search";
         searchSystem(world, makeRng(), () => "", undefined, () => []);
 
-        // SEARCHING component resets, but KNOWLEDGE persists
+        // SEARCHING component resets, but MEMORY persists
         const search = getComponent(world, ent, SEARCHING);
         assert.strictEqual(search.bestScore, 0, "session best resets");
-        const k = getComponent(world, ent, KNOWLEDGE);
-        assert.strictEqual(k.bestScore, 2, "lifetime best persists");
-        assert.deepStrictEqual(k.bestWords, ["hope", "fire"]);
+        const sp = getSearchProgress(getComponent(world, ent, MEMORY));
+        assert.ok(sp, "searchProgress entry should exist");
+        assert.strictEqual(sp.bestScore, 2, "lifetime best persists");
+        assert.deepStrictEqual(sp.bestWords, ["hope", "fire"]);
     });
 
     it("lifetime best only updates when beaten", () => {
@@ -379,17 +373,18 @@ describe("searchSystem lifetime best", () => {
             search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
-        addComponent(world, ent, KNOWLEDGE, {
-            lifeStory: { name: "Test", bookCoords: { side: 0, position: 0, floor: 0, bookIndex: 0 } },
-            bookVision: null, visionAccurate: true, hasBook: false,
-            searchedSegments: new Set(), bestScore: 5, bestWords: ["old", "best", "find", "from", "before"],
-        });
+        const mem = createMemory();
+        // Pre-seed searchProgress with a high score
+        const sp = getSearchProgress(mem, true);
+        sp.bestScore = 5;
+        sp.bestWords = ["old", "best", "find", "from", "before"];
+        addComponent(world, ent, MEMORY, mem);
 
         // Find only 2 words — should NOT overwrite
         searchSystem(world, makeRng(), () => "", undefined, () => ["hope", "fire"]);
 
-        const k = getComponent(world, ent, KNOWLEDGE);
-        assert.strictEqual(k.bestScore, 5, "should not overwrite better lifetime best");
-        assert.deepStrictEqual(k.bestWords, ["old", "best", "find", "from", "before"]);
+        const sp2 = getSearchProgress(getComponent(world, ent, MEMORY));
+        assert.strictEqual(sp2.bestScore, 5, "should not overwrite better lifetime best");
+        assert.deepStrictEqual(sp2.bestWords, ["old", "best", "find", "from", "before"]);
     });
 });
