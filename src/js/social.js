@@ -52,6 +52,9 @@ let playerEntity = null;
 const npcEntities = new Map();
 // Events queued from outside the tick cycle (e.g. godmode powers)
 const pendingWitnessEvents = [];
+// Direct log entries queued from outside tick (e.g. dawn resurrection)
+const pendingLogEvents = [];
+
 
 export const Social = {
     /** Initialize ECS world, spawn player + NPC entities. Call after Npc.init(). */
@@ -389,11 +392,15 @@ export const Social = {
         // Build location index once, share between relationship + group systems
         const prebuilt = buildLocationIndex(world);
 
-        // Snapshot group membership before formation/dissolution (for witnessEvents)
-        const prevGroups = new Map(); // entity → groupId
+        // Snapshot group membership before formation/dissolution
+        const prevGroups = new Map(); // entity → groupId (for memory system)
+        const prevNpcGroups = new Map(); // npcId → groupId (for log emission)
         for (const [npcId, ent] of npcEntities) {
             const g = getComponent(world, ent, GROUP);
-            if (g) prevGroups.set(ent, g.groupId);
+            if (g) {
+                prevGroups.set(ent, g.groupId);
+                prevNpcGroups.set(npcId, g.groupId);
+            }
         }
         if (playerEntity !== null) {
             const g = getComponent(world, playerEntity, GROUP);
@@ -604,7 +611,8 @@ export const Social = {
             }
         }
 
-        // Detect group dissolutions: self-witnessed by the entity that lost their group
+        // Detect group dissolutions (memory + log) and formations (log only)
+        const loggedGroups = new Set();
         for (const [ent, prevGroupId] of prevGroups) {
             const g = getComponent(world, ent, GROUP);
             if (!g || g.groupId !== prevGroupId) {
@@ -624,8 +632,43 @@ export const Social = {
                         subject: ent,
                         contagious: tc.contagious,
                     });
-                    // Apply acute shock
                     applyShockToEntity(world, ent, "groupDissolved");
+                }
+            }
+        }
+        // Log group changes using NPC IDs
+        for (const npc of state.npcs) {
+            const ent = npcEntities.get(npc.id);
+            if (ent === undefined) continue;
+            const g = getComponent(world, ent, GROUP);
+            const currGroupId = g ? g.groupId : null;
+            const prevGroupId = prevNpcGroups.get(npc.id) ?? null;
+            if (currGroupId === prevGroupId) continue;
+
+            if (prevGroupId != null && currGroupId == null) {
+                pendingLogEvents.push({
+                    tick: currentTick, day: state.day, type: "group",
+                    text: npc.name + "'s group dissolved.", npcIds: [npc.id],
+                });
+            }
+            if (currGroupId != null && !loggedGroups.has(currGroupId)) {
+                loggedGroups.add(currGroupId);
+                const names = [];
+                const ids = [];
+                for (const other of state.npcs) {
+                    const oe = npcEntities.get(other.id);
+                    if (oe === undefined) continue;
+                    const og = getComponent(world, oe, GROUP);
+                    if (og && og.groupId === currGroupId) {
+                        names.push(other.name);
+                        ids.push(other.id);
+                    }
+                }
+                if (names.length >= 2) {
+                    pendingLogEvents.push({
+                        tick: currentTick, day: state.day, type: "group",
+                        text: names.join(" and ") + " formed a group.", npcIds: ids,
+                    });
                 }
             }
         }
@@ -651,7 +694,20 @@ export const Social = {
             const prevDisposition = npc.disposition;
             npc.disposition = deriveDisposition(psych, ident.alive, undefined, onPilgrimage);
 
-            // Detect madness transition
+            // Detect disposition transitions
+            if (prevDisposition !== npc.disposition && ident.alive) {
+                if (npc.disposition === "anxious" && prevDisposition === "calm") {
+                    pendingLogEvents.push({
+                        tick: currentTick, day: state.day, type: "disposition",
+                        text: npc.name + " is growing anxious.", npcIds: [npc.id],
+                    });
+                } else if (npc.disposition === "catatonic") {
+                    pendingLogEvents.push({
+                        tick: currentTick, day: state.day, type: "disposition",
+                        text: npc.name + " has gone catatonic.", npcIds: [npc.id],
+                    });
+                }
+            }
             const wentMad = prevDisposition !== "mad" && npc.disposition === "mad";
             if (wentMad && ident.alive) {
                 const pos = getComponent(world, ent, POSITION);
@@ -762,6 +818,8 @@ export const Social = {
                     text: ident.name + " found " + wordStr + " in a book!", npcIds: [npcId] });
             }
         }
+        // Drain any log entries queued from outside the tick cycle
+        while (pendingLogEvents.length > 0) logEntries.push(pendingLogEvents.pop());
         if (logEntries.length > 0) appendEvents(logEntries);
 
         // Sync player needs from ECS → state (ECS is authority)
@@ -795,6 +853,10 @@ export const Social = {
                     if (ident && ident.free) continue; // FREE = gone forever
                     npc.alive = true;
                     npc.falling = null;
+                    pendingLogEvents.push({
+                        tick: state.tick, day: state.day, type: "resurrection",
+                        text: npc.name + " returned at dawn.", npcIds: [npc.id],
+                    });
                 }
             }
         }
