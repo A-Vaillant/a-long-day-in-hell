@@ -388,12 +388,16 @@ describe("detectEvents", () => {
 
     // --- Book found events ---
 
-    it("detects hasBook change", () => {
+    it("detects book found via bookVision state", () => {
         const prev = makeSnap([makeNpc({
-            components: { knowledge: { hasBook: false } },
+            components: { memory: { entries: [
+                { type: "bookVision", state: "searching" },
+            ] } },
         })]);
         const curr = makeSnap([makeNpc({
-            components: { knowledge: { hasBook: true } },
+            components: { memory: { entries: [
+                { type: "bookVision", state: "found" },
+            ] } },
         })]);
         const events = detectEvents(prev, curr);
         assert.strictEqual(events.length, 1);

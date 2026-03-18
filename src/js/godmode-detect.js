@@ -80,13 +80,10 @@ export function detectEvents(prev, curr) {
                 text: npc.name + " began a pilgrimage.", npcIds: [npc.id] });
         }
 
-        // Found their book / pilgrimage failed — check Memory entries first, Knowledge as fallback
+        // Found their book / pilgrimage failed — check bookVision state in memory
         const oldMem = old.components && old.components.memory;
         const newMem = npc.components && npc.components.memory;
-        const oldKnow = old.components && old.components.knowledge;
-        const newKnow = npc.components && npc.components.knowledge;
 
-        // Helper: find bookVision entry in a serialized memory component
         const getBookVisionEntry = (mem) =>
             (mem && mem.entries && mem.entries.find(e => e.type === "bookVision")) ?? null;
 
@@ -94,25 +91,18 @@ export function detectEvents(prev, curr) {
         const newVision = getBookVisionEntry(newMem);
 
         // Found their book: bookVision state transitioned to "found"
-        const foundViaMemory = oldVision && newVision &&
-            oldVision.state !== "found" && newVision.state === "found";
-        const foundViaKnowledge = !foundViaMemory &&
-            oldKnow && newKnow && !oldKnow.hasBook && newKnow.hasBook;
-        if (foundViaMemory || foundViaKnowledge) {
+        if (oldVision && newVision && oldVision.state !== "found" && newVision.state === "found") {
             events.push({ tick: curr.tick, day: curr.day, type: "pilgrimage",
                 text: npc.name + " found their book!", npcIds: [npc.id] });
         }
 
-        // Pilgrimage failed: bookVision state → "exhausted", or pilgrimageFailure memory appeared,
-        // or Knowledge.pilgrimageExhausted flipped (legacy fallback)
-        const exhaustedViaMemory = oldVision && newVision &&
+        // Pilgrimage failed: bookVision state → "exhausted", or pilgrimageFailure memory appeared
+        const exhaustedViaVision = oldVision && newVision &&
             oldVision.state !== "exhausted" && newVision.state === "exhausted";
-        const failureEntryAppearedInMemory = !exhaustedViaMemory && newMem && newMem.entries &&
+        const failureEntryAppeared = !exhaustedViaVision && newMem && newMem.entries &&
             newMem.entries.some(e => e.type === "pilgrimageFailure") &&
             (!oldMem || !oldMem.entries || !oldMem.entries.some(e => e.type === "pilgrimageFailure"));
-        const exhaustedViaKnowledge = !exhaustedViaMemory && !failureEntryAppearedInMemory &&
-            oldKnow && newKnow && !oldKnow.pilgrimageExhausted && newKnow.pilgrimageExhausted;
-        if (exhaustedViaMemory || failureEntryAppearedInMemory || exhaustedViaKnowledge) {
+        if (exhaustedViaVision || failureEntryAppeared) {
             events.push({ tick: curr.tick, day: curr.day, type: "pilgrimage",
                 text: npc.name + "\u2019s pilgrimage ended in silence. The books were noise.", npcIds: [npc.id] });
         }

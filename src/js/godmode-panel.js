@@ -94,7 +94,7 @@ function bar(value, max, color) {
 // Each renderer: (comp, npc, snap) => html string (a gm-section)
 // Order array controls display order; unlisted components render last via fallback.
 
-const COMPONENT_ORDER = ["psychology", "stats", "intent", "knowledge", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation", "memory"];
+const COMPONENT_ORDER = ["psychology", "stats", "intent", "needs", "sleep", "belief", "personality", "searching", "relationships", "group", "habituation", "memory"];
 
 const componentRenderers = {
     psychology(comp) {
@@ -204,68 +204,6 @@ const componentRenderers = {
         return html;
     },
 
-    knowledge(comp, npc) {
-        let html = '<div class="gm-section">';
-        html += '<div class="gm-section-title">knowledge</div>';
-        // Book location + distance — hidden until [?] clicked, cached after
-        const bc = comp.lifeStory && comp.lifeStory.bookCoords;
-        if (bc) {
-            const cached = distCache.get(npc.id);
-            if (cached) {
-                if (cached.damned) {
-                    const oomTip = cached.ooms > 0
-                        ? "Their book exists " + cached.ooms + " orders of magnitude outside the walkable library."
-                        : "Story text exceeds library address space. No valid shelf location exists.";
-                    html += '<div class="gm-stat"><span class="gm-tip" data-tip="' + esc(oomTip) + '">book</span>';
-                    html += '<span class="gm-bar-num" style="color:#9a2a2a">';
-                    html += cached.ooms > 0 ? 'damned <span style="color:#666" title="' + esc(oomTip) + '">(' + cached.ooms + ' OOMs)</span>' : 'damned';
-                    html += '</span></div>';
-                } else {
-                    const bookLoc = (bc.side === 0 ? 'W' : 'E') + ' f' + bc.floor + ' s' + bc.position + ' #' + bc.bookIndex;
-                    html += '<div class="gm-stat"><span class="gm-tip" data-tip="Computed from story text. The NPC does not know this.">book</span>';
-                    html += '<span class="gm-bar-num">' + esc(bookLoc) + '</span></div>';
-                    html += '<div class="gm-stat"><span>distance</span>';
-                    html += '<span class="gm-bar-num">' + esc(cached.text) + '</span></div>';
-                }
-            } else {
-                const bookAddress = comp.lifeStory && comp.lifeStory.bookAddress != null ? comp.lifeStory.bookAddress : null;
-                html += '<div class="gm-stat"><span class="gm-tip" data-tip="Click to compute: book location and distance, or whether the soul is damned.">book</span>';
-                html += '<span class="gm-bar-num"><a class="gm-calc-dist" data-npc-id="' + npc.id + '" data-book-address="' + (bookAddress != null ? bookAddress.toString() : '') + '" data-npc-pos="' + npc.position + '" data-npc-floor="' + npc.floor + '" data-npc-side="' + npc.side + '" data-bc-side="' + bc.side + '" data-bc-pos="' + bc.position + '" data-bc-floor="' + bc.floor + '" style="cursor:pointer;color:#aaa">[?]</a></span></div>';
-            }
-        }
-        // Vision status
-        if (comp.bookVision) {
-            const vl = (comp.bookVision.side === 0 ? 'W' : 'E') + ' f' + comp.bookVision.floor + ' s' + comp.bookVision.position;
-            const color = comp.visionAccurate ? "#6a8a5a" : "#9a2a2a";
-            const label = comp.visionAccurate ? "divine vision" : "false vision";
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Revealed destination. Green = accurate, red = false.">' + label + '</span>';
-            html += '<span class="gm-bar-num" style="color:' + color + '">' + esc(vl) + '</span></div>';
-        } else {
-            html += '<div class="gm-stat"><span>vision</span><span class="gm-bar-num" style="color:#666">none</span></div>';
-        }
-        if (comp.hasBook) {
-            html += '<div class="gm-stat"><span>book</span><span class="gm-bar-num" style="color:#60d060">found!</span></div>';
-        }
-        // Searched segments
-        const searched = comp.searchedSegments;
-        const segCount = Array.isArray(searched) ? searched.length : 0;
-        if (segCount > 0) {
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Number of library segments this NPC has finished searching. Shared via conversation.">searched</span>';
-            html += '<span class="gm-bar-num">' + segCount + ' segment' + (segCount !== 1 ? 's' : '') +
-                ' <button class="gm-btn gm-search-map-btn" data-npc-id="' + npc.id + '">map</button></span></div>';
-        }
-        // Lifetime best find
-        if (comp.bestScore > 0) {
-            const wordStr = comp.bestWords && comp.bestWords.length > 0
-                ? '"' + comp.bestWords.join(" ") + '"'
-                : (comp.bestScore === 1 ? "1 word" : comp.bestScore + " words");
-            html += '<div class="gm-stat"><span class="gm-tip" data-tip="Best words found on a single page across all searches.">best find</span>';
-            html += '<span class="gm-bar-num" style="color:#6a8a5a">' + wordStr + '</span></div>';
-        }
-        html += '</div>';
-        return html;
-    },
-
     sleep(comp) {
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">sleep</div>';
@@ -341,14 +279,41 @@ const componentRenderers = {
     },
 
     memory(comp, npc, snap) {
-        if (!comp.entries || comp.entries.length === 0) return "";
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">memories</div>';
 
+        // Book location / damnation — from identity.lifeStory (flat on snapshot)
+        const bc = npc.lifeStory && npc.lifeStory.bookCoords;
+        if (bc) {
+            const cached = distCache.get(npc.id);
+            if (cached) {
+                if (cached.damned) {
+                    const oomTip = cached.ooms > 0
+                        ? "Their book exists " + cached.ooms + " orders of magnitude outside the walkable library."
+                        : "Story text exceeds library address space. No valid shelf location exists.";
+                    html += '<div class="gm-stat"><span class="gm-tip" data-tip="' + esc(oomTip) + '">book</span>';
+                    html += '<span class="gm-bar-num" style="color:#9a2a2a">';
+                    html += cached.ooms > 0 ? 'damned <span style="color:#666" title="' + esc(oomTip) + '">(' + cached.ooms + ' OOMs)</span>' : 'damned';
+                    html += '</span></div>';
+                } else {
+                    const bookLoc = (bc.side === 0 ? 'W' : 'E') + ' f' + bc.floor + ' s' + bc.position + ' #' + bc.bookIndex;
+                    html += '<div class="gm-stat"><span class="gm-tip" data-tip="Computed from story text. The NPC does not know this.">book</span>';
+                    html += '<span class="gm-bar-num">' + esc(bookLoc) + '</span></div>';
+                    html += '<div class="gm-stat"><span>distance</span>';
+                    html += '<span class="gm-bar-num">' + esc(cached.text) + '</span></div>';
+                }
+            } else {
+                const bookAddress = npc.lifeStory && npc.lifeStory.bookAddress != null ? npc.lifeStory.bookAddress : null;
+                html += '<div class="gm-stat"><span class="gm-tip" data-tip="Click to compute: book location and distance, or whether the soul is damned.">book</span>';
+                html += '<span class="gm-bar-num"><a class="gm-calc-dist" data-npc-id="' + npc.id + '" data-book-address="' + (bookAddress != null ? bookAddress.toString() : '') + '" data-npc-pos="' + npc.position + '" data-npc-floor="' + npc.floor + '" data-npc-side="' + npc.side + '" data-bc-side="' + bc.side + '" data-bc-pos="' + bc.position + '" data-bc-floor="' + bc.floor + '" style="cursor:pointer;color:#aaa">[?]</a></span></div>';
+            }
+        }
+
         // Render bookVision entries specially at the top
-        const visionEntries = comp.entries.filter(e => e.type === "bookVision");
-        const searchEntries = comp.entries.filter(e => e.type === "searchProgress");
-        const otherEntries = comp.entries.filter(e => e.type !== "bookVision" && e.type !== "searchProgress");
+        const entries = comp.entries || [];
+        const visionEntries = entries.filter(e => e.type === "bookVision");
+        const searchEntries = entries.filter(e => e.type === "searchProgress");
+        const otherEntries = entries.filter(e => e.type !== "bookVision" && e.type !== "searchProgress");
 
         for (const e of visionEntries) {
             const stateColors = {
@@ -378,10 +343,13 @@ const componentRenderers = {
         // Render searchProgress specially
         for (const e of searchEntries) {
             const segCount = e.searchedSegments ? (Array.isArray(e.searchedSegments) ? e.searchedSegments.length : e.searchedSegments.size || 0) : 0;
+            if (segCount === 0 && !(e.bestScore > 0)) continue;
             html += '<div class="gm-memory-entry">';
             html += '<div class="gm-memory-header">';
             html += '<span class="gm-tip" data-tip="' + esc(TIPS.searchProgress || "") + '">search progress</span>';
-            html += '<span class="gm-memory-meta"> ' + segCount + ' segment' + (segCount !== 1 ? 's' : '') + '</span>';
+            html += '<span class="gm-memory-meta"> ' + segCount + ' segment' + (segCount !== 1 ? 's' : '') +
+                (segCount > 0 ? ' <button class="gm-btn gm-search-map-btn" data-npc-id="' + npc.id + '">map</button>' : '') +
+                '</span>';
             html += '</div>';
             if (e.bestScore > 0) {
                 const wordStr = e.bestWords && e.bestWords.length > 0
@@ -445,24 +413,31 @@ function toggleSearchMap(npcId) {
     if (!snap) return;
     const npc = snap.npcs.find(n => n.id === npcId);
     if (!npc) return;
-    const k = npc.components && npc.components.knowledge;
-    if (!k) return;
-    const segs = k.searchedSegments || [];
-    if (segs.length === 0) return;
+    const mem = npc.components && npc.components.memory;
+    if (!mem || !mem.entries) return;
 
-    const segments = segs.map(s => {
+    // Get searchProgress entry for searched segments
+    const sp = mem.entries.find(e => e.type === "searchProgress");
+    const rawSegs = sp && sp.searchedSegments
+        ? (Array.isArray(sp.searchedSegments) ? sp.searchedSegments : [...sp.searchedSegments])
+        : [];
+    if (rawSegs.length === 0) return;
+
+    const segments = rawSegs.map(s => {
         const [side, pos, floor] = s.split(":").map(Number);
         return { side, pos, floor };
     });
 
-    const bc = k.lifeStory && k.lifeStory.bookCoords;
+    // Get bookVision entry for vision overlay
+    const vision = mem.entries.find(e => e.type === "bookVision");
+    const bc = npc.lifeStory && npc.lifeStory.bookCoords;
     callbacks.onSearchMap({
         npcId: npc.id,
         npcName: npc.name,
         segments,
         bookCoords: bc || null,
-        bookVision: k.bookVision || null,
-        visionAccurate: !!k.visionAccurate,
+        bookVision: vision && vision.coords ? vision.coords : null,
+        visionAccurate: vision ? !!vision.accurate : false,
     });
 }
 
@@ -757,8 +732,10 @@ export const GodmodePanel = {
                 key: "vision",
                 label: "grant vision",
                 available(npc) {
-                    const k = npc.components && npc.components.knowledge;
-                    return npc.alive && k && !k.bookVision && !npc.free;
+                    if (!npc.alive || npc.free) return false;
+                    const mem = npc.components && npc.components.memory;
+                    if (!mem || !mem.entries) return true; // no memory = no vision yet
+                    return !mem.entries.some(e => e.type === "bookVision");
                 },
                 action: cbs.onVision,
             });

@@ -210,12 +210,10 @@ describe("GodmodePanel — Knowledge section", () => {
         const snap = makeSnap([makeNpc({
             components: {
                 psychology: { lucidity: 80, hope: 60 },
-                knowledge: {
-                    lifeStory: { bookCoords: { side: 0, position: 20n, floor: 60n, bookIndex: 42 } },
-                    bookVision: null, visionAccurate: true, hasBook: false,
-                    searchedSegments: ["0:10:50", "0:11:50", "0:12:50"],
-                    bestScore: 0, bestWords: [],
-                },
+                memory: { entries: [
+                    { id: 1, type: "searchProgress", tick: 0, weight: 3, initialWeight: 3, permanent: true, subject: null, contagious: true,
+                      searchedSegments: ["0:10:50", "0:11:50", "0:12:50"], bestScore: 0, bestWords: [] },
+                ], capacity: 32 },
             },
         })]);
         GodmodePanel.update(snap, 0, true);
@@ -228,12 +226,10 @@ describe("GodmodePanel — Knowledge section", () => {
         const snap = makeSnap([makeNpc({
             components: {
                 psychology: { lucidity: 80, hope: 60 },
-                knowledge: {
-                    lifeStory: { bookCoords: { side: 0, position: 20n, floor: 60n, bookIndex: 42 } },
-                    bookVision: null, visionAccurate: true, hasBook: false,
-                    searchedSegments: [],
-                    bestScore: 0, bestWords: [],
-                },
+                memory: { entries: [
+                    { id: 1, type: "searchProgress", tick: 0, weight: 3, initialWeight: 3, permanent: true, subject: null, contagious: true,
+                      searchedSegments: [], bestScore: 0, bestWords: [] },
+                ], capacity: 32 },
             },
         })]);
         GodmodePanel.update(snap, 0, true);
@@ -246,12 +242,10 @@ describe("GodmodePanel — Knowledge section", () => {
         const snap = makeSnap([makeNpc({
             components: {
                 psychology: { lucidity: 80, hope: 60 },
-                knowledge: {
-                    lifeStory: { bookCoords: { side: 0, position: 20n, floor: 60n, bookIndex: 42 } },
-                    bookVision: null, visionAccurate: true, hasBook: false,
-                    searchedSegments: ["0:10:50"],
-                    bestScore: 3, bestWords: ["hope", "fire", "dark"],
-                },
+                memory: { entries: [
+                    { id: 1, type: "searchProgress", tick: 0, weight: 3, initialWeight: 3, permanent: true, subject: null, contagious: true,
+                      searchedSegments: ["0:10:50"], bestScore: 3, bestWords: ["hope", "fire", "dark"] },
+                ], capacity: 32 },
             },
         })]);
         GodmodePanel.update(snap, 0, true);
@@ -264,12 +258,10 @@ describe("GodmodePanel — Knowledge section", () => {
         const snap = makeSnap([makeNpc({
             components: {
                 psychology: { lucidity: 80, hope: 60 },
-                knowledge: {
-                    lifeStory: { bookCoords: { side: 0, position: 20n, floor: 60n, bookIndex: 42 } },
-                    bookVision: null, visionAccurate: true, hasBook: false,
-                    searchedSegments: [],
-                    bestScore: 0, bestWords: [],
-                },
+                memory: { entries: [
+                    { id: 1, type: "searchProgress", tick: 0, weight: 3, initialWeight: 3, permanent: true, subject: null, contagious: true,
+                      searchedSegments: [], bestScore: 0, bestWords: [] },
+                ], capacity: 32 },
             },
         })]);
         GodmodePanel.update(snap, 0, true);
@@ -307,30 +299,26 @@ describe("GodmodePanel — Searching section", () => {
         GodmodePanel.update(snap, 0, true);
         const pane = document.getElementById("gm-npc-pane");
         assert.ok(!pane.innerHTML.includes("reading book"), "should not show searching when inactive");
-        // Best find should NOT be in searching section (it's in knowledge now)
+        // Best find should NOT be in searching section (it's in memory/searchProgress)
         assert.ok(!pane.innerHTML.includes("hope fire"), "searching section should not show best find");
     });
 });
 
-// Helper: NPC with a knowledge component containing a life story
+// Helper: NPC with lifeStory (flat field) and memory component
 // bookAddress: bigint used for damnation check (in-bounds iff <= PLAYABLE_ADDRESS_MAX)
-function makeNpcWithKnowledge(bookAddress, bookCoords, npcOverrides) {
+function makeNpcWithLifeStory(bookAddress, bookCoords, npcOverrides) {
     const bc = bookCoords || { side: 0, position: 100n, floor: 5n, bookIndex: 3 };
     return makeNpc({
         ...npcOverrides,
+        lifeStory: {
+            name: "Test NPC",
+            bookCoords: bc,
+            bookAddress: bookAddress,
+        },
         components: {
             psychology: { lucidity: 80, hope: 60 },
             personality: { temperament: 0.5, pace: 0.3, openness: 0.7, outlook: 0.6 },
-            knowledge: {
-                lifeStory: {
-                    name: "Test NPC",
-                    bookCoords: bc,
-                    bookAddress: bookAddress,
-                },
-                bookVision: null,
-                visionAccurate: false,
-                hasBook: false,
-            },
+            memory: { entries: [], capacity: 32 },
         },
     });
 }
@@ -342,8 +330,8 @@ describe("GodmodePanel — Damnation", () => {
     });
     afterEach(() => { delete global.document; });
 
-    it("shows [?] button when NPC has knowledge component", () => {
-        const npc = makeNpcWithKnowledge(IN_BOUNDS_ADDRESS);
+    it("shows [?] button when NPC has lifeStory", () => {
+        const npc = makeNpcWithLifeStory(IN_BOUNDS_ADDRESS);
         GodmodePanel.update(makeSnap([npc]), 0, true);
         const btn = document.querySelector(".gm-calc-dist");
         assert.ok(btn, "should have [?] button");
@@ -351,7 +339,7 @@ describe("GodmodePanel — Damnation", () => {
     });
 
     it("clicking [?] with damned NPC shows damned label", () => {
-        const npc = makeNpcWithKnowledge(OUT_OF_BOUNDS_ADDRESS);
+        const npc = makeNpcWithLifeStory(OUT_OF_BOUNDS_ADDRESS);
         const snap = makeSnap([npc]);
         GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
@@ -364,7 +352,7 @@ describe("GodmodePanel — Damnation", () => {
 
     it("clicking [?] with in-bounds NPC reveals location and distance", () => {
         const bc = { side: 0, position: 200n, floor: 10n, bookIndex: 0 };
-        const npc = makeNpcWithKnowledge(IN_BOUNDS_ADDRESS, bc, { side: 0, position: 100n, floor: 5n });
+        const npc = makeNpcWithLifeStory(IN_BOUNDS_ADDRESS, bc, { side: 0, position: 100n, floor: 5n });
         const snap = makeSnap([npc]);
         GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
@@ -377,7 +365,7 @@ describe("GodmodePanel — Damnation", () => {
 
     it("in-bounds distance is correct arithmetic", () => {
         const bc = { side: 0, position: 200n, floor: 10n, bookIndex: 0 };
-        const npc = makeNpcWithKnowledge(IN_BOUNDS_ADDRESS, bc, { side: 0, position: 100n, floor: 5n });
+        const npc = makeNpcWithLifeStory(IN_BOUNDS_ADDRESS, bc, { side: 0, position: 100n, floor: 5n });
         const snap = makeSnap([npc]);
         GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");
@@ -388,7 +376,7 @@ describe("GodmodePanel — Damnation", () => {
     });
 
     it("[?] disappears after calculation (replaced by cached result)", () => {
-        const npc = makeNpcWithKnowledge(IN_BOUNDS_ADDRESS);
+        const npc = makeNpcWithLifeStory(IN_BOUNDS_ADDRESS);
         const snap = makeSnap([npc]);
         GodmodePanel.update(snap, 0, true);
         const btn = document.querySelector(".gm-calc-dist");

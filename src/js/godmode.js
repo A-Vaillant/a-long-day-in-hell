@@ -134,12 +134,6 @@ function snapshot() {
                         return entry;
                     });
                     components[key] = { entries, capacity: comp.capacity };
-                } else if (key === "knowledge") {
-                    // Serialize searchedSegments Set → array of "side:pos:floor" keys
-                    components[key] = {
-                        ...comp,
-                        searchedSegments: comp.searchedSegments ? [...comp.searchedSegments] : [],
-                    };
                 } else {
                     // Shallow copy plain data components
                     components[key] = { ...comp };
@@ -156,11 +150,15 @@ function snapshot() {
             }
         }
 
-        // Check identity.free from ECS
+        // Check identity.free and lifeStory from ECS
         let free = false;
+        let lifeStory = null;
         if (world && ent !== undefined) {
             const identComp = getComponent(world, ent, "identity");
-            if (identComp) free = !!identComp.free;
+            if (identComp) {
+                free = !!identComp.free;
+                lifeStory = identComp.lifeStory || null;
+            }
         }
 
         npcs.push({
@@ -179,6 +177,7 @@ function snapshot() {
             groupId,
             // All ECS components for auto-populating detail view
             components,
+            lifeStory,
             falling: npc.falling || null,
         });
     }
