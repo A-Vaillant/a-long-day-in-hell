@@ -377,6 +377,20 @@ describe("canSeeAcrossChasm", () => {
             { side: 1, position: 5n, floor: 4n },
         ), false);
     });
+
+    it("false when too far apart horizontally", () => {
+        assert.strictEqual(canSeeAcrossChasm(
+            { side: 0, position: 5n, floor: 3n },
+            { side: 1, position: 500n, floor: 3n },
+        ), false);
+    });
+
+    it("true when within sight range across chasm", () => {
+        assert.strictEqual(canSeeAcrossChasm(
+            { side: 0, position: 5n, floor: 3n },
+            { side: 1, position: 10n, floor: 3n },
+        ), true);
+    });
 });
 
 // --- canHear / canSee ---

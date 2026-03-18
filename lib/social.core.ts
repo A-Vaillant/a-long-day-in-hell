@@ -466,8 +466,14 @@ export function segmentDistance(a: Position, b: Position): number {
  * Same floor, different side. Visual only — no interaction possible
  * except at floor 0 where you can cross.
  */
-export function canSeeAcrossChasm(a: Position, b: Position): boolean {
-    return a.floor === b.floor && a.side !== b.side;
+export function canSeeAcrossChasm(
+    a: Position,
+    b: Position,
+    config: AwarenessConfig = DEFAULT_AWARENESS,
+): boolean {
+    if (a.floor !== b.floor || a.side === b.side) return false;
+    const dist = Number(a.position > b.position ? a.position - b.position : b.position - a.position);
+    return dist <= config.sightRange;
 }
 
 /**

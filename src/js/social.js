@@ -50,6 +50,8 @@ let world = null;
 let playerEntity = null;
 // Map NPC id → ECS entity
 const npcEntities = new Map();
+// Events queued from outside the tick cycle (e.g. godmode powers)
+const pendingWitnessEvents = [];
 
 export const Social = {
     /** Initialize ECS world, spawn player + NPC entities. Call after Npc.init(). */
@@ -544,6 +546,8 @@ export const Social = {
 
         // Collect witness events from escape/chasm/falling/disposition changes
         const witnessEvents = [];
+        // Drain any events queued from outside the tick cycle
+        while (pendingWitnessEvents.length > 0) witnessEvents.push(pendingWitnessEvents.pop());
 
         // Detect new bonds (familiarity crossed threshold).
         // Apply MET_SOMEONE directly to both parties (full weight), then push a
@@ -1176,6 +1180,17 @@ export const Social = {
         const npc = state.npcs && state.npcs.find(n => n.id === npcId);
         if (!npc || !npc.alive || npc.floor <= 0n) return false;
         npc.falling = { speed: 0, floorsToFall: 0, side: npc.side };
+        // Queue witness event for next tick
+        const ent = npcEntities.get(npcId);
+        if (ent !== undefined) {
+            pendingWitnessEvents.push({
+                type: MEMORY_TYPES.WITNESS_CHASM,
+                subject: ent,
+                position: { side: npc.side, position: npc.position, floor: npc.floor },
+                bondedOnly: false,
+                range: "sight",
+            });
+        }
         return true;
     },
 
