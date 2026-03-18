@@ -69,7 +69,7 @@ function createBenchWorld(npcCount) {
         addComponent(world, ent, HABITUATION, { exposures: new Map() });
         addComponent(world, ent, NEEDS, { hunger: 0, thirst: 0, exhaustion: 0 });
         addComponent(world, ent, MOVEMENT, { targetPosition: null, heading: 1 });
-        addComponent(world, ent, SEARCHING, { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0, bestWords: [] });
+        addComponent(world, ent, SEARCHING, { bookIndex: 0, booksSearched: 0, galleriesSearched: 0, patience: 5, active: false, bestScore: 0, bestWords: [] });
         addComponent(world, ent, INTENT, { behavior: "idle", cooldown: 0, elapsed: 0 });
         addComponent(world, ent, SLEEP, {
             home: { side: npc.side, position: nearestRestArea(npc.position), floor: npc.floor },

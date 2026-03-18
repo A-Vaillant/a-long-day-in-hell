@@ -240,8 +240,13 @@ const componentRenderers = {
         html += '<div class="gm-section-title">searching</div>';
         html += '<div class="gm-stat"><span class="gm-tip" data-tip="Currently examining a book for words.">status</span>';
         html += '<span class="gm-bar-num" style="color:#6a8a5a">reading book ' + comp.bookIndex + '</span></div>';
-        html += '<div class="gm-stat">' + tip("patience") +
-            bar(comp.ticksSearched, comp.patience, "#b8a878") + '</div>';
+        const booksChecked = comp.booksSearched ?? comp.ticksSearched ?? 0;
+        html += '<div class="gm-stat">' + tip("gallery progress") +
+            bar(booksChecked, 200, "#b8a878") + '</div>';
+        if (comp.galleriesSearched != null) {
+            html += '<div class="gm-stat">' + tip("patience") +
+                bar(comp.galleriesSearched, comp.patience, "#b8a878") + '</div>';
+        }
         html += '</div>';
         return html;
     },

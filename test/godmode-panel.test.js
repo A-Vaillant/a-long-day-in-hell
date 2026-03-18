@@ -281,7 +281,7 @@ describe("GodmodePanel — Searching section", () => {
         const snap = makeSnap([makeNpc({
             components: {
                 psychology: { lucidity: 80, hope: 60 },
-                searching: { active: true, bookIndex: 42, ticksSearched: 3, patience: 10, bestScore: 0, bestWords: [] },
+                searching: { active: true, bookIndex: 42, booksSearched: 3, galleriesSearched: 0, patience: 5, bestScore: 0, bestWords: [] },
             },
         })]);
         GodmodePanel.update(snap, 0, true);
@@ -293,7 +293,7 @@ describe("GodmodePanel — Searching section", () => {
         const snap = makeSnap([makeNpc({
             components: {
                 psychology: { lucidity: 80, hope: 60 },
-                searching: { active: false, bookIndex: 0, ticksSearched: 0, patience: 10, bestScore: 2, bestWords: ["hope", "fire"] },
+                searching: { active: false, bookIndex: 0, booksSearched: 0, galleriesSearched: 0, patience: 5, bestScore: 2, bestWords: ["hope", "fire"] },
             },
         })]);
         GodmodePanel.update(snap, 0, true);

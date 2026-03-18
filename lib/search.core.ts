@@ -270,15 +270,17 @@ export function scoreFromSeed(
 export const SEARCHING = "searching";
 
 export interface Searching {
-    /** Current book index being examined (0–191 within gallery). */
+    /** Current book index being examined (0–199 within gallery). */
     bookIndex: number;
-    /** Ticks spent searching at current position. */
-    ticksSearched: number;
-    /** Max ticks before patience runs out. */
+    /** Books examined in the current gallery. */
+    booksSearched: number;
+    /** Galleries completed in the current search session. */
+    galleriesSearched: number;
+    /** Max galleries before patience runs out for this session. */
     patience: number;
     /** Whether actively searching (managed by this system based on intent). */
     active: boolean;
-    /** Most words found on a single page. */
+    /** Most words found on a single page (this session). */
     bestScore: number;
     /** The actual words from the best find. */
     bestWords: string[];
@@ -286,33 +288,36 @@ export interface Searching {
 
 /** Create a fresh SEARCHING component with all fields initialized. */
 export function createSearching(): Searching {
-    return { bookIndex: 0, ticksSearched: 0, patience: 10, active: false, bestScore: 0, bestWords: [] };
+    return { bookIndex: 0, booksSearched: 0, galleriesSearched: 0, patience: 5, active: false, bestScore: 0, bestWords: [] };
 }
 
 // --- Config ---
 
 export interface SearchConfig {
-    /** Bonus patience per unit of openness (0–1). */
+    /** Bonus gallery patience per unit of openness (0–1). */
     opennessPatienceBonus: number;
-    /** Bonus patience per unit of patience (1 - pace). */
+    /** Bonus gallery patience per unit of patience (1 - pace). */
     pacePatienceBonus: number;
-    /** Base patience in ticks. */
-    basePatienceTicks: number;
+    /** Base patience in galleries. */
+    basePatienceGalleries: number;
     /** Hope boost per word found. */
     hopePerWord: number;
     /** Minimum word count to register as a find. */
     wordFloor: number;
     /** Max hope boost per single book find. */
     maxHopeBoost: number;
+    /** Hope drained when patience exhausts (searched as long as you could). */
+    exhaustionHopeDrain: number;
 }
 
 export const DEFAULT_SEARCH: SearchConfig = {
-    basePatienceTicks: 8,
-    opennessPatienceBonus: 10,
-    pacePatienceBonus: 6,
+    basePatienceGalleries: 3,
+    opennessPatienceBonus: 5,
+    pacePatienceBonus: 4,
     hopePerWord: 3,
     wordFloor: 1,
     maxHopeBoost: 12,
+    exhaustionHopeDrain: 2,
 };
 
 // --- Helpers ---
@@ -323,16 +328,17 @@ interface Rng {
 }
 
 /**
- * Compute patience from personality traits.
+ * Compute patience (in galleries) from personality traits.
+ * Range: [2, 15] galleries before the NPC gives up searching.
  */
 export function computePatience(
     personality: Personality | null,
     config: SearchConfig = DEFAULT_SEARCH,
 ): number {
-    if (!personality) return config.basePatienceTicks;
+    if (!personality) return config.basePatienceGalleries;
     const paceBonus = (1 - personality.pace) * config.pacePatienceBonus;
     const openBonus = personality.openness * config.opennessPatienceBonus;
-    return Math.max(3, Math.min(30, Math.round(config.basePatienceTicks + paceBonus + openBonus)));
+    return Math.max(2, Math.min(15, Math.round(config.basePatienceGalleries + paceBonus + openBonus)));
 }
 
 /**
@@ -438,7 +444,8 @@ export function searchSystem(
         if (!search.active) {
             const personality = getComponent<Personality>(world, entity, PERSONALITY);
             search.patience = computePatience(personality ?? null, config);
-            search.ticksSearched = 0;
+            search.galleriesSearched = 0;
+            search.booksSearched = 0;
             search.bestScore = 0;
             search.bestWords = [];
             const idx = claimBookIndex(claimed, rng);
@@ -461,8 +468,6 @@ export function searchSystem(
                 : findWordsFromSeed("", pos.side, pos.position, pos.floor, search.bookIndex, 0);
 
             if (foundWords.length >= config.wordFloor) {
-                // Escalating hope: each additional word is more exciting
-                // 1 word: 3, 2 words: 3+6=9, 3 words: 3+6+9=18
                 let boost = 0;
                 for (let w = 0; w < foundWords.length; w++) {
                     boost += config.hopePerWord * (w + 1);
@@ -473,7 +478,6 @@ export function searchSystem(
                     search.bestScore = foundWords.length;
                     search.bestWords = foundWords;
                 }
-                // Persist lifetime best to searchProgress memory
                 const mem = getComponent<Memory>(world, entity, MEMORY);
                 if (mem) {
                     const sp = getSearchProgress(mem, true)!;
@@ -493,16 +497,32 @@ export function searchSystem(
                 });
             }
 
-            search.ticksSearched++;
+            search.booksSearched++;
 
-            // Advance to next book or exhaust patience
-            if (search.ticksSearched >= search.patience) {
-                search.active = false;
+            // Finished this gallery — mark it and check patience
+            if (search.booksSearched >= BOOKS_PER_GALLERY) {
                 claimed.delete(search.bookIndex);
-                // Mark this segment as searched in memory
                 const mem = getComponent<Memory>(world, entity, MEMORY);
                 if (mem) markSegmentSearched(mem, pos.side, pos.position, pos.floor);
+                search.galleriesSearched++;
+
+                // Patience exhausted — stop searching, minor hope drain
+                if (search.galleriesSearched >= search.patience) {
+                    search.active = false;
+                    psych.hope = Math.max(0, psych.hope - config.exhaustionHopeDrain);
+                    break;
+                }
+
+                // Start next gallery within same position
+                search.booksSearched = 0;
+                const nextIdx = claimBookIndex(claimed, rng);
+                if (nextIdx === -1) {
+                    search.active = false;
+                    break;
+                }
+                search.bookIndex = nextIdx;
             } else {
+                // Advance to next book in the same gallery
                 claimed.delete(search.bookIndex);
                 const nextIdx = claimBookIndex(claimed, rng);
                 if (nextIdx === -1) {

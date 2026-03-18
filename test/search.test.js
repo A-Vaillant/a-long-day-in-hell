@@ -73,7 +73,7 @@ describe("scoreBigram", () => {
 describe("computePatience", () => {
     it("returns base patience with no personality", () => {
         const p = computePatience(null);
-        assert.strictEqual(p, DEFAULT_SEARCH.basePatienceTicks);
+        assert.strictEqual(p, DEFAULT_SEARCH.basePatienceGalleries);
     });
 
     it("open NPCs search longer", () => {
@@ -88,9 +88,9 @@ describe("computePatience", () => {
         assert.ok(computePatience(patient) > computePatience(restless));
     });
 
-    it("never returns less than 3", () => {
+    it("never returns less than 2", () => {
         const worst = { temperament: 0.5, pace: 1.0, openness: 0.0, outlook: 0.5 };
-        assert.ok(computePatience(worst) >= 3);
+        assert.ok(computePatience(worst) >= 2);
     });
 });
 
@@ -123,8 +123,8 @@ describe("claimBookIndex", () => {
 function spawnSearcher(world, overrides = {}) {
     const ent = spawn(world);
     addComponent(world, ent, SEARCHING, {
-        bookIndex: 0, ticksSearched: 0, patience: 10,
-        active: false, bestScore: 0, bestWords: [],
+        bookIndex: 0, booksSearched: 0, galleriesSearched: 0,
+        patience: 5, active: false, bestScore: 0, bestWords: [],
         ...overrides.search,
     });
     addComponent(world, ent, POSITION, {
@@ -159,7 +159,7 @@ describe("searchSystem", () => {
         for (let i = 0; i < 50; i++) {
             searchSystem(world, rng, () => "", undefined, () => []);
         }
-        // Check that search was attempted (ticksSearched may have advanced)
+        // Check that search was attempted (booksSearched may have advanced)
         // We just verify no crash
         assert.ok(true);
     });
@@ -197,7 +197,7 @@ describe("searchSystem", () => {
     it("words found boosts hope and emits event", () => {
         const world = createWorld();
         const ent = spawnSearcher(world, {
-            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            search: { active: true, bookIndex: 0, booksSearched: 0, patience: 10 },
         });
         const psych = { lucidity: 80, hope: 50 };
         addComponent(world, ent, PSYCHOLOGY, psych);
@@ -216,7 +216,7 @@ describe("searchSystem", () => {
     it("no words found does not boost hope", () => {
         const world = createWorld();
         spawnSearcher(world, {
-            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            search: { active: true, bookIndex: 0, booksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
 
@@ -231,12 +231,12 @@ describe("searchSystem", () => {
         const pos = { side: 0, position: 5n, floor: 100n };
         spawnSearcher(world, {
             position: pos,
-            search: { active: true, bookIndex: 10, ticksSearched: 0, patience: 10 },
+            search: { active: true, bookIndex: 10, booksSearched: 0, patience: 10 },
         });
         spawnSearcher(world, {
             position: pos,
             identity: { name: "Rachel", alive: true },
-            search: { active: true, bookIndex: 20, ticksSearched: 0, patience: 10 },
+            search: { active: true, bookIndex: 20, booksSearched: 0, patience: 10 },
         });
 
         // Run a tick — both should advance to different books
@@ -246,15 +246,56 @@ describe("searchSystem", () => {
         assert.ok(true);
     });
 
-    it("searching stops after patience exhausted", () => {
+    it("searching stops after patience (gallery count) exhausted", () => {
         const world = createWorld();
+        // One book away from completing the gallery, patience = 1 gallery
         const ent = spawnSearcher(world, {
-            search: { active: true, bookIndex: 0, ticksSearched: 9, patience: 10 },
+            search: {
+                active: true, bookIndex: 0,
+                booksSearched: BOOKS_PER_GALLERY - 1,
+                galleriesSearched: 0, patience: 1,
+            },
+            psychology: { lucidity: 80, hope: 50 },
         });
 
         searchSystem(world, makeRng(), () => "", undefined, () => []);
         const search = getComponent(world, ent, SEARCHING);
-        assert.strictEqual(search.active, false, "should deactivate after patience runs out");
+        assert.strictEqual(search.active, false, "should deactivate after patience (galleries) runs out");
+    });
+
+    it("patience exhaustion drains hope", () => {
+        const world = createWorld();
+        const ent = spawnSearcher(world, {
+            search: {
+                active: true, bookIndex: 0,
+                booksSearched: BOOKS_PER_GALLERY - 1,
+                galleriesSearched: 0, patience: 1,
+            },
+            psychology: { lucidity: 80, hope: 50 },
+        });
+
+        searchSystem(world, makeRng(), () => "", undefined, () => []);
+        const psych = getComponent(world, ent, PSYCHOLOGY);
+        assert.strictEqual(psych.hope, 50 - DEFAULT_SEARCH.exhaustionHopeDrain,
+            "hope should drain by exhaustionHopeDrain on patience exhaust");
+    });
+
+    it("gallery completion increments galleriesSearched", () => {
+        const world = createWorld();
+        // patience = 5, so completing 1 gallery won't exhaust
+        const ent = spawnSearcher(world, {
+            search: {
+                active: true, bookIndex: 0,
+                booksSearched: BOOKS_PER_GALLERY - 1,
+                galleriesSearched: 0, patience: 5,
+            },
+        });
+
+        searchSystem(world, makeRng(), () => "", undefined, () => []);
+        const search = getComponent(world, ent, SEARCHING);
+        assert.strictEqual(search.galleriesSearched, 1, "should have completed 1 gallery");
+        assert.strictEqual(search.booksSearched, 0, "booksSearched resets after gallery completion");
+        assert.strictEqual(search.active, true, "should still be active with patience remaining");
     });
 });
 
@@ -299,7 +340,7 @@ describe("searchSystem escalating hope", () => {
     it("single word gives base hope boost", () => {
         const world = createWorld();
         const ent = spawnSearcher(world, {
-            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            search: { active: true, bookIndex: 0, booksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
         const events = searchSystem(world, makeRng(), () => "", undefined, () => ["hope"]);
@@ -310,7 +351,7 @@ describe("searchSystem escalating hope", () => {
     it("three words give triangular sum", () => {
         const world = createWorld();
         spawnSearcher(world, {
-            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            search: { active: true, bookIndex: 0, booksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
         const events = searchSystem(world, makeRng(), () => "", undefined, () => ["hell", "fire", "dark"]);
@@ -325,7 +366,7 @@ describe("searchSystem lifetime best", () => {
     it("persists best find to MEMORY searchProgress", () => {
         const world = createWorld();
         const ent = spawnSearcher(world, {
-            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            search: { active: true, bookIndex: 0, booksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
         addComponent(world, ent, MEMORY, createMemory());
@@ -341,7 +382,7 @@ describe("searchSystem lifetime best", () => {
     it("lifetime best survives search session reset", () => {
         const world = createWorld();
         const ent = spawnSearcher(world, {
-            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            search: { active: true, bookIndex: 0, booksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
         addComponent(world, ent, MEMORY, createMemory());
@@ -370,7 +411,7 @@ describe("searchSystem lifetime best", () => {
     it("lifetime best only updates when beaten", () => {
         const world = createWorld();
         const ent = spawnSearcher(world, {
-            search: { active: true, bookIndex: 0, ticksSearched: 0, patience: 10 },
+            search: { active: true, bookIndex: 0, booksSearched: 0, patience: 10 },
             psychology: { lucidity: 80, hope: 50 },
         });
         const mem = createMemory();
