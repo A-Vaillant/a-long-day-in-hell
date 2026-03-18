@@ -15,8 +15,8 @@ const LABEL_GUTTER = 52; // floor number labels on left
 const HEADER_H = 28;     // reserved header strip for view title
 
 // Zoom
-const ZOOM_LEVELS = [0.005, 0.01, 0.02, 0.04, 0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 1, 1.25, 1.5, 2];
-let zoomIndex = 13;  // start at 1x
+const ZOOM_LEVELS = [0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.04, 0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 1, 1.25, 1.5, 2];
+let zoomIndex = 19;  // start at 1x
 const SCATTER_THRESHOLD = 0.2; // below this, skip grid, render as scatter plot
 let zoom = 1;
 
@@ -655,6 +655,84 @@ export const GodmodeMap = {
         }
 
         ctx.restore(); // end grid translation
+
+        // --- Pilgrimage progress bar ---
+        // Show for any NPC (or player) that has a bookVision with coords
+        const progressNpc = follow && selectedId !== null
+            ? snap.npcs.find(n => n.id === selectedId)
+            : snap.npcs.find(n => n.isPlayer);
+        if (progressNpc && progressNpc.components && progressNpc.components.memory) {
+            const memEntries = progressNpc.components.memory.entries || [];
+            const vision = memEntries.find(e => e.type === "bookVision" && e.coords);
+            if (vision && vision.coords) {
+                const pos = Number(progressNpc.position);
+                const floor = Number(progressNpc.floor);
+                const tgtPos = Number(vision.coords.position);
+                const tgtFloor = Number(vision.coords.floor);
+                const sameSide = progressNpc.side === vision.coords.side;
+
+                const posDist = Math.abs(pos - tgtPos);
+                const floorDist = Math.abs(floor - tgtFloor);
+                const sideDist = sameSide ? 0 : 1;
+
+                // Estimate total distance (Manhattan-ish: position + floor*5 + side*10)
+                const totalDist = posDist + floorDist * 5 + sideDist * 10;
+
+                // Progress bar at bottom-left
+                const barX = 12;
+                const barY = h - 40;
+                const barW = Math.min(300, w * 0.35);
+                const barH = 16;
+
+                // Background
+                ctx.fillStyle = "#0a090680";
+                ctx.fillRect(barX - 4, barY - 20, barW + 8, 56);
+
+                // Label
+                ctx.font = "11px 'Share Tech Mono', monospace";
+                ctx.textAlign = "left";
+                ctx.fillStyle = "#8a7a60";
+                const name = progressNpc.isPlayer ? "You" : progressNpc.name;
+                const stateLabel = vision.state === "granted" ? "pilgrimage" :
+                    vision.state === "searching" ? "searching" :
+                    vision.state === "exhausted" ? "lost" :
+                    vision.state === "found" ? "returning" : "pilgrimage";
+                ctx.fillText(name + " · " + stateLabel, barX, barY - 6);
+
+                // Bar track
+                ctx.fillStyle = "#1a1810";
+                ctx.fillRect(barX, barY, barW, barH);
+
+                // Determine progress — we need a starting distance to compute %
+                // Use a rough max: if side differs, floor can be up to 95000, position cosmologically far
+                // Simpler: show the three axes separately
+                const sideOk = sameSide;
+                const floorPct = floorDist === 0 ? 1 : Math.max(0, 1 - floorDist / 95000);
+                const posPct = posDist === 0 ? 1 : Math.max(0, 1 - posDist / (posDist + 100));
+
+                // Combined: side crossing is a gate, then floor, then position
+                const pct = sideOk ? (0.1 + 0.4 * floorPct + 0.5 * posPct) : (floorPct * 0.05);
+
+                // Fill
+                const fillW = Math.max(1, barW * Math.min(1, pct));
+                ctx.fillStyle = vision.state === "exhausted" ? "#703030" :
+                    vision.state === "found" ? "#60d060" : "#c8a060";
+                ctx.fillRect(barX, barY, fillW, barH);
+
+                // Border
+                ctx.strokeStyle = "#3a3020";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barW, barH);
+
+                // Distance text
+                ctx.fillStyle = "#b0a080";
+                ctx.font = "10px 'Share Tech Mono', monospace";
+                const distText = !sideOk ? "wrong side · f" + floorDist + " · s" + posDist :
+                    floorDist > 0 ? "f" + floorDist + " floors · s" + posDist + " segments" :
+                    posDist > 0 ? posDist + " segments away" : "arrived";
+                ctx.fillText(distText, barX + 4, barY + barH - 3);
+            }
+        }
 
         // Update controls display
         const dayEl = document.getElementById("gm-day");
