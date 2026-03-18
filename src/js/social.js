@@ -29,7 +29,7 @@ import {
     MEMORY, MEMORY_TYPES,
     DEFAULT_MEMORY_CONFIG,
     createMemory, addMemory, hasRecentMemory, witnessSystem, memoryDecaySystem,
-    getBookVision, grantBookVision, grantVagueBookVision,
+    getBookVision, grantBookVision, grantVagueBookVision, getSearchProgress,
     isAtBookSegment, isInVisionRadius, isSegmentSearched,
 } from "../../lib/memory.core.ts";
 import {
@@ -506,7 +506,11 @@ export const Social = {
                 if (!ident || !ident.alive) continue;
                 let mem = getComponent(world, ent, MEMORY);
                 if (!mem) { mem = createMemory(); addComponent(world, ent, MEMORY, mem); }
-                if (!hasRecentMemory(mem, MEMORY_TYPES.FOUND_WORDS, ent, currentTick, DEFAULT_MEMORY_CONFIG.dedupWindow)) {
+                // Only create foundWords memory if this is a new personal best
+                // (otherwise the player's memory fills with daily word-finds)
+                const sp = getSearchProgress(mem, false);
+                const prevBest = sp ? sp.bestScore : 0;
+                if (se.words.length > prevBest && !hasRecentMemory(mem, MEMORY_TYPES.FOUND_WORDS, ent, currentTick, DEFAULT_MEMORY_CONFIG.dedupWindow)) {
                     const tc = DEFAULT_MEMORY_CONFIG.types[MEMORY_TYPES.FOUND_WORDS];
                     mem.entries.push({
                         id: mem.nextId++,
