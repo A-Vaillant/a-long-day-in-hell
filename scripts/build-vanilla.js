@@ -17,9 +17,20 @@ function readOrDie(path, label) {
 // Read template
 let html = readOrDie(resolve(ROOT, "src/html/index.html"), "HTML template");
 
-// Inline CSS (main + godmode)
-const css = readOrDie(resolve(ROOT, "src/css/style.css"), "main CSS") +
+// Inline CSS (main + godmode), with local fonts base64-encoded
+let css = readOrDie(resolve(ROOT, "src/css/style.css"), "main CSS") +
     "\n" + readOrDie(resolve(ROOT, "src/css/godmode.css"), "godmode CSS");
+// Replace font url() references with inline base64 data URIs
+css = css.replace(/url\(['"]?\.\.\/fonts\/([^'")]+)['"]?\)/g, (match, filename) => {
+    const fontPath = resolve(ROOT, "src/fonts", filename);
+    try {
+        const b64 = readFileSync(fontPath).toString("base64");
+        return `url(data:font/ttf;base64,${b64})`;
+    } catch {
+        console.warn(`Warning: font not found: ${fontPath}`);
+        return match;
+    }
+});
 html = html.replace("/* INJECT:CSS */", css);
 
 // Bundle JS via esbuild

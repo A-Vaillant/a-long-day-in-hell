@@ -3,7 +3,27 @@
  * Aesthetic: archival horror — institutional, ancient, oppressively vast
  */
 
-@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Share+Tech+Mono&display=swap');
+@font-face {
+    font-family: 'IM Fell English';
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: url('../fonts/im-fell-english-regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'IM Fell English';
+    font-style: italic;
+    font-weight: 400;
+    font-display: block;
+    src: url('../fonts/im-fell-english-italic.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Share Tech Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: url('../fonts/share-tech-mono-regular.ttf') format('truetype');
+}
 
 :root {
     --bg:         #0a0906;
@@ -141,6 +161,8 @@ button:disabled {
 #story {
     margin-left: var(--sidebar-w);
     min-height: 100vh;
+    display: flex;
+    justify-content: center;
     /* Slight gradient at top — oppressive ceiling feel */
     background: linear-gradient(
         to bottom,
@@ -151,15 +173,20 @@ button:disabled {
 
 #passages {
     padding: 0;
+    width: 100%;
+    max-width: 740px;
 }
 
 .passage {
-    max-width: 640px;
+    max-width: none;
     width: 100%;
-    padding: 1.8rem 2rem 3rem;
+    padding: 1.8rem 2.5rem 3rem;
 }
 
 /* Book view needs full width for page spread */
+#passages:has(#book-view) {
+    max-width: none;
+}
 .passage:has(#book-view) {
     max-width: none;
     padding: 0.5rem 0.5rem 1rem;
@@ -567,6 +594,7 @@ button:disabled {
     word-wrap: break-word;
     margin: 0.5rem auto;
     max-width: 480px;
+    width: 100%;
     /* Layered shadow: close contact shadow + distant ambient */
     box-shadow:
         0 1px 3px rgba(0,0,0,0.3),
@@ -1347,5 +1375,27 @@ button:disabled {
     /* Hide kbd hints on mobile (no keyboard) */
     #moves kbd, #actions kbd, .key-hint kbd {
         display: none;
+    }
+}
+
+/* Widescreen: larger text, wider sidebar for projection/big monitors */
+@media (min-width: 1400px) {
+    :root {
+        --sidebar-w: 14em;
+    }
+    html, body {
+        font-size: 20px;
+    }
+}
+
+@media (min-width: 1800px) {
+    html, body {
+        font-size: 22px;
+    }
+    /* Scale up the book page proportionally — keeps 80-char line width */
+    .book-single {
+        transform: scale(1.35);
+        transform-origin: top center;
+        margin-bottom: 8rem;
     }
 }

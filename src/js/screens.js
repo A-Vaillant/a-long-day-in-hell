@@ -64,6 +64,7 @@ Engine.action("page-front", function () { state.openPage = 0; });
 Engine.action("drop-book",  function () { Actions.resolve({ type: "drop_book" }); });
 
 function debugPanelHTML() {
+    return ""; // disabled
     if (!state.debug) return "";
     return '<details id="debug-panel" open>' +
         '<summary>DEBUG</summary>' +

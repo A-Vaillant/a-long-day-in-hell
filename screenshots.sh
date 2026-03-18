@@ -10,7 +10,7 @@ PORT=7334
 BASE="http://localhost:${PORT}"
 SEED="${1:-666}"
 OUT="${ROOT}/screenshots"
-W=1280; H=800
+W=1920; H=1080
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
@@ -27,7 +27,7 @@ snap_url() {
     local name="$1" url="$2" selector="$3"
     local sel_json; sel_json=$(printf '%s' "$selector" | python3 -c 'import sys,json;print(json.dumps(sys.stdin.read()))')
     shot-scraper shot "$url" \
-        --wait-for "document.querySelector(${sel_json})&&document.querySelector(${sel_json}).innerText.trim().length>0" \
+        --wait-for "document.fonts.ready.then(()=>document.querySelector(${sel_json})&&document.querySelector(${sel_json}).innerText.trim().length>0)" \
         --timeout 12000 \
         -o "${OUT}/${name}.png" \
         --width "$W" --height "$H" 2>/dev/null
@@ -42,7 +42,7 @@ snap() {
     local js="state.debug=false; ${extra:-} Engine.goto(state.screen);"
     shot-scraper shot "$url" \
         --javascript "$js" \
-        --wait-for "document.querySelector(${sel_json})&&document.querySelector(${sel_json}).innerText.trim().length>0" \
+        --wait-for "document.fonts.ready.then(()=>document.querySelector(${sel_json})&&document.querySelector(${sel_json}).innerText.trim().length>0)" \
         --timeout 12000 \
         -o "${OUT}/${name}.png" \
         --width "$W" --height "$H" 2>/dev/null
