@@ -46,7 +46,12 @@
         "beingKilled": "Died and came back. Terrifying, then routine.",
         "beingDismissed": "Abandoned or rejected. Pure hope damage.",
         "witnessAttack": "Saw violence. Goes numb fastest.",
-        "committingViolence": "Killed someone. Costs clarity and hope."
+        "committingViolence": "Killed someone. Costs clarity and hope.",
+        "metSomeone": "Met a new person. Small comfort.",
+        "pilgrimageFailure": "Walked for years to the right shelf. Every book was noise. Permanent devastation.",
+        "reachedMercy": "Arrived at a kiosk near their book. Divine warmth.",
+        "bookVision": "Knows where their book is. Purpose sustains hope.",
+        "searchProgress": "Accumulated search history. Segments checked, best finds."
     },
 
     "behavior_labels": {

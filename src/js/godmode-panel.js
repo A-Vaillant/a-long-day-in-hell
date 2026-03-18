@@ -351,7 +351,7 @@ const componentRenderers = {
             if (segCount === 0 && !(e.bestScore > 0)) continue;
             html += '<div class="gm-memory-entry">';
             html += '<div class="gm-memory-header">';
-            html += '<span class="gm-tip" data-tip="' + esc(TIPS.searchProgress || "") + '">search progress</span>';
+            html += tip("searchProgress");
             html += '<span class="gm-memory-meta"> ' + segCount + ' segment' + (segCount !== 1 ? 's' : '') +
                 (segCount > 0 ? ' <button class="gm-btn gm-search-map-btn" data-npc-id="' + npc.id + '">map</button>' : '') +
                 '</span>';
@@ -378,7 +378,7 @@ const componentRenderers = {
             const permStr = e.permanent ? " ·\u202fperm" : "";
             html += '<div class="gm-memory-entry">';
             html += '<div class="gm-memory-header">';
-            html += '<span class="gm-tip" data-tip="' + esc(TIPS[e.type] || "") + '">' + esc(e.type) + '</span>';
+            html += tip(e.type);
             html += '<span class="gm-memory-meta">' + esc(subjStr + ageStr + permStr) + '</span>';
             html += '</div>';
             html += '<div class="gm-mini-bar"><div class="gm-mini-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
