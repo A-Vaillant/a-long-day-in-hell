@@ -89,6 +89,60 @@ function serializeMemory(comp, world) {
     return { entries, capacity: comp.capacity };
 }
 
+/** Serialize all ECS components for an entity into a snapshot-friendly object. */
+function serializeEntityComponents(world, entity, playerEnt) {
+    const components = {};
+    let bonds = [];
+    let groupId = null;
+    const pName = (state.lifeStory && state.lifeStory.name) || "Player";
+
+    for (const key of world.components.keys()) {
+        if (SKIP_COMPONENTS.has(key)) continue;
+        const comp = getComponent(world, entity, key);
+        if (comp === undefined) continue;
+
+        if (key === "relationships") {
+            if (comp.bonds) {
+                for (const [otherEnt, bond] of comp.bonds) {
+                    const otherIdent = getComponent(world, otherEnt, "identity");
+                    if (otherIdent) {
+                        bonds.push({
+                            name: otherEnt === playerEnt ? pName : otherIdent.name,
+                            familiarity: bond.familiarity,
+                            affinity: bond.affinity,
+                            isPlayer: otherEnt === playerEnt,
+                        });
+                    }
+                }
+            }
+            components[key] = { bonds };
+        } else if (key === "habituation") {
+            const exposures = {};
+            if (comp.exposures) {
+                for (const [k, v] of comp.exposures) {
+                    const ident = getComponent(world, k, "identity");
+                    exposures[ident ? ident.name : k] = v;
+                }
+            }
+            components[key] = { exposures };
+        } else if (key === "memory") {
+            components[key] = serializeMemory(comp, world);
+        } else {
+            components[key] = { ...comp };
+        }
+    }
+
+    if (components.group) {
+        groupId = components.group.groupId;
+        if (components.group.leaderId != null) {
+            const leaderIdent = getComponent(world, components.group.leaderId, "identity");
+            components.group.leaderName = leaderIdent ? leaderIdent.name : null;
+        }
+    }
+
+    return { components, bonds, groupId };
+}
+
 function snapshot() {
     const npcs = [];
     if (!state.npcs) return { npcs, day: state.day, tick: state.tick, lightsOn: state.lightsOn };
@@ -100,66 +154,17 @@ function snapshot() {
         const psych = Social.getNpcPsych(npc.id);
         const ent = Social.getNpcEntity(npc.id);
 
-        // Auto-collect all ECS components for this entity
-        const components = {};
+        let components = {};
         let bonds = [];
         let groupId = null;
-
-        if (world && ent !== undefined) {
-            for (const key of world.components.keys()) {
-                if (SKIP_COMPONENTS.has(key)) continue;
-                const comp = getComponent(world, ent, key);
-                if (comp === undefined) continue;
-
-                if (key === "relationships") {
-                    // Serialize bonds Map → array with resolved names
-                    if (comp.bonds) {
-                        const pName = (state.lifeStory && state.lifeStory.name) || "Player";
-                        for (const [otherEnt, bond] of comp.bonds) {
-                            const otherIdent = getComponent(world, otherEnt, "identity");
-                            if (otherIdent) {
-                                bonds.push({
-                                    name: otherEnt === playerEnt ? pName : otherIdent.name,
-                                    familiarity: bond.familiarity,
-                                    affinity: bond.affinity,
-                                    isPlayer: otherEnt === playerEnt,
-                                });
-                            }
-                        }
-                    }
-                    components[key] = { bonds };
-                } else if (key === "habituation") {
-                    // Serialize exposures Map → object
-                    const exposures = {};
-                    if (comp.exposures) {
-                        for (const [k, v] of comp.exposures) {
-                            const ident = getComponent(world, k, "identity");
-                            exposures[ident ? ident.name : k] = v;
-                        }
-                    }
-                    components[key] = { exposures };
-                } else if (key === "memory") {
-                    components[key] = serializeMemory(comp, world);
-                } else {
-                    // Shallow copy plain data components
-                    components[key] = { ...comp };
-                }
-            }
-
-            if (components.group) {
-                groupId = components.group.groupId;
-                // Resolve leaderId entity → name for display
-                if (components.group.leaderId != null) {
-                    const leaderIdent = getComponent(world, components.group.leaderId, "identity");
-                    components.group.leaderName = leaderIdent ? leaderIdent.name : null;
-                }
-            }
-        }
-
-        // Check identity.free and lifeStory from ECS
         let free = false;
         let lifeStory = null;
+
         if (world && ent !== undefined) {
+            const result = serializeEntityComponents(world, ent, playerEnt);
+            components = result.components;
+            bonds = result.bonds;
+            groupId = result.groupId;
             const identComp = getComponent(world, ent, "identity");
             if (identComp) {
                 free = !!identComp.free;
@@ -168,7 +173,6 @@ function snapshot() {
         }
 
         npcs.push({
-            // Flat fields for backwards compat (detection, map, list view)
             id: npc.id,
             name: npc.name,
             side: npc.side,
@@ -181,65 +185,19 @@ function snapshot() {
             hope: psych ? psych.hope : 100,
             bonds,
             groupId,
-            // All ECS components for auto-populating detail view
             components,
             lifeStory,
             falling: npc.falling || null,
         });
     }
 
-    // Add player entity to snapshot
+    // Player entity — same serialization, different flat fields
     if (world && playerEnt !== null) {
         const pPos = getComponent(world, playerEnt, "position");
         const pPsych = getComponent(world, playerEnt, "psychology");
         const pIdent = getComponent(world, playerEnt, "identity");
         if (pPos && pPsych && pIdent) {
-            // Collect player ECS components + bonds like NPCs
-            const pComponents = {};
-            let pBonds = [];
-            let pGroupId = null;
-            for (const key of world.components.keys()) {
-                if (SKIP_COMPONENTS.has(key)) continue;
-                const comp = getComponent(world, playerEnt, key);
-                if (comp === undefined) continue;
-                if (key === "relationships") {
-                    if (comp.bonds) {
-                        for (const [otherEnt, bond] of comp.bonds) {
-                            const otherIdent = getComponent(world, otherEnt, "identity");
-                            if (otherIdent) {
-                                pBonds.push({
-                                    name: otherIdent.name,
-                                    familiarity: bond.familiarity,
-                                    affinity: bond.affinity,
-                                    isPlayer: false,
-                                });
-                            }
-                        }
-                    }
-                    pComponents[key] = { bonds: pBonds };
-                } else if (key === "habituation") {
-                    const exposures = {};
-                    if (comp.exposures) {
-                        for (const [k, v] of comp.exposures) {
-                            const ident = getComponent(world, k, "identity");
-                            exposures[ident ? ident.name : k] = v;
-                        }
-                    }
-                    pComponents[key] = { exposures };
-                } else if (key === "memory") {
-                    pComponents[key] = serializeMemory(comp, world);
-                } else {
-                    pComponents[key] = { ...comp };
-                }
-            }
-            if (pComponents.group) {
-                pGroupId = pComponents.group.groupId;
-                if (pComponents.group.leaderId != null) {
-                    const leaderIdent = getComponent(world, pComponents.group.leaderId, "identity");
-                    pComponents.group.leaderName = leaderIdent ? leaderIdent.name : null;
-                }
-            }
-
+            const result = serializeEntityComponents(world, playerEnt, playerEnt);
             const playerName = (state.lifeStory && state.lifeStory.name) || "Player";
             npcs.push({
                 id: -1,
@@ -252,9 +210,9 @@ function snapshot() {
                 free: false,
                 lucidity: pPsych.lucidity,
                 hope: pPsych.hope,
-                bonds: pBonds,
-                groupId: pGroupId,
-                components: pComponents,
+                bonds: result.bonds,
+                groupId: result.groupId,
+                components: result.components,
                 falling: null,
                 isPlayer: true,
             });
