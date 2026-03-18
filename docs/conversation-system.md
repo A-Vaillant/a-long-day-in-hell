@@ -23,8 +23,13 @@ What happens in conversation depends on both participants' dispositions and what
 
 ## Knowledge / Cognitohazards
 
-### KNOWLEDGE Component
-A Set of keys representing things an entity has learned. Some knowledge is useful, some is dangerous, some is both.
+> **Note**: The Knowledge ECS component was merged into Memory (March 2026).
+> Book visions, search progress, and other learned facts are now typed
+> MemoryEntry subtypes (BookVisionEntry, SearchProgressEntry). The
+> cognitohazard concepts below would be implemented as additional memory
+> types with shock effects on acquisition.
+
+Knowledge as memory entries — things an entity has learned. Some knowledge is useful, some is dangerous, some is both.
 
 Knowledge types:
 - **Cognitohazards**: Information that damages you on acquisition. You learn it once; the shock fires once. Not habituated — you can't un-learn it.

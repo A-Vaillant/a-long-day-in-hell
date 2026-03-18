@@ -14,9 +14,9 @@ Or build from source:
 
 ```bash
 bash build.sh          # esbuild bundles .ts directly → dist/index.html
-npm test               # fast logic tests (~2s, 1190 tests)
-npm run test:dom       # DOM integration tests (~7s)
-npm run test:all       # everything incl. slow sims (1729 tests)
+npm test               # fast logic tests (~2s, ~1290 tests)
+npm run test:dom       # DOM integration tests (~7s, ~360 tests)
+npm run test:all       # everything incl. slow sims (~1830 tests)
 ```
 
 Requires Node.js 25+ (native type stripping). No tsc build step — `tsconfig.json` is `noEmit: true`, type-check only.
@@ -119,7 +119,7 @@ src/
   js/                   # Browser wrappers + engine + screens + input + godmode
   css/                  # style.css + godmode.css (inlined at build)
 test/
-  *.test.js             # node:test suites (1729 tests)
+  *.test.js             # node:test suites (~1830 tests)
 ```
 
 Pure game logic lives in `lib/`. Browser wiring lives in `src/js/`. All prose and content lives in `content/*.json`.

@@ -82,6 +82,10 @@ Implementation: on daily tick, NPCs at the same location build a simple co-locat
 
 ## Knowledge Transfer
 
+> **Implementation note**: The Knowledge ECS component was merged into Memory.
+> Recipe knowledge would be implemented as contagious MemoryEntry subtypes,
+> using the existing `shareSearchProgress` pattern for NPC-to-NPC transfer.
+
 NPCs know things. Knowledge is recipes — specific items you can order from the kiosk once you know they're possible.
 
 ### Knowledge Table
