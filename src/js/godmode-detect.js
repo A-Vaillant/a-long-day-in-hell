@@ -4,6 +4,7 @@
  */
 
 const reportedBonds = new Set();        // "id1:id2" pairs (lower id first)
+const reportedPilgrimages = new Set(); // npc IDs that already logged "began a pilgrimage"
 const reportedGroups = new Set();       // "id1,id2,..." sorted member sets
 const reportedDissolutions = new Set(); // "id1,id2,..." sorted member sets
 
@@ -69,10 +70,12 @@ export function detectEvents(prev, curr) {
             }
         }
 
-        // Started pilgrimage
+        // Started pilgrimage (dedup — only log once per NPC)
         const oldIntent = old.components && old.components.intent;
         const newIntent = npc.components && npc.components.intent;
-        if (oldIntent && newIntent && oldIntent.behavior !== "pilgrimage" && newIntent.behavior === "pilgrimage") {
+        if (oldIntent && newIntent && oldIntent.behavior !== "pilgrimage" && newIntent.behavior === "pilgrimage"
+            && !reportedPilgrimages.has(npc.id)) {
+            reportedPilgrimages.add(npc.id);
             events.push({ tick: curr.tick, day: curr.day, type: "pilgrimage",
                 text: npc.name + " began a pilgrimage.", npcIds: [npc.id] });
         }
@@ -137,6 +140,7 @@ export function detectEvents(prev, curr) {
 /** Reset dedup state (for tests). */
 export function resetDetectState() {
     reportedBonds.clear();
+    reportedPilgrimages.clear();
     reportedGroups.clear();
     reportedDissolutions.clear();
 }
