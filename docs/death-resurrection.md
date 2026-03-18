@@ -1,3 +1,10 @@
+---
+title: Death and resurrection
+description: Canon death rules, dawn resurrection, mortality, starvation, chasm death
+status: current
+last-updated: 2026-03-07
+---
+
 # Death & Resurrection — *A Long Day in Hell*
 
 ## Source Canon

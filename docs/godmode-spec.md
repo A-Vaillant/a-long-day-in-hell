@@ -1,3 +1,10 @@
+---
+title: Godmode specification
+description: Original design spec for the library observation mode (godmode)
+status: stale
+last-updated: 2026-03-06
+---
+
 # Godmode: Library Observation Mode
 
 ## Overview

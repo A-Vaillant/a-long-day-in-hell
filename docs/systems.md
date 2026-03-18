@@ -1,3 +1,10 @@
+---
+title: Game systems reference
+description: Complete reference for all game systems — state, mechanics, missing features
+status: current
+last-updated: 2026-03-13
+---
+
 # Game Systems Reference
 
 All systems for *A Long Day in Hell*. Each section covers: what it does, where it lives, what state it touches, and what's missing.

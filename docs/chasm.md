@@ -1,3 +1,10 @@
+---
+title: Chasm freefall system
+description: Freefall mechanics, grab probability, terminal velocity, death-mid-fall resurrection
+status: current
+last-updated: 2026-03-04
+---
+
 # Chasm: Freefall System
 
 ## Context

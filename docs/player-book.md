@@ -1,3 +1,10 @@
+---
+title: The player book (archived)
+description: Redirect to book-maps.md and book-placement.md
+status: archived
+last-updated: 2026-03-14
+---
+
 # The player book
 
 This document has been split:

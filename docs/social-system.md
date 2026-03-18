@@ -1,3 +1,10 @@
+---
+title: Social system design
+description: Social survival thesis, relationship bonds, group mechanics, NPC interaction model
+status: current
+last-updated: 2026-03-18
+---
+
 # Social System Design
 
 ## Thesis

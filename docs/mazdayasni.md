@@ -1,3 +1,10 @@
+---
+title: Mazdayasni psychology system
+description: Zoroastrian-themed NPC psychology, disposition model, cosmic-scale decay, social bonds
+status: current
+last-updated: 2026-03-07
+---
+
 # Mazdayasni: A Zoroastrian NPC Psychology and Social Physics System
 
 ## Design Document — Interactive Fiction / Narrative Engine

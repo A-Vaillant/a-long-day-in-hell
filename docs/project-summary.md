@@ -1,3 +1,10 @@
+---
+title: Project summary
+description: Architecture overview, state model, build system, game systems catalog
+status: stale
+last-updated: 2026-03-07
+---
+
 # Project Summary: A Long Day in Hell
 
 Vanilla JS roguelike based on Steven L. Peck's novella. 7DRL jam project (March 4–10, 2026). Single-file build output (`dist/index.html`), no framework dependencies.

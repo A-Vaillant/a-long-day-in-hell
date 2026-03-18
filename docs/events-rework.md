@@ -1,3 +1,10 @@
+---
+title: Event system rework
+description: Planned replacement of flat event deck with contextual, location-aware events
+status: stale
+last-updated: 2026-03-05
+---
+
 # Event System Rework
 
 ## Current State

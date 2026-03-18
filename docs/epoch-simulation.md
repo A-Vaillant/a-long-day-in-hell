@@ -1,3 +1,10 @@
+---
+title: Epoch simulation
+description: Multi-fidelity time scaling for cosmic-scale simulation (tier 0 through tier 3)
+status: draft
+last-updated: 2026-03-10
+---
+
 # Epoch Simulation: Scaling Time in the Library
 
 The library is eternal. The walk to your book takes thousands of years. Per-tick simulation doesn't scale — we need multiple fidelity tiers that compose correctly.

@@ -1,3 +1,10 @@
+---
+title: Tick system
+description: Time model, day/night cycle, boundary handlers, tick rates
+status: current
+last-updated: 2026-03-07
+---
+
 # Tick System Spec — *A Long Day in Hell*
 
 ## Source Canon

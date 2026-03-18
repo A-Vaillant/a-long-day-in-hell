@@ -1,3 +1,10 @@
+---
+title: Conversation system
+description: Muttering, talk actions, dialogue generation, approach mechanics
+status: current
+last-updated: 2026-03-18
+---
+
 # Conversation System
 
 ## Two Modes of Speech

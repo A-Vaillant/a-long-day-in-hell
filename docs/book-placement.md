@@ -1,3 +1,10 @@
+---
+title: Book placement
+description: Address space mechanics, base-95 encoding, player book placement, NPC damnation, full-precision algorithms
+status: current
+last-updated: 2026-03-14
+---
+
 # Book placement
 
 How the game converts text to addresses, places the player's book, spawns the player, and determines that NPCs are damned.

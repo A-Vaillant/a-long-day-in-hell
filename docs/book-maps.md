@@ -1,3 +1,10 @@
+---
+title: Book maps
+description: Four properties of the content map (tractable, pseudorandom, invertible, single-branch) and the evolution from PRNG to digit-wise embedding
+status: current
+last-updated: 2026-03-14
+---
+
 # Book maps
 
 How the library maps between shelf coordinates and book content — and the four properties any such map must satisfy.

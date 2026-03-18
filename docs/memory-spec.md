@@ -1,3 +1,10 @@
+---
+title: Memory system specification
+description: Original spec for ECS witness events and psychological scar memories
+status: stale
+last-updated: 2026-03-08
+---
+
 # Memory System — ECS Witness Events & Psychological Scars
 
 ## Overview

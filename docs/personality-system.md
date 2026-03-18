@@ -1,3 +1,10 @@
+---
+title: Personality system
+description: Fixed personality traits, compatibility mechanics, group dynamics, familiarity fatigue
+status: current
+last-updated: 2026-03-06
+---
+
 # Personality System
 
 ## Core Idea
