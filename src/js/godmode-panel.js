@@ -344,8 +344,57 @@ const componentRenderers = {
         if (!comp.entries || comp.entries.length === 0) return "";
         let html = '<div class="gm-section">';
         html += '<div class="gm-section-title">memories</div>';
-        // Sort by weight descending
-        const sorted = comp.entries.slice().sort((a, b) => b.weight - a.weight);
+
+        // Render bookVision entries specially at the top
+        const visionEntries = comp.entries.filter(e => e.type === "bookVision");
+        const searchEntries = comp.entries.filter(e => e.type === "searchProgress");
+        const otherEntries = comp.entries.filter(e => e.type !== "bookVision" && e.type !== "searchProgress");
+
+        for (const e of visionEntries) {
+            const stateColors = {
+                granted: "#d4a843", pilgrimaging: "#d4a843", arrived: "#e0a030",
+                searching: "#a08030", exhausted: "#9a2a2a", found: "#60d060",
+            };
+            const stateLabels = {
+                granted: "vision granted", pilgrimaging: "pilgrimaging",
+                arrived: "arrived at site", searching: "searching area",
+                exhausted: "pilgrimage failed", found: "book found",
+            };
+            const vs = e.state || "granted";
+            const color = stateColors[vs] || "#d4a843";
+            const label = stateLabels[vs] || vs;
+            html += '<div class="gm-memory-entry">';
+            html += '<div class="gm-memory-header">';
+            html += '<span style="color:' + color + '">' + esc(label) + '</span>';
+            if (e.coords) {
+                const vl = (e.coords.side === 0 ? 'W' : 'E') + ' f' + e.coords.floor + ' s' + e.coords.position;
+                const accLabel = e.vague ? " (vague, r=" + e.radius + ")" : e.accurate ? "" : " (false)";
+                html += '<span class="gm-memory-meta" style="color:' + (e.accurate ? '#6a8a5a' : '#9a2a2a') + '"> ' + esc(vl + accLabel) + '</span>';
+            }
+            html += '</div>';
+            html += '</div>';
+        }
+
+        // Render searchProgress specially
+        for (const e of searchEntries) {
+            const segCount = e.searchedSegments ? (Array.isArray(e.searchedSegments) ? e.searchedSegments.length : e.searchedSegments.size || 0) : 0;
+            html += '<div class="gm-memory-entry">';
+            html += '<div class="gm-memory-header">';
+            html += '<span class="gm-tip" data-tip="' + esc(TIPS.searchProgress || "") + '">search progress</span>';
+            html += '<span class="gm-memory-meta"> ' + segCount + ' segment' + (segCount !== 1 ? 's' : '') + '</span>';
+            html += '</div>';
+            if (e.bestScore > 0) {
+                const wordStr = e.bestWords && e.bestWords.length > 0
+                    ? '\u201c' + e.bestWords.join(" ") + '\u201d'
+                    : e.bestScore + " words";
+                html += '<div class="gm-stat" style="margin-left:0.5em"><span>best find</span>';
+                html += '<span class="gm-bar-num" style="color:#6a8a5a">' + esc(wordStr) + '</span></div>';
+            }
+            html += '</div>';
+        }
+
+        // Sort remaining by weight descending
+        const sorted = otherEntries.slice().sort((a, b) => b.weight - a.weight);
         for (const e of sorted) {
             const pct = Math.max(0, Math.min(100, (e.weight / (e.initialWeight || 1)) * 100));
             const color = e.permanent ? "#9a6a4a" : "#6a6050";
