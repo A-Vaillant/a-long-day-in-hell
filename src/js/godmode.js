@@ -56,6 +56,39 @@ function tickOnce() {
 // Components to skip in auto-discovery (redundant with flat fields or empty tags)
 const SKIP_COMPONENTS = new Set(["identity", "position", "player", "ai", "movement"]);
 
+/** Serialize a Memory component for snapshots (shared between NPC and player). */
+function serializeMemory(comp, world) {
+    const entries = (comp.entries || []).map(e => {
+        let subjectName = null;
+        if (e.subject != null) {
+            const subjIdent = getComponent(world, e.subject, "identity");
+            subjectName = subjIdent ? subjIdent.name : String(e.subject);
+        }
+        const entry = {
+            id: e.id, type: e.type, tick: e.tick,
+            weight: e.weight, initialWeight: e.initialWeight,
+            permanent: e.permanent, contagious: e.contagious,
+            subjectName,
+        };
+        // BookVisionEntry-specific fields
+        if (e.type === "bookVision") {
+            entry.coords = e.coords ? { ...e.coords } : null;
+            entry.state = e.state ?? null;
+            entry.accurate = e.accurate ?? true;
+            entry.vague = e.vague ?? false;
+            entry.radius = e.radius ?? 0;
+        }
+        // SearchProgressEntry-specific fields
+        if (e.type === "searchProgress") {
+            entry.searchedCount = e.searchedSegments ? e.searchedSegments.size : 0;
+            entry.bestScore = e.bestScore ?? 0;
+            entry.bestWords = e.bestWords ? [...e.bestWords] : [];
+        }
+        return entry;
+    });
+    return { entries, capacity: comp.capacity };
+}
+
 function snapshot() {
     const npcs = [];
     if (!state.npcs) return { npcs, day: state.day, tick: state.tick, lightsOn: state.lightsOn };
@@ -106,34 +139,7 @@ function snapshot() {
                     }
                     components[key] = { exposures };
                 } else if (key === "memory") {
-                    // Serialize memory entries — resolve subject entity → name
-                    const entries = (comp.entries || []).map(e => {
-                        let subjectName = null;
-                        if (e.subject != null) {
-                            const subjIdent = getComponent(world, e.subject, "identity");
-                            subjectName = subjIdent ? subjIdent.name : String(e.subject);
-                        }
-                        const entry = {
-                            id: e.id,
-                            type: e.type,
-                            tick: e.tick,
-                            weight: e.weight,
-                            initialWeight: e.initialWeight,
-                            permanent: e.permanent,
-                            contagious: e.contagious,
-                            subjectName,
-                        };
-                        // Include BookVisionEntry-specific fields
-                        if (e.type === "bookVision") {
-                            entry.coords = e.coords ? { ...e.coords } : null;
-                            entry.state = e.state ?? null;
-                            entry.accurate = e.accurate ?? true;
-                            entry.vague = e.vague ?? false;
-                            entry.radius = e.radius ?? 0;
-                        }
-                        return entry;
-                    });
-                    components[key] = { entries, capacity: comp.capacity };
+                    components[key] = serializeMemory(comp, world);
                 } else {
                     // Shallow copy plain data components
                     components[key] = { ...comp };
@@ -221,20 +227,7 @@ function snapshot() {
                     }
                     pComponents[key] = { exposures };
                 } else if (key === "memory") {
-                    const entries = (comp.entries || []).map(e => {
-                        let subjectName = null;
-                        if (e.subject != null) {
-                            const subjIdent = getComponent(world, e.subject, "identity");
-                            subjectName = subjIdent ? subjIdent.name : String(e.subject);
-                        }
-                        return {
-                            id: e.id, type: e.type, tick: e.tick,
-                            weight: e.weight, initialWeight: e.initialWeight,
-                            permanent: e.permanent, contagious: e.contagious,
-                            subjectName,
-                        };
-                    });
-                    pComponents[key] = { entries, capacity: comp.capacity };
+                    pComponents[key] = serializeMemory(comp, world);
                 } else {
                     pComponents[key] = { ...comp };
                 }
