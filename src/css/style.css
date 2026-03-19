@@ -184,7 +184,8 @@ button:disabled {
 }
 
 /* Book view needs full width for page spread */
-#passages:has(#book-view) {
+#passages:has(#book-view),
+#passages:has(#sign-view) {
     max-width: none;
 }
 .passage:has(#book-view) {
@@ -817,8 +818,8 @@ button:disabled {
     padding: 6px;
     margin: 0.6rem 0;
     width: 100%;
-    aspect-ratio: 6 / 5;
-    max-height: 400px;
+    aspect-ratio: 5 / 7;
+    max-height: 520px;
     transform: translateZ(0);
     /* Slight vignette via gradient overlay */
     position: relative;
@@ -995,7 +996,6 @@ button:disabled {
 /* === LIFE STORY === */
 
 #lifestory-view {
-    max-width: 580px;
     animation: story-fade 0.6s ease-out;
 }
 
@@ -1023,9 +1023,6 @@ button:disabled {
 
 /* === SIGN === */
 
-#sign-view {
-    max-width: 520px;
-}
 .sign-text {
     border: 1px solid var(--text-dim);
     padding: 0.8rem 1rem;
@@ -1054,7 +1051,6 @@ button:disabled {
 /* === KIOSK === */
 
 #kiosk-view {
-    max-width: 480px;
     font-weight: normal;
 }
 
@@ -1065,15 +1061,9 @@ button:disabled {
 
 /* === SUBMISSION === */
 
-#submission-view {
-    max-width: 480px;
-}
 
 /* === MEMORY SCREEN === */
 
-.memory-view {
-    max-width: 520px;
-}
 
 .memory-entry {
     margin: 0.7rem 0;
@@ -1143,7 +1133,6 @@ button:disabled {
 /* === DEATH SCREEN === */
 
 #death-view {
-    max-width: 560px;
     animation: death-enter 0.8s ease-out;
 }
 
@@ -1182,7 +1171,6 @@ button:disabled {
 /* === PASSING OUT SCREEN === */
 
 #passout-view {
-    max-width: 560px;
     animation: death-enter 0.8s ease-out;
 }
 
@@ -1201,7 +1189,6 @@ button:disabled {
 /* === WIN SCREEN === */
 
 #win-view {
-    max-width: 580px;
     animation: win-enter 0.8s ease-out;
 }
 
@@ -1250,9 +1237,6 @@ button:disabled {
 
 /* === BEDROOM === */
 
-#bedroom-view {
-    max-width: 480px;
-}
 
 /* === RESPONSIVE === */
 
@@ -1397,5 +1381,8 @@ button:disabled {
         transform: scale(1.35);
         transform-origin: top center;
         margin-bottom: 8rem;
+    }
+    .shelf-grid {
+        max-height: 620px;
     }
 }
