@@ -780,12 +780,14 @@ button:disabled {
 /* === BOOK CONTROLS === */
 
 #book-controls {
-    max-width: 480px;
+    max-width: 580px;
     margin: 0.8rem auto 0;
     font-family: var(--font-mono);
     font-size: 0.8em;
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.2rem 1rem;
     align-items: baseline;
 }
 
